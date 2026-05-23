@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# Upload / file generati a runtime
+uploads/
+
+# Distribuzione / build
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Env vars
+.env
+.env.*
+
+# Alembic (mantieni le versioni, escludi solo cache)
+alembic/__pycache__/
+alembic/versions/__pycache__/
