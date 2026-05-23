@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STQC · MCC Srl</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+<!-- NAV -->
+<nav class="bg-blue-800 text-white px-6 py-3 flex items-center gap-6 shadow">
+  <span class="font-bold text-lg tracking-wide">STQC · MCC Srl</span>
+  <button onclick="showTab('stock')"     class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="stock">Stock</button>
+  <button onclick="showTab('distinte')"  class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="distinte">Distinte</button>
+  <button onclick="showTab('commesse')"  class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="commesse">Commesse</button>
+  <button onclick="showTab('qr')"        class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="qr">QR Scan</button>
+  <button onclick="showTab('inventario')" class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="inventario">Inventario</button>
+</nav>
+
+<main class="max-w-5xl mx-auto py-8 px-4 space-y-6">
+
+<!-- ===================== STOCK ===================== -->
+<section id="tab-stock" class="tab-panel hidden">
+  <h2 class="text-xl font-semibold mb-4">Materiali in stock</h2>
+  <div class="flex gap-2 mb-4">
+    <input id="mat-q" type="text" placeholder="Cerca codice / descrizione…"
+      class="border rounded px-3 py-2 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      oninput="debounce(loadMaterials, 400)()" />
+    <button onclick="loadMaterials()" class="bg-blue-700 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">Cerca</button>
+  </div>
+  <div id="mat-table" class="bg-white rounded shadow overflow-x-auto">
+    <p class="text-gray-400 text-sm p-4">Caricamento…</p>
+  </div>
+</section>
+
+<!-- ===================== DISTINTE ===================== -->
+<section id="tab-distinte" class="tab-panel hidden">
+  <h2 class="text-xl font-semibold mb-4">Importa distinta</h2>
+  <form id="distinta-form" class="bg-white rounded shadow p-6 space-y-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">File (.xls / .xlsx / .xlsm)</label>
+      <input type="file" id="distinta-file" accept=".xls,.xlsx,.xlsm" required
+        class="block w-full text-sm border rounded px-3 py-2" />
+    </div>
+    <div class="flex items-center gap-2">
+      <input type="checkbox" id="gen-qr" class="h-4 w-4" />
+      <label for="gen-qr" class="text-sm">Genera QR per ogni pezzo</label>
+    </div>
+    <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Importa</button>
+    <div id="distinta-result" class="text-sm mt-2"></div>
+  </form>
+
+  <h2 class="text-xl font-semibold mt-8 mb-4">Importazioni recenti</h2>
+  <div id="imports-table" class="bg-white rounded shadow overflow-x-auto">
+    <p class="text-gray-400 text-sm p-4">Caricamento…</p>
+  </div>
+</section>
+
+<!-- ===================== COMMESSE ===================== -->
+<section id="tab-commesse" class="tab-panel hidden">
+  <h2 class="text-xl font-semibold mb-4">Commesse</h2>
+
+  <!-- Form nuova commessa -->
+  <details class="bg-white rounded shadow p-4 mb-4">
+    <summary class="font-medium cursor-pointer">+ Nuova commessa</summary>
+    <form id="commessa-form" class="mt-4 grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Codice *</label>
+        <input name="codice" required class="border rounded px-3 py-2 w-full text-sm" placeholder="COMM-2026-001" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Cliente</label>
+        <input name="cliente" class="border rounded px-3 py-2 w-full text-sm" />
+      </div>
+      <div class="col-span-2">
+        <label class="block text-sm font-medium mb-1">Descrizione</label>
+        <input name="descrizione" class="border rounded px-3 py-2 w-full text-sm" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Data inizio</label>
+        <input type="date" name="data_inizio" class="border rounded px-3 py-2 w-full text-sm" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Consegna prevista</label>
+        <input type="date" name="data_consegna_prevista" class="border rounded px-3 py-2 w-full text-sm" />
+      </div>
+      <div class="col-span-2 flex gap-2 items-center">
+        <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Crea</button>
+        <span id="commessa-result" class="text-sm"></span>
+      </div>
+    </form>
+  </details>
+
+  <!-- Filtro -->
+  <div class="flex gap-2 mb-4">
+    <input id="comm-q" type="text" placeholder="Cerca codice / cliente…"
+      class="border rounded px-3 py-2 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      oninput="debounce(loadCommesse, 400)()" />
+    <select id="comm-status" onchange="loadCommesse()"
+      class="border rounded px-3 py-2 text-sm focus:outline-none">
+      <option value="">Tutti gli stati</option>
+      <option value="APERTA">Aperta</option>
+      <option value="SOSPESA">Sospesa</option>
+      <option value="CHIUSA">Chiusa</option>
+    </select>
+  </div>
+  <div id="commesse-table" class="bg-white rounded shadow overflow-x-auto">
+    <p class="text-gray-400 text-sm p-4">Caricamento…</p>
+  </div>
+</section>
+
+<!-- ===================== QR SCAN ===================== -->
+<section id="tab-qr" class="tab-panel hidden">
+  <h2 class="text-xl font-semibold mb-4">QR Scan</h2>
+  <div class="bg-white rounded shadow p-6 space-y-4 max-w-lg">
+    <p class="text-sm text-gray-600">Incolla il contenuto testuale del QR (JSON o ID numerico) per recuperare i dati del pezzo.</p>
+    <textarea id="qr-payload" rows="4" placeholder='{"import_id":1,"item_id":5,"part_number":"HEA200"}'
+      class="border rounded px-3 py-2 w-full text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"></textarea>
+    <button onclick="scanQR()" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Cerca</button>
+    <div id="qr-result"></div>
+  </div>
+</section>
+
+<!-- ===================== INVENTARIO ===================== -->
+<section id="tab-inventario" class="tab-panel hidden">
+  <h2 class="text-xl font-semibold mb-4">Import inventario</h2>
+  <form id="inventario-form" class="bg-white rounded shadow p-6 space-y-4 max-w-lg">
+    <p class="text-sm text-gray-600">Carica il file <code>.xlsm</code> di inventario per creare i materiali e i movimenti di stock iniziale.</p>
+    <input type="file" id="inv-file" accept=".xlsm,.xlsx" required
+      class="block w-full text-sm border rounded px-3 py-2" />
+    <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Importa inventario</button>
+    <div id="inv-result" class="text-sm mt-2"></div>
+  </form>
+</section>
+
+</main>
+
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const AUTH = 'Basic ' + btoa('mcc:stqc2026');
+
+async function api(path, opts = {}) {
+  const headers = { Authorization: AUTH, ...(opts.headers || {}) };
+  const res = await fetch('/api/v1' + path, { ...opts, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.headers.get('content-type')?.includes('application/json') ? res.json() : res;
+}
+
+// ── Tab ───────────────────────────────────────────────────────────────────────
+const tabLoaders = { stock: loadMaterials, distinte: loadImports, commesse: loadCommesse };
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('bg-blue-600'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelector(`[data-tab="${name}"]`).classList.add('bg-blue-600');
+  tabLoaders[name]?.();
+}
+
+// ── Debounce ──────────────────────────────────────────────────────────────────
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function badge(status) {
+  const map = { APERTA: 'bg-green-100 text-green-800', SOSPESA: 'bg-yellow-100 text-yellow-800', CHIUSA: 'bg-gray-200 text-gray-600', IMPORTED: 'bg-blue-100 text-blue-800', EMPTY: 'bg-red-100 text-red-700' };
+  return `<span class="px-2 py-0.5 rounded text-xs font-medium ${map[status] || 'bg-gray-100'}">${status}</span>`;
+}
+function th(t) { return `<th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">${t}</th>`; }
+function td(t, cls='') { return `<td class="px-4 py-2 text-sm ${cls}">${t ?? '—'}</td>`; }
+
+// ── Stock / Materiali ─────────────────────────────────────────────────────────
+async function loadMaterials() {
+  const q = document.getElementById('mat-q').value.trim();
+  const el = document.getElementById('mat-table');
+  try {
+    const params = q ? `?q=${encodeURIComponent(q)}&limit=200` : '?limit=200';
+    const items = await api('/warehouse/materials' + params);
+    if (!items.length) { el.innerHTML = '<p class="text-gray-400 text-sm p-4">Nessun materiale trovato.</p>'; return; }
+    el.innerHTML = `<table class="w-full">
+      <thead class="bg-gray-50 border-b"><tr>${th('Codice')}${th('Descrizione')}${th('Unità')}${th('Specifica')}</tr></thead>
+      <tbody class="divide-y divide-gray-100">
+        ${items.map(m => `<tr class="hover:bg-gray-50">
+          ${td(`<span class="font-mono font-medium">${m.code}</span>`)}
+          ${td(m.description)}${td(m.unit)}${td(m.specification || '—')}
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500 text-sm p-4">${e.message}</p>`; }
+}
+
+// ── Distinte ──────────────────────────────────────────────────────────────────
+async function loadImports() {
+  const el = document.getElementById('imports-table');
+  try {
+    const items = await api('/warehouse/distinta/imports?limit=50');
+    if (!items.length) { el.innerHTML = '<p class="text-gray-400 text-sm p-4">Nessuna importazione.</p>'; return; }
+    el.innerHTML = `<table class="w-full">
+      <thead class="bg-gray-50 border-b"><tr>${th('#')}${th('File')}${th('Data')}${th('Pezzi')}${th('Stato')}</tr></thead>
+      <tbody class="divide-y divide-gray-100">
+        ${items.map(i => `<tr class="hover:bg-gray-50">
+          ${td(i.id)}${td(i.filename)}
+          ${td(new Date(i.imported_at).toLocaleString('it-IT'))}
+          ${td(i.total_items)}${td(badge(i.status))}
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500 text-sm p-4">${e.message}</p>`; }
+}
+
+document.getElementById('distinta-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = document.getElementById('distinta-result');
+  const file = document.getElementById('distinta-file').files[0];
+  const genQr = document.getElementById('gen-qr').checked;
+  if (!file) return;
+  res.textContent = 'Caricamento…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const data = await api(`/warehouse/distinta/import?generate_qr=${genQr}`, { method: 'POST', body: fd });
+    res.innerHTML = `<span class="text-green-700">✓ Importati ${data.total_items} pezzi (id=${data.id})</span>`;
+    loadImports();
+  } catch(e) { res.innerHTML = `<span class="text-red-600">Errore: ${e.message}</span>`; }
+});
+
+// ── Commesse ──────────────────────────────────────────────────────────────────
+async function loadCommesse() {
+  const q = document.getElementById('comm-q').value.trim();
+  const status = document.getElementById('comm-status').value;
+  const el = document.getElementById('commesse-table');
+  try {
+    let params = '?limit=200';
+    if (q) params += `&q=${encodeURIComponent(q)}`;
+    if (status) params += `&status=${status}`;
+    const items = await api('/commesse' + params);
+    if (!items.length) { el.innerHTML = '<p class="text-gray-400 text-sm p-4">Nessuna commessa trovata.</p>'; return; }
+    el.innerHTML = `<table class="w-full">
+      <thead class="bg-gray-50 border-b"><tr>${th('Codice')}${th('Cliente')}${th('Descrizione')}${th('Inizio')}${th('Consegna')}${th('Stato')}${th('')}</tr></thead>
+      <tbody class="divide-y divide-gray-100">
+        ${items.map(c => `<tr class="hover:bg-gray-50">
+          ${td(`<span class="font-mono font-medium">${c.codice}</span>`)}
+          ${td(c.cliente)}${td(c.descrizione)}
+          ${td(c.data_inizio || '—')}${td(c.data_consegna_prevista || '—')}
+          ${td(badge(c.status))}
+          ${td(`<select onchange="changeStatus(${c.id}, this.value)" class="border rounded px-2 py-1 text-xs">
+            <option value="">…</option>
+            <option value="APERTA">Aperta</option>
+            <option value="SOSPESA">Sospesa</option>
+            <option value="CHIUSA">Chiusa</option>
+          </select>`)}
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500 text-sm p-4">${e.message}</p>`; }
+}
+
+async function changeStatus(id, status) {
+  if (!status) return;
+  try {
+    await api(`/commesse/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+    loadCommesse();
+  } catch(e) { alert('Errore: ' + e.message); }
+}
+
+document.getElementById('commessa-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = document.getElementById('commessa-result');
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries([...fd.entries()].filter(([,v]) => v !== ''));
+  try {
+    await api('/commesse', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    res.innerHTML = '<span class="text-green-700">✓ Commessa creata</span>';
+    e.target.reset();
+    loadCommesse();
+  } catch(ex) { res.innerHTML = `<span class="text-red-600">${ex.message}</span>`; }
+});
+
+// ── QR Scan ───────────────────────────────────────────────────────────────────
+async function scanQR() {
+  const payload = document.getElementById('qr-payload').value.trim();
+  const el = document.getElementById('qr-result');
+  if (!payload) return;
+  try {
+    const item = await api('/qr/scan', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ payload }) });
+    el.innerHTML = `<div class="mt-4 border rounded p-4 bg-gray-50 text-sm space-y-1">
+      <p><strong>ID:</strong> ${item.id}</p>
+      <p><strong>Pos/Parte:</strong> ${item.part_number || '—'}</p>
+      <p><strong>Profilo:</strong> ${item.description || '—'}</p>
+      <p><strong>Materiale:</strong> ${item.material_code || '—'}</p>
+      <p><strong>Quantità:</strong> ${item.quantity ?? '—'}</p>
+      <p><strong>Commessa:</strong> ${item.commessa_reference || '—'}</p>
+      <p><strong>File distinta:</strong> ${item.import_filename || '—'}</p>
+      <p><strong>Stato:</strong> ${item.import_status || '—'}</p>
+      ${item.id ? `<a href="/api/v1/warehouse/distinta/items/${item.id}/label.pdf" target="_blank"
+        class="inline-block mt-2 bg-blue-700 text-white px-4 py-1 rounded text-xs hover:bg-blue-600">
+        Scarica etichetta PDF</a>` : ''}
+    </div>`;
+  } catch(e) { el.innerHTML = `<p class="text-red-500 mt-2">${e.message}</p>`; }
+}
+
+// ── Inventario ────────────────────────────────────────────────────────────────
+document.getElementById('inventario-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = document.getElementById('inv-result');
+  const file = document.getElementById('inv-file').files[0];
+  if (!file) return;
+  res.textContent = 'Importazione in corso…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const data = await api('/inventario/import', { method: 'POST', body: fd });
+    res.innerHTML = `<span class="text-green-700">✓ ${data.rows_parsed} righe — ${data.materials_created} materiali creati, ${data.movements_created} movimenti.</span>`;
+    loadMaterials();
+  } catch(e) { res.innerHTML = `<span class="text-red-600">Errore: ${e.message}</span>`; }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+showTab('stock');
+</script>
+</body>
+</html>
