@@ -20,8 +20,9 @@ async def import_inventario(
     db: Session = Depends(get_db),
 ):
     """Importa il file inventario .xlsm e crea materiali + movimenti INCOMING
-    per lo stock attuale. Idempotente: i materiali già presenti non vengono
-    duplicati; i movimenti di inventario già esistenti per la stessa data vengono saltati."""
+    per lo stock attuale. Idempotente: i materiali già presenti vengono aggiornati
+    con i campi strutturati; i movimenti di inventario già esistenti per la stessa
+    data vengono saltati."""
     suffix = Path(file.filename).suffix or ".xlsm"
     with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
@@ -48,7 +49,6 @@ async def import_inventario(
     created_movements = 0
 
     for row in rows:
-        # get_or_create material
         material = db.scalars(
             select(Material).where(Material.code == row["material_code"])
         ).first()
@@ -59,14 +59,30 @@ async def import_inventario(
                 description=row["description"],
                 unit="PZ",
                 specification=row.get("specification"),
+                tipo=row.get("tipo"),
+                profilo=row.get("profilo"),
+                dimensioni=row.get("dimensioni"),
+                qualita=row.get("qualita"),
+                colata=row.get("colata"),
+                commessa_ref=row.get("commessa_reference"),
+                peso_u_kg=row.get("peso_u_kg"),
+                peso_1_pz=row.get("peso_1_pz"),
             )
             db.add(material)
             db.flush()
             created_materials += 1
         else:
+            # Aggiorna sempre i campi strutturati (possono essere stati arricchiti)
+            material.tipo = row.get("tipo") or material.tipo
+            material.profilo = row.get("profilo") or material.profilo
+            material.dimensioni = row.get("dimensioni") or material.dimensioni
+            material.qualita = row.get("qualita") or material.qualita
+            material.colata = row.get("colata") or material.colata
+            material.commessa_ref = row.get("commessa_reference") or material.commessa_ref
+            material.peso_u_kg = row.get("peso_u_kg") or material.peso_u_kg
+            material.peso_1_pz = row.get("peso_1_pz") or material.peso_1_pz
             existing_materials += 1
 
-        # Evita duplicati: salta se esiste già un movimento con stesso reason + material
         existing_movement = db.scalars(
             select(StockMovement).where(
                 StockMovement.material_id == material.id,

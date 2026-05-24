@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>MCC · STQC</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; }
+
+    /* ── Layout ── */
+    .split { display: flex; height: 100vh; }
+
+    /* ── Left panel ── */
+    .left {
+      width: 40%;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .left-bg {
+      position: absolute; inset: 0;
+      background-image: url('https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=900&q=85');
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.04);
+      transition: transform 8s ease;
+    }
+    .left-bg.loaded { transform: scale(1); }
+    .left-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(160deg, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.75) 60%, rgba(15,23,42,0.92) 100%);
+    }
+    .left-content {
+      position: relative; z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 44px;
+    }
+    .left-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .left-logo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #3b82f6;
+      box-shadow: 0 0 12px #3b82f6;
+    }
+    .left-logo-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .left-brand { }
+    .left-mcc {
+      font-size: clamp(72px, 9vw, 108px);
+      font-weight: 900;
+      color: #fff;
+      line-height: 1;
+      letter-spacing: -.03em;
+      text-shadow: 0 4px 32px rgba(0,0,0,0.4);
+    }
+    .left-sub {
+      margin-top: 14px;
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.65);
+      letter-spacing: .04em;
+      line-height: 1.6;
+    }
+    .left-sub strong { color: rgba(255,255,255,0.9); font-weight: 600; }
+    .left-meta {
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .left-badge {
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: rgba(59,130,246,0.2);
+      border: 1px solid rgba(59,130,246,0.4);
+      color: #93c5fd;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .left-version { font-size: 11px; color: rgba(255,255,255,0.25); }
+
+    /* ── Right panel ── */
+    .right {
+      flex: 1;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      padding: 36px 40px 36px 40px;
+      overflow-y: auto;
+    }
+    .right-header { margin-bottom: 28px; }
+    .right-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      margin-bottom: 6px;
+    }
+    .right-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* ── Card grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      flex: 1;
+    }
+
+    /* ── Card ── */
+    .card {
+      position: relative;
+      height: 200px;
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
+    }
+    .card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .card:hover .card-bg { transform: scale(1.06); filter: brightness(1.1); }
+    .card:hover .card-overlay { opacity: 0.55; }
+    .card:hover .card-arrow { opacity: 1; transform: translateX(0); }
+    .card:active { transform: scale(0.98); }
+
+    .card-bg {
+      position: absolute; inset: 0;
+      background-size: cover;
+      background-position: center;
+      transition: transform .5s cubic-bezier(.4,0,.2,1), filter .3s;
+    }
+    .card-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0.15) 100%);
+      transition: opacity .25s;
+      opacity: 0.75;
+    }
+    .card-content {
+      position: relative; z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 18px 20px;
+    }
+    .card-icon { font-size: 22px; margin-bottom: 6px; line-height: 1; }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.01em;
+      line-height: 1.2;
+    }
+    .card-desc {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 3px;
+      font-weight: 400;
+    }
+    .card-arrow {
+      position: absolute;
+      top: 18px; right: 18px;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.9);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: all .2s;
+    }
+    .card-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      width: fit-content;
+    }
+    .tag-soon { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+    .tag-live { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+
+    /* KPI live widget */
+    .kpi-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .kpi-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .kpi-dot.green  { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .kpi-dot.yellow { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+    .kpi-dot.red    { background: #f87171; box-shadow: 0 0 6px #f87171; }
+    .kpi-text { font-size: 11px; color: rgba(255,255,255,0.7); font-weight: 500; }
+
+    /* Fallback bg colors per card */
+    .c-kpi      { background-color: #1e3a5f; }
+    .c-dash     { background-color: #1a2e1a; }
+    .c-comm     { background-color: #2a1a3e; }
+    .c-mag      { background-color: #1a2a2a; }
+    .c-acq      { background-color: #2e2a1a; }
+    .c-impost   { background-color: #1e1e2e; }
+
+    /* Scroll fade at bottom of right panel when cards overflow */
+    .right::after {
+      content: '';
+      display: block;
+      height: 8px;
+    }
+
+    /* ── Gestione Commesse side panel ── */
+    #comm-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 99;
+    }
+    #comm-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    #comm-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: 40%;
+      min-width: 360px;
+      height: 100vh;
+      background: #080f1f;
+      border-left: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: -32px 0 100px rgba(0, 0, 0, 0.7);
+      transform: translateX(100%);
+      transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      padding: 44px 40px 40px;
+      gap: 24px;
+    }
+    #comm-panel.open { transform: translateX(0); }
+
+    .pnl-close {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, color 0.2s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .pnl-close:hover { background: rgba(255, 255, 255, 0.13); color: #fff; }
+
+    .pnl-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+      min-height: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="split">
+
+  <!-- ══════════════ LEFT PANEL ══════════════ -->
+  <div class="left">
+    <div class="left-bg" id="hero-bg"></div>
+    <div class="left-overlay"></div>
+    <div class="left-content">
+      <div class="left-logo">
+        <div class="left-logo-dot"></div>
+        <span class="left-logo-text" style="display:flex;align-items:baseline;gap:5px">
+          <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:rgba(255,255,255,0.85)">MCC</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,0.38)">S.R.L.</span>
+        </span>
+      </div>
+      <div class="left-brand">
+        <div class="left-sub" style="margin-top:0">
+          <strong>STQC</strong> · Sistema Tracciamento QR su Commessa
+        </div>
+        <div class="left-meta">
+          <span class="left-badge">Produzione</span>
+          <span class="left-version">v1.0 · 2026</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ RIGHT PANEL ══════════════ -->
+  <div class="right">
+    <div class="right-header">
+      <div class="right-eyebrow">Sistema di gestione</div>
+      <div class="right-title">Seleziona un modulo</div>
+    </div>
+
+    <div class="grid">
+
+      <!-- Card 1 — KPI & Hints -->
+      <div class="card c-kpi" onclick="go('/app?tab=commesse')">
+        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="card-overlay"></div>
+        <div class="card-arrow">→</div>
+        <div class="card-content">
+          <div class="card-tag tag-live">Live</div>
+          <div class="card-icon">📊</div>
+          <div class="card-title">KPI &amp; Hints</div>
+          <div class="card-desc">Commesse attive · Stato generale</div>
+          <div class="kpi-row" id="kpi-row">
+            <div class="kpi-dot green" id="kpi-dot"></div>
+            <span class="kpi-text" id="kpi-text">Caricamento…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2 — Dashboard -->
+      <div class="card c-dash" onclick="go('/app?tab=commesse')">
+        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="card-overlay"></div>
+        <div class="card-arrow">→</div>
+        <div class="card-content">
+          <div class="card-tag tag-soon">Presto</div>
+          <div class="card-icon">📈</div>
+          <div class="card-title">Dashboard</div>
+          <div class="card-desc">Avanzamento live commesse</div>
+        </div>
+      </div>
+
+      <!-- Card 3 — Gestione Commesse -->
+      <div class="card c-comm" onclick="openCommessePanel()">
+        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="card-overlay"></div>
+        <div class="card-arrow">→</div>
+        <div class="card-content">
+          <div class="card-tag tag-live">Live</div>
+          <div class="card-icon">📋</div>
+          <div class="card-title">Gestione Commesse</div>
+          <div class="card-desc">Distinte · stati · fasi · QR</div>
+        </div>
+      </div>
+
+      <!-- Card 4 — Magazzino -->
+      <div class="card c-mag" onclick="go('/app?tab=magazzino')">
+        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="card-overlay"></div>
+        <div class="card-arrow">→</div>
+        <div class="card-content">
+          <div class="card-tag tag-live">Live</div>
+          <div class="card-icon">🏭</div>
+          <div class="card-title">Magazzino</div>
+          <div class="card-desc">Stock · arrivi · prelievi per commessa</div>
+        </div>
+      </div>
+
+      <!-- Card 5 — Acquisti & Ordini -->
+      <div class="card c-acq" onclick="go('/app?tab=magazzino')">
+        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="card-overlay"></div>
+        <div class="card-arrow">→</div>
+        <div class="card-content">
+          <div class="card-tag tag-soon">Presto</div>
+          <div class="card-icon">🛒</div>
+          <div class="card-title">Acquisti &amp; Ordini</div>
+          <div class="card-desc">Fabbisogni · ordini · fornitori</div>
+        </div>
+      </div>
+
+      <!-- Card 6 — Impostazioni -->
+      <div class="card c-impost" onclick="go('/app?tab=magazzino')">
+        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="card-overlay"></div>
+        <div class="card-arrow">→</div>
+        <div class="card-content">
+          <div class="card-tag tag-soon">Presto</div>
+          <div class="card-icon">⚙️</div>
+          <div class="card-title">Impostazioni</div>
+          <div class="card-desc">Utenti · ruoli · configurazione</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ COMMESSE SIDE PANEL ══════════════ -->
+<div id="comm-backdrop" onclick="closeCommessePanel()"></div>
+
+<div id="comm-panel">
+  <!-- Header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Gestione Commesse</div>
+      <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Cosa vuoi fare?</div>
+    </div>
+    <button class="pnl-close" onclick="closeCommessePanel()">✕</button>
+  </div>
+
+  <!-- Two large cards -->
+  <div class="pnl-cards">
+
+    <!-- In corso -->
+    <div class="card c-comm" style="height:auto;flex:1;min-height:190px" onclick="sessionStorage.setItem('returnPanel','gestione'); go('/commesse')">
+      <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=800&q=80')"></div>
+      <div class="card-overlay"></div>
+      <div class="card-arrow">→</div>
+      <div class="card-content">
+        <div class="card-icon" style="font-size:28px;margin-bottom:8px">📋</div>
+        <div class="card-title" style="font-size:22px;letter-spacing:-.02em">In corso</div>
+        <div class="card-desc" style="font-size:13px;margin-top:5px">Visualizza e gestisci le commesse attive</div>
+      </div>
+    </div>
+
+    <!-- Nuova Commessa -->
+    <div class="card c-kpi" style="height:auto;flex:1;min-height:190px" onclick="sessionStorage.setItem('returnPanel','gestione'); go('/commesse/nuova')">
+      <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80')"></div>
+      <div class="card-overlay"></div>
+      <div class="card-arrow">→</div>
+      <div class="card-content">
+        <div class="card-icon" style="font-size:28px;margin-bottom:8px">✦</div>
+        <div class="card-title" style="font-size:22px;letter-spacing:-.02em">Nuova Commessa</div>
+        <div class="card-desc" style="font-size:13px;margin-top:5px">Crea una commessa e importa la distinta</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const AUTH = 'Basic ' + btoa('mcc:stqc2026');
+
+function go(url) { window.location.href = url; }
+
+function openCommessePanel() {
+  document.getElementById('comm-panel').classList.add('open');
+  document.getElementById('comm-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeCommessePanel() {
+  document.getElementById('comm-panel').classList.remove('open');
+  document.getElementById('comm-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCommessePanel(); });
+
+// Riapri il panel se si torna da una pagina commesse
+if (sessionStorage.getItem('returnPanel') === 'gestione') {
+  sessionStorage.removeItem('returnPanel');
+  openCommessePanel();
+}
+
+// Hero image lazy-load with scale animation
+window.addEventListener('load', () => {
+  document.getElementById('hero-bg').classList.add('loaded');
+});
+
+// ── KPI fetch ─────────────────────────────────────────────────────────────────
+async function loadKPI() {
+  const dot  = document.getElementById('kpi-dot');
+  const text = document.getElementById('kpi-text');
+  try {
+    const res = await fetch('/api/v1/commesse?limit=200', {
+      headers: { Authorization: AUTH }
+    });
+    if (!res.ok) throw new Error();
+    const commesse = await res.json();
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const soon  = new Date(today); soon.setDate(today.getDate() + 14);
+
+    const aperte   = commesse.filter(c => c.status === 'APERTA');
+    const scadute  = aperte.filter(c => c.data_consegna_prevista && new Date(c.data_consegna_prevista) < today);
+    const inScad   = aperte.filter(c => {
+      if (!c.data_consegna_prevista) return false;
+      const d = new Date(c.data_consegna_prevista);
+      return d >= today && d <= soon;
+    });
+
+    if (scadute.length > 0) {
+      dot.className = 'kpi-dot red';
+      text.textContent = `${aperte.length} aperte · ${scadute.length} scadut${scadute.length===1?'a':'e'} ⚠`;
+    } else if (inScad.length > 0) {
+      dot.className = 'kpi-dot yellow';
+      text.textContent = `${aperte.length} aperte · ${inScad.length} in scadenza`;
+    } else if (aperte.length > 0) {
+      dot.className = 'kpi-dot green';
+      text.textContent = `${aperte.length} commess${aperte.length===1?'a':'e'} aperta${aperte.length===1?'':'s'} · OK`;
+    } else {
+      dot.className = 'kpi-dot green';
+      text.textContent = 'Nessuna commessa aperta';
+    }
+  } catch {
+    dot.className = 'kpi-dot yellow';
+    text.textContent = 'Dati non disponibili';
+  }
+}
+
+loadKPI();
+</script>
+</body>
+</html>

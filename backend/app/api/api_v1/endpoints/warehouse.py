@@ -124,3 +124,13 @@ def read_stock_balance(material_id: int, db: Session = Depends(get_db)):
     if balance is None:
         raise HTTPException(status_code=404, detail="Materiale non trovato")
     return balance
+
+
+@router.get("/magazzino", response_model=List[warehouse_schemas.MagazzinoItemRead])
+def list_magazzino(
+    skip: int = 0,
+    limit: int = 200,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+):
+    return crud.get_magazzino_list(db=db, skip=skip, limit=limit, q=q)

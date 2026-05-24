@@ -5,43 +5,206 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>STQC · MCC Srl</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Magazzino table */
+    .mag-th {
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      background: #e9ecef;
+      border-bottom: 1px solid #ced4da;
+      border-right: 1px solid #ced4da;
+      user-select: none;
+    }
+    .mag-th.sortable { cursor: pointer; }
+    .mag-th.sortable:hover { background: #dde1e7; }
+    .mag-cf { padding: 3px 4px; background: #fff; border-right: 1px solid #e9ecef; }
+    .mag-cf select, .mag-cf input {
+      width: 100%;
+      font-size: 11px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 2px 4px;
+      outline: none;
+      background: #fff;
+      cursor: pointer;
+    }
+    .mag-cf select:focus, .mag-cf input:focus { border-color: #93c5fd; }
+
+    /* Drawer / detail slide-in */
+    #mag-drawer, #mag-detail {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Density row classes injected via JS */
+    .row-compact td { padding-top: 2px; padding-bottom: 2px; padding-left: 10px; padding-right: 10px; }
+    .row-normal  td { padding-top: 6px; padding-bottom: 6px; padding-left: 12px; padding-right: 12px; }
+    .row-large   td { padding-top: 11px; padding-bottom: 11px; padding-left: 14px; padding-right: 14px; }
+
+    /* Sidebar tipo button */
+    .tipo-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 6px;
+      margin: 1px 4px;
+      width: calc(100% - 8px);
+      transition: background 0.1s;
+      text-align: left;
+    }
+    .tipo-btn:hover { background: #f3f4f6; }
+    .tipo-btn.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+
+    /* Toast */
+    .mag-toast {
+      pointer-events: auto;
+      padding: 10px 16px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s;
+    }
+    .mag-toast.entering { transform: translateY(8px); opacity: 0; }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
 
 <!-- NAV -->
-<nav class="bg-blue-800 text-white px-6 py-3 flex items-center gap-6 shadow">
+<nav class="bg-blue-800 text-white px-6 py-3 flex items-center gap-6 shadow sticky top-0 z-10" style="height:52px">
+  <a href="/" class="flex items-center gap-2 text-blue-200 hover:text-white transition-colors text-sm font-medium" title="Home">
+    ← Home
+  </a>
+  <span class="text-blue-600 select-none">|</span>
   <span class="font-bold text-lg tracking-wide">STQC · MCC Srl</span>
-  <button onclick="showTab('stock')"     class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="stock">Stock</button>
-  <button onclick="showTab('distinte')"  class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="distinte">Distinte</button>
-  <button onclick="showTab('commesse')"  class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="commesse">Commesse</button>
-  <button onclick="showTab('qr')"        class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="qr">QR Scan</button>
-  <button onclick="showTab('inventario')" class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition" data-tab="inventario">Inventario</button>
+  <button onclick="showTab('magazzino')"  class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="magazzino">Magazzino</button>
+  <button onclick="showTab('distinte')"   class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="distinte">Distinte</button>
+  <button onclick="showTab('commesse')"   class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="commesse">Commesse</button>
+  <button onclick="showTab('qr')"         class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="qr">QR Scan</button>
 </nav>
 
-<main class="max-w-5xl mx-auto py-8 px-4 space-y-6">
+<!-- ===================== MAGAZZINO (full-width, outside main) ===================== -->
+<section id="tab-magazzino" class="tab-panel hidden" style="height:calc(100vh - 52px); display:flex; flex-direction:column; padding:12px 16px; gap:10px; box-sizing:border-box;">
 
-<!-- ===================== STOCK ===================== -->
-<section id="tab-stock" class="tab-panel hidden">
-  <h2 class="text-xl font-semibold mb-4">Materiali in stock</h2>
-  <div class="flex gap-2 mb-4">
-    <input id="mat-q" type="text" placeholder="Cerca codice / descrizione…"
-      class="border rounded px-3 py-2 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-      oninput="debounce(loadMaterials, 400)()" />
-    <button onclick="loadMaterials()" class="bg-blue-700 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">Cerca</button>
+  <!-- Page header -->
+  <div class="flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 tracking-tight">Magazzino</h2>
+      <p id="mag-stats" class="text-xs text-gray-400 mt-0.5">Caricamento…</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+
+      <!-- Density -->
+      <div class="flex items-center bg-white border border-gray-200 rounded-lg p-0.5 gap-0.5">
+        <button id="d-compact"      onclick="MAG.setDensity('compact')"      class="den-btn px-2.5 py-1 rounded-md text-xs text-gray-500 transition-all">Compact</button>
+        <button id="d-normal"       onclick="MAG.setDensity('normal')"        class="den-btn px-2.5 py-1 rounded-md text-xs text-gray-500 transition-all">Normal</button>
+        <button id="d-large"        onclick="MAG.setDensity('large')"         class="den-btn px-2.5 py-1 rounded-md text-xs text-gray-500 transition-all">Large</button>
+      </div>
+
+      <!-- Import -->
+      <div class="relative" id="import-wrap">
+        <button onclick="document.getElementById('import-dd').classList.toggle('hidden')"
+          class="border border-gray-200 bg-white text-gray-600 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50 flex items-center gap-1.5 font-medium">
+          ↑ Importa inventario
+        </button>
+        <div id="import-dd" class="hidden absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-xl p-4 w-72">
+          <p class="text-xs text-gray-500 mb-2">Carica il file <code>.xlsm</code> per aggiornare i materiali e lo stock iniziale.</p>
+          <form id="inventario-form" class="flex flex-col gap-2">
+            <input type="file" id="inv-file" accept=".xlsm,.xlsx" required class="text-xs border border-gray-200 rounded px-2 py-1.5 w-full"/>
+            <button type="submit" class="bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-blue-600 font-medium">Importa</button>
+            <span id="inv-result" class="text-xs"></span>
+          </form>
+        </div>
+      </div>
+
+      <button onclick="MAG.openDrawer('INCOMING')"
+        class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-green-500 flex items-center gap-1.5 shadow-sm">
+        ↑ Registra arrivo
+      </button>
+      <button onclick="MAG.openDrawer('OUTGOING')"
+        class="bg-orange-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-orange-400 flex items-center gap-1.5 shadow-sm">
+        ↓ Registra prelievo
+      </button>
+    </div>
   </div>
-  <div id="mat-table" class="bg-white rounded shadow overflow-x-auto">
-    <p class="text-gray-400 text-sm p-4">Caricamento…</p>
+
+  <!-- Main layout: sidebar + table -->
+  <div class="flex gap-3 flex-1 min-h-0">
+
+    <!-- ── Sidebar ── -->
+    <aside class="w-52 flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+      <div class="px-3 py-2 border-b border-gray-100 flex-shrink-0">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tipologia</p>
+      </div>
+      <div id="mag-tipo-list" class="flex-1 overflow-y-auto py-1"></div>
+      <div id="mag-attr-filters" class="border-t border-gray-100 overflow-y-auto flex-shrink-0" style="max-height:45%"></div>
+    </aside>
+
+    <!-- ── Table area ── -->
+    <div class="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-w-0">
+
+      <!-- Toolbar -->
+      <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/60 flex-shrink-0">
+        <input id="mag-search" type="text" placeholder="Cerca in tutti i campi…"
+          class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white min-w-0"
+          oninput="MAG.onSearch()" />
+        <button onclick="MAG.resetFilters()" class="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 border border-gray-200 rounded-lg bg-white whitespace-nowrap">Reset filtri</button>
+        <span id="mag-count" class="text-xs text-gray-400 whitespace-nowrap font-mono"></span>
+      </div>
+
+      <!-- Table -->
+      <div id="mag-table-wrap" class="flex-1 overflow-auto">
+        <table id="mag-table-el" class="w-full border-collapse" style="min-width:860px">
+          <thead id="mag-thead" style="position:sticky;top:0;z-index:10;"></thead>
+          <tbody id="mag-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex items-center justify-between px-4 py-2 border-t border-gray-100 bg-gray-50/60 flex-shrink-0">
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span>Righe</span>
+          <select id="mag-per-page" onchange="MAG.setPerPage(this.value)"
+            class="border border-gray-200 rounded px-2 py-0.5 text-xs focus:outline-none bg-white">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="0">Tutte</option>
+          </select>
+        </div>
+        <span id="mag-page-info" class="text-xs text-gray-400 font-mono"></span>
+        <div class="flex items-center gap-1">
+          <button id="mag-prev" onclick="MAG.prevPage()"
+            class="px-2.5 py-0.5 border border-gray-200 rounded text-xs hover:bg-gray-100 disabled:opacity-30 bg-white">‹</button>
+          <div id="mag-pages" class="flex gap-1"></div>
+          <button id="mag-next" onclick="MAG.nextPage()"
+            class="px-2.5 py-0.5 border border-gray-200 rounded text-xs hover:bg-gray-100 disabled:opacity-30 bg-white">›</button>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- ===================== DISTINTE ===================== -->
+<!-- ===================== OTHER TABS ===================== -->
+<main class="max-w-screen-xl mx-auto py-8 px-4 space-y-6">
+
+<!-- DISTINTE -->
 <section id="tab-distinte" class="tab-panel hidden">
   <h2 class="text-xl font-semibold mb-4">Importa distinta</h2>
   <form id="distinta-form" class="bg-white rounded shadow p-6 space-y-4">
     <div>
       <label class="block text-sm font-medium mb-1">File (.xls / .xlsx / .xlsm)</label>
-      <input type="file" id="distinta-file" accept=".xls,.xlsx,.xlsm" required
-        class="block w-full text-sm border rounded px-3 py-2" />
+      <input type="file" id="distinta-file" accept=".xls,.xlsx,.xlsm" required class="block w-full text-sm border rounded px-3 py-2" />
     </div>
     <div class="flex items-center gap-2">
       <input type="checkbox" id="gen-qr" class="h-4 w-4" />
@@ -50,55 +213,39 @@
     <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Importa</button>
     <div id="distinta-result" class="text-sm mt-2"></div>
   </form>
-
   <h2 class="text-xl font-semibold mt-8 mb-4">Importazioni recenti</h2>
   <div id="imports-table" class="bg-white rounded shadow overflow-x-auto">
     <p class="text-gray-400 text-sm p-4">Caricamento…</p>
   </div>
 </section>
 
-<!-- ===================== COMMESSE ===================== -->
+<!-- COMMESSE -->
 <section id="tab-commesse" class="tab-panel hidden">
   <h2 class="text-xl font-semibold mb-4">Commesse</h2>
-
-  <!-- Form nuova commessa -->
   <details class="bg-white rounded shadow p-4 mb-4">
     <summary class="font-medium cursor-pointer">+ Nuova commessa</summary>
     <form id="commessa-form" class="mt-4 grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium mb-1">Codice *</label>
-        <input name="codice" required class="border rounded px-3 py-2 w-full text-sm" placeholder="COMM-2026-001" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1">Cliente</label>
-        <input name="cliente" class="border rounded px-3 py-2 w-full text-sm" />
-      </div>
-      <div class="col-span-2">
-        <label class="block text-sm font-medium mb-1">Descrizione</label>
-        <input name="descrizione" class="border rounded px-3 py-2 w-full text-sm" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1">Data inizio</label>
-        <input type="date" name="data_inizio" class="border rounded px-3 py-2 w-full text-sm" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1">Consegna prevista</label>
-        <input type="date" name="data_consegna_prevista" class="border rounded px-3 py-2 w-full text-sm" />
-      </div>
+      <div><label class="block text-sm font-medium mb-1">Codice *</label>
+        <input name="codice" required class="border rounded px-3 py-2 w-full text-sm" placeholder="COMM-2026-001" /></div>
+      <div><label class="block text-sm font-medium mb-1">Cliente</label>
+        <input name="cliente" class="border rounded px-3 py-2 w-full text-sm" /></div>
+      <div class="col-span-2"><label class="block text-sm font-medium mb-1">Descrizione</label>
+        <input name="descrizione" class="border rounded px-3 py-2 w-full text-sm" /></div>
+      <div><label class="block text-sm font-medium mb-1">Data inizio</label>
+        <input type="date" name="data_inizio" class="border rounded px-3 py-2 w-full text-sm" /></div>
+      <div><label class="block text-sm font-medium mb-1">Consegna prevista</label>
+        <input type="date" name="data_consegna_prevista" class="border rounded px-3 py-2 w-full text-sm" /></div>
       <div class="col-span-2 flex gap-2 items-center">
         <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Crea</button>
         <span id="commessa-result" class="text-sm"></span>
       </div>
     </form>
   </details>
-
-  <!-- Filtro -->
   <div class="flex gap-2 mb-4">
     <input id="comm-q" type="text" placeholder="Cerca codice / cliente…"
       class="border rounded px-3 py-2 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       oninput="debounce(loadCommesse, 400)()" />
-    <select id="comm-status" onchange="loadCommesse()"
-      class="border rounded px-3 py-2 text-sm focus:outline-none">
+    <select id="comm-status" onchange="loadCommesse()" class="border rounded px-3 py-2 text-sm focus:outline-none">
       <option value="">Tutti gli stati</option>
       <option value="APERTA">Aperta</option>
       <option value="SOSPESA">Sospesa</option>
@@ -110,7 +257,7 @@
   </div>
 </section>
 
-<!-- ===================== QR SCAN ===================== -->
+<!-- QR SCAN -->
 <section id="tab-qr" class="tab-panel hidden">
   <h2 class="text-xl font-semibold mb-4">QR Scan</h2>
   <div class="bg-white rounded shadow p-6 space-y-4 max-w-lg">
@@ -122,19 +269,34 @@
   </div>
 </section>
 
-<!-- ===================== INVENTARIO ===================== -->
-<section id="tab-inventario" class="tab-panel hidden">
-  <h2 class="text-xl font-semibold mb-4">Import inventario</h2>
-  <form id="inventario-form" class="bg-white rounded shadow p-6 space-y-4 max-w-lg">
-    <p class="text-sm text-gray-600">Carica il file <code>.xlsm</code> di inventario per creare i materiali e i movimenti di stock iniziale.</p>
-    <input type="file" id="inv-file" accept=".xlsm,.xlsx" required
-      class="block w-full text-sm border rounded px-3 py-2" />
-    <button type="submit" class="bg-blue-700 text-white px-6 py-2 rounded text-sm hover:bg-blue-600">Importa inventario</button>
-    <div id="inv-result" class="text-sm mt-2"></div>
-  </form>
-</section>
-
 </main>
+
+<!-- ===================== OVERLAY ===================== -->
+<div id="mag-overlay" class="fixed inset-0 bg-black/40 z-20 hidden" onclick="MAG.closeAll()"></div>
+
+<!-- ===================== DRAWER ===================== -->
+<div id="mag-drawer" class="fixed inset-y-0 right-0 z-30 bg-white shadow-2xl flex flex-col translate-x-full" style="width:420px">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <h3 id="mag-drawer-title" class="font-semibold text-gray-900 text-base"></h3>
+    <button onclick="MAG.closeDrawer()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+  </div>
+  <div id="mag-drawer-body" class="flex-1 overflow-y-auto p-5"></div>
+</div>
+
+<!-- ===================== DETAIL PANEL ===================== -->
+<div id="mag-detail" class="fixed inset-y-0 right-0 z-30 bg-white shadow-2xl flex flex-col translate-x-full" style="width:500px">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <div>
+      <h3 id="mag-detail-title" class="font-semibold text-gray-900 text-base"></h3>
+      <p id="mag-detail-sub" class="text-xs text-gray-400 mt-0.5"></p>
+    </div>
+    <button onclick="MAG.closeDetail()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+  </div>
+  <div id="mag-detail-body" class="flex-1 overflow-y-auto p-5 space-y-5"></div>
+</div>
+
+<!-- ===================== TOASTS ===================== -->
+<div id="mag-toasts" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
 <script>
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -151,7 +313,7 @@ async function api(path, opts = {}) {
 }
 
 // ── Tab ───────────────────────────────────────────────────────────────────────
-const tabLoaders = { stock: loadMaterials, distinte: loadImports, commesse: loadCommesse };
+const tabLoaders = { magazzino: () => MAG.load(), distinte: loadImports, commesse: loadCommesse };
 function showTab(name) {
   document.querySelectorAll('.tab-panel').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('bg-blue-600'));
@@ -160,38 +322,631 @@ function showTab(name) {
   tabLoaders[name]?.();
 }
 
-// ── Debounce ──────────────────────────────────────────────────────────────────
-function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/'/g,'&#39;'); }
+function fmtNum(v, dec=3) { return v != null ? Number(v).toLocaleString('it-IT', {maximumFractionDigits: dec}) : '—'; }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function badge(status) {
-  const map = { APERTA: 'bg-green-100 text-green-800', SOSPESA: 'bg-yellow-100 text-yellow-800', CHIUSA: 'bg-gray-200 text-gray-600', IMPORTED: 'bg-blue-100 text-blue-800', EMPTY: 'bg-red-100 text-red-700' };
-  return `<span class="px-2 py-0.5 rounded text-xs font-medium ${map[status] || 'bg-gray-100'}">${status}</span>`;
+  const map = { APERTA:'bg-green-100 text-green-800', SOSPESA:'bg-yellow-100 text-yellow-800', CHIUSA:'bg-gray-200 text-gray-600', IMPORTED:'bg-blue-100 text-blue-800', EMPTY:'bg-red-100 text-red-700' };
+  return `<span class="px-2 py-0.5 rounded text-xs font-medium ${map[status]||'bg-gray-100'}">${status}</span>`;
 }
 function th(t) { return `<th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">${t}</th>`; }
 function td(t, cls='') { return `<td class="px-4 py-2 text-sm ${cls}">${t ?? '—'}</td>`; }
 
-// ── Stock / Materiali ─────────────────────────────────────────────────────────
-async function loadMaterials() {
-  const q = document.getElementById('mat-q').value.trim();
-  const el = document.getElementById('mat-table');
-  try {
-    const params = q ? `?q=${encodeURIComponent(q)}&limit=200` : '?limit=200';
-    const items = await api('/warehouse/materials' + params);
-    if (!items.length) { el.innerHTML = '<p class="text-gray-400 text-sm p-4">Nessun materiale trovato.</p>'; return; }
-    el.innerHTML = `<table class="w-full">
-      <thead class="bg-gray-50 border-b"><tr>${th('Codice')}${th('Descrizione')}${th('Unità')}${th('Specifica')}</tr></thead>
-      <tbody class="divide-y divide-gray-100">
-        ${items.map(m => `<tr class="hover:bg-gray-50">
-          ${td(`<span class="font-mono font-medium">${m.code}</span>`)}
-          ${td(m.description)}${td(m.unit)}${td(m.specification || '—')}
-        </tr>`).join('')}
-      </tbody></table>`;
-  } catch(e) { el.innerHTML = `<p class="text-red-500 text-sm p-4">${e.message}</p>`; }
-}
+// ══════════════════════════════════════════════════════════════════════════════
+// MAG — Magazzino
+// ══════════════════════════════════════════════════════════════════════════════
+const MAG = {
+
+  // ── State
+  all: [],
+  filtered: [],
+  commesse: [],
+  selectedTipo: null,
+  qualitaFilter: new Set(),
+  profiloFilter: new Set(),
+  dimFilter: '',
+  searchFilter: '',
+  colFilters: {},
+  sort: { col: null, dir: 1 },
+  page: 1,
+  perPage: 25,
+  density: 'normal',
+  _timer: null,
+
+  // ── Columns
+  COLS: [
+    { key: 'tipo',         label: 'TIPO',        align: 'l', w: '90px'  },
+    { key: 'profilo',      label: 'PROFILO',      align: 'l', w: '90px'  },
+    { key: 'n_pezzi',      label: 'N° PEZZI',     align: 'r', w: '78px',  num: true },
+    { key: 'dimensioni',   label: 'DIMENSIONI',   align: 'l', w: '105px' },
+    { key: 'qualita',      label: "QUALITA'",     align: 'l', w: '85px'  },
+    { key: 'colata',       label: 'COLATA',       align: 'l', w: '80px'  },
+    { key: 'commessa_ref', label: 'COMMESSA',     align: 'l', w: '95px'  },
+    { key: 'peso_kg',      label: 'PESO [KG]',    align: 'r', w: '88px',  num: true },
+    { key: 'peso_u_kg',    label: 'PESO/U [KG]',  align: 'r', w: '80px',  num: true },
+    { key: 'peso_1_pz',    label: 'PESO 1 PZ',    align: 'r', w: '78px',  num: true },
+  ],
+
+  pezziStyle(n) {
+    if (n < 0)  return 'background:#fee2e2;color:#b91c1c';
+    if (n === 0) return 'background:#f3f4f6;color:#9ca3af';
+    if (n <= 5)  return 'background:#fef9c3;color:#92400e';
+    return 'background:#dcfce7;color:#166534';
+  },
+
+  // ── Load
+  async load() {
+    try {
+      const [items, commesse] = await Promise.all([
+        api('/warehouse/magazzino?limit=1000'),
+        api('/commesse?limit=200').catch(() => []),
+      ]);
+      this.all = items;
+      this.commesse = commesse;
+      this.applyFilters();
+      this.renderSidebar();
+      this.renderTable();
+      this.renderStats();
+    } catch(e) {
+      document.getElementById('mag-tbody').innerHTML =
+        `<tr><td colspan="12" class="p-6 text-center text-red-500 text-sm">${e.message}</td></tr>`;
+    }
+  },
+
+  renderStats() {
+    const active = this.commesse.filter(c => c.status === 'APERTA').length;
+    const tipi = new Set(this.all.map(m => m.tipo).filter(Boolean)).size;
+    document.getElementById('mag-stats').textContent =
+      `${this.all.length} materiali · ${tipi} tipologie · ${active} commesse attive`;
+  },
+
+  // ── Sidebar
+  renderSidebar() {
+    const tipoList = document.getElementById('mag-tipo-list');
+    const counts = {};
+    this.all.forEach(m => { if (m.tipo) counts[m.tipo] = (counts[m.tipo] || 0) + 1; });
+    const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+
+    const allBtn = (t, active) =>
+      `<button class="tipo-btn ${active ? 'active' : ''}" onclick="MAG.selectTipo(${t ? `'${esc(t)}'` : 'null'})">
+        <span class="truncate">${t || 'Tutti'}</span>
+        <span style="font-size:11px;color:#9ca3af;flex-shrink:0;margin-left:4px">${t ? counts[t] : this.all.length}</span>
+       </button>`;
+
+    tipoList.innerHTML = allBtn(null, !this.selectedTipo) +
+      sorted.map(([t]) => allBtn(t, this.selectedTipo === t)).join('');
+
+    this.renderAttrFilters();
+  },
+
+  renderAttrFilters() {
+    const el = document.getElementById('mag-attr-filters');
+    if (!this.selectedTipo) { el.innerHTML = ''; return; }
+
+    const pool = this.all.filter(m => m.tipo === this.selectedTipo);
+    const qualVals = [...new Set(pool.map(m => m.qualita).filter(Boolean))].sort();
+    const dimVals  = pool.some(m => m.dimensioni);
+    const profVals = [...new Set(pool.map(m => m.profilo).filter(Boolean))].sort((a,b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      return !isNaN(na) && !isNaN(nb) ? na-nb : a.localeCompare(b,'it');
+    });
+
+    let html = '';
+
+    if (qualVals.length) {
+      html += `<div class="px-3 py-2.5 border-b border-gray-100">
+        <p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Qualità</p>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${qualVals.map(q => `
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+              <input type="checkbox" value="${esc(q)}" ${this.qualitaFilter.has(q)?'checked':''}
+                onchange="MAG.toggleQualita('${esc(q)}')" style="accent-color:#2563eb"/>
+              <span style="color:#374151">${esc(q)}</span>
+            </label>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    if (profVals.length > 1) {
+      html += `<div class="px-3 py-2.5 border-b border-gray-100">
+        <p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Profilo</p>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${profVals.slice(0,24).map(p => `
+            <button onclick="MAG.toggleProfilo('${esc(p)}')"
+              style="font-size:11px;padding:2px 8px;border-radius:12px;border:1px solid ${this.profiloFilter.has(p)?'#2563eb':'#e5e7eb'};background:${this.profiloFilter.has(p)?'#2563eb':'#fff'};color:${this.profiloFilter.has(p)?'#fff':'#4b5563'};cursor:pointer;font-family:monospace">
+              ${esc(p)}
+            </button>`).join('')}
+          ${profVals.length > 24 ? `<span style="font-size:11px;color:#9ca3af">+${profVals.length-24}</span>` : ''}
+        </div>
+      </div>`;
+    }
+
+    if (dimVals) {
+      html += `<div class="px-3 py-2.5">
+        <p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Dimensioni</p>
+        <input type="text" placeholder="es. 3000*1500" value="${esc(this.dimFilter)}"
+          oninput="MAG.setDimFilter(this.value)"
+          style="width:100%;font-size:12px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;outline:none"/>
+      </div>`;
+    }
+
+    el.innerHTML = html || '';
+  },
+
+  // ── Filter methods
+  selectTipo(tipo) {
+    this.selectedTipo = tipo;
+    this.qualitaFilter = new Set();
+    this.profiloFilter = new Set();
+    this.dimFilter = '';
+    this.colFilters = {};
+    this.page = 1;
+    this.applyFilters();
+    this.renderSidebar();
+    this.renderTable();
+  },
+
+  toggleQualita(q) {
+    this.qualitaFilter.has(q) ? this.qualitaFilter.delete(q) : this.qualitaFilter.add(q);
+    this.page = 1; this.applyFilters(); this.renderTable();
+    // re-render just the checkboxes (update active state)
+    document.querySelectorAll('#mag-attr-filters input[type=checkbox]').forEach(cb => {
+      cb.checked = this.qualitaFilter.has(cb.value);
+    });
+  },
+
+  toggleProfilo(p) {
+    this.profiloFilter.has(p) ? this.profiloFilter.delete(p) : this.profiloFilter.add(p);
+    this.page = 1; this.applyFilters(); this.renderTable();
+    this.renderAttrFilters();
+  },
+
+  setDimFilter(v) {
+    this.dimFilter = v; this.page = 1;
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => { this.applyFilters(); this.renderTable(); }, 200);
+  },
+
+  onSearch() {
+    this.searchFilter = document.getElementById('mag-search').value;
+    this.page = 1;
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => { this.applyFilters(); this.renderTable(); }, 200);
+  },
+
+  getDropdownOpts(col) {
+    const tipoFilter = this.colFilters['tipo'] || this.selectedTipo;
+    const base = col === 'tipo'
+      ? this.all
+      : (tipoFilter ? this.all.filter(m => m.tipo === tipoFilter) : this.all);
+    return [...new Set(base.map(m => m[col]).filter(v => v != null && v !== ''))]
+      .sort((a, b) => String(a).localeCompare(String(b), 'it'));
+  },
+
+  setColFilter(col, val) {
+    this.colFilters[col] = val;
+    if (col === 'tipo') {
+      // Reset all cascaded column filters when tipo changes
+      for (const k of Object.keys(this.colFilters)) {
+        if (k !== 'tipo') delete this.colFilters[k];
+      }
+    }
+    this.page = 1;
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => { this.applyFilters(); this.renderTable(); }, 200);
+  },
+
+  resetFilters() {
+    this.selectedTipo = null;
+    this.qualitaFilter = new Set();
+    this.profiloFilter = new Set();
+    this.dimFilter = '';
+    this.searchFilter = '';
+    this.colFilters = {};
+    this.page = 1;
+    document.getElementById('mag-search').value = '';
+    this.applyFilters();
+    this.renderSidebar();
+    this.renderTable();
+  },
+
+  applyFilters() {
+    this.filtered = this.all.filter(m => {
+      if (this.selectedTipo && m.tipo !== this.selectedTipo) return false;
+      if (this.qualitaFilter.size > 0 && !this.qualitaFilter.has(m.qualita)) return false;
+      if (this.profiloFilter.size > 0 && !this.profiloFilter.has(m.profilo)) return false;
+      if (this.dimFilter && !(m.dimensioni||'').toLowerCase().includes(this.dimFilter.toLowerCase())) return false;
+      if (this.searchFilter) {
+        const s = this.searchFilter.toLowerCase();
+        const hay = [m.tipo, m.profilo, m.dimensioni, m.qualita, m.colata, m.commessa_ref]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
+      for (const [col, val] of Object.entries(this.colFilters)) {
+        if (!val) continue;
+        if (String(m[col] ?? '') !== val) return false;
+      }
+      return true;
+    });
+    this.sortFiltered();
+  },
+
+  sortFiltered() {
+    if (!this.sort.col) return;
+    const { col, dir } = this.sort;
+    this.filtered.sort((a, b) => {
+      let va = a[col], vb = b[col];
+      if (va == null) va = typeof a[col] === 'number' ? -Infinity : '';
+      if (vb == null) vb = typeof b[col] === 'number' ? -Infinity : '';
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'it') * dir;
+    });
+  },
+
+  toggleSort(col) {
+    if (this.sort.col === col) this.sort.dir *= -1;
+    else { this.sort.col = col; this.sort.dir = 1; }
+    this.sortFiltered();
+    this.renderBody();
+    this.renderHeader();
+    this.renderPagination();
+  },
+
+  // ── Table render
+  renderTable() {
+    this.renderHeader();
+    this.renderBody();
+    this.renderPagination();
+    const total = this.all.length;
+    const shown = this.filtered.length;
+    document.getElementById('mag-count').textContent =
+      shown < total ? `${shown} / ${total}` : `${total}`;
+  },
+
+  renderHeader() {
+    const thead = document.getElementById('mag-thead');
+    const sd = this.sort.dir === 1 ? '▲' : '▼';
+    thead.innerHTML = `
+      <tr>
+        <th class="mag-th" style="width:24px;border-right:1px solid #ced4da"></th>
+        ${this.COLS.map(c => `
+          <th class="mag-th${c.num?'':' sortable'}" style="min-width:${c.w};text-align:${c.align==='r'?'right':'left'}"
+            ${!c.num ? `onclick="MAG.toggleSort('${c.key}')"` : ''}>
+            <span style="display:inline-flex;align-items:center;gap:3px;${c.align==='r'?'flex-direction:row-reverse':''}">
+              <span>${c.label}</span>
+              ${this.sort.col===c.key ? `<span style="color:#3b82f6;font-size:9px">${sd}</span>` : ''}
+            </span>
+          </th>`).join('')}
+        <th class="mag-th" style="width:72px;border-right:none"></th>
+      </tr>
+      <tr style="border-bottom:2px solid #ced4da;background:#f8f9fa">
+        <td class="mag-cf" style="border-right:1px solid #e9ecef"></td>
+        ${this.COLS.map(c => `
+          <td class="mag-cf">
+            ${!c.num ? `
+              <select onchange="MAG.setColFilter('${c.key}',this.value)"
+                style="color:${this.colFilters[c.key]?'#111827':'#9ca3af'}">
+                <option value="">— Tutti —</option>
+                ${this.getDropdownOpts(c.key).map(v =>
+                  `<option value="${esc(String(v))}"${this.colFilters[c.key]===String(v)?' selected':''}>${esc(String(v))}</option>`
+                ).join('')}
+              </select>` : ''}
+          </td>`).join('')}
+        <td class="mag-cf" style="border-right:none"></td>
+      </tr>`;
+  },
+
+  renderBody() {
+    const tbody = document.getElementById('mag-tbody');
+    const rows = this.getPage();
+    const rowCls = `row-${this.density}`;
+    const br = 'border-right:1px solid #e9ecef';
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-gray-400 text-sm">Nessun materiale trovato.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map((m, idx) => {
+      const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      const badge = `<span style="${this.pezziStyle(m.n_pezzi)};display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:700">${m.n_pezzi}</span>`;
+      return `
+        <tr class="${rowCls}" style="background:${bg};border-bottom:1px solid #f0f2f5;cursor:pointer;transition:background .1s"
+          onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='${bg}'"
+          onclick="MAG.openDetail(${m.material_id})">
+          <td style="padding:0 4px;color:#d1d5db;font-size:10px;text-align:center;${br}">▸</td>
+          <td class="text-sm font-medium text-gray-800" style="${br}">${esc(m.tipo||'')}</td>
+          <td class="text-sm font-mono text-gray-700" style="${br}">${esc(m.profilo||'')}</td>
+          <td class="text-right" style="${br}">${badge}</td>
+          <td class="text-sm text-gray-600" style="${br}">${esc(m.dimensioni||'')}</td>
+          <td class="text-sm text-gray-700 font-medium" style="${br}">${esc(m.qualita||'')}</td>
+          <td class="text-sm font-mono text-gray-500" style="${br}">${esc(m.colata||'')}</td>
+          <td class="text-sm text-gray-500" style="${br}">${esc(m.commessa_ref||'')}</td>
+          <td class="text-sm text-right font-mono font-semibold text-gray-800" style="${br}">${fmtNum(m.peso_kg)}</td>
+          <td class="text-sm text-right text-gray-400" style="${br}">${fmtNum(m.peso_u_kg)}</td>
+          <td class="text-sm text-right text-gray-400" style="${br}">${fmtNum(m.peso_1_pz)}</td>
+          <td class="px-1" onclick="event.stopPropagation()" style="white-space:nowrap">
+            <button title="Registra arrivo" onclick="MAG.openDrawer('INCOMING',${m.material_id})"
+              style="font-size:11px;background:#16a34a;color:#fff;padding:2px 7px;border-radius:5px;margin-right:3px;cursor:pointer">↑</button>
+            <button title="Registra prelievo" onclick="MAG.openDrawer('OUTGOING',${m.material_id})"
+              style="font-size:11px;background:#f97316;color:#fff;padding:2px 7px;border-radius:5px;cursor:pointer">↓</button>
+          </td>
+        </tr>`;
+    }).join('');
+  },
+
+  // ── Pagination
+  getPage() {
+    if (this.perPage === 0) return this.filtered;
+    const s = (this.page - 1) * this.perPage;
+    return this.filtered.slice(s, s + this.perPage);
+  },
+
+  totalPages() {
+    if (this.perPage === 0) return 1;
+    return Math.ceil(this.filtered.length / this.perPage) || 1;
+  },
+
+  renderPagination() {
+    const total = this.filtered.length;
+    const tp = this.totalPages();
+    const s = this.perPage === 0 ? 1 : (this.page-1)*this.perPage + 1;
+    const e = this.perPage === 0 ? total : Math.min(this.page*this.perPage, total);
+
+    document.getElementById('mag-page-info').textContent = total ? `${s}–${e} di ${total}` : '0 risultati';
+    document.getElementById('mag-prev').disabled = this.page <= 1;
+    document.getElementById('mag-next').disabled = this.page >= tp;
+
+    const pEl = document.getElementById('mag-pages');
+    if (tp <= 8) {
+      pEl.innerHTML = Array.from({length:tp}, (_,i) => i+1).map(p =>
+        `<button onclick="MAG.goPage(${p})"
+          style="width:22px;height:20px;font-size:11px;border-radius:4px;border:1px solid ${p===this.page?'#2563eb':'#e5e7eb'};background:${p===this.page?'#2563eb':'#fff'};color:${p===this.page?'#fff':'#374151'};cursor:pointer">${p}</button>`
+      ).join('');
+    } else {
+      const pages = [...new Set([1, tp, this.page-1, this.page, this.page+1].filter(p => p>=1 && p<=tp))].sort((a,b)=>a-b);
+      let html = '';
+      pages.forEach((p, i) => {
+        if (i > 0 && p - pages[i-1] > 1) html += `<span style="font-size:11px;color:#9ca3af;padding:0 2px">…</span>`;
+        html += `<button onclick="MAG.goPage(${p})"
+          style="width:22px;height:20px;font-size:11px;border-radius:4px;border:1px solid ${p===this.page?'#2563eb':'#e5e7eb'};background:${p===this.page?'#2563eb':'#fff'};color:${p===this.page?'#fff':'#374151'};cursor:pointer">${p}</button>`;
+      });
+      pEl.innerHTML = html;
+    }
+  },
+
+  goPage(p)   { this.page = p; this.renderBody(); this.renderPagination(); },
+  prevPage()  { if (this.page > 1) this.goPage(this.page-1); },
+  nextPage()  { if (this.page < this.totalPages()) this.goPage(this.page+1); },
+  setPerPage(v) { this.perPage = parseInt(v)||0; this.page = 1; this.renderBody(); this.renderPagination(); },
+
+  // ── Density
+  setDensity(d) {
+    this.density = d;
+    document.querySelectorAll('.den-btn').forEach(b => {
+      b.style.background = '';  b.style.boxShadow = '';  b.style.fontWeight = '';  b.style.color = '#6b7280';
+    });
+    const active = document.getElementById('d-' + d);
+    if (active) { active.style.background='#fff'; active.style.boxShadow='0 1px 3px rgba(0,0,0,.12)'; active.style.fontWeight='600'; active.style.color='#111827'; }
+    this.renderBody();
+  },
+
+  // ── Detail panel
+  async openDetail(materialId) {
+    const m = this.all.find(x => x.material_id === materialId);
+    if (!m) return;
+    this.closeDrawer(false);
+
+    document.getElementById('mag-detail-title').textContent = `${m.tipo||''} ${m.profilo||''}`.trim();
+    document.getElementById('mag-detail-sub').textContent = [m.qualita, m.dimensioni].filter(Boolean).join(' · ');
+
+    const body = document.getElementById('mag-detail-body');
+    body.innerHTML = `
+      <!-- Info grid -->
+      <div style="background:#f9fafb;border-radius:12px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${[['Tipo',m.tipo],['Profilo',m.profilo],['Dimensioni',m.dimensioni],['Qualità',m.qualita],
+           ['Colata',m.colata],['Commessa',m.commessa_ref],
+           ['Peso 1 pz', m.peso_1_pz ? fmtNum(m.peso_1_pz)+' kg' : null],
+           ['Peso/u [kg]', m.peso_u_kg ? fmtNum(m.peso_u_kg) : null],
+        ].map(([l,v]) => `<div>
+          <p style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em">${l}</p>
+          <p style="font-weight:500;color:#111827;margin-top:2px;font-size:13px">${v ? esc(String(v)) : '—'}</p>
+        </div>`).join('')}
+        <div style="grid-column:span 2">
+          <p style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em">Giacenza</p>
+          <span style="${this.pezziStyle(m.n_pezzi)};display:inline-block;padding:4px 14px;border-radius:8px;font-size:22px;font-weight:800;margin-top:4px">${m.n_pezzi} pz</span>
+          ${m.peso_kg != null ? `<span style="font-size:14px;color:#6b7280;margin-left:12px">= ${fmtNum(m.peso_kg)} kg totali</span>` : ''}
+        </div>
+      </div>
+
+      <!-- Azioni -->
+      <div style="display:flex;gap:8px">
+        <button onclick="MAG.openDrawer('INCOMING',${m.material_id})"
+          style="flex:1;background:#16a34a;color:#fff;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+          ↑ Registra arrivo
+        </button>
+        <button onclick="MAG.openDrawer('OUTGOING',${m.material_id})"
+          style="flex:1;background:#f97316;color:#fff;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+          ↓ Registra prelievo
+        </button>
+      </div>
+
+      <!-- Storico movimenti -->
+      <div>
+        <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">Storico movimenti</p>
+        <div id="detail-movs" style="font-size:12px;color:#9ca3af;font-style:italic">Caricamento…</div>
+      </div>`;
+
+    document.getElementById('mag-overlay').classList.remove('hidden');
+    document.getElementById('mag-detail').classList.remove('translate-x-full');
+
+    try {
+      const movs = await api(`/warehouse/movements?material_id=${materialId}&limit=40`);
+      const el = document.getElementById('detail-movs');
+      if (!el) return;
+      if (!movs.length) { el.innerHTML = '<p style="color:#9ca3af;font-style:italic;font-size:12px">Nessun movimento.</p>'; return; }
+      el.innerHTML = `<div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="border-bottom:2px solid #f3f4f6">
+            <th style="text-align:left;padding:4px 8px;color:#9ca3af;font-weight:600;font-size:10px;text-transform:uppercase">Data</th>
+            <th style="text-align:left;padding:4px 8px;color:#9ca3af;font-weight:600;font-size:10px;text-transform:uppercase">Tipo</th>
+            <th style="text-align:right;padding:4px 8px;color:#9ca3af;font-weight:600;font-size:10px;text-transform:uppercase">Qtà</th>
+            <th style="text-align:left;padding:4px 8px;color:#9ca3af;font-weight:600;font-size:10px;text-transform:uppercase">Motivo</th>
+          </tr></thead>
+          <tbody>
+            ${movs.map(mv => {
+              const isIn = mv.movement_type === 'INCOMING';
+              return `<tr style="border-bottom:1px solid #f9fafb">
+                <td style="padding:5px 8px;color:#6b7280">${new Date(mv.occurred_at).toLocaleDateString('it-IT')}</td>
+                <td style="padding:5px 8px;color:${isIn?'#16a34a':'#ea580c'};font-weight:600">${isIn?'Arrivo':'Prelievo'}</td>
+                <td style="padding:5px 8px;text-align:right;font-family:monospace;font-weight:700;color:${isIn?'#16a34a':'#ea580c'}">${isIn?'+':'−'}${mv.quantity}</td>
+                <td style="padding:5px 8px;color:#6b7280;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(mv.reason||'')}">${esc(mv.reason||'—')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    } catch(e) {
+      const el = document.getElementById('detail-movs');
+      if (el) el.innerHTML = `<p style="color:#ef4444;font-size:12px">${e.message}</p>`;
+    }
+  },
+
+  closeDetail() {
+    document.getElementById('mag-detail').classList.add('translate-x-full');
+    document.getElementById('mag-overlay').classList.add('hidden');
+  },
+
+  // ── Drawer
+  openDrawer(type, materialId = null) {
+    this.closeDetail();
+    const m = materialId ? this.all.find(x => x.material_id === materialId) : null;
+
+    document.getElementById('mag-drawer-title').textContent =
+      type === 'INCOMING' ? '↑ Registra arrivo merce' : '↓ Registra prelievo per commessa';
+
+    const matOptions = this.all.map(x => {
+      const lbl = [x.tipo, x.profilo, x.qualita ? `· ${x.qualita}` : '', x.dimensioni ? `[${x.dimensioni}]` : ''].filter(Boolean).join(' ');
+      return `<option value="${x.material_id}" ${x.material_id===materialId?'selected':''}>${lbl}</option>`;
+    }).join('');
+
+    const commOptions = this.commesse.filter(c => c.status==='APERTA')
+      .map(c => `<option value="${c.id}">${c.codice}${c.cliente?' · '+c.cliente:''}</option>`).join('');
+
+    const inCls  = 'background:#16a34a';
+    const outCls = 'background:#f97316';
+    const btnCls = type === 'INCOMING' ? inCls : outCls;
+
+    document.getElementById('mag-drawer-body').innerHTML = `
+      <form id="drw-form" style="display:flex;flex-direction:column;gap:16px">
+        <input type="hidden" id="drw-type" value="${type}"/>
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Materiale *</label>
+          <select id="drw-mat" required
+            style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;background:#fff">
+            <option value="">— Seleziona —</option>
+            ${matOptions}
+          </select>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Quantità (pz) *</label>
+          <input id="drw-qty" type="number" step="any" min="0.001" required placeholder="0"
+            style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:15px;font-weight:600;outline:none;box-sizing:border-box"/>
+        </div>
+
+        ${type === 'OUTGOING' ? `
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Commessa</label>
+          <select id="drw-comm"
+            style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;background:#fff">
+            <option value="">— nessuna —</option>
+            ${commOptions}
+          </select>
+        </div>` : ''}
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">
+            ${type==='INCOMING' ? 'Numero DDT / motivo *' : 'Motivo *'}
+          </label>
+          <input id="drw-reason" type="text" required
+            value="${type==='INCOMING'?'Arrivo merce':'Prelievo per commessa'}"
+            placeholder="${type==='INCOMING'?'es. DDT-00123':'es. Prelievo commessa 2026'}"
+            style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;box-sizing:border-box"/>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Riferimento</label>
+          <input id="drw-ref" type="text" placeholder="numero bolla, documento…"
+            style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;box-sizing:border-box"/>
+        </div>
+
+        <div id="drw-fb" style="display:none;font-size:13px"></div>
+
+        <button type="submit" id="drw-btn"
+          style="${btnCls};color:#fff;padding:11px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;width:100%;border:none;margin-top:4px">
+          ${type==='INCOMING' ? 'Registra arrivo' : 'Registra prelievo'}
+        </button>
+      </form>`;
+
+    document.getElementById('drw-form').addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const fb  = document.getElementById('drw-fb');
+      const btn = document.getElementById('drw-btn');
+      const matId  = parseInt(document.getElementById('drw-mat').value);
+      const qty    = parseFloat(document.getElementById('drw-qty').value);
+      const reason = document.getElementById('drw-reason').value.trim();
+      const ref    = document.getElementById('drw-ref').value.trim();
+      const commEl = document.getElementById('drw-comm');
+      const commId = commEl ? (parseInt(commEl.value) || null) : null;
+
+      if (!matId || !reason) {
+        fb.style.display='block'; fb.style.color='#ef4444';
+        fb.textContent='Compila tutti i campi obbligatori.'; return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Registrazione…';
+      try {
+        await api('/warehouse/movements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ material_id:matId, quantity:qty, movement_type:type, reason, reference:ref||null, commessa_id:commId }),
+        });
+        this.closeDrawer();
+        this.toast(type==='INCOMING' ? '↑ Arrivo registrato' : '↓ Prelievo registrato', 'success');
+        await this.load();
+      } catch(err) {
+        fb.style.display='block'; fb.style.color='#ef4444'; fb.textContent='Errore: '+err.message;
+        btn.disabled=false; btn.textContent = type==='INCOMING'?'Registra arrivo':'Registra prelievo';
+      }
+    });
+
+    document.getElementById('mag-overlay').classList.remove('hidden');
+    document.getElementById('mag-drawer').classList.remove('translate-x-full');
+    setTimeout(() => document.getElementById('drw-qty')?.focus(), 150);
+  },
+
+  closeDrawer(hideOverlay=true) {
+    document.getElementById('mag-drawer').classList.add('translate-x-full');
+    if (hideOverlay) document.getElementById('mag-overlay').classList.add('hidden');
+  },
+
+  closeAll() { this.closeDrawer(); this.closeDetail(); },
+
+  // ── Toast
+  toast(msg, type='success') {
+    const el = document.createElement('div');
+    el.className = 'mag-toast entering';
+    el.style.cssText = `background:${type==='success'?'#16a34a':'#dc2626'};color:#fff`;
+    el.innerHTML = `<span style="font-size:14px">${type==='success'?'✓':'✕'}</span><span>${msg}</span>`;
+    document.getElementById('mag-toasts').appendChild(el);
+    requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.remove('entering')); });
+    setTimeout(() => { el.classList.add('entering'); setTimeout(() => el.remove(), 300); }, 3200);
+  },
+};
 
 // ── Distinte ──────────────────────────────────────────────────────────────────
 async function loadImports() {
@@ -219,9 +974,8 @@ document.getElementById('distinta-form').addEventListener('submit', async e => {
   if (!file) return;
   res.textContent = 'Caricamento…';
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const data = await api(`/warehouse/distinta/import?generate_qr=${genQr}`, { method: 'POST', body: fd });
+    const fd = new FormData(); fd.append('file', file);
+    const data = await api(`/warehouse/distinta/import?generate_qr=${genQr}`, { method:'POST', body:fd });
     res.innerHTML = `<span class="text-green-700">✓ Importati ${data.total_items} pezzi (id=${data.id})</span>`;
     loadImports();
   } catch(e) { res.innerHTML = `<span class="text-red-600">Errore: ${e.message}</span>`; }
@@ -244,9 +998,9 @@ async function loadCommesse() {
         ${items.map(c => `<tr class="hover:bg-gray-50">
           ${td(`<span class="font-mono font-medium">${c.codice}</span>`)}
           ${td(c.cliente)}${td(c.descrizione)}
-          ${td(c.data_inizio || '—')}${td(c.data_consegna_prevista || '—')}
+          ${td(c.data_inizio||'—')}${td(c.data_consegna_prevista||'—')}
           ${td(badge(c.status))}
-          ${td(`<select onchange="changeStatus(${c.id}, this.value)" class="border rounded px-2 py-1 text-xs">
+          ${td(`<select onchange="changeStatus(${c.id},this.value)" class="border rounded px-2 py-1 text-xs">
             <option value="">…</option>
             <option value="APERTA">Aperta</option>
             <option value="SOSPESA">Sospesa</option>
@@ -260,9 +1014,9 @@ async function loadCommesse() {
 async function changeStatus(id, status) {
   if (!status) return;
   try {
-    await api(`/commesse/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+    await api(`/commesse/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
     loadCommesse();
-  } catch(e) { alert('Errore: ' + e.message); }
+  } catch(e) { alert('Errore: '+e.message); }
 }
 
 document.getElementById('commessa-form').addEventListener('submit', async e => {
@@ -271,10 +1025,9 @@ document.getElementById('commessa-form').addEventListener('submit', async e => {
   const fd = new FormData(e.target);
   const body = Object.fromEntries([...fd.entries()].filter(([,v]) => v !== ''));
   try {
-    await api('/commesse', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    await api('/commesse', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     res.innerHTML = '<span class="text-green-700">✓ Commessa creata</span>';
-    e.target.reset();
-    loadCommesse();
+    e.target.reset(); loadCommesse();
   } catch(ex) { res.innerHTML = `<span class="text-red-600">${ex.message}</span>`; }
 });
 
@@ -284,24 +1037,22 @@ async function scanQR() {
   const el = document.getElementById('qr-result');
   if (!payload) return;
   try {
-    const item = await api('/qr/scan', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ payload }) });
+    const item = await api('/qr/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({payload}) });
     el.innerHTML = `<div class="mt-4 border rounded p-4 bg-gray-50 text-sm space-y-1">
       <p><strong>ID:</strong> ${item.id}</p>
-      <p><strong>Pos/Parte:</strong> ${item.part_number || '—'}</p>
-      <p><strong>Profilo:</strong> ${item.description || '—'}</p>
-      <p><strong>Materiale:</strong> ${item.material_code || '—'}</p>
-      <p><strong>Quantità:</strong> ${item.quantity ?? '—'}</p>
-      <p><strong>Commessa:</strong> ${item.commessa_reference || '—'}</p>
-      <p><strong>File distinta:</strong> ${item.import_filename || '—'}</p>
-      <p><strong>Stato:</strong> ${item.import_status || '—'}</p>
+      <p><strong>Pos/Parte:</strong> ${item.part_number||'—'}</p>
+      <p><strong>Profilo:</strong> ${item.description||'—'}</p>
+      <p><strong>Materiale:</strong> ${item.material_code||'—'}</p>
+      <p><strong>Quantità:</strong> ${item.quantity??'—'}</p>
+      <p><strong>Commessa:</strong> ${item.commessa_reference||'—'}</p>
+      <p><strong>File distinta:</strong> ${item.import_filename||'—'}</p>
       ${item.id ? `<a href="/api/v1/warehouse/distinta/items/${item.id}/label.pdf" target="_blank"
-        class="inline-block mt-2 bg-blue-700 text-white px-4 py-1 rounded text-xs hover:bg-blue-600">
-        Scarica etichetta PDF</a>` : ''}
+        class="inline-block mt-2 bg-blue-700 text-white px-4 py-1 rounded text-xs hover:bg-blue-600">Scarica etichetta PDF</a>` : ''}
     </div>`;
   } catch(e) { el.innerHTML = `<p class="text-red-500 mt-2">${e.message}</p>`; }
 }
 
-// ── Inventario ────────────────────────────────────────────────────────────────
+// ── Inventario import ─────────────────────────────────────────────────────────
 document.getElementById('inventario-form').addEventListener('submit', async e => {
   e.preventDefault();
   const res = document.getElementById('inv-result');
@@ -309,16 +1060,27 @@ document.getElementById('inventario-form').addEventListener('submit', async e =>
   if (!file) return;
   res.textContent = 'Importazione in corso…';
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const data = await api('/inventario/import', { method: 'POST', body: fd });
-    res.innerHTML = `<span class="text-green-700">✓ ${data.rows_parsed} righe — ${data.materials_created} materiali creati, ${data.movements_created} movimenti.</span>`;
-    loadMaterials();
-  } catch(e) { res.innerHTML = `<span class="text-red-600">Errore: ${e.message}</span>`; }
+    const fd = new FormData(); fd.append('file', file);
+    const data = await api('/inventario/import', { method:'POST', body:fd });
+    res.innerHTML = `<span style="color:#16a34a">✓ ${data.rows_parsed} righe — ${data.materials_created} materiali creati, ${data.movements_created} movimenti.</span>`;
+    document.getElementById('import-dd').classList.add('hidden');
+    MAG.load();
+  } catch(e) { res.innerHTML = `<span style="color:#ef4444">Errore: ${e.message}</span>`; }
+});
+
+// ── Close import dropdown when clicking outside ───────────────────────────────
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('import-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('import-dd').classList.add('hidden');
+  }
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-showTab('stock');
+MAG.setDensity('normal');
+const _VALID_TABS = ['magazzino','distinte','commesse','qr'];
+const _urlTab = new URLSearchParams(window.location.search).get('tab') || 'magazzino';
+showTab(_VALID_TABS.includes(_urlTab) ? _urlTab : 'magazzino');
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +9,7 @@ class MovementType(str, Enum):
     INCOMING = "INCOMING"
     OUTGOING = "OUTGOING"
     ADJUSTMENT = "ADJUSTMENT"
+    SFRIDO = "SFRIDO"
 
 
 class SupplierBase(BaseModel):
@@ -30,10 +31,18 @@ class SupplierRead(SupplierBase):
 
 
 class MaterialBase(BaseModel):
-    code: str = Field(..., example="S235JR")
-    description: str = Field(..., example="Profilo IPE 200")
+    code: str = Field(..., example="HEA-200-S275")
+    description: str = Field(..., example="HEA 200 | S275")
     unit: str = Field("PZ", example="PZ")
-    specification: Optional[str] = Field(None, example="EN 10025-2")
+    specification: Optional[str] = Field(None, example="S275")
+    tipo: Optional[str] = Field(None, example="HEA")
+    profilo: Optional[str] = Field(None, example="200")
+    dimensioni: Optional[str] = Field(None, example="6000")
+    qualita: Optional[str] = Field(None, example="S275")
+    colata: Optional[str] = Field(None, example="C-2026-001")
+    commessa_ref: Optional[str] = Field(None, example="COMM-2026-001")
+    peso_u_kg: Optional[float] = Field(None, example=42.3)
+    peso_1_pz: Optional[float] = Field(None, example=253.8)
 
 
 class MaterialCreate(MaterialBase):
@@ -110,11 +119,12 @@ class CertificateRead(CertificateBase):
 
 class StockMovementBase(BaseModel):
     material_id: int
-    batch_id: Optional[int]
+    batch_id: Optional[int] = None
     quantity: float = Field(..., example=8.0)
     movement_type: MovementType
     reason: str = Field(..., example="Prelievo commessa")
     destination_commessa: Optional[str] = None
+    commessa_id: Optional[int] = None
     reference: Optional[str] = None
 
 
@@ -140,3 +150,79 @@ class StockBalanceRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MagazzinoItemRead(BaseModel):
+    material_id: int
+    material_code: str
+    tipo: Optional[str] = None
+    profilo: Optional[str] = None
+    n_pezzi: float
+    dimensioni: Optional[str] = None
+    qualita: Optional[str] = None
+    colata: Optional[str] = None
+    commessa_ref: Optional[str] = None
+    peso_kg: Optional[float] = None
+    peso_u_kg: Optional[float] = None
+    peso_1_pz: Optional[float] = None
+    unita_misura: Optional[str] = "pz"
+    dimensione_2: Optional[float] = None
+    quantita_prenotata: Optional[float] = 0
+    quantita_uscita: Optional[float] = 0
+
+    class Config:
+        from_attributes = True
+
+
+# ── Stock Reservations ──────────────────────────────────────────────────────
+
+class TipoMovimentoRiserva(str, Enum):
+    PRENOTAZIONE = "PRENOTAZIONE"
+    CONFERMA_USCITA = "CONFERMA_USCITA"
+    RIENTRO_SFRIDO = "RIENTRO_SFRIDO"
+
+
+class StockReservationCreate(BaseModel):
+    material_id: int
+    commessa_id: int
+    tipo_movimento: TipoMovimentoRiserva
+    quantita: float
+    dimensione_1: Optional[float] = None
+    dimensione_2: Optional[float] = None
+    note: Optional[str] = None
+
+
+class StockReservationRead(StockReservationCreate):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Cutting Stock Analysis ───────────────────────────────────────────────────
+
+class DistintaAnalysisItem(BaseModel):
+    material_id: int
+    profilo: str
+    qualita: Optional[str] = None
+    length_mm: Optional[float] = None
+    width_mm: Optional[float] = None
+    quantity: int
+    n_available: float
+    dim1_stock: Optional[float] = None
+    dim2_stock: Optional[float] = None
+    unita_misura: Optional[str] = "pz"
+    peso_1_pz: Optional[float] = None
+    peso_kg: Optional[float] = None
+
+
+class DistintaAnalysisRequest(BaseModel):
+    commessa_id: Optional[int] = None
+    items: List[DistintaAnalysisItem]
+
+
+class DistintaAnalysisResult(BaseModel):
+    cutting_plans: List[Any]
+    sfrido_totale_percentuale: float
+    warning_sfrido: bool

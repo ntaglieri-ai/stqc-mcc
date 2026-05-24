@@ -9,6 +9,7 @@ import backend.app.models.warehouse  # noqa: F401
 from backend.app.api.api_v1.api import api_router
 
 STATIC_DIR = Path(__file__).parent / "static"
+_NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"}
 
 
 def create_app() -> FastAPI:
@@ -22,7 +23,19 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def root():
-        return FileResponse(STATIC_DIR / "index.html")
+        return FileResponse(STATIC_DIR / "home.html", headers=_NO_CACHE)
+
+    @app.get("/app", include_in_schema=False)
+    def app_page():
+        return FileResponse(STATIC_DIR / "index.html", headers=_NO_CACHE)
+
+    @app.get("/commesse", include_in_schema=False)
+    def commesse_lista_page():
+        return FileResponse(STATIC_DIR / "commesse-lista.html", headers=_NO_CACHE)
+
+    @app.get("/commesse/nuova", include_in_schema=False)
+    def commesse_nuova_page():
+        return FileResponse(STATIC_DIR / "commesse-nuova.html", headers=_NO_CACHE)
 
     return app
 

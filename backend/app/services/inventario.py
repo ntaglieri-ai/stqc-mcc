@@ -41,43 +41,52 @@ def parse_inventario(file_path: Path) -> List[dict]:
         if qty <= 0:
             continue
 
-        profilo_str = str(profilo).strip() if profilo is not None else ""
-        qualita = str(row[4]).strip() if row[4] not in (None, "") else ""
-        colata = str(row[5]).strip() if row[5] not in (None, "") else None
-        commessa = str(row[6]).strip() if row[6] not in (None, "") else None
-        dimensioni = str(row[3]).strip() if row[3] not in (None, "") else None
-        peso_kg = row[7]
+        def _str(v) -> str | None:
+            return str(v).strip() if v not in (None, "") else None
+
+        def _float(v) -> float | None:
+            try:
+                return float(v) if v not in (None, "") else None
+            except (TypeError, ValueError):
+                return None
+
+        tipo_str = tipo.strip()
+        profilo_str = _str(profilo) or ""
+        qualita = _str(row[4])
+        colata = _str(row[5])
+        commessa = _str(row[6])
+        dimensioni = _str(row[3])
+        peso_u_kg = _float(row[8])
+        peso_1_pz = _float(row[9])
 
         # Codice materiale univoco: TIPO-PROFILO[-QUALITA'] troncato a 100 char
-        parts = [tipo.upper().replace(" ", "_"), profilo_str.replace(" ", "_")]
+        parts = [tipo_str.upper().replace(" ", "_"), profilo_str.replace(" ", "_")]
         if qualita:
             parts.append(qualita.replace(" ", "_"))
         material_code = "-".join(parts)[:100]
 
-        # Descrizione leggibile
-        desc_parts = [f"{tipo} {profilo_str}"]
+        # Descrizione leggibile (retrocompatibilità)
+        desc_parts = [f"{tipo_str} {profilo_str}".strip()]
         if qualita:
             desc_parts.append(qualita)
         if dimensioni:
             desc_parts.append(f"L={dimensioni}mm")
         description = " | ".join(desc_parts)[:400]
 
-        notes_parts = []
-        if colata:
-            notes_parts.append(f"colata={colata}")
-        if commessa:
-            notes_parts.append(f"commessa={commessa}")
-        if peso_kg:
-            notes_parts.append(f"peso_tot={peso_kg}kg")
-
         items.append({
             "material_code": material_code,
             "description": description,
-            "specification": qualita or None,
-            "quantity": qty,
+            "specification": qualita,
+            # campi strutturati
+            "tipo": tipo_str,
+            "profilo": profilo_str or None,
+            "dimensioni": dimensioni,
+            "qualita": qualita,
             "colata": colata,
             "commessa_reference": commessa,
-            "notes": "; ".join(notes_parts) or None,
+            "peso_u_kg": peso_u_kg,
+            "peso_1_pz": peso_1_pz,
+            "quantity": qty,
         })
 
     return items

@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from backend.app.models.warehouse import (
@@ -173,3 +173,74 @@ def get_certificates(db: Session, receipt_id: int) -> list[Certificate]:
 
 def get_certificate(db: Session, cert_id: int) -> Certificate | None:
     return db.get(Certificate, cert_id)
+
+
+def get_magazzino_list(
+    db: Session,
+    skip: int = 0,
+    limit: int = 200,
+    q: str | None = None,
+) -> list[dict]:
+    stmt = (
+        select(
+            Material.id,
+            Material.code,
+            Material.tipo,
+            Material.profilo,
+            Material.dimensioni,
+            Material.qualita,
+            Material.colata,
+            Material.commessa_ref,
+            Material.peso_u_kg,
+            Material.peso_1_pz,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (StockMovement.movement_type == MovementType.INCOMING, StockMovement.quantity),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_incoming"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (StockMovement.movement_type == MovementType.OUTGOING, StockMovement.quantity),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_outgoing"),
+        )
+        .outerjoin(StockMovement, StockMovement.material_id == Material.id)
+        .group_by(Material.id)
+        .order_by(Material.tipo, Material.profilo, Material.code)
+    )
+    if q:
+        stmt = stmt.where(
+            Material.code.ilike(f"%{q}%")
+            | Material.tipo.ilike(f"%{q}%")
+            | Material.profilo.ilike(f"%{q}%")
+            | Material.qualita.ilike(f"%{q}%")
+        )
+    rows = db.execute(stmt.offset(skip).limit(limit)).all()
+    result = []
+    for r in rows:
+        n_pezzi = float(r.total_incoming - r.total_outgoing)
+        peso_1_pz = float(r.peso_1_pz) if r.peso_1_pz is not None else None
+        peso_kg = round(n_pezzi * peso_1_pz, 3) if peso_1_pz is not None else None
+        result.append({
+            "material_id": r.id,
+            "material_code": r.code,
+            "tipo": r.tipo,
+            "profilo": r.profilo,
+            "n_pezzi": n_pezzi,
+            "dimensioni": r.dimensioni,
+            "qualita": r.qualita,
+            "colata": r.colata,
+            "commessa_ref": r.commessa_ref,
+            "peso_kg": peso_kg,
+            "peso_u_kg": float(r.peso_u_kg) if r.peso_u_kg is not None else None,
+            "peso_1_pz": peso_1_pz,
+        })
+    return result

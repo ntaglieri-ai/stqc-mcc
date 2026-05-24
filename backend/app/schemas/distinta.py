@@ -12,6 +12,7 @@ class DistintaItemBase(BaseModel):
     material_description: Optional[str] = Field(None, example="Acciaio da carpenteria")
     commessa_reference: Optional[str] = Field(None, example="COMM-2026-001")
     qr_code: Optional[str] = None
+    length_mm: Optional[float] = Field(None, example=3500.0)
 
 
 class DistintaItemCreate(DistintaItemBase):
