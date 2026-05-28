@@ -13,7 +13,7 @@
 
     /* ── Left hero ── */
     .left {
-      width: 38%;
+      width: 32%;
       position: relative;
       overflow: hidden;
       flex-shrink: 0;
@@ -89,8 +89,8 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding: 52px 56px;
-      max-width: 560px;
+      padding: 52px 44px;
+      max-width: 980px;
       width: 100%;
       margin: 0 auto;
     }
@@ -123,31 +123,58 @@
     .field-input:focus { border-color: rgba(59,130,246,0.6); background: rgba(255,255,255,0.07); }
     .field-input::placeholder { color: rgba(255,255,255,0.18); }
 
-    /* ── File upload zone ── */
-    .file-zone {
+    /* ── Upload 3-box row ── */
+    .upload-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .upload-box {
       border: 2px dashed rgba(255,255,255,0.1);
       border-radius: 13px;
-      padding: 28px 20px;
+      padding: 20px 16px 18px;
       text-align: center;
       cursor: pointer;
       transition: border-color .2s, background .2s;
       position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    .file-zone:hover, .file-zone.drag-over {
+    .upload-box:hover, .upload-box.drag-over {
       border-color: #3b82f6;
       background: rgba(59,130,246,0.06);
     }
-    .file-zone input[type=file] {
+    .upload-box.has-file {
+      border-color: rgba(74,222,128,0.35);
+      background: rgba(74,222,128,0.04);
+    }
+    .upload-box input[type=file] {
       position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
     }
-    .file-icon { font-size: 28px; margin-bottom: 8px; line-height: 1; }
-    .file-text { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.5); }
-    .file-hint { font-size: 12px; color: rgba(255,255,255,0.25); margin-top: 4px; }
-    .file-selected {
-      font-size: 13px; font-weight: 700; color: #4ade80; margin-top: 8px;
-      display: none; align-items: center; gap: 6px; justify-content: center;
+    .ub-req-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 8px; margin-bottom: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
     }
-    .file-selected.visible { display: flex; }
+    .ub-req-badge.required { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .ub-req-badge.optional { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.1); }
+    .ub-icon { font-size: 24px; margin-bottom: 8px; line-height: 1; }
+    .ub-label { font-size: 13px; font-weight: 800; color: rgba(255,255,255,0.85); margin-bottom: 3px; line-height: 1.3; }
+    .ub-sub { font-size: 11px; color: rgba(255,255,255,0.32); margin-bottom: 10px; line-height: 1.45; }
+    .ub-hint { font-size: 10px; color: rgba(255,255,255,0.2); margin-bottom: 4px; font-family: monospace; }
+    .ub-cta { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); }
+    .ub-selected {
+      font-size: 11px; font-weight: 700; color: #4ade80; margin-top: 8px;
+      display: none; align-items: center; gap: 5px; justify-content: center;
+      text-align: center; word-break: break-all; line-height: 1.4;
+    }
+    .ub-selected.visible { display: flex; flex-direction: column; }
+    .ub-selected-name { color: #4ade80; }
+    .ub-selected-count { font-size: 10px; color: rgba(74,222,128,0.7); }
+
+    /* keep legacy .file-selected used nowhere but guard */
+    .file-selected { display: none; }
+    .file-zone { display: none; }
 
     /* ── Divider ── */
     .divider {
@@ -205,12 +232,10 @@
     #wiz-backdrop.open { opacity: 1; pointer-events: auto; }
 
     #wiz-panel {
-      position: fixed; top: 0; right: 0;
-      width: 64%; min-width: 600px; max-width: 900px;
+      position: fixed; top: 0; left: 0; right: 0;
+      width: 100%;
       height: 100vh;
       background: #080f1f;
-      border-left: 1px solid rgba(255,255,255,.07);
-      box-shadow: -48px 0 140px rgba(0,0,0,.85);
       transform: translateX(100%);
       transition: transform .42s cubic-bezier(.4,0,.2,1);
       z-index: 301;
@@ -220,7 +245,7 @@
 
     /* Progress bar */
     .wiz-progress {
-      display: flex; align-items: center; padding: 22px 40px;
+      display: flex; align-items: center; padding: 22px max(40px, calc((100% - 880px) / 2));
       border-bottom: 1px solid rgba(255,255,255,.06); flex-shrink: 0; gap: 0;
     }
     .wiz-step-item { display: flex; align-items: center; flex: 1; }
@@ -253,7 +278,7 @@
     .wiz-close-btn:hover { background: rgba(255,255,255,.13); color: #fff; }
 
     /* Scrollable body */
-    .wiz-body { flex: 1; overflow-y: auto; padding: 36px 40px; }
+    .wiz-body { flex: 1; overflow-y: auto; padding: 36px max(40px, calc((100% - 880px) / 2)); }
     .wiz-body::-webkit-scrollbar { width: 4px; }
     .wiz-body::-webkit-scrollbar-track { background: transparent; }
     .wiz-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
@@ -318,28 +343,72 @@
     .sfrido-tbl td { padding:6px 10px; color:rgba(255,255,255,.65); border-bottom:1px solid rgba(255,255,255,.04); }
     .sfrido-tbl tr:last-child td { color:rgba(255,255,255,.85); font-weight:700; border-top:1px solid rgba(255,255,255,.1); border-bottom:none; }
 
-    /* Piano di taglio FFD */
-    .ffd-section { margin-top:28px; }
-    .ffd-loading { display:flex; align-items:center; gap:10px; color:rgba(255,255,255,.3); font-size:13px; padding:16px 0; }
-    .ffd-spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.12); border-top-color:#3b82f6; border-radius:50%; animation:spin .7s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
-    .ffd-card {
-      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07);
-      border-radius:12px; padding:16px 18px; margin-bottom:10px;
+    /* Avail card clickable */
+    .avail-card-btn { cursor: pointer; transition: transform .18s, box-shadow .18s; user-select: none; }
+    .avail-card-btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    .avail-hint { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: 0.5; margin-top: 6px; }
+
+    /* Detail popup overlay */
+    #detail-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.72);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      z-index: 400;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s;
     }
-    .ffd-card-hdr { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
-    .ffd-card-title { font-size:14px; font-weight:800; color:rgba(255,255,255,.88); font-family:monospace; }
-    .ffd-card-sub { font-size:11px; color:rgba(255,255,255,.3); }
-    .ffd-badge { padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700; letter-spacing:.05em; }
-    .ffd-badge-ok   { background:rgba(74,222,128,.12); color:#4ade80; border:1px solid rgba(74,222,128,.2); }
-    .ffd-badge-part { background:rgba(251,146,60,.12); color:#fb923c; border:1px solid rgba(251,146,60,.2); }
-    .ffd-bar-row { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
-    .ffd-bar { display:flex; align-items:center; gap:2px; background:rgba(255,255,255,.05); border-radius:5px; padding:3px 7px; font-size:10px; color:rgba(255,255,255,.5); }
-    .ffd-bar-piece { background:#2563eb; height:10px; border-radius:2px; display:inline-block; margin:0 1px; }
-    .ffd-bar-waste  { background:rgba(248,113,113,.3); height:10px; border-radius:2px; display:inline-block; margin:0 1px; }
-    .ffd-stats { display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; }
-    .ffd-stat { font-size:11px; color:rgba(255,255,255,.35); }
-    .ffd-stat strong { color:rgba(255,255,255,.7); }
+    #detail-overlay.open { opacity: 1; pointer-events: auto; }
+    #detail-box {
+      width: min(720px, 90vw); max-height: 74vh;
+      background: #0b1526;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 18px;
+      box-shadow: 0 32px 100px rgba(0,0,0,.9);
+      display: flex; flex-direction: column;
+      transform: translateY(14px) scale(0.98);
+      transition: transform .22s;
+    }
+    #detail-overlay.open #detail-box { transform: translateY(0) scale(1); }
+    .dp-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .dp-title { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -.01em; }
+    .dp-close {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05); color: rgba(255,255,255,.4);
+      font-size: 14px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, color .2s;
+    }
+    .dp-close:hover { background: rgba(255,255,255,.13); color: #fff; }
+    .dp-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .dp-body::-webkit-scrollbar { width: 4px; }
+    .dp-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+    .dp-empty { padding: 32px 0; text-align: center; color: rgba(255,255,255,.25); font-size: 13px; }
+    .dp-note {
+      padding: 12px 16px; margin-bottom: 16px;
+      background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.2);
+      border-radius: 10px; font-size: 12px; color: rgba(255,255,255,.5); line-height: 1.55;
+    }
+    .dp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .dp-tbl th { padding: 7px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: rgba(255,255,255,.3); border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; }
+    .dp-tbl th.r { text-align: right; }
+    .dp-tbl td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.04); color: rgba(255,255,255,.7); }
+    .dp-tbl tbody tr:last-child td { border-bottom: none; }
+    .dp-tbl tbody tr:hover td { background: rgba(255,255,255,.025); }
+    .dp-tbl .r { text-align: right; }
+    .dp-tbl .mono { font-family: monospace; font-weight: 700; color: rgba(255,255,255,.9); }
+    .dp-tbl .muted { font-family: monospace; font-size: 11px; color: rgba(255,255,255,.4); }
+    .dp-tbl .c-ok   { color: #4ade80; font-weight: 700; }
+    .dp-tbl .c-warn { color: #fbbf24; font-weight: 700; }
+    .dp-tbl .c-err  { color: #f87171; font-weight: 700; }
+    .dp-tbl .c-part { color: #fb923c; font-weight: 700; }
+    .dp-total td { border-top: 1px solid rgba(255,255,255,.1) !important; border-bottom: none !important; color: rgba(255,255,255,.88); }
 
     /* Textarea */
     .wiz-textarea {
@@ -381,7 +450,7 @@
 
     /* Footer */
     .wiz-footer {
-      padding: 18px 40px; border-top: 1px solid rgba(255,255,255,.06);
+      padding: 18px max(40px, calc((100% - 880px) / 2)); border-top: 1px solid rgba(255,255,255,.06);
       display: flex; align-items: center; gap: 12px; flex-shrink: 0;
     }
     .wiz-btn-primary {
@@ -406,9 +475,149 @@
     /* Fasi tag list */
     .fasi-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .fasi-tag { padding: 3px 10px; border-radius: 20px; background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.25); font-size: 11px; color: #93c5fd; font-weight: 600; }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,.12); border-radius: 12px; transition: .2s; }
+    .toggle-slider::before { position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: rgba(255,255,255,.45); border-radius: 50%; transition: .2s; }
+    .toggle input:checked + .toggle-slider { background: rgba(234,88,12,.55); border: 1px solid rgba(234,88,12,.4); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: #fb923c; }
+
+    /* Breadcrumb */
+    .bc { display: flex; align-items: center; gap: 7px; font-size: 12px; margin-bottom: 28px; }
+    .bc a { color: rgba(255,255,255,.38); text-decoration: none; padding: 3px 7px; border-radius: 6px; transition: background .2s, color .2s; }
+    .bc a:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.75); }
+    .bc-sep { color: rgba(255,255,255,.15); }
+    .bc-cur { color: rgba(255,255,255,.6); font-weight: 600; padding: 3px 7px; }
+
+    /* Pre-distinta banner in wizard */
+    #wiz-predistinta-banner {
+      display: none; flex-shrink: 0;
+      padding: 10px 40px;
+      background: rgba(234,88,12,.1);
+      border-bottom: 1px solid rgba(234,88,12,.2);
+    }
+    #wiz-predistinta-banner span { font-size: 12px; color: #fb923c; line-height: 1.5; }
+    #wiz-predistinta-banner strong { font-weight: 800; }
+    .wiz-action-blue { background: rgba(37,99,235,.18); border: 1px solid rgba(37,99,235,.4); }
+    .wiz-action-blue:hover { background: rgba(37,99,235,.28); box-shadow: 0 8px 28px rgba(37,99,235,.3); }
+    .anom-correggi-btn {
+      padding: 4px 11px; border-radius: 7px; border: 1px solid rgba(251,191,36,.35);
+      background: rgba(251,191,36,.08); color: #fbbf24; font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all .18s; white-space: nowrap; flex-shrink: 0;
+    }
+    .anom-correggi-btn:hover { background: rgba(251,191,36,.18); border-color: rgba(251,191,36,.6); }
+    .anom-panel { margin-top: 4px; margin-bottom: 2px; padding: 16px 18px;
+      background: rgba(10,16,32,.9); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; }
+    .anom-tab-btns { display: flex; gap: 4px; margin-bottom: 14px;
+      background: rgba(255,255,255,.04); border-radius: 9px; padding: 3px; }
+    .anom-tab-btn { flex: 1; padding: 7px; border-radius: 7px; font-size: 12px; font-weight: 700;
+      border: none; background: transparent; color: rgba(255,255,255,.32); cursor: pointer; transition: all .18s; }
+    .anom-tab-btn.active { background: rgba(255,255,255,.09); color: rgba(255,255,255,.82); }
+    .anom-rows-wrap { max-height: 240px; overflow-y: auto; margin-bottom: 12px; }
+    .anom-row { display: flex; align-items: center; gap: 10px; padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,.04); }
+    .anom-row:last-child { border-bottom: none; }
+    .anom-row-label { flex: 1; min-width: 0; font-size: 12px; color: rgba(255,255,255,.55);
+      font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .anom-input { flex: 1; padding: 6px 10px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px; font-size: 12px; color: rgba(255,255,255,.88);
+      outline: none; transition: border-color .2s; font-family: monospace; }
+    .anom-input:focus { border-color: rgba(59,130,246,.5); }
+    .anom-save-btn { padding: 8px 20px; border-radius: 9px; border: none;
+      background: #2563eb; color: #fff; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all .2s; }
+    .anom-save-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .anom-save-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .dp-verify-btn {
+      padding: 4px 10px; border-radius: 7px; border: 1px solid rgba(74,222,128,.3);
+      background: rgba(74,222,128,.08); color: #4ade80; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .18s; white-space: nowrap;
+    }
+    .dp-verify-btn:hover { background: rgba(74,222,128,.18); border-color: rgba(74,222,128,.5); }
+
+    /* ── QR Gallery (post-generazione) ── */
+    .qr-gallery-hdr {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .qr-gallery-title { font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -.02em; }
+    .qr-gallery-meta  { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 5px; line-height: 1.5; }
+    .qr-btn-print-all {
+      padding: 10px 22px; border-radius: 10px; border: none;
+      background: #2563eb; color: #fff; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all .2s; white-space: nowrap; flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(37,99,235,.35);
+    }
+    .qr-btn-print-all:hover { background: #1d4ed8; transform: translateY(-1px); }
+    /* expanded detail inside QR gallery */
+    .qr-det-inner { display: flex; align-items: flex-start; gap: 18px; }
+    .qr-det-fields { display: flex; flex-direction: column; gap: 7px; flex: 1; padding-top: 4px; }
+    .qr-det-field  { display: flex; flex-direction: column; gap: 1px; }
+    .qr-det-lbl    { font-size: 9px; color: rgba(255,255,255,.3); text-transform: uppercase; letter-spacing: .07em; }
+    .qr-det-val    { font-size: 12px; color: rgba(255,255,255,.82); line-height: 1.4; }
+    .qr-det-val.mono { font-family: monospace; font-weight: 700; font-size: 13px; }
+    .qr-det-val.dim  { color: rgba(255,255,255,.45); font-size: 11px; }
+    /* print card — hidden on screen, shown as A6 page in @media print */
+    .qr-card { display: none; flex-direction: column; align-items: center; text-align: center; background: #fff; }
+    .qr-img   { width: 100%; max-width: 106px; height: auto; display: block; margin-bottom: 6px; }
+    .qr-marca { font-size: 11px; font-weight: 800; color: #111; font-family: monospace; line-height: 1.3; word-break: break-all; }
+    .qr-profilo { font-size: 10px; color: #444; margin-top: 2px; line-height: 1.3; }
+    .qr-material { font-size: 9px; color: #666; margin-top: 2px; }
+    .qr-length   { font-size: 9px; color: #666; margin-top: 1px; }
+    .qr-parent-lbl { font-size: 9px; color: #888; margin-top: 3px; font-style: italic; }
+
+    @media print {
+      body > *:not(#wiz-panel) { display: none !important; }
+      #wiz-panel {
+        position: static !important; transform: none !important;
+        width: 100% !important; height: auto !important; overflow: visible !important;
+        border: none !important; box-shadow: none !important; background: #fff !important;
+        display: block !important;
+      }
+      .wiz-progress, .wiz-footer, #wiz-predistinta-banner { display: none !important; }
+      .wiz-body { overflow: visible !important; padding: 0 !important; }
+      .qr-gallery-hdr { display: none !important; }
+      .wiz-table-wrap { overflow: visible !important; }
+      .wiz-table thead { display: none !important; }
+      /* hide data rows, show all detail rows */
+      .pz-row { display: none !important; }
+      .qr-det-row { display: table-row !important; }
+      .qr-det-row > td:first-child { display: none !important; }
+      .qr-det-row > td { padding: 0 !important; border: none !important; }
+      /* hide the inline screen image, show the print card */
+      .qr-screen-img { display: none !important; }
+      .qr-card { display: flex !important; }
+      @page { size: A6 portrait; margin: 5mm; }
+      .qr-card {
+        width: 95mm; min-height: 128mm; padding: 7mm;
+        page-break-after: always; break-after: page;
+        margin: 0; border-radius: 0;
+        justify-content: center;
+      }
+      .qr-img      { width: 65mm; max-width: 65mm; margin-bottom: 6mm; }
+      .qr-marca    { font-size: 15pt; font-weight: 800; color: #000; }
+      .qr-profilo  { font-size: 11pt; color: #333; margin-top: 3mm; }
+      .qr-material { font-size: 10pt; color: #555; margin-top: 2mm; }
+      .qr-length   { font-size: 10pt; color: #555; margin-top: 1mm; }
+      .qr-parent-lbl { font-size: 9pt; color: #888; margin-top: 2mm; font-style: italic; }
+    }
   </style>
 </head>
 <body>
+
+<!-- Auth guard -->
+<script>
+(function() {
+  const t = localStorage.getItem('stqc_token');
+  const p = localStorage.getItem('stqc_profilo');
+  if (!t) { window.location.replace('/login'); return; }
+  if (!['Responsabile','Direttore','Admin'].includes(p)) { window.location.replace('/'); }
+})();
+</script>
+
 <div class="split">
 
   <!-- ══════ LEFT HERO ══════ -->
@@ -445,13 +654,13 @@
   <div class="right">
     <div class="form-wrap">
 
-      <div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:28px">
-        <a href="/" style="color:rgba(255,255,255,0.35);text-decoration:none;padding:3px 7px;border-radius:6px;transition:background .2s,color .2s" onmouseover="this.style.background='rgba(255,255,255,0.07)';this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.background='';this.style.color='rgba(255,255,255,0.35)'">Home</a>
-        <span style="color:rgba(255,255,255,0.15)">/</span>
-        <a href="/" onclick="sessionStorage.setItem('returnPanel','gestione')" style="color:rgba(255,255,255,0.35);text-decoration:none;padding:3px 7px;border-radius:6px;transition:background .2s,color .2s" onmouseover="this.style.background='rgba(255,255,255,0.07)';this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.background='';this.style.color='rgba(255,255,255,0.35)'">Gestione Commesse</a>
-        <span style="color:rgba(255,255,255,0.15)">/</span>
-        <span style="color:rgba(255,255,255,0.55);font-weight:600">Nuova Commessa</span>
-      </div>
+      <nav class="bc">
+        <a href="/">Home</a>
+        <span class="bc-sep">/</span>
+        <a href="/commesse">In corso</a>
+        <span class="bc-sep">/</span>
+        <span class="bc-cur">Nuova Commessa</span>
+      </nav>
 
       <div class="form-eyebrow">Nuova Commessa</div>
       <div class="form-title">Crea il progetto</div>
@@ -478,21 +687,72 @@
           <input class="field-input" id="f-consegna" name="data_consegna_prevista" type="date" />
         </div>
 
-        <div style="margin:8px 0 14px">
-          <div style="height:1px;background:rgba(255,255,255,0.07);margin-bottom:16px"></div>
-          <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.6)">Distinta di Commessa</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:4px">Distinta definitiva o pre-distinta — entrambe accettate</div>
+        <div style="height:1px;background:rgba(255,255,255,0.07);margin:8px 0 18px"></div>
+
+        <div style="margin-bottom:14px">
+          <div style="font-size:14px;font-weight:800;color:rgba(255,255,255,0.88);margin-bottom:3px">Documenti Commessa</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.35)">Carica i file necessari per avviare il tracciamento</div>
         </div>
 
-        <div class="file-zone" id="file-zone">
-          <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm"
-            onchange="onFileSelected(this)" />
-          <div class="file-icon">📄</div>
-          <div class="file-text">Trascina il file qui</div>
-          <div class="file-hint">oppure clicca per selezionare · .xlsx / .xls / .xlsm</div>
-          <div class="file-selected" id="file-selected-label">
-            <span>✓</span><span id="file-name-text"></span>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;margin-bottom:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:11px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.8)">Pre-distinta</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:2px">Distinta provvisoria in attesa della definitiva</div>
           </div>
+          <label class="toggle">
+            <input type="checkbox" id="f-predistinta">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="upload-row">
+
+          <!-- Box 1 — Lista pezzi (obbligatorio) -->
+          <div class="upload-box" id="ub-distinta">
+            <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm"
+              onchange="ubSelected('ub-distinta','f-distinta',false)" />
+            <span class="ub-req-badge required">Obbligatorio</span>
+            <div class="ub-icon">📊</div>
+            <div class="ub-label">Lista pezzi</div>
+            <div class="ub-sub">Per verifica magazzino, ordini e QR code</div>
+            <div class="ub-hint">.xlsx · .xls · .xlsm</div>
+            <div class="ub-cta">Trascina o clicca</div>
+            <div class="ub-selected" id="ub-distinta-sel">
+              <span class="ub-selected-name" id="ub-distinta-name"></span>
+            </div>
+          </div>
+
+          <!-- Box 2 — Lista pezzi e assemblati (opzionale) -->
+          <div class="upload-box" id="ub-fasi">
+            <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm"
+              onchange="ubSelected('ub-fasi','f-fasi',false)" />
+            <span class="ub-req-badge optional">Opzionale</span>
+            <div class="ub-icon">🔧</div>
+            <div class="ub-label">Lista pezzi e assemblati</div>
+            <div class="ub-sub">Lista fasi di lavorazione della commessa</div>
+            <div class="ub-hint">.xlsx · .xls · .xlsm</div>
+            <div class="ub-cta">Trascina o clicca</div>
+            <div class="ub-selected" id="ub-fasi-sel">
+              <span class="ub-selected-name" id="ub-fasi-name"></span>
+            </div>
+          </div>
+
+          <!-- Box 3 — Schemi e Disegni (opzionale, multipli) -->
+          <div class="upload-box" id="ub-disegni">
+            <input type="file" id="f-disegni" accept=".pdf,.dwg,.jpg,.jpeg,.png"
+              multiple onchange="ubSelected('ub-disegni','f-disegni',true)" />
+            <span class="ub-req-badge optional">Opzionale</span>
+            <div class="ub-icon">📐</div>
+            <div class="ub-label">Schemi e Disegni</div>
+            <div class="ub-sub">Disegni tecnici per fase — nessun limite di file</div>
+            <div class="ub-hint">.pdf · .dwg · .jpg · .png</div>
+            <div class="ub-cta">Trascina o clicca</div>
+            <div class="ub-selected" id="ub-disegni-sel">
+              <span class="ub-selected-name" id="ub-disegni-name"></span>
+              <span class="ub-selected-count" id="ub-disegni-count"></span>
+            </div>
+          </div>
+
         </div>
 
         <button type="submit" class="btn-create" id="btn-submit">
@@ -526,43 +786,92 @@
 <!-- ══ WIZARD PANEL ══ -->
 <div id="wiz-panel">
   <div class="wiz-progress" id="wiz-progress"></div>
+  <div id="wiz-predistinta-banner">
+    <span>⚠️ <strong>Pre-distinta</strong> — Dati provvisori. Analisi e calcoli sono temporanei e soggetti a revisione alla ricezione della distinta definitiva.</span>
+  </div>
   <div class="wiz-body" id="wiz-body"></div>
   <div class="wiz-footer" id="wiz-footer"></div>
 </div>
 
+<!-- ══ DETAIL POPUP ══ -->
+<div id="detail-overlay" onclick="WIZ._closeDetailPopup()">
+  <div id="detail-box" onclick="event.stopPropagation()">
+    <div class="dp-header">
+      <span class="dp-title" id="dp-title"></span>
+      <button class="dp-close" onclick="WIZ._closeDetailPopup()">✕</button>
+    </div>
+    <div class="dp-body" id="dp-body"></div>
+  </div>
+</div>
+
 <script>
-const AUTH = 'Basic ' + btoa('mcc:stqc2026');
+function getAuth() { return 'Bearer ' + localStorage.getItem('stqc_token'); }
+function logout() {
+  localStorage.removeItem('stqc_token');
+  localStorage.removeItem('stqc_profilo');
+  localStorage.removeItem('stqc_nome');
+  window.location.replace('/login');
+}
 
 window.addEventListener('load', () => {
   document.getElementById('hero-bg').classList.add('loaded');
 });
 
-// Drag & drop feedback
-const zone = document.getElementById('file-zone');
-zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-zone.addEventListener('drop', e => {
-  e.preventDefault(); zone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) {
-    document.getElementById('f-distinta').files;
-    // assign via DataTransfer workaround
-    const dt = new DataTransfer(); dt.items.add(f);
-    document.getElementById('f-distinta').files = dt.files;
-    onFileSelected(document.getElementById('f-distinta'));
-  }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') WIZ._closeDetailPopup();
 });
 
-function onFileSelected(input) {
-  const label = document.getElementById('file-selected-label');
-  const nameEl = document.getElementById('file-name-text');
-  if (input.files && input.files[0]) {
-    nameEl.textContent = input.files[0].name;
-    label.classList.add('visible');
+// ── Upload box helpers ─────────────────────────────────────────────────────────
+function ubSelected(boxId, inputId, multi) {
+  const input = document.getElementById(inputId);
+  const box   = document.getElementById(boxId);
+  const sel   = document.getElementById(boxId + '-sel');
+  const name  = document.getElementById(boxId + '-name');
+  const count = document.getElementById(boxId + '-count');
+
+  if (input.files && input.files.length > 0) {
+    box.classList.add('has-file');
+    sel.classList.add('visible');
+    if (multi && input.files.length > 1) {
+      name.textContent = input.files[0].name + (input.files.length > 1 ? ` +${input.files.length - 1}` : '');
+      if (count) count.textContent = `${input.files.length} file selezionati`;
+    } else {
+      name.textContent = input.files[0].name;
+      if (count) count.textContent = '';
+    }
   } else {
-    label.classList.remove('visible');
+    box.classList.remove('has-file');
+    sel.classList.remove('visible');
   }
 }
+
+function _ubDrop(boxId, inputId, multi, files) {
+  const input = document.getElementById(inputId);
+  const dt = new DataTransfer();
+  if (multi) { Array.from(files).forEach(f => dt.items.add(f)); }
+  else if (files[0]) { dt.items.add(files[0]); }
+  input.files = dt.files;
+  ubSelected(boxId, inputId, multi);
+}
+
+// Drag & drop for all 3 upload boxes
+[
+  { box: 'ub-distinta', input: 'f-distinta', multi: false },
+  { box: 'ub-fasi',     input: 'f-fasi',     multi: false },
+  { box: 'ub-disegni',  input: 'f-disegni',  multi: true  },
+].forEach(({ box, input, multi }) => {
+  const el = document.getElementById(box);
+  el.addEventListener('dragover',  e => { e.preventDefault(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', ()  => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) _ubDrop(box, input, multi, e.dataTransfer.files);
+  });
+});
+
+// legacy alias so handleSubmit can still read f-distinta via onFileSelected if ever called
+function onFileSelected(input) { ubSelected('ub-distinta', 'f-distinta', false); }
 
 function showFeedback(type, msg) {
   const el = document.getElementById('feedback');
@@ -593,7 +902,7 @@ async function handleSubmit(e) {
   try {
     const res = await fetch('/api/v1/commesse', {
       method: 'POST',
-      headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ codice: nome, cliente, data_consegna_prevista: consegna || undefined, status: 'APERTA' }),
     });
     if (res.status === 409) {
@@ -607,6 +916,19 @@ async function handleSubmit(e) {
     btn.disabled = false; btn.textContent = 'Crea Commessa'; return;
   }
 
+  // 1b — Importa fasi operative (non bloccante)
+  const fasiFile = document.getElementById('f-fasi').files?.[0];
+  if (fasiFile) {
+    btn.textContent = 'Importazione fasi…';
+    try {
+      const fd = new FormData();
+      fd.append('file', fasiFile);
+      await fetch(`/api/v1/commesse/${commessa.id}/fasi/import`, {
+        method: 'POST', headers: { Authorization: getAuth() }, body: fd,
+      });
+    } catch { /* non bloccante */ }
+  }
+
   // 2 — Importa distinta (se presente) — cattura dati completi per il wizard
   const hasFile = fileInput.files && fileInput.files[0];
   if (hasFile) {
@@ -616,7 +938,7 @@ async function handleSubmit(e) {
       const fd = new FormData();
       fd.append('file', fileInput.files[0]);
       const res2 = await fetch('/api/v1/warehouse/distinta/import', {
-        method: 'POST', headers: { Authorization: AUTH }, body: fd,
+        method: 'POST', headers: { Authorization: getAuth() }, body: fd,
       });
       if (res2.ok) distinataData = await res2.json();
     } catch { /* handled below */ }
@@ -625,7 +947,7 @@ async function handleSubmit(e) {
 
     if (distinataData && distinataData.items && distinataData.items.length > 0) {
       // Apri wizard con i dati
-      WIZ.open(commessa, distinataData);
+      WIZ.open(commessa, distinataData, document.getElementById('f-predistinta').checked);
       return;
     }
     // Distinta vuota o errore: mostra success normale
@@ -654,31 +976,66 @@ function resetForm() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   WIZARD — 4-step post-import guided flow
+   WIZARD — 2-step post-import guided flow
 ═══════════════════════════════════════════════════════ */
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtNum(n) { return n != null ? Number(n).toLocaleString('it-IT', {maximumFractionDigits:2}) : '—'; }
 
-const STEP_LABELS = ['Riepilogo distinta', 'Conferma', 'Disponibilità magazzino', 'Azioni'];
+/* Deve rispecchiare normalize_profile() in backend/app/services/distinta.py */
+const _PROFILE_ALIASES = {
+  LAMIERA10:'PL10', P10:'PL10', LAMIERA15:'PL15', P15:'PL15',
+  LAMIERA20:'PL20', P20:'PL20', LAMIERA25:'PL25', P25:'PL25',
+  LAMIERA30:'PL30', P30:'PL30',
+};
+function normalizeProfile(v) {
+  if (!v) return '';
+  v = v.toUpperCase().trim().replace(/\s+/g, '').replace(/-/g, '');
+  return _PROFILE_ALIASES[v] || v;
+}
+
+const STEP_LABELS = ['Riepilogo distinta', 'Disponibilità magazzino'];
 
 const WIZ = {
   step: 1,
   commessa: null,
-  distinata: null,   // DistintaImportRead
-  magazzino: null,   // MagazzinoItemRead[] (caricato a step 3)
-  availability: [],  // computed per item
+  distinata: null,
+  magazzino: null,
+  availability: [],
+  fasi: null,
+  activeDetailType: null,
   notes: '',
+  isPreDistinta: false,
+  _fasiFetchToken: 0,
 
-  open(commessa, distinata) {
+  open(commessa, distinata, isPreDistinta = false) {
     this.step = 1;
     this.commessa = commessa;
     this.distinata = distinata;
+    this.isPreDistinta = isPreDistinta;
     this.magazzino = null;
     this.availability = [];
+    this.fasi = null;
+    this.activeDetailType = null;
     this.notes = '';
+    // Token univoco per questa apertura: le fetch di sessioni precedenti
+    // che risolvono in ritardo vengono ignorate (evita stale fasi + stale anomalie).
+    const token = ++this._fasiFetchToken;
+    document.getElementById('wiz-predistinta-banner').style.display = isPreDistinta ? 'block' : 'none';
     document.getElementById('wiz-backdrop').classList.add('open');
     document.getElementById('wiz-panel').classList.add('open');
     this.render();
+    fetch('/api/v1/commesse/' + commessa.id + '/fasi', { headers: { Authorization: getAuth() } })
+      .then(r => r.ok ? r.json() : [])
+      .then(fasi => {
+        if (this._fasiFetchToken !== token) return;   // risposta stale — scarta
+        this.fasi = fasi;
+        if (this.step === 1) this.renderStep1();
+      })
+      .catch(() => {
+        if (this._fasiFetchToken !== token) return;
+        this.fasi = [];
+        if (this.step === 1) this.renderStep1();
+      });
   },
 
   close() {
@@ -723,11 +1080,149 @@ const WIZ = {
     const d = this.distinata;
     const items = d.items || [];
 
-    // Raggruppa per material_description per estrarre "fasi" (proxy)
-    const materialTypes = [...new Set(items.map(i => i.material_description || i.material_code).filter(Boolean))];
-    const fasiHtml = materialTypes.length
-      ? materialTypes.map(m => `<span class="fasi-tag">${esc(m)}</span>`).join('')
-      : '<span style="color:rgba(255,255,255,.25);font-size:12px">Non rilevate nel file</span>';
+    // Pezzi fisici — mappa fasi per part_number
+    const fasiByPart = new Map();
+    if (this.fasi) {
+      for (const f of this.fasi) {
+        if (!f.marca_pos) continue;
+        if (!fasiByPart.has(f.marca_pos)) fasiByPart.set(f.marca_pos, []);
+        fasiByPart.get(f.marca_pos).push(f);
+      }
+      for (const arr of fasiByPart.values()) arr.sort((a,b) => (a.sequenza||9999)-(b.sequenza||9999));
+    }
+
+    const pezziHtml = items.length === 0
+      ? '<div class="dp-empty">Nessun pezzo nella distinta</div>'
+      : `<div class="wiz-table-wrap"><table class="wiz-table" id="pz-table">
+          <thead><tr>
+            <th style="width:40px"></th>
+            <th>Marca/Pos.</th>
+            <th>Profilo</th>
+          </tr></thead>
+          <tbody>${items.map((it, i) => {
+            const instSuffix = it.instance_number != null
+              ? ` <span style="opacity:.35;font-weight:400">#${it.instance_number}</span>`
+              : '';
+
+            // Pannello espanso: fasi + assembly
+            const partFasi = fasiByPart.get(it.part_number) || [];
+            let detHtml = '';
+            if (it.parent_assembly && it.parent_assembly !== it.part_number) {
+              detHtml += `<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;
+                padding:5px 10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);
+                border-radius:6px;font-size:11px;color:rgba(255,255,255,.55)">
+                <span style="color:#93c5fd;font-size:13px">⊂</span>
+                Sarà parte di <strong style="font-family:monospace;color:#93c5fd;margin-left:4px">${esc(it.parent_assembly)}</strong>
+              </div>`;
+            }
+            if (partFasi.length === 0) {
+              detHtml += `<div style="font-size:11px;color:rgba(255,255,255,.25);font-style:italic">Nessuna fase trovata per questo pezzo</div>`;
+            } else {
+              detHtml += `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.2);margin-bottom:8px">Sequenza lavorazioni</div>`;
+              partFasi.forEach((f, fi) => {
+                const seqLbl = f.sequenza != null ? `<span style="font-size:9px;font-family:monospace;color:rgba(255,255,255,.2);min-width:44px;flex-shrink:0">Seq.${f.sequenza}</span>` : '';
+                detHtml += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+                  ${seqLbl}
+                  <span style="flex:1;font-size:12px;color:rgba(255,255,255,.75)">${esc(f.fase||'—')}</span>
+                  <span style="font-size:10px;padding:1px 7px;border-radius:4px;white-space:nowrap;
+                    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+                    color:rgba(255,255,255,.4)">${esc(f.postazione||'—')}</span>
+                </div>`;
+                if (fi < partFasi.length - 1) {
+                  detHtml += `<div style="font-size:11px;color:rgba(255,255,255,.12);padding:1px 0 1px 44px">↓</div>`;
+                }
+              });
+            }
+
+            return `<tr class="pz-row" onclick="WIZ._togglePezzoDetail(${i})" style="cursor:pointer">
+              <td style="text-align:center;color:rgba(255,255,255,.2);font-size:10px" id="pz-arr-${i}">▶</td>
+              <td style="font-family:monospace;font-weight:700;font-size:11px;color:rgba(255,255,255,.78)">${esc(it.part_number||'—')}${instSuffix}</td>
+              <td style="color:rgba(255,255,255,.55)">${esc(it.description||'—')}</td>
+            </tr>
+            <tr id="pz-det-${i}" style="display:none">
+              <td></td>
+              <td colspan="2" style="padding:10px 12px 14px;background:rgba(37,99,235,.04);
+                border-bottom:1px solid rgba(255,255,255,.04)">
+                ${detHtml}
+              </td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table></div>`;
+
+    // Fasi operative
+    let fasiSectionHtml;
+    if (this.fasi === null) {
+      fasiSectionHtml = '<div class="dp-empty" style="color:rgba(255,255,255,.3)">Caricamento fasi in corso…</div>';
+    } else if (this.fasi.length === 0) {
+      fasiSectionHtml = `<div style="display:flex;align-items:center;gap:10px;padding:14px 18px;
+        background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.08);border-radius:10px;
+        font-size:13px;color:rgba(255,255,255,.3)">
+        <span style="font-size:18px;opacity:.5">📋</span>
+        <span>File fasi operative non caricato</span>
+      </div>`;
+    } else {
+      const fg = new Map();
+      for (const f of this.fasi) {
+        const key = f.fase || 'Non specificata';
+        if (!fg.has(key)) fg.set(key, []);
+        fg.get(key).push(f);
+      }
+      fasiSectionHtml = `<div class="wiz-table-wrap"><table class="wiz-table">
+        <thead><tr>
+          <th>Fase</th>
+          <th>Postazione</th>
+          <th style="text-align:right">N. pezzi coinvolti</th>
+          <th style="text-align:right">Tempo prev. totale</th>
+        </tr></thead>
+        <tbody>${[...fg.entries()].map(([faseName, rows]) => {
+          const postazioni = [...new Set(rows.map(r => r.postazione).filter(Boolean))].join(', ') || '—';
+          const nPezzi = rows.reduce((s, r) => s + (r.quantita || 1), 0);
+          const tempTot = rows.reduce((s, r) => s + (r.tempo_tot_min || 0), 0);
+          return `<tr>
+            <td style="font-weight:700;color:rgba(255,255,255,.85)">${esc(faseName)}</td>
+            <td style="color:rgba(255,255,255,.55)">${esc(postazioni)}</td>
+            <td style="text-align:right">${fmtNum(nPezzi)}</td>
+            <td style="text-align:right;font-family:monospace">${tempTot > 0 ? Math.round(tempTot).toLocaleString('it-IT') + ' min' : '—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+
+    // Anomalie
+    const anomalie = [];
+    const noPn = items.filter(it => !it.part_number || !String(it.part_number).trim());
+    if (noPn.length > 0) anomalie.push({
+      type: 'no_pn', resource: 'distinta_item', editField: 'part_number',
+      label: noPn.length + ' ' + (noPn.length === 1 ? 'pezzo senza' : 'pezzi senza') + ' Marca/Pos.',
+      records: noPn,
+    });
+    if (this.fasi && this.fasi.length > 0) {
+      const noPost = this.fasi.filter(f => !f.postazione || !f.postazione.trim());
+      if (noPost.length > 0) anomalie.push({
+        type: 'no_post', resource: 'fase', editField: 'postazione',
+        label: noPost.length + ' ' + (noPost.length === 1 ? 'fase senza' : 'fasi senza') + ' postazione',
+        records: noPost,
+      });
+      const noTempo = this.fasi.filter(f => f.tempo_tot_min == null || f.tempo_tot_min === 0);
+      if (noTempo.length > 0) anomalie.push({
+        type: 'no_tempo', resource: 'fase', editField: 'tempo_tot_min', numeric: true,
+        label: noTempo.length + ' ' + (noTempo.length === 1 ? 'fase con' : 'fasi con') + ' tempo mancante',
+        records: noTempo,
+      });
+    }
+    this._anomalie = anomalie;
+    this._openAnomaliaIdx = null;
+
+    const warnHtml = anomalie.length === 0
+      ? `<div style="padding:10px 14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);border-radius:9px;font-size:12px;color:rgba(74,222,128,.8)">✓ Nessuna anomalia rilevata</div>`
+      : `<div style="display:flex;flex-direction:column;gap:4px">${anomalie.map((a, idx) =>
+          `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.18);border-radius:9px">
+            <span style="font-size:12px;color:#fbbf24">⚠ ${esc(a.label)}</span>
+            <button class="anom-correggi-btn" onclick="WIZ._openAnomaliaPanel(${idx})">Correggi →</button>
+          </div>
+          <div id="anom-panel-${idx}" style="display:none"></div>`
+        ).join('')}</div>`;
 
     document.getElementById('wiz-body').innerHTML = `
       <div class="wiz-title">Riepilogo distinta</div>
@@ -743,7 +1238,7 @@ const WIZ = {
           <div class="wiz-info-val" style="font-size:12px">${esc(d.filename)}</div>
         </div>
         <div class="wiz-info-card">
-          <div class="wiz-info-label">Pezzi totali identificati</div>
+          <div class="wiz-info-label">Pezzi identificati</div>
           <div class="wiz-info-val" style="font-size:22px;color:#4ade80">${items.length}</div>
         </div>
         <div class="wiz-info-card">
@@ -752,92 +1247,220 @@ const WIZ = {
         </div>
       </div>
 
-      <div class="wiz-section-lbl">Materiali richiesti</div>
-      <div class="wiz-table-wrap">
-        <table class="wiz-table">
-          <thead>
-            <tr>
-              <th>Profilo</th>
-              <th style="text-align:right">Lungh. (mm)</th>
-              <th style="text-align:right">Q.tà</th>
-              <th>Materiale</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(it => `
-              <tr>
-                <td style="font-family:monospace;font-weight:700;color:rgba(255,255,255,.9)">${esc(it.description||it.part_number||'—')}</td>
-                <td style="text-align:right;font-family:monospace;color:rgba(255,255,255,.6)">${it.length_mm ? fmtNum(it.length_mm) : '—'}</td>
-                <td style="text-align:right;font-weight:700;color:rgba(255,255,255,.9)">${fmtNum(it.quantity)}</td>
-                <td style="font-family:monospace;font-size:11px;color:rgba(255,255,255,.5)">${esc(it.material_code||'—')}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
+      <div class="wiz-section-lbl">Lista pezzi</div>
+      ${pezziHtml}
 
-      <div class="wiz-section-lbl">Tipi di lavorazione rilevati</div>
-      <div class="fasi-list">${fasiHtml}</div>
-    `;
+      <div class="wiz-section-lbl">Fasi operative</div>
+      ${fasiSectionHtml}
 
-    document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" onclick="WIZ.goStep(2)">Avanti →</button>
-      <button class="wiz-btn-back" onclick="WIZ.cancel()">← Annulla</button>
-    `;
-  },
+      <div class="wiz-section-lbl">Anomalie</div>
+      ${warnHtml}
 
-  /* ─── STEP 2: Conferma responsabile ─── */
-  renderStep2() {
-    document.getElementById('wiz-body').innerHTML = `
-      <div class="wiz-title">Conferma responsabile</div>
-      <div class="wiz-subtitle">Verifica che i dati letti dalla distinta siano corretti prima di procedere.</div>
-
-      <div class="wiz-warn-box">
-        <strong>⚠ Attenzione</strong><br>
-        Procedendo confermi che i <strong>${(this.distinata.items||[]).length} pezzi</strong>
-        identificati dalla distinta corrispondono al progetto
-        <strong>${esc(this.commessa.codice)}</strong>.
-        Il sistema utilizzerà questi dati per verificare la disponibilità in magazzino
-        e generare i QR di tracciamento.
-      </div>
-
-      <div class="wiz-section-lbl">Note (opzionale)</div>
+      <div class="wiz-section-lbl">Note</div>
       <textarea class="wiz-textarea" id="wiz-notes"
         placeholder="Eventuali osservazioni da registrare insieme alla commessa…">${esc(this.notes)}</textarea>
     `;
 
     document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" onclick="WIZ.confirmStep2()">✓ Confermo — i dati sono corretti</button>
-      <button class="wiz-btn-back" onclick="WIZ.goStep(1)">← Torna indietro</button>
+      <button class="wiz-btn-primary" onclick="WIZ._confirmStep1()">Confermo — i dati sono corretti →</button>
+      <button class="wiz-btn-back" onclick="WIZ.cancel()">← Annulla</button>
     `;
   },
 
-  confirmStep2() {
-    this.notes = document.getElementById('wiz-notes').value;
-    this.goStep(3);
+  _confirmStep1() {
+    const notesEl = document.getElementById('wiz-notes');
+    if (notesEl) this.notes = notesEl.value;
+    this.goStep(2);
   },
 
-  /* ─── STEP 3: Verifica disponibilità magazzino ─── */
-  async renderStep3() {
+  _togglePezzoDetail(i) {
+    const det = document.getElementById('pz-det-' + i);
+    const arr = document.getElementById('pz-arr-' + i);
+    if (!det) return;
+    const open = det.style.display !== 'none';
+    det.style.display = open ? 'none' : 'table-row';
+    if (arr) arr.textContent = open ? '▶' : '▼';
+  },
+
+  _openAnomaliaPanel(idx) {
+    const panel = document.getElementById('anom-panel-' + idx);
+    if (!panel) return;
+    // Toggle
+    if (this._openAnomaliaIdx === idx && panel.style.display !== 'none') {
+      panel.style.display = 'none';
+      this._openAnomaliaIdx = null;
+      return;
+    }
+    // Close others
+    (this._anomalie || []).forEach((_, i) => {
+      const p = document.getElementById('anom-panel-' + i);
+      if (p) p.style.display = 'none';
+    });
+    this._openAnomaliaIdx = idx;
+    panel.style.display = 'block';
+    this._renderAnomaliaPanel(idx, 'manuale');
+  },
+
+  _renderAnomaliaPanel(idx, tab) {
+    const a = (this._anomalie || [])[idx];
+    const panel = document.getElementById('anom-panel-' + idx);
+    if (!panel) return;
+    if (!a) {
+      // _anomalie è cambiato per un re-render concorrente: mostra messaggio
+      panel.innerHTML = '<div style="padding:12px;font-size:12px;color:rgba(255,255,255,.35)">Ricaricamento in corso…</div>';
+      return;
+    }
+    const tabManuale = tab === 'manuale';
+    const phMap = { no_pn: 'Marca/Pos.', no_post: 'Postazione', no_tempo: 'Min. totali' };
+    const placeholder = phMap[a.type] || a.editField;
+
+    let contentHtml;
+    if (tabManuale) {
+      const rowsHtml = a.records.map((r, rIdx) => {
+        const main = a.resource === 'distinta_item'
+          ? (r.description || r.material_code || '#' + r.id)
+          : (r.fase || 'Fase #' + r.id);
+        const sub = a.resource === 'fase' && r.marca_pos ? ' · ' + r.marca_pos : '';
+        const val = r[a.editField] != null ? String(r[a.editField]) : '';
+        return `<div class="anom-row">
+          <div class="anom-row-label">${esc(main)}<span style="color:rgba(255,255,255,.28);margin-left:4px">${esc(sub)}</span></div>
+          <input class="anom-input" type="${a.numeric ? 'number' : 'text'}"
+            placeholder="${placeholder}" value="${esc(val)}" data-ridx="${rIdx}"
+            ${a.numeric ? 'step="0.1" min="0"' : ''} />
+        </div>`;
+      }).join('');
+      contentHtml = `
+        <div class="anom-rows-wrap">${rowsHtml}</div>
+        <button class="anom-save-btn" onclick="WIZ._saveCorrezioni(${idx})">💾 Salva correzioni</button>`;
+    } else {
+      contentHtml = `
+        <p style="font-size:12px;color:rgba(255,255,255,.45);line-height:1.6;margin-bottom:14px">
+          Carica un file .xlsx con le sole righe corrette. Il sistema aggiornerà solo i record presenti nel file, senza reimportare la distinta completa.
+        </p>
+        <input type="file" id="anom-delta-${idx}" accept=".xlsx,.xlsm" style="display:none"
+          onchange="WIZ._uploadDeltaFile(${idx})">
+        <button class="anom-save-btn" onclick="document.getElementById('anom-delta-${idx}').click()">📂 Seleziona file .xlsx</button>`;
+    }
+
+    panel.innerHTML = `<div class="anom-panel">
+      <div class="anom-tab-btns">
+        <button class="anom-tab-btn${tabManuale ? ' active' : ''}" onclick="WIZ._renderAnomaliaPanel(${idx},'manuale')">Correzione manuale</button>
+        <button class="anom-tab-btn${!tabManuale ? ' active' : ''}" onclick="WIZ._renderAnomaliaPanel(${idx},'delta')">Carica file delta</button>
+      </div>
+      ${contentHtml}
+    </div>`;
+  },
+
+  async _saveCorrezioni(idx) {
+    const a = (this._anomalie || [])[idx];
+    const panel = document.getElementById('anom-panel-' + idx);
+    if (!panel || !a) return;
+    const inputs = panel.querySelectorAll('.anom-input');
+    const btn = panel.querySelector('.anom-save-btn');
+
+    const changes = [];
+    inputs.forEach((input) => {
+      const rIdx = parseInt(input.dataset.ridx, 10);
+      const val = input.value.trim();
+      if (val) changes.push({ record: a.records[rIdx], value: val });
+    });
+    if (!changes.length) return;
+
+    if (btn) { btn.textContent = 'Salvataggio…'; btn.disabled = true; }
+
+    let saved = 0, failed = 0;
+    for (const { record, value } of changes) {
+      try {
+        const url = a.resource === 'distinta_item'
+          ? '/api/v1/warehouse/distinta/items/' + record.id
+          : '/api/v1/commesse/' + this.commessa.id + '/fasi/' + record.id;
+        const body = { [a.editField]: a.numeric ? parseFloat(value) : value };
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          record[a.editField] = a.numeric ? parseFloat(value) : value;
+          saved++;
+        } else {
+          failed++;
+        }
+      } catch { failed++; }
+    }
+
+    if (saved > 0) {
+      this._openAnomaliaIdx = null;
+      this.renderStep1();
+    } else if (btn) {
+      btn.textContent = '✕ Errore — riprova';
+      btn.disabled = false;
+    }
+  },
+
+  async _uploadDeltaFile(idx) {
+    const fileInput = document.getElementById('anom-delta-' + idx);
+    if (!fileInput || !fileInput.files[0]) return;
+    const a = (this._anomalie || [])[idx];
+    const panel = document.getElementById('anom-panel-' + idx);
+    const btn = panel ? panel.querySelector('.anom-save-btn') : null;
+    const origText = btn ? btn.textContent : '';
+    if (btn) { btn.textContent = 'Caricamento…'; btn.disabled = true; }
+
+    const url = a.resource === 'fase'
+      ? '/api/v1/commesse/' + this.commessa.id + '/fasi/delta'
+      : '/api/v1/warehouse/distinta/imports/' + this.distinata.id + '/delta';
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { Authorization: getAuth() }, body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'HTTP ' + res.status);
+      }
+      if (a.resource === 'fase') {
+        const fRes = await fetch('/api/v1/commesse/' + this.commessa.id + '/fasi', { headers: { Authorization: getAuth() } });
+        if (fRes.ok) this.fasi = await fRes.json();
+      } else {
+        const dRes = await fetch('/api/v1/warehouse/distinta/imports/' + this.distinata.id, { headers: { Authorization: getAuth() } });
+        if (dRes.ok) this.distinata = await dRes.json();
+      }
+      this._openAnomaliaIdx = null;
+      this.renderStep1();
+    } catch (err) {
+      if (btn) { btn.textContent = origText; btn.disabled = false; }
+      if (panel) {
+        const errEl = document.createElement('div');
+        errEl.style.cssText = 'margin-top:10px;padding:8px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:8px;font-size:12px;color:#f87171';
+        errEl.textContent = '✕ ' + String(err.message || err);
+        btn ? btn.parentNode.insertBefore(errEl, btn.nextSibling) : panel.appendChild(errEl);
+      }
+    }
+  },
+
+  /* ─── STEP 2: Verifica disponibilità magazzino ─── */
+  async renderStep2() {
     document.getElementById('wiz-body').innerHTML = `
       <div class="wiz-title">Verifica disponibilità magazzino</div>
       <div class="wiz-subtitle">Controllo stock in corso…</div>
       <div class="wiz-spinner"><div class="spin-ring"></div><div class="spin-label">Interrogazione magazzino…</div></div>
     `;
     document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" disabled>Avanti →</button>
-      <button class="wiz-btn-back" onclick="WIZ.goStep(2)">← Torna indietro</button>
+      <button class="wiz-btn-primary" disabled>Caricamento…</button>
+      <button class="wiz-btn-back" onclick="WIZ.goStep(1)">← Torna indietro</button>
     `;
 
     if (!this.magazzino) {
       try {
-        const res = await fetch('/api/v1/warehouse/magazzino?limit=1000', { headers: { Authorization: AUTH } });
+        const res = await fetch('/api/v1/warehouse/magazzino?limit=1000', { headers: { Authorization: getAuth() } });
         if (res.ok) this.magazzino = await res.json();
         else this.magazzino = [];
       } catch { this.magazzino = []; }
     }
 
     this.computeAvailability();
-    this.renderStep3Results();
+    this.renderStep2Results();
   },
 
   computeAvailability() {
@@ -845,20 +1468,20 @@ const WIZ = {
     const mag   = this.magazzino || [];
 
     this.availability = items.map(item => {
-      const profilo = (item.description || '').toUpperCase().trim();
+      const profilo = normalizeProfile(item.description);
       const qualita = (item.material_code || '').toUpperCase().trim();
 
       // Match primario: PROFILO + QUALITÀ
       let match = null;
       if (profilo && qualita) {
         match = mag.find(m =>
-          (m.profilo || '').toUpperCase().trim() === profilo &&
+          normalizeProfile(m.profilo) === profilo &&
           (m.qualita || '').toUpperCase().trim() === qualita
         );
       }
       // Fallback: solo PROFILO
       if (!match && profilo) {
-        match = mag.find(m => (m.profilo || '').toUpperCase().trim() === profilo);
+        match = mag.find(m => normalizeProfile(m.profilo) === profilo);
       }
 
       const richiesta  = item.quantity || 0;
@@ -930,304 +1553,85 @@ const WIZ = {
     });
   },
 
-  renderStep3Results() {
-    const av       = this.availability;
-    const nOk      = av.filter(r => r.stato === 'ok').length;
-    const nManuale = av.filter(r => r.stato === 'manuale').length;
-    const nPartial = av.filter(r => r.stato === 'partial').length;
-    const nMissing = av.filter(r => r.stato === 'missing').length;
+  renderStep2Results() {
+    const av        = this.availability;
+    const nOk       = av.filter(r => r.stato === 'ok').length;
+    const nManuale  = av.filter(r => r.stato === 'manuale').length;
+    const nPartial  = av.filter(r => r.stato === 'partial').length;
+    const nMissing  = av.filter(r => r.stato === 'missing').length;
+    const nDisponibili = nOk + nManuale;
 
-    const badgeMap = {
-      ok:      `<span class="badge-ok">✅ Disponibile</span>`,
-      manuale: `<span class="badge-manuale">⚠️ Verifica manuale</span>`,
-      partial: `<span class="badge-part">🟠 Parziale</span>`,
-      missing: `<span class="badge-miss">❌ Mancante</span>`,
-    };
+    const { sfridoRows, totSfridoPct } = this._calcSfrido();
+    const sfridoStyle = sfridoRows.length === 0
+      ? 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.3)'
+      : totSfridoPct >= 20
+        ? 'background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:#f87171'
+        : 'background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);color:#fbbf24';
 
-    // ── Sfrido report ──
-    const sfridoRows = av.filter(r => r.sfrido_mm !== null && r.sfrido_mm !== undefined);
-    const totConsumed = sfridoRows.reduce((s, r) => s + (r.lunghezza_consumata || 0), 0);
-    const totSfrido   = sfridoRows.reduce((s, r) => s + (r.sfrido_mm || 0), 0);
-    const totSfridoPct = totConsumed > 0 ? totSfrido / totConsumed * 100 : 0;
-    const sfridoWarning = totSfridoPct > 20;
-
-    const sfridoTableHtml = sfridoRows.length ? `
-      <div class="wiz-section-lbl" style="margin-top:24px">Report sfrido</div>
-      <div class="wiz-table-wrap">
-        <table class="sfrido-tbl">
-          <thead>
-            <tr>
-              <th>Materiale</th>
-              <th style="text-align:right">Richiesto (mm)</th>
-              <th style="text-align:right">Consumato (mm)</th>
-              <th style="text-align:right">Sfrido (mm)</th>
-              <th style="text-align:right">Sfrido %</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sfridoRows.map(r => `
-              <tr>
-                <td style="font-family:monospace">${esc(r.item.description||r.item.part_number||'—')} <span style="color:rgba(255,255,255,.3)">${esc(r.item.material_code||'')}</span></td>
-                <td style="text-align:right">${r.lunghezza_richiesta ? Math.round(r.lunghezza_richiesta).toLocaleString('it') : '—'}</td>
-                <td style="text-align:right">${r.lunghezza_consumata ? Math.round(r.lunghezza_consumata).toLocaleString('it') : '—'}</td>
-                <td style="text-align:right;color:${r.sfrido_pct > 20 ? '#f87171' : '#fbbf24'}">${Math.round(r.sfrido_mm).toLocaleString('it')}</td>
-                <td style="text-align:right;color:${r.sfrido_pct > 20 ? '#f87171' : '#fbbf24'}">${r.sfrido_pct.toFixed(1)}%</td>
-              </tr>`).join('')}
-            <tr>
-              <td>TOTALE</td>
-              <td></td>
-              <td style="text-align:right">${Math.round(totConsumed).toLocaleString('it')}</td>
-              <td style="text-align:right;color:${sfridoWarning ? '#f87171' : '#fbbf24'}">${Math.round(totSfrido).toLocaleString('it')}</td>
-              <td style="text-align:right;color:${sfridoWarning ? '#f87171' : '#fbbf24'}">${totSfridoPct.toFixed(1)}%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      ${sfridoWarning ? `
-        <div class="sfrido-warn">
-          ⚠️ <strong>Attenzione: sfrido elevato (${totSfridoPct.toFixed(1)}%).</strong>
-          Verificare l'ottimizzazione del taglio prima di procedere.
-        </div>` : ''}
-    ` : '';
+    const canPrelievi = nMissing === 0;
+    const canPartial  = (nDisponibili + nPartial) > 0 && nMissing > 0;
+    const disabledStyle = 'opacity:.38;cursor:not-allowed';
 
     document.getElementById('wiz-body').innerHTML = `
       <div class="wiz-title">Verifica disponibilità magazzino</div>
-      <div class="wiz-subtitle">Risultato del controllo stock per i ${av.length} materiali della distinta.</div>
+      <div class="wiz-subtitle">Risultato del controllo stock per i ${av.length} materiali. Clicca un box per il dettaglio.</div>
 
-      <div class="avail-summary" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-        <div class="avail-card avail-ok" style="flex:1;min-width:100px">
-          <div class="avail-num">${nOk}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="avail-card avail-ok avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('ok')">
+          <div class="avail-num" id="kpi-ok-num">${nOk}</div>
           <div class="avail-lbl">Disponibili</div>
+          <div class="avail-hint" id="kpi-ok-hint">Dettaglio →</div>
         </div>
-        <div class="avail-card avail-manual" style="flex:1;min-width:100px">
-          <div class="avail-num">${nManuale}</div>
+        <div class="avail-card avail-manual avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('manuale')">
+          <div class="avail-num" id="kpi-manuale-num">${nManuale}</div>
           <div class="avail-lbl">Verifica manuale</div>
+          <div class="avail-hint" id="kpi-manuale-hint">Dettaglio →</div>
         </div>
-        <div class="avail-card avail-part" style="flex:1;min-width:100px">
-          <div class="avail-num">${nPartial}</div>
+        <div class="avail-card avail-part avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('partial')">
+          <div class="avail-num" id="kpi-partial-num">${nPartial}</div>
           <div class="avail-lbl">Parziali</div>
+          <div class="avail-hint" id="kpi-partial-hint">Dettaglio →</div>
         </div>
-        <div class="avail-card avail-miss" style="flex:1;min-width:100px">
-          <div class="avail-num">${nMissing}</div>
+        <div class="avail-card avail-miss avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('missing')">
+          <div class="avail-num" id="kpi-missing-num">${nMissing}</div>
           <div class="avail-lbl">Mancanti</div>
+          <div class="avail-hint" id="kpi-missing-hint">Dettaglio →</div>
+        </div>
+        <div class="avail-card avail-card-btn" style="flex:1;min-width:100px;${sfridoStyle}" onclick="WIZ._toggleDetail('sfrido')">
+          <div class="avail-num" id="kpi-sfrido-num">${sfridoRows.length ? totSfridoPct.toFixed(1) + '%' : '—'}</div>
+          <div class="avail-lbl">Sfrido totale</div>
+          <div class="avail-hint" id="kpi-sfrido-hint">Dettaglio →</div>
         </div>
       </div>
 
-      <div class="wiz-table-wrap">
-        <table class="wiz-table">
-          <thead>
-            <tr>
-              <th>Profilo</th>
-              <th>Materiale</th>
-              <th style="text-align:right">Richiesti</th>
-              <th style="text-align:right">Disponibili</th>
-              <th style="text-align:right">Dim. barra (mm)</th>
-              <th>Stato</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${av.map(r => {
-              const nota = r.stato === 'manuale'
-                ? `<div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:2px">Dimensioni non disponibili — confermare manualmente</div>` : '';
-              const dispStr = r.stato === 'partial'
-                ? `<span style="color:#fb923c">${fmtNum(r.disponibile)}</span> <span style="font-size:10px;color:rgba(255,255,255,.3)">(di ${fmtNum(r.richiesta)})</span>`
-                : fmtNum(r.disponibile);
-              return `
-              <tr>
-                <td style="font-family:monospace;font-weight:700;color:rgba(255,255,255,.9)">${esc(r.item.description||r.item.part_number||'—')}</td>
-                <td style="font-family:monospace;font-size:11px;color:rgba(255,255,255,.45)">${esc(r.item.material_code||'—')}</td>
-                <td style="text-align:right;font-weight:700">${fmtNum(r.richiesta)}</td>
-                <td style="text-align:right">${dispStr}</td>
-                <td style="text-align:right;font-family:monospace;color:rgba(255,255,255,.45)">${r.dim_mm ? r.dim_mm.toLocaleString('it') : '—'}</td>
-                <td>${badgeMap[r.stato]}${nota}</td>
-              </tr>`;}).join('')}
-          </tbody>
-        </table>
-      </div>
+      <div id="avail-detail-section" style="display:none;margin-top:14px;padding:16px 20px;
+        background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:auto"></div>
 
-      ${sfridoTableHtml}
+      <div class="wiz-section-lbl" style="margin-top:24px">Azioni</div>
 
-      <div class="ffd-section">
-        <div class="wiz-section-lbl">Piano di taglio (FFD)</div>
-        <div id="ffd-result"><div class="ffd-loading"><div class="ffd-spinner"></div>Analisi cutting stock in corso…</div></div>
-      </div>
-    `;
+      <button class="wiz-action-btn wiz-action-blue" onclick="WIZ.doGenQR()">
+        <div class="wiz-action-icon">🔷</div>
+        <div>
+          <div class="wiz-action-text-title">Genera QR per tutti i pezzi</div>
+          <div class="wiz-action-text-desc">Crea i QR code per tutti i pezzi della distinta, arricchiti con fase, postazione e sequenza.</div>
+        </div>
+      </button>
 
-    document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" onclick="WIZ.goStep(4)">Avanti →</button>
-      <button class="wiz-btn-back" onclick="WIZ.goStep(2)">← Torna indietro</button>
-    `;
-
-    // Lancia analisi FFD in background — non blocca la navigazione
-    this._loadCuttingPlan();
-  },
-
-  /* ─── Cutting stock FFD ─── */
-  async _loadCuttingPlan() {
-    const ffdEl = document.getElementById('ffd-result');
-    if (!ffdEl) return;
-
-    const matched = this.availability.filter(r => r.match && r.stato !== 'missing');
-    if (!matched.length) {
-      ffdEl.innerHTML = `<div style="font-size:13px;color:rgba(255,255,255,.25);padding:10px 0">Nessun materiale disponibile da analizzare.</div>`;
-      return;
-    }
-
-    const items = matched.map(r => ({
-      material_id:  r.match.material_id,
-      profilo:      r.item.description || r.item.part_number || '',
-      qualita:      r.item.material_code || null,
-      length_mm:    r.length_mm || null,
-      width_mm:     null,
-      quantity:     Math.round(r.richiesta),
-      n_available:  r.disponibile,
-      dim1_stock:   r.dim_mm || null,
-      unita_misura: r.match.unita_misura || 'pz',
-      peso_1_pz:    r.match.peso_1_pz || null,
-      peso_kg:      r.match.peso_kg || null,
-    }));
-
-    try {
-      const res = await fetch('/api/v1/stock/analyze', {
-        method: 'POST',
-        headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commessa_id: this.commessa?.id || null, items }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      this._renderCuttingPlan(ffdEl, data);
-    } catch (e) {
-      ffdEl.innerHTML = `<div style="font-size:12px;color:rgba(248,113,113,.6);padding:8px 0">Errore analisi FFD: ${esc(String(e.message||e))}</div>`;
-    }
-  },
-
-  _renderCuttingPlan(el, data) {
-    const plans = data.cutting_plans || [];
-    const sfridoTot = data.sfrido_totale_percentuale ?? 0;
-    const warning   = data.warning_sfrido;
-
-    if (!plans.length) {
-      el.innerHTML = `<div style="font-size:13px;color:rgba(255,255,255,.25);padding:10px 0">Nessun piano generato.</div>`;
-      return;
-    }
-
-    const warnHtml = warning ? `
-      <div class="sfrido-warn" style="margin-bottom:14px">
-        ⚠️ <strong>Sfrido totale elevato: ${sfridoTot.toFixed(1)}%.</strong>
-        Ottimizzare l'ordine di taglio prima di procedere.
-      </div>` : '';
-
-    const cards = plans.map(p => {
-      const badgeCls = p.stato === 'ok' ? 'ffd-badge-ok' : 'ffd-badge-part';
-      const badgeLbl = p.stato === 'ok' ? '✅ OK' : '🟠 Parziale';
-      const typeLabel = { '1d':'Barre 1D', '2d':'Lamiere 2D', '0d':'A pezzo', 'kg':'A peso' }[p.dimensione_type] || p.dimensione_type;
-      const sfridoColor = (p.sfrido_pct ?? 0) > 20 ? '#f87171' : '#fbbf24';
-
-      let detailHtml = '';
-      if (p.dimensione_type === '1d' && p.pezzi_per_barra) {
-        // Visual bar chart
-        const barLen = p.bar_length_mm || 1;
-        const barsHtml = p.pezzi_per_barra.slice(0, 6).map((pieces, bi) => {
-          const usedPct = pieces.reduce((s, x) => s + x, 0) / barLen * 100;
-          const wastePct = 100 - usedPct;
-          return `<div class="ffd-bar" title="Barra ${bi+1}: ${pieces.map(x=>x+'mm').join(' + ')}">
-            <span style="color:rgba(255,255,255,.3);margin-right:4px;font-size:9px">B${bi+1}</span>
-            <span class="ffd-bar-piece" style="width:${Math.max(4,usedPct * 0.6)}px" title="Usato ${usedPct.toFixed(0)}%"></span>
-            ${wastePct > 1 ? `<span class="ffd-bar-waste" style="width:${Math.max(2,wastePct * 0.6)}px" title="Sfrido ${wastePct.toFixed(0)}%"></span>` : ''}
-          </div>`;
-        }).join('');
-        const more = p.pezzi_per_barra.length > 6 ? `<span style="font-size:10px;color:rgba(255,255,255,.2)">+${p.pezzi_per_barra.length-6} barre…</span>` : '';
-        detailHtml = `<div class="ffd-bar-row">${barsHtml}${more}</div>`;
-      } else if (p.dimensione_type === '2d') {
-        detailHtml = `<div style="font-size:11px;color:rgba(255,255,255,.35)">
-          ${p.n_sheets_needed} fogli ${p.sheet_dim1_mm}×${p.sheet_dim2_mm}mm
-          su ${p.n_sheets_available} disponibili</div>`;
-      } else if (p.dimensione_type === '0d') {
-        detailHtml = `<div style="font-size:11px;color:rgba(255,255,255,.35)">
-          ${p.n_required} pz richiesti · ${p.n_available} disponibili</div>`;
-      } else if (p.dimensione_type === 'kg') {
-        detailHtml = `<div style="font-size:11px;color:rgba(255,255,255,.35)">
-          ${p.required_kg?.toFixed(2)} kg richiesti · ${p.available_kg?.toFixed(2)} kg disponibili</div>`;
-      }
-
-      const noteHtml = p.note ? `<div style="font-size:10px;color:rgba(251,146,60,.7);margin-top:6px">⚠ ${esc(p.note)}</div>` : '';
-
-      return `
-        <div class="ffd-card">
-          <div class="ffd-card-hdr">
-            <span class="ffd-card-title">${esc(p.profilo)}</span>
-            <span class="ffd-card-sub">${esc(p.qualita||'')}</span>
-            <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
-              <span style="font-size:10px;color:rgba(255,255,255,.2)">${typeLabel}</span>
-              <span class="ffd-badge ${badgeCls}">${badgeLbl}</span>
-            </span>
-          </div>
-          ${detailHtml}
-          <div class="ffd-stats">
-            ${p.dimensione_type === '1d' ? `
-              <span class="ffd-stat">Barre necessarie: <strong>${p.n_bars_needed}</strong></span>
-              <span class="ffd-stat">Barra mm: <strong>${fmtNum(p.bar_length_mm)}</strong></span>
-              <span class="ffd-stat">Sfrido: <strong style="color:${sfridoColor}">${p.sfrido_mm ? Math.round(p.sfrido_mm).toLocaleString('it')+'mm' : '—'} (${(p.sfrido_pct??0).toFixed(1)}%)</strong></span>
-            ` : `
-              <span class="ffd-stat">Sfrido: <strong style="color:${sfridoColor}">${(p.sfrido_pct??0).toFixed(1)}%</strong></span>
-            `}
-          </div>
-          ${noteHtml}
-        </div>`;
-    }).join('');
-
-    const summaryColor = sfridoTot > 20 ? '#f87171' : sfridoTot > 10 ? '#fbbf24' : '#4ade80';
-    el.innerHTML = `
-      ${warnHtml}
-      ${cards}
-      <div style="text-align:right;font-size:12px;color:rgba(255,255,255,.3);margin-top:8px">
-        Sfrido medio stimato: <strong style="color:${summaryColor}">${sfridoTot.toFixed(1)}%</strong>
-      </div>`;
-  },
-
-  /* ─── STEP 4: Azioni ─── */
-  renderStep4() {
-    const av       = this.availability;
-    const nOk      = av.filter(r => r.stato === 'ok').length;
-    const nManuale = av.filter(r => r.stato === 'manuale').length;
-    const nPartial = av.filter(r => r.stato === 'partial').length;
-    const nMissing = av.filter(r => r.stato === 'missing').length;
-    const nDisponibili = nOk + nManuale;  // confermabili senza ordine
-    const total    = av.length;
-
-    // Verde: tutto disponibile (ok + manuale), nessun mancante né parziale
-    const canGenAll  = nMissing === 0 && nPartial === 0;
-    // Arancione: almeno qualcosa disponibile/manuale E qualcosa mancante/parziale
-    const canPartial = (nDisponibili + nPartial) > 0 && (nMissing > 0 || nPartial > 0);
-
-    // Sfrido totale commessa
-    const sfridoRows = av.filter(r => r.sfrido_mm !== null && r.sfrido_mm !== undefined);
-    const totConsumed = sfridoRows.reduce((s, r) => s + (r.lunghezza_consumata || 0), 0);
-    const totSfrido   = sfridoRows.reduce((s, r) => s + (r.sfrido_mm || 0), 0);
-    const totSfridoPct = totConsumed > 0 ? totSfrido / totConsumed * 100 : 0;
-    const sfridoLine = sfridoRows.length
-      ? ` · Sfrido stimato: ${totSfridoPct.toFixed(1)}%${totSfridoPct > 20 ? ' ⚠️' : ''}`
-      : '';
-
-    document.getElementById('wiz-body').innerHTML = `
-      <div class="wiz-title">Azioni disponibili</div>
-      <div class="wiz-subtitle">Scegli come procedere in base alla disponibilità rilevata.</div>
-
-      <button class="wiz-action-btn wiz-action-green" onclick="WIZ.doGenQR()"
-        ${canGenAll ? '' : 'style="opacity:.38;cursor:not-allowed" disabled'}>
+      <button class="wiz-action-btn wiz-action-green" onclick="WIZ.doRichiediPrelievi()"
+        ${canPrelievi ? '' : 'disabled'} style="${canPrelievi ? '' : disabledStyle}">
         <div class="wiz-action-icon">🟢</div>
         <div>
-          <div class="wiz-action-text-title">Genera QR e avvia commessa</div>
-          <div class="wiz-action-text-desc">Tutto disponibile — scala magazzino per tutti i ${total} profili, registra prelievi e sfrido, avvia la commessa.</div>
+          <div class="wiz-action-text-title">Richiedi prelievi e avvia commessa</div>
+          <div class="wiz-action-text-desc">Tutto disponibile — invia richiesta prelievo a Logistica per tutti i ${av.length} profili.</div>
         </div>
       </button>
 
       <button class="wiz-action-btn wiz-action-orange" onclick="WIZ.doPartial()"
-        ${canPartial ? '' : 'style="opacity:.38;cursor:not-allowed" disabled'}>
+        ${canPartial ? '' : 'disabled'} style="${canPartial ? '' : disabledStyle}">
         <div class="wiz-action-icon">🟠</div>
         <div>
           <div class="wiz-action-text-title">Procedi parzialmente</div>
-          <div class="wiz-action-text-desc">Scala magazzino per i ${nDisponibili + nPartial} profili disponibili/parziali, genera ordine per i ${nMissing} mancanti.</div>
+          <div class="wiz-action-text-desc">Invia richiesta per i ${nDisponibili + nPartial} profili disponibili/parziali. Genera ordine per i ${nMissing} mancanti.</div>
         </div>
       </button>
 
@@ -1238,27 +1642,281 @@ const WIZ = {
           <div class="wiz-action-text-desc">Non scala il magazzino — crea ordine completo. Commessa in stato "In attesa materiali".</div>
         </div>
       </button>
-
-      <div style="margin-top:8px">
-        <button class="wiz-action-cancel" onclick="WIZ.cancel()">Annulla — torna al form</button>
-      </div>
     `;
 
     document.getElementById('wiz-footer').innerHTML = `
-      <span style="font-size:12px;color:rgba(255,255,255,.22)">
-        ✅ ${nOk} · ⚠️ ${nManuale} · 🟠 ${nPartial} · ❌ ${nMissing}${sfridoLine}
-      </span>
-      <button class="wiz-btn-back" style="margin-left:auto" onclick="WIZ.goStep(3)">← Torna indietro</button>
+      <button class="wiz-btn-back" onclick="WIZ.goStep(1)">← Torna indietro</button>
     `;
   },
 
-  /* ─── Azione: Genera QR e avvia ─── */
+  _toggleDetail(type) {
+    const section = document.getElementById('avail-detail-section');
+    if (!section) return;
+    if (this.activeDetailType === type) {
+      this.activeDetailType = null;
+      section.style.display = 'none';
+      document.querySelectorAll('.avail-hint').forEach(h => { if (h) h.textContent = 'Dettaglio →'; });
+      return;
+    }
+    this.activeDetailType = type;
+    section.style.display = 'block';
+    this._renderDetailContent(type);
+    document.querySelectorAll('.avail-hint').forEach(h => { if (h) h.textContent = 'Dettaglio →'; });
+    const hintIds = { ok:'kpi-ok-hint', manuale:'kpi-manuale-hint', partial:'kpi-partial-hint', missing:'kpi-missing-hint', sfrido:'kpi-sfrido-hint' };
+    const hintEl = document.getElementById(hintIds[type]);
+    if (hintEl) hintEl.textContent = '▲ Chiudi';
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+
+  _renderDetailContent(type) {
+    const section = document.getElementById('avail-detail-section');
+    if (!section) return;
+    const av = this.availability;
+    const { sfridoRows, totConsumed, totSfrido, totSfridoPct } = this._calcSfrido();
+
+    let title, bodyHtml;
+
+    if (type === 'ok') {
+      title = '✅ Materiali disponibili';
+      const rows = av.filter(r => r.stato === 'ok');
+      bodyHtml = rows.length === 0
+        ? '<div class="dp-empty">Nessun materiale disponibile</div>'
+        : `<table class="dp-tbl">
+            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th><th class="r">Disponibili</th></tr></thead>
+            <tbody>${rows.map(r => `<tr>
+              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
+              <td class="muted">${esc(r.item.material_code||'—')}</td>
+              <td class="r">${fmtNum(r.richiesta)}</td>
+              <td class="r c-ok">${fmtNum(r.disponibile)}</td>
+            </tr>`).join('')}</tbody>
+          </table>`;
+
+    } else if (type === 'manuale') {
+      title = '⚠️ Verifica manuale';
+      const rows = av.reduce((acc, r, idx) => r.stato === 'manuale' ? [...acc, Object.assign({}, r, {_idx: idx})] : acc, []);
+      bodyHtml = rows.length === 0
+        ? '<div class="dp-empty">Tutti i materiali sono stati verificati ✓</div>'
+        : `<div class="dp-note">Presenti in magazzino ma dimensioni non disponibili — confermare manualmente.</div>
+           <table class="dp-tbl">
+            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th><th class="r">In stock</th><th></th></tr></thead>
+            <tbody>${rows.map(r => `<tr>
+              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
+              <td class="muted">${esc(r.item.material_code||'—')}</td>
+              <td class="r">${fmtNum(r.richiesta)}</td>
+              <td class="r c-warn">${fmtNum(r.disponibile)}</td>
+              <td><button class="dp-verify-btn" onclick="WIZ.markVerificato(${r._idx})">Segna come verificato</button></td>
+            </tr>`).join('')}</tbody>
+          </table>`;
+
+    } else if (type === 'partial') {
+      title = '🟠 Materiali parziali';
+      const rows = av.filter(r => r.stato === 'partial');
+      bodyHtml = rows.length === 0
+        ? '<div class="dp-empty">Nessun materiale parziale</div>'
+        : `<table class="dp-tbl">
+            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th><th class="r">Disponibili</th></tr></thead>
+            <tbody>${rows.map(r => `<tr>
+              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
+              <td class="muted">${esc(r.item.material_code||'—')}</td>
+              <td class="r">${fmtNum(r.richiesta)}</td>
+              <td class="r"><span class="c-part">${fmtNum(r.disponibile)}</span> <span style="color:rgba(255,255,255,.3);font-size:10px">di ${fmtNum(r.richiesta)}</span></td>
+            </tr>`).join('')}</tbody>
+          </table>`;
+
+    } else if (type === 'missing') {
+      title = '❌ Materiali mancanti';
+      const rows = av.filter(r => r.stato === 'missing');
+      bodyHtml = rows.length === 0
+        ? '<div class="dp-empty">Nessun materiale mancante</div>'
+        : `<table class="dp-tbl">
+            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th></tr></thead>
+            <tbody>${rows.map(r => `<tr>
+              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
+              <td class="muted">${esc(r.item.material_code||'—')}</td>
+              <td class="r c-err">${fmtNum(r.richiesta)}</td>
+            </tr>`).join('')}</tbody>
+          </table>`;
+
+    } else if (type === 'sfrido') {
+      title = 'Sfrido totale';
+      bodyHtml = sfridoRows.length === 0
+        ? '<div class="dp-empty">Nessun dato sfrido disponibile (nessun materiale con lunghezze calcolate)</div>'
+        : `<table class="dp-tbl">
+            <thead><tr>
+              <th>Materiale</th>
+              <th class="r">Richiesti (mm)</th>
+              <th class="r">Consumati (mm)</th>
+              <th class="r">Sfrido (mm)</th>
+              <th class="r">Sfrido %</th>
+            </tr></thead>
+            <tbody>
+              ${sfridoRows.map(r => {
+                const sc = (r.sfrido_pct||0) > 20 ? 'c-err' : 'c-warn';
+                return `<tr>
+                  <td><span class="mono">${esc(r.item.description||r.item.part_number||'—')}</span> <span class="muted">${esc(r.item.material_code||'')}</span></td>
+                  <td class="r">${r.lunghezza_richiesta ? Math.round(r.lunghezza_richiesta).toLocaleString('it') : '—'}</td>
+                  <td class="r">${r.lunghezza_consumata ? Math.round(r.lunghezza_consumata).toLocaleString('it') : '—'}</td>
+                  <td class="r ${sc}">${Math.round(r.sfrido_mm||0).toLocaleString('it')}</td>
+                  <td class="r ${sc}">${(r.sfrido_pct||0).toFixed(1)}%</td>
+                </tr>`;
+              }).join('')}
+              <tr class="dp-total">
+                <td><strong>TOTALE</strong></td>
+                <td></td>
+                <td class="r"><strong>${Math.round(totConsumed).toLocaleString('it')}</strong></td>
+                <td class="r" style="color:${totSfridoPct >= 20 ? '#f87171' : '#fbbf24'}"><strong>${Math.round(totSfrido).toLocaleString('it')}</strong></td>
+                <td class="r" style="color:${totSfridoPct >= 20 ? '#f87171' : '#fbbf24'}"><strong>${totSfridoPct.toFixed(1)}%</strong></td>
+              </tr>
+            </tbody>
+          </table>`;
+    } else {
+      title = ''; bodyHtml = '';
+    }
+
+    section.innerHTML = `<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:12px">${title}</div>${bodyHtml}`;
+  },
+
+  markVerificato(idx) {
+    if (!this.availability[idx]) return;
+    this.availability[idx].stato = 'ok';
+    const wasOpen = this.activeDetailType;
+    this.activeDetailType = null;
+    this.renderStep2Results();
+    if (wasOpen) this._toggleDetail(wasOpen);
+  },
+
+  /* ─── Azione: Genera QR ─── */
   async doGenQR() {
-    this._showActionSpinner('Registrazione prelievi e sfrido in magazzino…');
+    this._showActionSpinner('Generazione QR per tutti i pezzi…');
+    try {
+      const importId   = this.distinata.id;
+      const commessaId = this.commessa.id;
+      const res = await fetch(
+        '/api/v1/warehouse/distinta/imports/' + importId + '/generate-qr?commessa_id=' + commessaId,
+        { method: 'POST', headers: { Authorization: getAuth() } }
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      const impRes = await fetch('/api/v1/warehouse/distinta/imports/' + importId, { headers: { Authorization: getAuth() } });
+      const impData = impRes.ok ? await impRes.json() : null;
+      const items = (impData?.items || []).filter(i => i.qr_code);
+
+      if (items.length === 0) {
+        this._actionDone('⚠️ Nessun QR generato', 'Nessun pezzo disponibile nell\'importazione o errore nella generazione.');
+        return;
+      }
+      this._showQRGallery(data, items);
+    } catch(err) {
+      this._actionError(err);
+    }
+  },
+
+  /* ─── Gallery post-generazione QR ─── */
+  _showQRGallery(data, items) {
+    const validItems = items.filter(i => i.qr_code && i.part_number);
+    const total = validItems.length;
+    const failedCount = data.failed ? data.failed.length : 0;
+
+    let html = `
+      <div class="qr-gallery-hdr">
+        <div>
+          <div class="qr-gallery-title">${total} QR generati</div>
+          <div class="qr-gallery-meta">Commessa <strong>${esc(this.commessa.codice)}</strong>${failedCount > 0 ? ` · <span style="color:#f87171">${failedCount} falliti</span>` : ''}</div>
+        </div>
+        <button class="qr-btn-print-all" onclick="WIZ._printQR()">🖨 Stampa tutti</button>
+      </div>
+      <div class="wiz-table-wrap"><table class="wiz-table">
+        <thead><tr>
+          <th style="width:40px"></th>
+          <th>Marca/Pos.</th>
+          <th>Profilo</th>
+        </tr></thead>
+        <tbody>`;
+
+    validItems.forEach((item, i) => {
+      const instLabel = item.instance_number != null ? ' #' + item.instance_number : '';
+      const instSuffix = item.instance_number != null
+        ? ` <span style="opacity:.35;font-weight:400">#${item.instance_number}</span>` : '';
+
+      const hasParent = item.parent_assembly && item.parent_assembly !== item.part_number;
+      const lenStr   = item.length_mm ? Math.round(Number(item.length_mm)).toLocaleString('it') + ' mm' : null;
+
+      html += `
+          <tr class="pz-row" onclick="WIZ._toggleQRRow(${i})" style="cursor:pointer">
+            <td style="text-align:center;color:rgba(255,255,255,.2);font-size:10px" id="qr-arr-${i}">▶</td>
+            <td style="font-family:monospace;font-weight:700;font-size:11px;color:rgba(255,255,255,.78)">${esc(item.part_number)}${instSuffix}</td>
+            <td style="color:rgba(255,255,255,.55)">${esc(item.description||'—')}</td>
+          </tr>
+          <tr id="qr-det-${i}" class="qr-det-row" style="display:none">
+            <td></td>
+            <td colspan="2" style="padding:12px 14px 16px;background:rgba(37,99,235,.04);border-bottom:1px solid rgba(255,255,255,.04)">
+              <div class="qr-det-inner">
+                <img class="qr-screen-img" src="data:image/png;base64,${item.qr_code}"
+                     alt="QR ${esc(item.part_number)}"
+                     style="width:96px;height:96px;flex-shrink:0;image-rendering:pixelated;border-radius:4px">
+                <div class="qr-det-fields">
+                  <div class="qr-det-field">
+                    <span class="qr-det-lbl">Marca/Pos.</span>
+                    <span class="qr-det-val mono">${esc(item.part_number)}${instSuffix}</span>
+                  </div>
+                  ${item.description ? `<div class="qr-det-field">
+                    <span class="qr-det-lbl">Profilo</span>
+                    <span class="qr-det-val">${esc(item.description)}</span>
+                  </div>` : ''}
+                  ${item.material_code ? `<div class="qr-det-field">
+                    <span class="qr-det-lbl">Materiale</span>
+                    <span class="qr-det-val">${esc(item.material_code)}${item.material_description ? ` <span class="dim">${esc(item.material_description)}</span>` : ''}</span>
+                  </div>` : ''}
+                  ${lenStr ? `<div class="qr-det-field">
+                    <span class="qr-det-lbl">Lunghezza</span>
+                    <span class="qr-det-val">${lenStr}</span>
+                  </div>` : ''}
+                  ${hasParent ? `<div class="qr-det-field">
+                    <span class="qr-det-lbl">Assemblato</span>
+                    <span class="qr-det-val mono">${esc(item.parent_assembly)}</span>
+                  </div>` : ''}
+                </div>
+              </div>
+              <div class="qr-card">
+                <img class="qr-img" src="data:image/png;base64,${item.qr_code}" alt="">
+                <div class="qr-marca">${esc(item.part_number)}${esc(instLabel)}</div>
+                ${item.description ? `<div class="qr-profilo">${esc(item.description)}</div>` : ''}
+                ${item.material_code ? `<div class="qr-material">${esc(item.material_code)}${item.material_description ? ' · ' + esc(item.material_description) : ''}</div>` : ''}
+                ${lenStr ? `<div class="qr-length">${lenStr}</div>` : ''}
+                ${hasParent ? `<div class="qr-parent-lbl">Asm: ${esc(item.parent_assembly)}</div>` : ''}
+              </div>
+            </td>
+          </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+
+    document.getElementById('wiz-body').innerHTML = html;
+    document.getElementById('wiz-footer').innerHTML = `
+      <button class="wiz-btn-primary" onclick="WIZ._printQR()">🖨 Stampa tutti</button>
+      <button class="wiz-btn-primary" onclick="WIZ.renderStep2Results()" style="background:#1e3a5f;box-shadow:none">Fatto →</button>
+    `;
+  },
+
+  _toggleQRRow(i) {
+    const det = document.getElementById('qr-det-' + i);
+    const arr = document.getElementById('qr-arr-' + i);
+    if (!det) return;
+    const open = det.style.display !== 'none';
+    det.style.display = open ? 'none' : 'table-row';
+    if (arr) arr.textContent = open ? '▶' : '▼';
+  },
+
+  _printQR() { window.print(); },
+
+  /* ─── Azione: Richiedi prelievi (tutti) ─── */
+  async doRichiediPrelievi() {
+    this._showActionSpinner('Invio richieste prelievo a Logistica…');
     try {
       const rows = this.availability.filter(r => r.stato !== 'missing');
-      await this._executePrelievi(rows);
-      this._actionDone('✅ Commessa avviata', 'Magazzino aggiornato. Prelievi e sfrido registrati per tutti i profili disponibili.');
+      await this._createRequests(rows);
+      this._actionDone('✅ Richieste inviate a Logistica', 'Richieste di prelievo create. La Logistica riceverà notifica e confermerà i prelievi.');
     } catch(err) {
       this._actionError(err);
     }
@@ -1266,11 +1924,11 @@ const WIZ = {
 
   /* ─── Azione: Procedi parzialmente ─── */
   async doPartial() {
-    this._showActionSpinner('Registrazione prelievi parziali…');
+    this._showActionSpinner('Invio richieste prelievo parziali…');
     try {
       const rows = this.availability.filter(r => r.stato === 'ok' || r.stato === 'partial' || r.stato === 'manuale');
-      await this._executePrelievi(rows);
-      this._actionDone('🟠 Avvio parziale registrato', 'Magazzino aggiornato per i materiali disponibili. Ordine in F5 Acquisti per i mancanti.');
+      await this._createRequests(rows);
+      this._actionDone('🟠 Richieste parziali inviate', 'Richieste create per i materiali disponibili. Ordine in F5 Acquisti per i mancanti.');
     } catch(err) {
       this._actionError(err);
     }
@@ -1281,60 +1939,49 @@ const WIZ = {
     this._actionDone('🔴 Commessa in attesa materiali', 'Nessuna scalatura. Un ordine verrà generato in F5 Acquisti per tutti i materiali richiesti.');
   },
 
-  /* ─── Annulla ─── */
   cancel() {
     this.close();
     resetForm();
   },
 
-  /* ─── Helper: registra PRELIEVO + SFRIDO per ogni riga ─── */
-  async _executePrelievi(rows) {
+  async _createRequests(rows) {
     const codice = this.commessa.codice;
-    const ref    = this.distinata.filename;
+    const ref    = this.distinata?.filename || null;
     const cid    = this.commessa.id;
 
     for (const r of rows) {
       if (!r.match) continue;
 
-      // N° barre/pezzi da scalare (calcolato in computeAvailability)
       const qty = r.n_pezzi_usati ?? Math.min(r.richiesta, r.disponibile);
       if (!qty || qty <= 0) continue;
 
-      // Movimento PRELIEVO (OUTGOING)
-      const resPrelievo = await fetch('/api/v1/warehouse/movements', {
+      const res = await fetch('/api/v1/stock/requests', {
         method: 'POST',
-        headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
+        headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          commessa_id: cid,
+          commessa_codice: codice,
           material_id: r.match.material_id,
+          material_description: r.item.description || r.item.part_number || null,
+          material_code: r.match.code || null,
           quantity: qty,
           movement_type: 'OUTGOING',
           reason: `Prelievo commessa ${codice}`,
-          destination_commessa: codice,
-          commessa_id: cid,
           reference: ref,
         }),
       });
-      if (!resPrelievo.ok) throw new Error(`Prelievo fallito per ${r.item.description||r.item.part_number} (HTTP ${resPrelievo.status})`);
-
-      // Movimento SFRIDO separato (solo se calcolato e > 0)
-      if (r.sfrido_mm && r.sfrido_mm > 0) {
-        const resSfrido = await fetch('/api/v1/warehouse/movements', {
-          method: 'POST',
-          headers: { Authorization: AUTH, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            material_id: r.match.material_id,
-            quantity: Math.round(r.sfrido_mm),
-            movement_type: 'SFRIDO',
-            reason: `Sfrido commessa ${codice} — ${Math.round(r.sfrido_mm)}mm`,
-            destination_commessa: codice,
-            commessa_id: cid,
-            reference: ref,
-          }),
-        });
-        if (!resSfrido.ok) throw new Error(`Registrazione sfrido fallita (HTTP ${resSfrido.status})`);
-      }
+      if (!res.ok) throw new Error(`Richiesta fallita per ${r.item.description||r.item.part_number} (HTTP ${res.status})`);
     }
   },
+
+  _calcSfrido() {
+    const sfridoRows  = this.availability.filter(r => r.sfrido_mm !== null && r.sfrido_mm !== undefined);
+    const totConsumed = sfridoRows.reduce((s, r) => s + (r.lunghezza_consumata || 0), 0);
+    const totSfrido   = sfridoRows.reduce((s, r) => s + (r.sfrido_mm || 0), 0);
+    return { sfridoRows, totConsumed, totSfrido, totSfridoPct: totConsumed > 0 ? totSfrido / totConsumed * 100 : 0 };
+  },
+
+  _closeDetailPopup() {},
 
   _showActionSpinner(msg) {
     document.getElementById('wiz-body').innerHTML = `
@@ -1351,9 +1998,9 @@ const WIZ = {
         <div style="font-size:54px;line-height:1">${title.split(' ')[0]}</div>
         <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-.02em">${esc(title.replace(/^[^\s]+\s/,''))}</div>
         <div style="font-size:14px;color:rgba(255,255,255,.4);max-width:380px;line-height:1.6">${esc(msg)}</div>
-        <a href="/commesse"
+        <a href="/commesse/${this.commessa.id}"
           style="margin-top:8px;padding:12px 28px;background:#2563eb;color:#fff;border-radius:11px;text-decoration:none;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(37,99,235,.4)">
-          Vai alle commesse →
+          Vai alla commessa →
         </a>
       </div>`;
     document.getElementById('wiz-footer').innerHTML = '';

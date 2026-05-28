@@ -1,4 +1,22 @@
-import os
+"""Parser distinta base — gestisce due file Tekla/Advanced Steel.
+
+Output normalizzato (indipendente dal CAD):
+    {
+        "part_code":       str,
+        "profile":         str | None,
+        "weight_kg":       float | None,
+        "qty":             int,          # totale da espandere in istanze
+        "length_mm":       float | None,
+        "material":        str | None,
+        "assembly_parent": str | None,
+    }
+
+Ogni parte con qty > 1 viene espansa in N record separati
+(instance_number 1..N), ciascuno con "qty": 1.
+"""
+from __future__ import annotations
+
+import re
 from pathlib import Path
 from typing import Any, List
 
@@ -6,207 +24,421 @@ import xlrd
 from openpyxl import load_workbook
 
 
-def _normalize_header(value: Any) -> str:
+# ── Normalizzazione profili ───────────────────────────────────────────────────
+
+_PROFILE_ALIASES: dict[str, str] = {
+    # Lamiere
+    "LAMIERA10": "PL10", "P10": "PL10",
+    "LAMIERA15": "PL15", "P15": "PL15",
+    "LAMIERA20": "PL20", "P20": "PL20",
+    "LAMIERA25": "PL25", "P25": "PL25",
+    "LAMIERA30": "PL30", "P30": "PL30",
+    # Forme comuni con spazio o varianti maiuscolo
+    "IPE 100": "IPE100", "IPE 120": "IPE120", "IPE 140": "IPE140",
+    "IPE 160": "IPE160", "IPE 180": "IPE180", "IPE 200": "IPE200",
+    "IPE 220": "IPE220", "IPE 240": "IPE240", "IPE 270": "IPE270",
+    "IPE 300": "IPE300", "IPE 330": "IPE330", "IPE 360": "IPE360",
+    "IPE 400": "IPE400", "IPE 450": "IPE450", "IPE 500": "IPE500",
+    "HEA 100": "HEA100", "HEB 100": "HEB100",
+    "HEA 120": "HEA120", "HEB 120": "HEB120",
+    "HEA 140": "HEA140", "HEB 140": "HEB140",
+    "HEA 160": "HEA160", "HEB 160": "HEB160",
+    "HEA 180": "HEA180", "HEB 180": "HEB180",
+    "HEA 200": "HEA200", "HEB 200": "HEB200",
+    "HEA 220": "HEA220", "HEB 220": "HEB220",
+    "HEA 240": "HEA240", "HEB 240": "HEB240",
+    "HEA 260": "HEA260", "HEB 260": "HEB260",
+    "HEA 280": "HEA280", "HEB 280": "HEB280",
+    "HEA 300": "HEA300", "HEB 300": "HEB300",
+    "UPN 100": "UPN100", "UPN 120": "UPN120", "UPN 140": "UPN140",
+    "UPN 160": "UPN160", "UPN 180": "UPN180", "UPN 200": "UPN200",
+    "UPN 220": "UPN220", "UPN 240": "UPN240", "UPN 260": "UPN260",
+    "UPN 300": "UPN300",
+    "L 50X50X5": "L50X50X5", "L 60X60X6": "L60X60X6",
+    "L 70X70X7": "L70X70X7", "L 80X80X8": "L80X80X8",
+    "L 100X100X10": "L100X100X10",
+    # Tubi quadri/rettangolari (TUBE-C o RHS)
+    "TUBOC": "TUBE-C", "RHS": "TUBE-C",
+}
+
+
+def normalize_profile(value: str | None) -> str:
+    """Normalizza un codice profilo in forma canonica per confronti DB-agnostici.
+
+    Regole:
+    - UPPER + strip degli spazi laterali
+    - Elimina tutti gli spazi interni
+    - Elimina i trattini
+    - Risolve alias noti (lamiere P→PL, varianti spaziate IPE/HEA/HEB/UPN)
+    Aggiungere alias a _PROFILE_ALIASES man mano che emergono dalle anomalie.
+    """
+    if not value:
+        return ""
+    v = value.upper().strip()
+    v = re.sub(r'\s+', '', v)
+    v = v.replace('-', '')
+    return _PROFILE_ALIASES.get(v, v)
+
+
+# ── Alias colonne ─────────────────────────────────────────────────────────────
+
+ALIASES: dict[str, list[str]] = {
+    "part_code":      ["marca/pos.", "posizione", "part", "codice", "position", "parte", "marca/pos"],
+    "assembly":       ["assemb.", "assemb", "assembly", "assemblato", "asemb.", "asemb"],
+    "profile":        ["profilo", "section", "profile", "descrizione", "desc"],
+    "qty":            ["q.tà", "q.ta", "qty", "quantity", "quantita", "n°", "qta"],
+    "weight":         ["peso(kg) un.", "peso(kg)un.", "peso kg un.", "peso", "weight", "peso unit.", "peso(kg)"],
+    "length_mm":      ["lunghezza", "lungh.", "lung.", "length", "lung", "l(mm)", "l mm"],
+    "material":       ["materiale", "material", "qualità", "qualita", "quality"],
+    "commessa_ref":   ["commessa", "commessa_reference", "commessa_ref", "order"],
+}
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _norm(value: Any) -> str:
     return str(value).strip().lower() if value is not None else ""
 
 
-def _extract_rows(file_path: Path) -> List[List[Any]]:
+def _is_valid_part_code(value: Any) -> bool:
+    if value is None:
+        return False
+    s = str(value).strip()
+    if not s or len(s) > 30 or len(s.split()) > 2:
+        return False
+    return any(c.isdigit() for c in s)
+
+
+def _extract_rows(file_path: Path) -> list[list[Any]]:
     suffix = file_path.suffix.lower()
     if suffix == ".xls":
-        workbook = xlrd.open_workbook(file_path.as_posix(), formatting_info=False)
-        sheet = workbook.sheet_by_index(0)
-        return [sheet.row_values(rowx) for rowx in range(sheet.nrows)]
-
-    workbook = load_workbook(filename=file_path, data_only=True, read_only=True)
-    sheet = workbook.active
-    return [list(row) for row in sheet.iter_rows(values_only=True)]
-
-
-def _find_commessa(rows: List[List[Any]]) -> str | None:
-    for row in rows[:12]:
-        for cell_index, cell in enumerate(row):
-            if isinstance(cell, str) and "commessa" in cell.lower():
-                next_cell = row[cell_index + 1] if cell_index + 1 < len(row) else None
-                if next_cell not in (None, ""):
-                    return str(next_cell).strip()
-    return None
+        wb = xlrd.open_workbook(file_path.as_posix(), formatting_info=False)
+        sh = wb.sheet_by_index(0)
+        return [sh.row_values(r) for r in range(sh.nrows)]
+    wb = load_workbook(filename=file_path, data_only=True, read_only=True)
+    sh = wb.active
+    return [list(row) for row in sh.iter_rows(values_only=True)]
 
 
-def _find_header_row(rows: List[List[Any]]) -> int:
-    for index, row in enumerate(rows[:15]):
-        normalized = [_normalize_header(cell) for cell in row]
-        if any(key in normalized for key in ["q.tà", "qta", "quantita", "quantity"]) and any(
-            key in normalized for key in ["profilo", "materiale", "descrizione", "parte", "part"]
-        ):
-            return index
-    for index, row in enumerate(rows[:15]):
-        if any(cell is not None for cell in row):
-            return index
+def _find_header_row(rows: list[list[Any]], key_aliases: list[str]) -> int:
+    """Trova la riga che contiene almeno uno degli alias forniti."""
+    for i, row in enumerate(rows[:20]):
+        normalized = [_norm(c) for c in row]
+        if any(alias in normalized for alias in key_aliases):
+            return i
     return 0
 
 
-def _build_field_map(header_row: List[Any]) -> dict:
-    fields = {
-        "part_number": None,
-        "description": None,
-        "quantity": None,
-        "material_code": None,
-        "material_description": None,
-        "commessa_reference": None,
-    }
-    for ix, header in enumerate(header_row):
-        header_text = _normalize_header(header)
-        if header_text in ["marca/pos.", "marca/pos", "parte", "part", "position", "design", "n°disegno", "codice"]:
-            fields["part_number"] = ix
-        elif header_text in ["profilo", "description", "descrizione", "desc"]:
-            fields["description"] = ix
-        elif header_text in ["q.tà", "qta", "quantita", "quantity", "qty", "n°"]:
-            fields["quantity"] = ix
-        elif header_text in ["materiale", "material", "material_code", "codice_materiale"]:
-            fields["material_code"] = ix
-        elif header_text in ["descrizione_materiale", "material_description"]:
-            fields["material_description"] = ix
-        elif header_text in ["commessa", "commessa_reference", "commessa_ref", "order"]:
-            fields["commessa_reference"] = ix
-    return fields
+def _detect_file_type(path: Path) -> str:
+    """Rileva il tipo di file analizzando le colonne della riga header.
 
-
-def parse_distinta_file(file_path: Path) -> List[dict]:
-    rows = _extract_rows(file_path)
+    Regole (in ordine di priorità):
+    - Ha colonna "Assemb." E colonna "Parte"/"Marca/Pos." in colonne distinte
+      → "assemblaggi"  (Lista parti assemblaggi — gerarchia assemblato→parti)
+    - Ha colonna "Marca/Pos." ma NON "Assemb." separata
+      → "lavorazioni"  (Lavorazioni per posizione — dettagli tecnici)
+    - Altrimenti → "unknown"  (usa l'ordine passato come fallback)
+    """
+    try:
+        rows = _extract_rows(path)
+    except Exception:
+        return "unknown"
     if not rows:
-        return []
+        return "unknown"
 
-    header_index = _find_header_row(rows)
-    header_row = rows[header_index]
-    fields = _build_field_map(header_row)
-    commessa_value = _find_commessa(rows)
+    all_triggers = ALIASES["assembly"] + ALIASES["part_code"] + ALIASES["qty"]
+    header_idx = _find_header_row(rows, all_triggers)
+    col_map = _build_col_map(rows[header_idx])
 
-    items: List[dict] = []
-    for row in rows[header_index + 1:]:
-        if not row or all(cell is None for cell in row):
-            continue
+    has_assembly  = "assembly"  in col_map
+    has_part_code = "part_code" in col_map
+    separate_cols = (
+        has_assembly and has_part_code
+        and col_map["assembly"] != col_map["part_code"]
+    )
 
-        part_number = None
-        description = None
-        material_code = None
-        material_description = None
-
-        if fields["part_number"] is not None:
-            part_cell = row[fields["part_number"]] if fields["part_number"] < len(row) else None
-            part_number = str(part_cell).strip() if part_cell not in (None, "") else None
-        if fields["description"] is not None:
-            desc_cell = row[fields["description"]] if fields["description"] < len(row) else None
-            description = str(desc_cell).strip() if desc_cell not in (None, "") else None
-        if fields["material_code"] is not None:
-            material_cell = row[fields["material_code"]] if fields["material_code"] < len(row) else None
-            material_code = str(material_cell).strip() if material_cell not in (None, "") else None
-        if fields["material_description"] is not None:
-            mat_desc_cell = row[fields["material_description"]] if fields["material_description"] < len(row) else None
-            material_description = str(mat_desc_cell).strip() if mat_desc_cell not in (None, "") else None
-
-        quantity = None
-        if fields["quantity"] is not None:
-            quantity_cell = row[fields["quantity"]] if fields["quantity"] < len(row) else None
-            try:
-                quantity = float(quantity_cell) if quantity_cell not in (None, "") else None
-            except (TypeError, ValueError):
-                try:
-                    quantity = float(str(quantity_cell).strip())
-                except Exception:
-                    quantity = None
-
-        item = {
-            "part_number": part_number,
-            "description": description,
-            "quantity": quantity,
-            "material_code": material_code,
-            "material_description": material_description,
-            "commessa_reference": commessa_value,
-        }
-
-        if any(value is not None for value in item.values()):
-            items.append(item)
-
-    return items
+    if separate_cols:
+        return "assemblaggi"
+    if has_part_code:          # Marca/Pos. senza Assemb. separata
+        return "lavorazioni"
+    if has_assembly:           # Solo colonna assembly → trattare come assemblaggi
+        return "assemblaggi"
+    return "unknown"
 
 
-def parse_lista_parti(file_path: Path) -> List[dict]:
-    """Parser specifico per file 'Lista parti assemblaggi' spesso generati da Tekla/Advanced Steel.
+def _build_col_map(header: list[Any]) -> dict[str, int]:
+    """Mappa nome-campo → indice colonna usando ALIASES."""
+    col_map: dict[str, int] = {}
+    for ix, cell in enumerate(header):
+        h = _norm(cell)
+        for field, aliases in ALIASES.items():
+            if field not in col_map and h in aliases:
+                col_map[field] = ix
+                break
+    return col_map
 
-    Cerca l'intestazione con colonne tipo 'Assemb.', 'Parte', 'Q.tà', 'Profilo', 'Materiale'.
+
+def _float_cell(row: list[Any], col_map: dict[str, int], key: str) -> float | None:
+    if key not in col_map:
+        return None
+    ix = col_map[key]
+    if ix >= len(row):
+        return None
+    val = row[ix]
+    if val in (None, ""):
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        try:
+            cleaned = re.sub(r"[^\d.,\-]", "", str(val)).replace(",", ".")
+            return float(cleaned) if cleaned else None
+        except ValueError:
+            return None
+
+
+def _str_cell(row: list[Any], col_map: dict[str, int], key: str) -> str | None:
+    if key not in col_map:
+        return None
+    ix = col_map[key]
+    if ix >= len(row):
+        return None
+    val = row[ix]
+    return str(val).strip() if val not in (None, "") else None
+
+
+def _find_commessa(rows: list[list[Any]]) -> str | None:
+    for row in rows[:12]:
+        for i, cell in enumerate(row):
+            if isinstance(cell, str) and "commessa" in cell.lower():
+                nxt = row[i + 1] if i + 1 < len(row) else None
+                if nxt not in (None, ""):
+                    return str(nxt).strip()
+    return None
+
+
+# ── Parser singolo file (legacy + backward compat) ───────────────────────────
+
+def _parse_single(file_path: Path) -> tuple[list[dict], set[str]]:
+    """Parser generico per un singolo file.
+    Restituisce (items_normalizzati, assembly_headers) dove assembly_headers è
+    l'insieme dei codici che compaiono come testata-assemblato (non come parti).
     """
     rows = _extract_rows(file_path)
     if not rows:
-        return []
+        return [], set()
 
-    # Trova la riga header che contiene 'Parte' o 'Assemb.'
-    header_index = None
-    for i, row in enumerate(rows[:20]):
-        normalized = [_normalize_header(c) for c in row]
-        if any(k in normalized for k in ["parte", "assemb", "asemb", "asemb."]):
-            header_index = i
-            break
-    if header_index is None:
-        header_index = _find_header_row(rows)
+    all_part_aliases = ALIASES["part_code"] + ALIASES["assembly"]
+    header_idx = _find_header_row(rows, all_part_aliases + ALIASES["qty"])
+    header = rows[header_idx]
+    col_map = _build_col_map(header)
 
-    header = rows[header_index]
-    # mappa colonne attese
-    col_map = {}
-    for ix, h in enumerate(header):
-        hnorm = _normalize_header(h)
-        if "parte" in hnorm or "assemb" in hnorm or "asemb" in hnorm:
-            col_map["part_number"] = ix
-        elif "q.t" in hnorm or "qta" in hnorm or "quant" in hnorm or "q.tà" in hnorm:
-            col_map["quantity"] = ix
-        elif "profilo" in hnorm or "profil" in hnorm:
-            col_map["description"] = ix
-        elif "materiale" in hnorm or "material" in hnorm:
-            col_map["material_code"] = ix
-        elif "lungh" in hnorm or "lung" in hnorm or "length" in hnorm:
-            col_map["length_mm"] = ix
+    has_separate_assembly = (
+        "assembly" in col_map
+        and "part_code" in col_map
+        and col_map["assembly"] != col_map["part_code"]
+    )
 
-    items: List[dict] = []
-    for row in rows[header_index + 1:]:
-        if not row or all(cell is None for cell in row):
+    commessa_ref = _find_commessa(rows)
+    current_assembly: str | None = None
+    assembly_headers: set[str] = set()
+    items: list[dict] = []
+
+    for row in rows[header_idx + 1:]:
+        if not row or all(c is None for c in row):
             continue
-        part = None
-        qty = None
-        desc = None
-        mat = None
-        length = None
 
-        if "part_number" in col_map:
-            val = row[col_map["part_number"]] if col_map["part_number"] < len(row) else None
-            part = str(val).strip() if val not in (None, "") else None
-        if "quantity" in col_map:
-            val = row[col_map["quantity"]] if col_map["quantity"] < len(row) else None
-            try:
-                qty = float(val) if val not in (None, "") else None
-            except Exception:
-                try:
-                    qty = float(str(val).strip())
-                except Exception:
-                    qty = None
-        if "description" in col_map:
-            val = row[col_map["description"]] if col_map["description"] < len(row) else None
-            desc = str(val).strip() if val not in (None, "") else None
-        if "material_code" in col_map:
-            val = row[col_map["material_code"]] if col_map["material_code"] < len(row) else None
-            mat = str(val).strip() if val not in (None, "") else None
-        if "length_mm" in col_map:
-            val = row[col_map["length_mm"]] if col_map["length_mm"] < len(row) else None
-            length = str(val).strip() if val not in (None, "") else None
+        if has_separate_assembly:
+            asm_val = _str_cell(row, col_map, "assembly")
+            pn_val  = _str_cell(row, col_map, "part_code")
+            if _is_valid_part_code(asm_val) and not pn_val:
+                current_assembly = asm_val
+                assembly_headers.add(asm_val)
+                continue
 
-        item = {
-            "part_number": part,
-            "description": desc,
-            "quantity": qty,
-            "material_code": mat,
-            "material_description": None,
-            "commessa_reference": None,
-            "length_mm": length,
+        raw_pn = _str_cell(row, col_map, "part_code")
+        if not _is_valid_part_code(raw_pn):
+            continue
+
+        qty_raw = _float_cell(row, col_map, "qty")
+        n = max(1, int(round(qty_raw))) if qty_raw and qty_raw > 0 else 1
+
+        base: dict = {
+            "part_code":       raw_pn,
+            "profile":         normalize_profile(_str_cell(row, col_map, "profile")),
+            "weight_kg":       _float_cell(row, col_map, "weight"),
+            "length_mm":       _float_cell(row, col_map, "length_mm"),
+            "material":        _str_cell(row, col_map, "material"),
+            "assembly_parent": current_assembly if has_separate_assembly else _str_cell(row, col_map, "assembly"),
+            "commessa_ref":    _str_cell(row, col_map, "commessa_ref") or commessa_ref,
         }
-        if any(v is not None for v in item.values()):
-            items.append(item)
 
-    return items
+        for inst in range(1, n + 1):
+            items.append({**base, "qty": 1, "instance_number": inst})
+
+    return items, assembly_headers
+
+
+# ── Parser unificato due file ─────────────────────────────────────────────────
+
+def parse_two_files(
+    file_a: Path,
+    file_b: Path,
+) -> tuple[list[dict], dict]:
+    """Unisce i due file Tekla e restituisce (items, validation_report).
+
+    L'ordine dei parametri non conta: il tipo viene rilevato automaticamente
+    analizzando le colonne header di ciascun file.
+    - File con "Assemb." + "Parte" in colonne distinte → lista assemblaggi
+    - File con "Marca/Pos." senza "Assemb." separata   → lista lavorazioni
+    """
+    type_a = _detect_file_type(file_a)
+    type_b = _detect_file_type(file_b)
+
+    if type_a == "assemblaggi" and type_b != "assemblaggi":
+        assemblaggi_path, lavorazioni_path = file_a, file_b
+    elif type_b == "assemblaggi" and type_a != "assemblaggi":
+        assemblaggi_path, lavorazioni_path = file_b, file_a
+    else:
+        # Fallback: usa l'ordine passato (entrambi uguali o unknown)
+        assemblaggi_path, lavorazioni_path = file_a, file_b
+
+    detected = {"file_a": type_a, "file_b": type_b,
+                "assemblaggi": assemblaggi_path.name,
+                "lavorazioni": lavorazioni_path.name}
+
+    asm_items, asm_headers  = _parse_single(assemblaggi_path)
+    lav_items, _lav_headers = _parse_single(lavorazioni_path)
+
+    # Indice lavorazioni per part_code — conserva il primo match
+    lav_index: dict[str, dict] = {}
+    for item in lav_items:
+        pc = item["part_code"]
+        if pc and pc not in lav_index:
+            lav_index[pc] = item
+
+    merged: list[dict] = []
+    for item in asm_items:
+        lav = lav_index.get(item["part_code"] or "", {})
+        merged.append({
+            "part_code":       item["part_code"],
+            "profile":         item["profile"] or lav.get("profile"),
+            "weight_kg":       item["weight_kg"] or lav.get("weight_kg"),
+            "qty":             item["qty"],
+            "instance_number": item["instance_number"],
+            "length_mm":       item["length_mm"] or lav.get("length_mm"),
+            "material":        item["material"] or lav.get("material"),
+            "assembly_parent": item["assembly_parent"],
+            "commessa_ref":    item["commessa_ref"] or lav.get("commessa_ref"),
+        })
+
+    # Aggiungi pezzi presenti solo in lavorazioni (non in assemblaggi)
+    asm_codes = {i["part_code"] for i in asm_items}
+    for item in lav_items:
+        if item["part_code"] not in asm_codes:
+            merged.append(item)
+
+    # Renumerazione globale per part_code — ogni pezzo fisico ha un inst unico
+    # (un codice può comparire sotto più assemblaggi: ogni occorrenza è un pezzo distinto)
+    inst_counter: dict[str, int] = {}
+    for item in merged:
+        pc = item["part_code"] or ""
+        inst_counter[pc] = inst_counter.get(pc, 0) + 1
+        item["instance_number"] = inst_counter[pc]
+
+    # Tutti i codici assemblaggio validi = part_codes + header-row assemblaggi
+    known_assemblies = {i["part_code"] for i in asm_items} | asm_headers
+
+    report = _validate(merged, known_assemblies)
+    report["detected"] = detected
+    return merged, report
+
+
+# ── Validazione ───────────────────────────────────────────────────────────────
+
+def _validate(items: list[dict], known_assemblies: set[str] | None = None) -> dict:
+    errors: list[str]   = []
+    warnings: list[str] = []
+
+    # Tutti i codici validi come parent: part_codes + assemblies dichiarati
+    part_codes = {i["part_code"] for i in items if i["part_code"]}
+    valid_parents = (known_assemblies or part_codes) | part_codes
+
+    seen_instance_keys: set[str] = set()
+
+    for item in items:
+        pc = item["part_code"]
+        inst = item.get("instance_number", 1)
+        key = f"{pc}-{inst:03d}"
+
+        if key in seen_instance_keys:
+            errors.append(f"Posizione duplicata: {key}")
+        else:
+            seen_instance_keys.add(key)
+
+        if not item.get("profile"):
+            errors.append(f"Profilo mancante: {pc}")
+
+        if item.get("assembly_parent") and item["assembly_parent"] not in valid_parents:
+            errors.append(f"Assemblaggio orfano: {pc} → {item['assembly_parent']}")
+
+        if not item.get("qty") or item["qty"] <= 0:
+            errors.append(f"Qty zero: {pc}")
+
+        if item.get("weight_kg") is None:
+            warnings.append(f"Peso nullo: {pc}")
+
+    unique_parts     = len({i["part_code"] for i in items})
+    unique_asm       = len({i["assembly_parent"] for i in items if i.get("assembly_parent")})
+    physical_pieces  = len(items)
+
+    ok = len(errors) == 0
+    summary = (
+        f"Import {'OK' if ok else 'CON ERRORI'} — "
+        f"{physical_pieces} pezzi fisici · {unique_parts} posizioni · "
+        f"{unique_asm} assemblaggi · {len(errors)} errori · {len(warnings)} warning"
+    )
+
+    return {
+        "ok":             ok,
+        "summary":        summary,
+        "total_pieces":   physical_pieces,
+        "unique_parts":   unique_parts,
+        "assemblies":     unique_asm,
+        "errors":         errors,
+        "warnings":       warnings,
+    }
+
+
+# ── Backward compat ───────────────────────────────────────────────────────────
+
+def parse_distinta_file(file_path: Path) -> list[dict]:
+    """Legacy: singolo file generico. Converte l'output normalizzato nel formato
+    atteso da create_distinta_item (part_number, description, material_code, …)."""
+    items, _ = _parse_single(file_path)
+    return [_normalized_to_db(i) for i in items]
+
+
+def parse_lista_parti(file_path: Path) -> list[dict]:
+    """Legacy: parser specifico per 'Lista parti assemblaggi'."""
+    return parse_distinta_file(file_path)
+
+
+def normalized_to_db_bulk(items: list[dict]) -> list[dict]:
+    """Converte una lista di item normalizzati nel formato DB (part_number, description, …)."""
+    return [_normalized_to_db(i) for i in items]
+
+
+def _normalized_to_db(item: dict) -> dict:
+    return {
+        "part_number":          item.get("part_code"),
+        "description":          item.get("profile"),
+        "quantity":             float(item.get("qty") or 1),
+        "material_code":        item.get("material"),
+        "material_description": None,
+        "commessa_reference":   item.get("commessa_ref"),
+        "length_mm":            item.get("length_mm"),
+        "weight_kg":            item.get("weight_kg"),
+        "instance_number":      item.get("instance_number"),
+        "parent_assembly":      item.get("assembly_parent"),
+    }

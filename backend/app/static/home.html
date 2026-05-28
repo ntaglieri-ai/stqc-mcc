@@ -12,19 +12,12 @@
     .split { display: flex; height: 100vh; }
 
     /* ── Left panel ── */
-    .left {
-      width: 40%;
-      position: relative;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
+    .left { width: 40%; position: relative; overflow: hidden; flex-shrink: 0; }
     .left-bg {
       position: absolute; inset: 0;
       background-image: url('https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=900&q=85');
-      background-size: cover;
-      background-position: center;
-      transform: scale(1.04);
-      transition: transform 8s ease;
+      background-size: cover; background-position: center;
+      transform: scale(1.04); transition: transform 8s ease;
     }
     .left-bg.loaded { transform: scale(1); }
     .left-overlay {
@@ -32,108 +25,62 @@
       background: linear-gradient(160deg, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.75) 60%, rgba(15,23,42,0.92) 100%);
     }
     .left-content {
-      position: relative; z-index: 2;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      position: relative; z-index: 2; height: 100%;
+      display: flex; flex-direction: column; justify-content: space-between;
       padding: 40px 44px;
     }
-    .left-logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .left-logo-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: #3b82f6;
-      box-shadow: 0 0 12px #3b82f6;
-    }
-    .left-logo-text {
-      font-size: 13px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.5);
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-    .left-brand { }
-    .left-mcc {
-      font-size: clamp(72px, 9vw, 108px);
-      font-weight: 900;
-      color: #fff;
-      line-height: 1;
-      letter-spacing: -.03em;
-      text-shadow: 0 4px 32px rgba(0,0,0,0.4);
-    }
-    .left-sub {
-      margin-top: 14px;
-      font-size: 14px;
-      font-weight: 500;
-      color: rgba(255,255,255,0.65);
-      letter-spacing: .04em;
-      line-height: 1.6;
-    }
-    .left-sub strong { color: rgba(255,255,255,0.9); font-weight: 600; }
-    .left-meta {
-      margin-top: 32px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+    .left-logo { display: flex; align-items: center; gap: 10px; }
+    .left-logo-dot { width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 12px #3b82f6; }
+    .left-logo-text { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: .12em; text-transform: uppercase; }
+    .left-meta { margin-top: 32px; display: flex; align-items: center; gap: 16px; }
     .left-badge {
-      padding: 5px 12px;
-      border-radius: 20px;
-      background: rgba(59,130,246,0.2);
-      border: 1px solid rgba(59,130,246,0.4);
-      color: #93c5fd;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+      padding: 5px 12px; border-radius: 20px;
+      background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4);
+      color: #93c5fd; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
     }
     .left-version { font-size: 11px; color: rgba(255,255,255,0.25); }
 
     /* ── Right panel ── */
     .right {
-      flex: 1;
-      background: #0f172a;
-      display: flex;
-      flex-direction: column;
-      padding: 36px 40px 36px 40px;
-      overflow-y: auto;
+      flex: 1; background: #0f172a;
+      display: flex; flex-direction: column;
+      padding: 36px 40px 36px 40px; overflow-y: auto;
     }
-    .right-header { margin-bottom: 28px; }
+    .right-header {
+      margin-bottom: 28px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
     .right-eyebrow {
-      font-size: 11px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.3);
-      text-transform: uppercase;
-      letter-spacing: .14em;
-      margin-bottom: 6px;
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.3);
+      text-transform: uppercase; letter-spacing: .14em; margin-bottom: 6px;
     }
-    .right-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.9);
+    .right-title { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.9); }
+
+    /* User info + logout */
+    .user-bar {
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
     }
+    .user-name {
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4);
+      text-align: right; line-height: 1.4;
+    }
+    .user-name small { display: block; font-size: 10px; color: rgba(255,255,255,0.22); font-weight: 400; }
+    .btn-logout {
+      padding: 6px 13px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.35); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .18s; white-space: nowrap;
+    }
+    .btn-logout:hover { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.3); color: #fca5a5; }
 
     /* ── Card grid ── */
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      flex: 1;
-    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; align-content: start; }
 
     /* ── Card ── */
     .card {
-      position: relative;
-      height: 200px;
-      border-radius: 16px;
-      overflow: hidden;
-      cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.06);
+      position: relative; height: 200px; border-radius: 16px; overflow: hidden;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.06);
       transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
     }
     .card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
@@ -141,161 +88,174 @@
     .card:hover .card-overlay { opacity: 0.55; }
     .card:hover .card-arrow { opacity: 1; transform: translateX(0); }
     .card:active { transform: scale(0.98); }
-
-    .card-bg {
-      position: absolute; inset: 0;
-      background-size: cover;
-      background-position: center;
-      transition: transform .5s cubic-bezier(.4,0,.2,1), filter .3s;
-    }
-    .card-overlay {
-      position: absolute; inset: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0.15) 100%);
-      transition: opacity .25s;
-      opacity: 0.75;
-    }
-    .card-content {
-      position: relative; z-index: 2;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: 18px 20px;
-    }
+    .card-bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform .5s cubic-bezier(.4,0,.2,1), filter .3s; }
+    .card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0.15) 100%); transition: opacity .25s; opacity: 0.75; }
+    .card-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; padding: 18px 20px; }
     .card-icon { font-size: 22px; margin-bottom: 6px; line-height: 1; }
-    .card-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -.01em;
-      line-height: 1.2;
-    }
-    .card-desc {
-      font-size: 11px;
-      color: rgba(255,255,255,0.55);
-      margin-top: 3px;
-      font-weight: 400;
-    }
+    .card-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.2; }
+    .card-desc { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 3px; font-weight: 400; }
     .card-arrow {
-      position: absolute;
-      top: 18px; right: 18px;
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(4px);
+      position: absolute; top: 18px; right: 18px; width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(4px);
       display: flex; align-items: center; justify-content: center;
-      color: rgba(255,255,255,0.9);
-      font-size: 13px;
-      opacity: 0;
-      transform: translateX(-6px);
-      transition: all .2s;
+      color: rgba(255,255,255,0.9); font-size: 13px;
+      opacity: 0; transform: translateX(-6px); transition: all .2s;
     }
     .card-tag {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-      width: fit-content;
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      margin-bottom: 5px; width: fit-content;
     }
     .tag-soon { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
     .tag-live { background: rgba(34,197,94,0.2); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
 
     /* KPI live widget */
-    .kpi-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 6px;
-    }
-    .kpi-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
+    .kpi-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .kpi-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .kpi-dot.green  { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
     .kpi-dot.yellow { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
     .kpi-dot.red    { background: #f87171; box-shadow: 0 0 6px #f87171; }
     .kpi-text { font-size: 11px; color: rgba(255,255,255,0.7); font-weight: 500; }
 
     /* Fallback bg colors per card */
-    .c-kpi      { background-color: #1e3a5f; }
-    .c-dash     { background-color: #1a2e1a; }
-    .c-comm     { background-color: #2a1a3e; }
-    .c-mag      { background-color: #1a2a2a; }
-    .c-acq      { background-color: #2e2a1a; }
-    .c-impost   { background-color: #1e1e2e; }
+    .c-kpi    { background-color: #1e3a5f; }
+    .c-dash   { background-color: #1a2e1a; }
+    .c-comm   { background-color: #2a1a3e; }
+    .c-mag    { background-color: #1a2a2a; }
+    .c-acq    { background-color: #2e2a1a; }
+    .c-impost { background-color: #1e1e2e; }
+    .c-account { background-color: #0f1f2e; }
+    .c-maint   { background-color: #1a1a2e; }
+    .c-config  { background-color: #1e2a1e; }
 
-    /* Scroll fade at bottom of right panel when cards overflow */
-    .right::after {
-      content: '';
-      display: block;
-      height: 8px;
+    /* ── Admin sub-panels ── */
+    .admin-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      opacity: 0; pointer-events: none; transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 99;
+      /* backdrop-filter only when open — avoids GPU layer interference when hidden */
+    }
+    .admin-backdrop.open {
+      opacity: 1; pointer-events: auto;
+      backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+    }
+    .admin-panel {
+      position: fixed; top: 0; right: 0; width: 40%; min-width: 360px; height: 100vh;
+      background: #080f1f; border-left: 1px solid rgba(255,255,255,0.07);
+      box-shadow: -32px 0 100px rgba(0,0,0,0.7);
+      transform: translateX(100%); transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+      z-index: 100; display: flex; flex-direction: column; padding: 44px 40px 40px; gap: 24px;
+    }
+    .admin-panel.open { transform: translateX(0); }
+    .adm-sub-cards { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; overflow-y: auto; }
+    .adm-sub-item {
+      display: flex; align-items: center; gap: 16px;
+      padding: 16px 20px; border-radius: 14px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+      cursor: pointer; transition: background .2s, border-color .2s, transform .15s;
+      text-decoration: none;
+    }
+    .adm-sub-item:hover { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.25); transform: translateX(3px); }
+    .adm-sub-icon { font-size: 26px; flex-shrink: 0; width: 44px; text-align: center; }
+    .adm-sub-text {}
+    .adm-sub-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 2px; }
+    .adm-sub-desc  { font-size: 11px; color: rgba(255,255,255,0.38); font-weight: 400; }
+    .adm-sub-arrow { margin-left: auto; color: rgba(255,255,255,0.25); font-size: 14px; flex-shrink: 0; transition: color .2s; }
+    .adm-sub-item:hover .adm-sub-arrow { color: rgba(59,130,246,0.8); }
+    .adm-soon-badge {
+      margin-left: auto; padding: 2px 8px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0;
     }
 
-    /* ── Gestione Commesse side panel ── */
+    /* ── Admin vertical centered layout ── */
+    .admin-mode .right {
+      justify-content: center;
+      align-items: center;
+    }
+    .admin-mode .right-header {
+      width: 100%; max-width: 520px;
+      margin-bottom: 24px;
+    }
+    .admin-mode #card-grid {
+      flex: 0 !important;
+      grid-template-columns: 1fr !important;
+      width: 100%; max-width: 520px;
+      gap: 14px;
+    }
+    .admin-mode .card { height: 158px; }
+
+    /* ── Disabled card ── */
+    .card-disabled {
+      cursor: default !important;
+      pointer-events: none;
+    }
+    .card-disabled:hover { transform: none !important; box-shadow: none !important; }
+    .card-disabled:hover .card-bg { transform: none !important; filter: none !important; }
+    .card-disabled:hover .card-overlay { opacity: 0.75 !important; }
+    .card-disabled:hover .card-arrow { opacity: 0 !important; transform: translateX(-6px) !important; }
+    .card-disabled .card-content { opacity: 0.4; }
+    .card-dim {
+      position: absolute; inset: 0; z-index: 3;
+      background: rgba(0,0,0,0.52);
+      pointer-events: none;
+    }
+    .card-soon-badge {
+      position: absolute; bottom: 14px; right: 14px; z-index: 5;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.65);
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em;
+      padding: 3px 9px; border-radius: 6px;
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+    }
+
+    .right::after { content: ''; display: block; height: 8px; }
+
+    /* ── Commesse side panel ── */
     #comm-backdrop {
       position: fixed; inset: 0;
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(7px);
-      -webkit-backdrop-filter: blur(7px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 99;
+      background: rgba(0,0,0,0.55);
+      opacity: 0; pointer-events: none; transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 99;
     }
-    #comm-backdrop.open { opacity: 1; pointer-events: auto; }
-
+    #comm-backdrop.open {
+      opacity: 1; pointer-events: auto;
+      backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+    }
     #comm-panel {
-      position: fixed;
-      top: 0; right: 0;
-      width: 40%;
-      min-width: 360px;
-      height: 100vh;
-      background: #080f1f;
-      border-left: 1px solid rgba(255, 255, 255, 0.07);
-      box-shadow: -32px 0 100px rgba(0, 0, 0, 0.7);
-      transform: translateX(100%);
-      transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      padding: 44px 40px 40px;
-      gap: 24px;
+      position: fixed; top: 0; right: 0; width: 40%; min-width: 360px; height: 100vh;
+      background: #080f1f; border-left: 1px solid rgba(255,255,255,0.07);
+      box-shadow: -32px 0 100px rgba(0,0,0,0.7);
+      transform: translateX(100%); transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+      z-index: 100; display: flex; flex-direction: column; padding: 44px 40px 40px; gap: 24px;
     }
     #comm-panel.open { transform: translateX(0); }
-
     .pnl-close {
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.45);
-      font-size: 16px;
-      cursor: pointer;
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.45); font-size: 16px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s, color 0.2s;
-      flex-shrink: 0;
-      line-height: 1;
+      transition: background .2s, color .2s; flex-shrink: 0; line-height: 1;
     }
-    .pnl-close:hover { background: rgba(255, 255, 255, 0.13); color: #fff; }
-
-    .pnl-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      flex: 1;
-      min-height: 0;
-    }
+    .pnl-close:hover { background: rgba(255,255,255,0.13); color: #fff; }
+    .pnl-cards { display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; }
   </style>
 </head>
 <body>
+
+<!-- Auth guard — redirect to login if no token -->
+<script>
+(function() {
+  if (!localStorage.getItem('stqc_token')) window.location.replace('/login');
+})();
+</script>
+
 <div class="split">
 
-  <!-- ══════════════ LEFT PANEL ══════════════ -->
+  <!-- LEFT PANEL -->
   <div class="left">
     <div class="left-bg" id="hero-bg"></div>
     <div class="left-overlay"></div>
@@ -303,14 +263,13 @@
       <div class="left-logo">
         <div class="left-logo-dot"></div>
         <span class="left-logo-text" style="display:flex;align-items:baseline;gap:5px">
-          <span style="font-size:22px;font-weight:900;letter-spacing:-.02em;color:rgba(255,255,255,0.85)">MCC</span>
-          <span style="font-size:10px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,0.38)">S.R.L.</span>
+          <span style="font-size:44px;font-weight:900;letter-spacing:-.02em;color:rgba(255,255,255,0.85)">MCC</span>
+          <span style="font-size:20px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,0.38)">S.R.L.</span>
         </span>
       </div>
-      <div class="left-brand">
-        <div class="left-sub" style="margin-top:0">
-          <strong>STQC</strong> · Sistema Tracciamento QR su Commessa
-        </div>
+      <div>
+        <div style="font-size:120px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.03em;text-shadow:0 4px 40px rgba(0,0,0,0.5)">STQC</div>
+        <div style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.38);margin-top:10px;white-space:nowrap;letter-spacing:.04em">Sistema Tracciamento QR su Commessa</div>
         <div class="left-meta">
           <span class="left-badge">Produzione</span>
           <span class="left-version">v1.0 · 2026</span>
@@ -319,106 +278,31 @@
     </div>
   </div>
 
-  <!-- ══════════════ RIGHT PANEL ══════════════ -->
+  <!-- RIGHT PANEL -->
   <div class="right">
     <div class="right-header">
-      <div class="right-eyebrow">Sistema di gestione</div>
-      <div class="right-title">Seleziona un modulo</div>
+      <div>
+        <div class="right-eyebrow">Sistema di gestione</div>
+        <div class="right-title">Seleziona un modulo</div>
+      </div>
+      <div class="user-bar">
+        <div class="user-name" id="user-name-display">
+          <span id="user-fullname">—</span>
+          <small id="user-profilo-label">—</small>
+        </div>
+        <button class="btn-logout" onclick="logout()">Esci</button>
+      </div>
     </div>
 
-    <div class="grid">
-
-      <!-- Card 1 — KPI & Hints -->
-      <div class="card c-kpi" onclick="go('/app?tab=commesse')">
-        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=700&q=80')"></div>
-        <div class="card-overlay"></div>
-        <div class="card-arrow">→</div>
-        <div class="card-content">
-          <div class="card-tag tag-live">Live</div>
-          <div class="card-icon">📊</div>
-          <div class="card-title">KPI &amp; Hints</div>
-          <div class="card-desc">Commesse attive · Stato generale</div>
-          <div class="kpi-row" id="kpi-row">
-            <div class="kpi-dot green" id="kpi-dot"></div>
-            <span class="kpi-text" id="kpi-text">Caricamento…</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 2 — Dashboard -->
-      <div class="card c-dash" onclick="go('/app?tab=commesse')">
-        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=700&q=80')"></div>
-        <div class="card-overlay"></div>
-        <div class="card-arrow">→</div>
-        <div class="card-content">
-          <div class="card-tag tag-soon">Presto</div>
-          <div class="card-icon">📈</div>
-          <div class="card-title">Dashboard</div>
-          <div class="card-desc">Avanzamento live commesse</div>
-        </div>
-      </div>
-
-      <!-- Card 3 — Gestione Commesse -->
-      <div class="card c-comm" onclick="openCommessePanel()">
-        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=700&q=80')"></div>
-        <div class="card-overlay"></div>
-        <div class="card-arrow">→</div>
-        <div class="card-content">
-          <div class="card-tag tag-live">Live</div>
-          <div class="card-icon">📋</div>
-          <div class="card-title">Gestione Commesse</div>
-          <div class="card-desc">Distinte · stati · fasi · QR</div>
-        </div>
-      </div>
-
-      <!-- Card 4 — Magazzino -->
-      <div class="card c-mag" onclick="go('/app?tab=magazzino')">
-        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=700&q=80')"></div>
-        <div class="card-overlay"></div>
-        <div class="card-arrow">→</div>
-        <div class="card-content">
-          <div class="card-tag tag-live">Live</div>
-          <div class="card-icon">🏭</div>
-          <div class="card-title">Magazzino</div>
-          <div class="card-desc">Stock · arrivi · prelievi per commessa</div>
-        </div>
-      </div>
-
-      <!-- Card 5 — Acquisti & Ordini -->
-      <div class="card c-acq" onclick="go('/app?tab=magazzino')">
-        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=700&q=80')"></div>
-        <div class="card-overlay"></div>
-        <div class="card-arrow">→</div>
-        <div class="card-content">
-          <div class="card-tag tag-soon">Presto</div>
-          <div class="card-icon">🛒</div>
-          <div class="card-title">Acquisti &amp; Ordini</div>
-          <div class="card-desc">Fabbisogni · ordini · fornitori</div>
-        </div>
-      </div>
-
-      <!-- Card 6 — Impostazioni -->
-      <div class="card c-impost" onclick="go('/app?tab=magazzino')">
-        <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=700&q=80')"></div>
-        <div class="card-overlay"></div>
-        <div class="card-arrow">→</div>
-        <div class="card-content">
-          <div class="card-tag tag-soon">Presto</div>
-          <div class="card-icon">⚙️</div>
-          <div class="card-title">Impostazioni</div>
-          <div class="card-desc">Utenti · ruoli · configurazione</div>
-        </div>
-      </div>
-
+    <div class="grid" id="card-grid">
+      <!-- Cards injected by JS based on profile -->
     </div>
   </div>
 </div>
 
-<!-- ══════════════ COMMESSE SIDE PANEL ══════════════ -->
+<!-- COMMESSE SIDE PANEL -->
 <div id="comm-backdrop" onclick="closeCommessePanel()"></div>
-
 <div id="comm-panel">
-  <!-- Header -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
     <div>
       <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Gestione Commesse</div>
@@ -426,12 +310,9 @@
     </div>
     <button class="pnl-close" onclick="closeCommessePanel()">✕</button>
   </div>
-
-  <!-- Two large cards -->
   <div class="pnl-cards">
-
-    <!-- In corso -->
-    <div class="card c-comm" style="height:auto;flex:1;min-height:190px" onclick="sessionStorage.setItem('returnPanel','gestione'); go('/commesse')">
+    <a class="card c-comm" href="/commesse" style="height:auto;flex:1;min-height:190px;display:block;text-decoration:none"
+       onclick="try{sessionStorage.setItem('returnPanel','gestione')}catch(e){}">
       <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=800&q=80')"></div>
       <div class="card-overlay"></div>
       <div class="card-arrow">→</div>
@@ -440,10 +321,9 @@
         <div class="card-title" style="font-size:22px;letter-spacing:-.02em">In corso</div>
         <div class="card-desc" style="font-size:13px;margin-top:5px">Visualizza e gestisci le commesse attive</div>
       </div>
-    </div>
-
-    <!-- Nuova Commessa -->
-    <div class="card c-kpi" style="height:auto;flex:1;min-height:190px" onclick="sessionStorage.setItem('returnPanel','gestione'); go('/commesse/nuova')">
+    </a>
+    <a class="card c-kpi" href="/commesse/nuova" style="height:auto;flex:1;min-height:190px;display:block;text-decoration:none"
+       onclick="try{sessionStorage.setItem('returnPanel','gestione')}catch(e){}">
       <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80')"></div>
       <div class="card-overlay"></div>
       <div class="card-arrow">→</div>
@@ -452,16 +332,254 @@
         <div class="card-title" style="font-size:22px;letter-spacing:-.02em">Nuova Commessa</div>
         <div class="card-desc" style="font-size:13px;margin-top:5px">Crea una commessa e importa la distinta</div>
       </div>
-    </div>
+    </a>
+  </div>
+</div>
 
+<!-- ADMIN SUB-PANEL: Account -->
+<div class="admin-backdrop" id="adm-account-backdrop" onclick="closeAdminPanel('account')"></div>
+<div class="admin-panel" id="adm-account-panel">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Amministrazione</div>
+      <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Account</div>
+    </div>
+    <button class="pnl-close" onclick="closeAdminPanel('account')">✕</button>
+  </div>
+  <div class="adm-sub-cards">
+    <a class="adm-sub-item" href="/admin?s=users">
+      <div class="adm-sub-icon">👥</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Utenti</div>
+        <div class="adm-sub-desc">Crea, modifica, disabilita account — scadenza password</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
+    <a class="adm-sub-item" href="/admin?s=groups">
+      <div class="adm-sub-icon">🏷️</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Gruppi &amp; Permessi</div>
+        <div class="adm-sub-desc">Permessi per sezione, postazioni associabili per gruppo</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
+    <a class="adm-sub-item" href="/admin?s=auditlog">
+      <div class="adm-sub-icon">🔐</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Log Accessi</div>
+        <div class="adm-sub-desc">Audit immutabile NIS2 · conservazione 12 mesi</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- ADMIN SUB-PANEL: Manutenzione -->
+<div class="admin-backdrop" id="adm-maint-backdrop" onclick="closeAdminPanel('maint')"></div>
+<div class="admin-panel" id="adm-maint-panel">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Sistema</div>
+      <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Manutenzione</div>
+    </div>
+    <button class="pnl-close" onclick="closeAdminPanel('maint')">✕</button>
+  </div>
+  <div class="adm-sub-cards">
+    <a class="adm-sub-item" href="/admin?s=maintenance">
+      <div class="adm-sub-icon">💾</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Backup &amp; Manutenzione</div>
+        <div class="adm-sub-desc">Backup database, pulizia log, verifica integrità, restart</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
+    <a class="adm-sub-item" href="/admin?s=maintenance">
+      <div class="adm-sub-icon">🗑️</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Reset Inventario</div>
+        <div class="adm-sub-desc">Svuota magazzino e reimporta dall'inventario Excel</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
+    <a class="adm-sub-item" href="/admin?s=status">
+      <div class="adm-sub-icon">📡</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Stato Sistema</div>
+        <div class="adm-sub-desc">CPU, RAM, disco, database, Cloudflare tunnel</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- ADMIN SUB-PANEL: Impostazioni generali -->
+<div class="admin-backdrop" id="adm-config-backdrop" onclick="closeAdminPanel('config')"></div>
+<div class="admin-panel" id="adm-config-panel">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Configurazione</div>
+      <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Impostazioni</div>
+    </div>
+    <button class="pnl-close" onclick="closeAdminPanel('config')">✕</button>
+  </div>
+  <div class="adm-sub-cards">
+    <a class="adm-sub-item" href="/admin?s=groups" style="opacity:.7">
+      <div class="adm-sub-icon">🏗️</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Configurazione Postazioni</div>
+        <div class="adm-sub-desc">Postazioni assegnabili per gruppo operativo</div>
+      </div>
+      <div class="adm-soon-badge">Gruppi</div>
+    </a>
+    <div class="adm-sub-item" style="cursor:default;opacity:.45">
+      <div class="adm-sub-icon">⚙️</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Parametri Applicazione</div>
+        <div class="adm-sub-desc">Scadenza password, timeout sessione, notifiche</div>
+      </div>
+      <div class="adm-soon-badge">Presto</div>
+    </div>
+    <a class="adm-sub-item" href="/admin?s=logs">
+      <div class="adm-sub-icon">📋</div>
+      <div class="adm-sub-text">
+        <div class="adm-sub-title">Log di Sistema</div>
+        <div class="adm-sub-desc">Log applicativi live con filtro per livello</div>
+      </div>
+      <div class="adm-sub-arrow">→</div>
+    </a>
   </div>
 </div>
 
 <script>
-const AUTH = 'Basic ' + btoa('mcc:stqc2026');
+const TOKEN   = localStorage.getItem('stqc_token');
+const PROFILO = localStorage.getItem('stqc_profilo') || '';
+const NOME    = localStorage.getItem('stqc_nome') || '';
 
+function getAuth() { return 'Bearer ' + TOKEN; }
 function go(url) { window.location.href = url; }
 
+// ── Logout ────────────────────────────────────────────────────────────────────
+function logout() {
+  localStorage.removeItem('stqc_token');
+  localStorage.removeItem('stqc_profilo');
+  localStorage.removeItem('stqc_nome');
+  window.location.replace('/login');
+}
+
+// ── User display ──────────────────────────────────────────────────────────────
+document.getElementById('user-fullname').textContent = NOME || '—';
+document.getElementById('user-profilo-label').textContent = PROFILO || '—';
+
+// ── Card definitions ──────────────────────────────────────────────────────────
+const CARD_DEFS = {
+  kpi: {
+    cls: 'c-kpi', img: 'photo-1460925895917-afdab827c52f',
+    tag: 'tag-live', tagLabel: 'Live', icon: '📊',
+    title: 'KPI &amp; Hints', desc: 'Commesse attive · Stato generale',
+    onclick: "go('/app?tab=commesse')",
+    extra: '<div class="kpi-row" id="kpi-row"><div class="kpi-dot green" id="kpi-dot"></div><span class="kpi-text" id="kpi-text">Caricamento…</span></div>',
+  },
+  dashboard: {
+    cls: 'c-dash', img: 'photo-1581091226825-a6a2a5aee158',
+    tag: 'tag-soon', tagLabel: 'Presto', icon: '📈',
+    title: 'Dashboard', desc: 'Avanzamento live commesse',
+    onclick: "go('/app?tab=commesse')",
+  },
+  commesse: {
+    cls: 'c-comm', img: 'photo-1504328345606-18bbc8c9d7d1',
+    tag: 'tag-live', tagLabel: 'Live', icon: '📋',
+    title: 'Gestione Commesse', desc: 'Distinte · stati · fasi · QR',
+    onclick: 'openCommessePanel()',
+  },
+  magazzino: {
+    cls: 'c-mag', img: 'photo-1553413077-190dd305871c',
+    tag: 'tag-live', tagLabel: 'Live', icon: '🏭',
+    title: 'Magazzino', desc: 'Stock · arrivi · prelievi per commessa',
+    onclick: "go('/app?tab=magazzino')",
+  },
+  acquisti: {
+    cls: 'c-acq', img: 'photo-1586528116311-ad8dd3c8310d',
+    tag: 'tag-soon', tagLabel: 'Presto', icon: '🛒',
+    title: 'Acquisti &amp; Ordini', desc: 'Fabbisogni · ordini · fornitori',
+    disabled: true,
+  },
+  adm_account: {
+    cls: 'c-account', img: 'photo-1516321318423-f06f85e504b3',
+    tag: 'tag-live', tagLabel: 'Admin', icon: '👥',
+    title: 'Account', desc: 'Utenti · Gruppi · Log accessi',
+    onclick: "openAdminPanel('account')",
+  },
+  adm_maint: {
+    cls: 'c-maint', img: 'photo-1558494949-ef010cbdcc31',
+    tag: 'tag-live', tagLabel: 'Admin', icon: '🔧',
+    title: 'Manutenzione', desc: 'Backup · Reset inventario · Stato sistema',
+    onclick: "openAdminPanel('maint')",
+  },
+  adm_config: {
+    cls: 'c-config', img: 'photo-1555066931-4365d14bab8c',
+    tag: 'tag-live', tagLabel: 'Admin', icon: '⚙️',
+    title: 'Impostazioni', desc: 'Postazioni · Parametri applicazione · Log',
+    onclick: "openAdminPanel('config')",
+  },
+};
+
+// Profile → visible cards
+const PROFILE_CARDS = {
+  Responsabile: ['kpi', 'dashboard', 'commesse', 'magazzino', 'acquisti'],
+  Direttore:    ['kpi', 'dashboard', 'commesse', 'magazzino'],
+  Operaio:      ['magazzino'],
+  Operatore:    ['magazzino'],
+  Logistica:    ['magazzino'],
+  Acquisti:     ['magazzino', 'acquisti'],
+  Admin:        ['adm_account', 'adm_maint', 'adm_config'],
+};
+
+function cardHTML(key) {
+  const d = CARD_DEFS[key];
+  if (d.disabled) {
+    return `
+    <div class="card ${d.cls} card-disabled">
+      <div class="card-bg" style="background-image:url('https://images.unsplash.com/${d.img}?auto=format&fit=crop&w=700&q=80')"></div>
+      <div class="card-overlay"></div>
+      <div class="card-dim"></div>
+      <div class="card-content">
+        <div class="card-tag ${d.tag}">${d.tagLabel}</div>
+        <div class="card-icon">${d.icon}</div>
+        <div class="card-title">${d.title}</div>
+        <div class="card-desc">${d.desc}</div>
+      </div>
+      <div class="card-soon-badge">Prossimamente</div>
+    </div>`;
+  }
+  return `
+    <div class="card ${d.cls}" onclick="${d.onclick}">
+      <div class="card-bg" style="background-image:url('https://images.unsplash.com/${d.img}?auto=format&fit=crop&w=700&q=80')"></div>
+      <div class="card-overlay"></div>
+      <div class="card-arrow">→</div>
+      <div class="card-content">
+        <div class="card-tag ${d.tag}">${d.tagLabel}</div>
+        <div class="card-icon">${d.icon}</div>
+        <div class="card-title">${d.title}</div>
+        <div class="card-desc">${d.desc}</div>
+        ${d.extra || ''}
+      </div>
+    </div>`;
+}
+
+function renderCards() {
+  const keys = PROFILE_CARDS[PROFILO] || [];
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = keys.map(cardHTML).join('');
+  if (PROFILO === 'Admin') {
+    document.body.classList.add('admin-mode');
+  } else if (keys.length === 1) {
+    grid.style.gridTemplateColumns = '1fr';
+  }
+}
+
+renderCards();
+
+// ── Commesse panel ────────────────────────────────────────────────────────────
 function openCommessePanel() {
   document.getElementById('comm-panel').classList.add('open');
   document.getElementById('comm-backdrop').classList.add('open');
@@ -472,41 +590,57 @@ function closeCommessePanel() {
   document.getElementById('comm-backdrop').classList.remove('open');
   document.body.style.overflow = '';
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCommessePanel(); });
 
-// Riapri il panel se si torna da una pagina commesse
+// ── Admin sub-panels ──────────────────────────────────────────────────────────
+function openAdminPanel(key) {
+  closeAllAdminPanels();
+  document.getElementById('adm-' + key + '-panel').classList.add('open');
+  document.getElementById('adm-' + key + '-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAdminPanel(key) {
+  document.getElementById('adm-' + key + '-panel').classList.remove('open');
+  document.getElementById('adm-' + key + '-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeAllAdminPanels() {
+  ['account', 'maint', 'config'].forEach(closeAdminPanel);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeCommessePanel();
+    closeAllAdminPanels();
+  }
+});
 if (sessionStorage.getItem('returnPanel') === 'gestione') {
   sessionStorage.removeItem('returnPanel');
   openCommessePanel();
 }
 
-// Hero image lazy-load with scale animation
+// ── Hero ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   document.getElementById('hero-bg').classList.add('loaded');
 });
 
-// ── KPI fetch ─────────────────────────────────────────────────────────────────
+// ── KPI fetch (only for Responsabile) ────────────────────────────────────────
 async function loadKPI() {
   const dot  = document.getElementById('kpi-dot');
   const text = document.getElementById('kpi-text');
+  if (!dot) return;
   try {
-    const res = await fetch('/api/v1/commesse?limit=200', {
-      headers: { Authorization: AUTH }
-    });
+    const res = await fetch('/api/v1/commesse?limit=200', { headers: { Authorization: getAuth() } });
     if (!res.ok) throw new Error();
     const commesse = await res.json();
-
     const today = new Date(); today.setHours(0,0,0,0);
     const soon  = new Date(today); soon.setDate(today.getDate() + 14);
-
-    const aperte   = commesse.filter(c => c.status === 'APERTA');
-    const scadute  = aperte.filter(c => c.data_consegna_prevista && new Date(c.data_consegna_prevista) < today);
-    const inScad   = aperte.filter(c => {
+    const aperte  = commesse.filter(c => c.status === 'APERTA');
+    const scadute = aperte.filter(c => c.data_consegna_prevista && new Date(c.data_consegna_prevista) < today);
+    const inScad  = aperte.filter(c => {
       if (!c.data_consegna_prevista) return false;
       const d = new Date(c.data_consegna_prevista);
       return d >= today && d <= soon;
     });
-
     if (scadute.length > 0) {
       dot.className = 'kpi-dot red';
       text.textContent = `${aperte.length} aperte · ${scadute.length} scadut${scadute.length===1?'a':'e'} ⚠`;
@@ -515,18 +649,17 @@ async function loadKPI() {
       text.textContent = `${aperte.length} aperte · ${inScad.length} in scadenza`;
     } else if (aperte.length > 0) {
       dot.className = 'kpi-dot green';
-      text.textContent = `${aperte.length} commess${aperte.length===1?'a':'e'} aperta${aperte.length===1?'':'s'} · OK`;
+      text.textContent = `${aperte.length} commess${aperte.length===1?'a':'e'} apert${aperte.length===1?'a':'e'} · OK`;
     } else {
       dot.className = 'kpi-dot green';
       text.textContent = 'Nessuna commessa aperta';
     }
   } catch {
-    dot.className = 'kpi-dot yellow';
-    text.textContent = 'Dati non disponibili';
+    if (dot) { dot.className = 'kpi-dot yellow'; text.textContent = 'Dati non disponibili'; }
   }
 }
 
-loadKPI();
+if (PROFILO === 'Responsabile') loadKPI();
 </script>
 </body>
 </html>

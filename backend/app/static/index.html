@@ -91,7 +91,47 @@
   <button onclick="showTab('distinte')"   class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="distinte">Distinte</button>
   <button onclick="showTab('commesse')"   class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="commesse">Commesse</button>
   <button onclick="showTab('qr')"         class="tab-btn px-3 py-1 rounded hover:bg-blue-600 transition text-sm" data-tab="qr">QR Scan</button>
+  <div class="ml-auto flex items-center gap-3">
+    <span id="nav-user" class="text-blue-200 text-xs"></span>
+    <button onclick="logout()" class="text-xs bg-blue-700 hover:bg-blue-600 text-white px-3 py-1 rounded transition">Esci</button>
+  </div>
 </nav>
+
+<!-- Logistica banner richieste pendenti -->
+<div id="req-banner" class="hidden bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center gap-4">
+  <span class="text-amber-700 font-semibold text-sm" id="req-banner-txt"></span>
+  <button onclick="openRequestsPanel()" class="text-xs bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded font-medium">Gestisci richieste</button>
+</div>
+
+<!-- Pannello richieste (slide-in) -->
+<div id="req-panel-overlay" class="fixed inset-0 bg-black/40 z-40 hidden" onclick="closeRequestsPanel()"></div>
+<div id="req-panel" class="fixed inset-y-0 right-0 z-50 bg-white shadow-2xl flex flex-col translate-x-full transition-transform duration-300" style="width:520px">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <h3 class="font-semibold text-gray-900 text-base">Richieste prelievo in attesa</h3>
+    <button onclick="closeRequestsPanel()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+  </div>
+  <div id="req-panel-body" class="flex-1 overflow-y-auto p-5 space-y-4">
+    <p class="text-gray-400 text-sm">Caricamento…</p>
+  </div>
+  <div class="flex-shrink-0 border-t border-gray-100 px-5 py-3 flex gap-2 bg-gray-50">
+    <button onclick="confirmAllRequests()" class="bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-2 rounded-lg font-medium">✓ Conferma tutte</button>
+    <button onclick="loadRequestsPanel()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm px-4 py-2 rounded-lg">Aggiorna</button>
+  </div>
+</div>
+
+<!-- Modal rifiuto -->
+<div id="refuse-modal-overlay" class="fixed inset-0 bg-black/50 z-60 hidden flex items-center justify-center">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-96">
+    <h4 class="font-semibold text-gray-900 mb-3">Rifiuta richiesta</h4>
+    <input type="hidden" id="refuse-req-id"/>
+    <textarea id="refuse-note" rows="3" placeholder="Note obbligatorie per il rifiuto…"
+      class="border border-gray-300 rounded-lg w-full p-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 mb-4"></textarea>
+    <div class="flex gap-2 justify-end">
+      <button onclick="closeRefuseModal()" class="text-sm px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">Annulla</button>
+      <button onclick="submitRefuse()" class="text-sm px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium">Rifiuta</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===================== MAGAZZINO (full-width, outside main) ===================== -->
 <section id="tab-magazzino" class="tab-panel hidden" style="height:calc(100vh - 52px); display:flex; flex-direction:column; padding:12px 16px; gap:10px; box-sizing:border-box;">
@@ -111,8 +151,8 @@
         <button id="d-large"        onclick="MAG.setDensity('large')"         class="den-btn px-2.5 py-1 rounded-md text-xs text-gray-500 transition-all">Large</button>
       </div>
 
-      <!-- Import -->
-      <div class="relative" id="import-wrap">
+      <!-- Import (Responsabile + Logistica only) -->
+      <div class="relative perm-import" id="import-wrap">
         <button onclick="document.getElementById('import-dd').classList.toggle('hidden')"
           class="border border-gray-200 bg-white text-gray-600 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50 flex items-center gap-1.5 font-medium">
           ↑ Importa inventario
@@ -127,12 +167,13 @@
         </div>
       </div>
 
-      <button onclick="MAG.openDrawer('INCOMING')"
-        class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-green-500 flex items-center gap-1.5 shadow-sm">
+      <!-- Logistica only -->
+      <button onclick="MAG.openDrawer('INCOMING')" id="btn-arrivo"
+        class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-green-500 flex items-center gap-1.5 shadow-sm perm-logistica">
         ↑ Registra arrivo
       </button>
-      <button onclick="MAG.openDrawer('OUTGOING')"
-        class="bg-orange-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-orange-400 flex items-center gap-1.5 shadow-sm">
+      <button onclick="MAG.openDrawer('OUTGOING')" id="btn-prelievo"
+        class="bg-orange-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-orange-400 flex items-center gap-1.5 shadow-sm perm-logistica">
         ↓ Registra prelievo
       </button>
     </div>
@@ -300,17 +341,51 @@
 
 <script>
 // ── Auth ──────────────────────────────────────────────────────────────────────
-const AUTH = 'Basic ' + btoa('mcc:stqc2026');
+(function() {
+  const tok = localStorage.getItem('stqc_token');
+  if (!tok) { location.replace('/login'); }
+})();
+
+function getAuth() { return 'Bearer ' + (localStorage.getItem('stqc_token') || ''); }
+function getProfilo() { return localStorage.getItem('stqc_profilo') || ''; }
+function getNome() { return localStorage.getItem('stqc_nome') || ''; }
+function logout() { localStorage.removeItem('stqc_token'); localStorage.removeItem('stqc_profilo'); localStorage.removeItem('stqc_nome'); location.replace('/login'); }
 
 async function api(path, opts = {}) {
-  const headers = { Authorization: AUTH, ...(opts.headers || {}) };
+  const headers = { Authorization: getAuth(), ...(opts.headers || {}) };
   const res = await fetch('/api/v1' + path, { ...opts, headers });
+  if (res.status === 401) { logout(); return; }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || res.statusText);
   }
   return res.headers.get('content-type')?.includes('application/json') ? res.json() : res;
 }
+
+// ── Profile visibility ────────────────────────────────────────────────────────
+(function applyPermissions() {
+  const profilo = getProfilo();
+  const nome = getNome();
+
+  // User badge in nav
+  const navUser = document.getElementById('nav-user');
+  if (navUser) navUser.textContent = nome || profilo;
+
+  // Logistica-only buttons
+  document.querySelectorAll('.perm-logistica').forEach(el => {
+    if (profilo !== 'Logistica') el.style.display = 'none';
+  });
+
+  // Import: Responsabile + Logistica (hide for Acquisti)
+  document.querySelectorAll('.perm-import').forEach(el => {
+    if (profilo === 'Acquisti') el.style.display = 'none';
+  });
+
+  // Show Logistica request banner
+  if (profilo === 'Logistica') {
+    loadRequestsBannerCount();
+  }
+})();
 
 // ── Tab ───────────────────────────────────────────────────────────────────────
 const tabLoaders = { magazzino: () => MAG.load(), distinte: loadImports, commesse: loadCommesse };
@@ -1075,6 +1150,124 @@ document.addEventListener('click', e => {
     document.getElementById('import-dd').classList.add('hidden');
   }
 });
+
+// ── Requests panel ───────────────────────────────────────────────────────────
+async function loadRequestsBannerCount() {
+  try {
+    const reqs = await api('/stock/requests?status=IN_ATTESA');
+    const banner = document.getElementById('req-banner');
+    const txt = document.getElementById('req-banner-txt');
+    if (!banner) return;
+    if (reqs.length > 0) {
+      txt.textContent = `${reqs.length} richiesta${reqs.length > 1 ? 'e' : ''} di prelievo in attesa`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  } catch(_) {}
+}
+
+async function loadRequestsPanel() {
+  const body = document.getElementById('req-panel-body');
+  body.innerHTML = '<p class="text-gray-400 text-sm">Caricamento…</p>';
+  try {
+    const reqs = await api('/stock/requests?status=IN_ATTESA');
+    if (!reqs.length) {
+      body.innerHTML = '<p class="text-gray-400 text-sm text-center py-10">Nessuna richiesta in attesa.</p>';
+      return;
+    }
+    // Group by commessa
+    const byComm = {};
+    reqs.forEach(r => {
+      const key = r.commessa_codice || `#${r.commessa_id}`;
+      if (!byComm[key]) byComm[key] = [];
+      byComm[key].push(r);
+    });
+    let html = '';
+    Object.entries(byComm).forEach(([comm, items]) => {
+      html += `<div class="border border-gray-200 rounded-xl overflow-hidden mb-2">
+        <div class="bg-gray-50 px-4 py-2 font-semibold text-sm text-gray-700 border-b border-gray-200">Commessa: ${esc(comm)}</div>`;
+      items.forEach(r => {
+        const desc = r.material_description || r.material_code || `Mat #${r.material_id}`;
+        const qty = Number(r.quantity).toLocaleString('it-IT', {maximumFractionDigits: 3});
+        html += `<div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium text-gray-900 truncate">${esc(desc)}</div>
+            <div class="text-xs text-gray-400">Qta: ${qty}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
+          </div>
+          <button onclick="confirmRequest(${r.id})" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-medium flex-shrink-0">✓ Conferma</button>
+          <button onclick="openRefuseModal(${r.id})" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg font-medium flex-shrink-0">Rifiuta</button>
+        </div>`;
+      });
+      html += '</div>';
+    });
+    body.innerHTML = html;
+  } catch(e) {
+    body.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`;
+  }
+}
+
+function openRequestsPanel() {
+  document.getElementById('req-panel-overlay').classList.remove('hidden');
+  document.getElementById('req-panel').style.transform = 'translateX(0)';
+  loadRequestsPanel();
+}
+
+function closeRequestsPanel() {
+  document.getElementById('req-panel-overlay').classList.add('hidden');
+  document.getElementById('req-panel').style.transform = 'translateX(100%)';
+}
+
+async function confirmRequest(id) {
+  try {
+    await api(`/stock/requests/${id}/confirm`, { method: 'POST' });
+    loadRequestsPanel();
+    loadRequestsBannerCount();
+  } catch(e) { alert('Errore: ' + e.message); }
+}
+
+async function confirmAllRequests() {
+  const body = document.getElementById('req-panel-body');
+  const btns = body.querySelectorAll('button');
+  btns.forEach(b => b.disabled = true);
+  try {
+    const reqs = await api('/stock/requests?status=IN_ATTESA');
+    for (const r of reqs) {
+      await api(`/stock/requests/${r.id}/confirm`, { method: 'POST' });
+    }
+    loadRequestsPanel();
+    loadRequestsBannerCount();
+    MAG.load();
+  } catch(e) { alert('Errore: ' + e.message); }
+}
+
+function openRefuseModal(id) {
+  document.getElementById('refuse-req-id').value = id;
+  document.getElementById('refuse-note').value = '';
+  document.getElementById('refuse-modal-overlay').classList.remove('hidden');
+  document.getElementById('refuse-modal-overlay').style.display = 'flex';
+}
+
+function closeRefuseModal() {
+  document.getElementById('refuse-modal-overlay').classList.add('hidden');
+  document.getElementById('refuse-modal-overlay').style.display = 'none';
+}
+
+async function submitRefuse() {
+  const id = document.getElementById('refuse-req-id').value;
+  const note = document.getElementById('refuse-note').value.trim();
+  if (!note) { alert('Le note sono obbligatorie per il rifiuto.'); return; }
+  try {
+    await api(`/stock/requests/${id}/refuse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    });
+    closeRefuseModal();
+    loadRequestsPanel();
+    loadRequestsBannerCount();
+  } catch(e) { alert('Errore: ' + e.message); }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 MAG.setDensity('normal');

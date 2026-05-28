@@ -1,7 +1,9 @@
+import uuid as _uuid
 from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -15,6 +17,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
+
+
+def _gen_uuid() -> str:
+    return str(_uuid.uuid4())
 
 
 class MovementType(str, Enum):
@@ -61,6 +67,10 @@ class Material(Base):
     quantita_prenotata = Column(Numeric(18, 6), nullable=False, server_default="0")
     quantita_uscita = Column(Numeric(18, 6), nullable=False, server_default="0")
 
+    # QR magazzino — stesso schema dei pezzi lavorati
+    qr_uuid = Column(String(36), nullable=True, index=True)
+    qr_code = Column(Text, nullable=True)   # base64 PNG
+
     batches = relationship("Batch", back_populates="material")
     receipts = relationship("Receipt", back_populates="material")
     movements = relationship("StockMovement", back_populates="material")
@@ -77,6 +87,10 @@ class Batch(Base):
     heat_number = Column(String(200), nullable=True)
     produced_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
+
+    # QR magazzino
+    qr_uuid = Column(String(36), nullable=True, index=True)
+    qr_code = Column(Text, nullable=True)   # base64 PNG
 
     material = relationship("Material", back_populates="batches")
     receipts = relationship("Receipt", back_populates="batch")
@@ -157,21 +171,61 @@ class DistintaImport(Base):
 class DistintaItem(Base):
     __tablename__ = "distinta_items"
 
-    id = Column(Integer, primary_key=True, index=True)
-    import_id = Column(Integer, ForeignKey("distinta_imports.id", ondelete="CASCADE"), nullable=False)
-    part_number = Column(String(200), nullable=True)
-    description = Column(String(400), nullable=True)
-    quantity = Column(Numeric(18, 6), nullable=True)
-    material_code = Column(String(100), nullable=True)
+    id          = Column(Integer, primary_key=True, index=True)
+    uuid        = Column(String(36), nullable=False, default=_gen_uuid, unique=True, index=True)
+    import_id   = Column(Integer, ForeignKey("distinta_imports.id", ondelete="CASCADE"), nullable=False)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    part_number          = Column(String(200), nullable=True)
+    description          = Column(String(400), nullable=True)  # profilo/sezione
+    quantity             = Column(Numeric(18, 6), nullable=True)
+    material_code        = Column(String(100), nullable=True)
     material_description = Column(String(400), nullable=True)
-    commessa_reference = Column(String(200), nullable=True)
-    commessa_id = Column(Integer, ForeignKey("commesse.id"), nullable=True, index=True)
-    qr_code = Column(String(255), nullable=True)
-    mapped_material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)
-    length_mm = Column(Numeric(12, 2), nullable=True)
+    commessa_reference   = Column(String(200), nullable=True)
+    commessa_id          = Column(Integer, ForeignKey("commesse.id"), nullable=True, index=True)
+    length_mm            = Column(Numeric(12, 2), nullable=True)
+    weight_kg            = Column(Numeric(12, 4), nullable=True)
+    instance_number      = Column(Integer, nullable=True)
+    parent_assembly      = Column(String(200), nullable=True)
+    invalidato           = Column(Boolean, nullable=False, default=False)
+    qr_code              = Column(Text, nullable=True)          # base64 PNG
+    mapped_material_id   = Column(Integer, ForeignKey("materials.id"), nullable=True)
 
     distinta_import = relationship("DistintaImport", back_populates="items")
+    revisione       = relationship("CommessaRevisione", foreign_keys=[revisione_id], back_populates="items")
     mapped_material = relationship("Material", primaryjoin="Material.id==DistintaItem.mapped_material_id")
+    commessa        = relationship("Commessa", foreign_keys=[commessa_id])
+
+
+class RichiestaStatus(str, Enum):
+    IN_ATTESA = "IN_ATTESA"
+    CONFERMATO = "CONFERMATO"
+    RIFIUTATO = "RIFIUTATO"
+
+
+class MaterialRequest(Base):
+    __tablename__ = "material_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id"), nullable=False, index=True)
+    commessa_codice = Column(String(100), nullable=True)
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=False, index=True)
+    material_description = Column(String(400), nullable=True)
+    material_code = Column(String(100), nullable=True)
+    quantity = Column(Numeric(18, 6), nullable=False)
+    movement_type = Column(String(20), nullable=False)  # OUTGOING or SFRIDO
+    reason = Column(String(200), nullable=True)
+    reference = Column(String(200), nullable=True)
+    status = Column(
+        SQLEnum(RichiestaStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=RichiestaStatus.IN_ATTESA,
+    )
+    note_rifiuto = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, nullable=True)
+
+    material = relationship("Material", foreign_keys=[material_id])
     commessa = relationship("Commessa", foreign_keys=[commessa_id])
 
 

@@ -60,7 +60,7 @@ async def import_distinta_file(
 
     # mapping materiale <-> pezzo (sempre) e generazione QR (solo se richiesto)
     from backend.app.models.warehouse import DistintaItem, Material
-    from backend.app.services.qr import generate_qr_png_base64
+    from backend.app.services.qr import generate_qr_for_uuid
     from sqlalchemy import select
 
     saved_items = db.scalars(select(DistintaItem).where(DistintaItem.import_id == distinta_import.id)).all()
@@ -71,14 +71,8 @@ async def import_distinta_file(
         if mapped_material:
             si.mapped_material_id = mapped_material.id
         if generate_qr:
-            # build a simple payload for QR: import_id + item id + part_number
-            payload = {
-                "import_id": distinta_import.id,
-                "item_id": si.id,
-                "part_number": si.part_number,
-            }
             try:
-                si.qr_code = generate_qr_png_base64(payload)
+                si.qr_code = generate_qr_for_uuid(si.uuid)
             except Exception:
                 pass
     db.commit()
@@ -101,6 +95,62 @@ def get_distinta_import_by_id(import_id: int, db: Session = Depends(get_db)):
     return record
 
 
+@router.post("/imports/{import_id}/generate-qr")
+def generate_qr_for_import(
+    import_id: int,
+    commessa_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import select
+    from backend.app.models.warehouse import DistintaItem
+    from backend.app.services.qr import generate_qr_for_uuid
+
+    record = get_distinta_import(db=db, import_id=import_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Importazione non trovata")
+
+    items = db.scalars(select(DistintaItem).where(DistintaItem.import_id == import_id)).all()
+
+    count = 0
+    failed: list[dict] = []
+    for item in items:
+        try:
+            item.qr_code = generate_qr_for_uuid(item.uuid)
+            if commessa_id:
+                item.commessa_id = commessa_id
+            count += 1
+        except Exception as exc:
+            failed.append({"item_id": item.id, "part_number": item.part_number, "error": str(exc)})
+
+    db.commit()
+    return {"qr_count": count, "import_id": import_id, "failed": failed}
+
+
+@router.patch("/items/{item_id}")
+def patch_distinta_item(item_id: int, body: dict, db: Session = Depends(get_db)):
+    from backend.app.models.warehouse import DistintaItem
+    item = db.get(DistintaItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Pezzo non trovato")
+    allowed = {"part_number", "description", "quantity", "material_code", "material_description", "commessa_reference", "length_mm", "parent_assembly", "instance_number"}
+    for key, val in body.items():
+        if key in allowed:
+            setattr(item, key, val if val not in ("", None) else None)
+    db.commit()
+    db.refresh(item)
+    return {"id": item.id, "part_number": item.part_number, "description": item.description}
+
+
+@router.post("/imports/{import_id}/delta", status_code=201)
+def delta_update_distinta(
+    import_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    # TODO: delta parser — update only the rows present in the file without full reimport
+    raise HTTPException(status_code=501, detail="Delta parser non ancora implementato")
+
+
 @router.get("/items/{item_id}/label.pdf")
 def download_item_label(item_id: int, db: Session = Depends(get_db)):
     """Restituisce un PDF etichetta A6 per il pezzo indicato."""
@@ -114,3 +164,34 @@ def download_item_label(item_id: int, db: Session = Depends(get_db)):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/bulk-qr-init")
+def bulk_qr_init(db: Session = Depends(get_db)):
+    """Genera UUID e QR per tutti i materials e batches del magazzino che ne sono privi.
+    Da eseguire una sola volta al primo avvio dopo la migrazione."""
+    import uuid as _uuid
+    from sqlalchemy import select
+    from backend.app.models.warehouse import Batch, Material
+    from backend.app.services.qr import generate_qr_for_uuid
+
+    mat_count = 0
+    for mat in db.scalars(select(Material).where(Material.qr_uuid.is_(None))).all():
+        mat.qr_uuid = str(_uuid.uuid4())
+        try:
+            mat.qr_code = generate_qr_for_uuid(mat.qr_uuid)
+        except Exception:
+            pass
+        mat_count += 1
+
+    batch_count = 0
+    for batch in db.scalars(select(Batch).where(Batch.qr_uuid.is_(None))).all():
+        batch.qr_uuid = str(_uuid.uuid4())
+        try:
+            batch.qr_code = generate_qr_for_uuid(batch.qr_uuid)
+        except Exception:
+            pass
+        batch_count += 1
+
+    db.commit()
+    return {"materials_updated": mat_count, "batches_updated": batch_count}

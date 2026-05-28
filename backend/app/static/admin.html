@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin · MCC STQC</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #fff; }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 40px; height: 62px;
+      background: rgba(8,15,31,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-back {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.45);
+      cursor: pointer; padding: 6px 11px; border-radius: 8px;
+      transition: background .2s, color .2s; text-decoration: none;
+    }
+    .nav-back:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9); }
+    .nav-sep { color: rgba(255,255,255,0.15); font-size: 18px; }
+    .nav-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.75); }
+    .nav-badge {
+      margin-left: 4px; padding: 2px 9px; border-radius: 10px;
+      background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.35);
+      color: #fca5a5; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    }
+
+    /* ── Layout ── */
+    .layout { display: flex; min-height: calc(100vh - 62px); }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 230px; flex-shrink: 0;
+      background: #080f1f;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      padding: 28px 16px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .sidebar-label {
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.22);
+      text-transform: uppercase; letter-spacing: .12em;
+      padding: 0 12px; margin-bottom: 6px; margin-top: 12px;
+    }
+    .sidebar-label:first-child { margin-top: 0; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 10px;
+      cursor: pointer; color: rgba(255,255,255,0.45);
+      font-size: 13px; font-weight: 500;
+      transition: background .18s, color .18s;
+      border: none; background: none; width: 100%; text-align: left;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); }
+    .nav-item.active { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+    .nav-item .ni-icon { font-size: 16px; flex-shrink: 0; }
+
+    /* ── Main content ── */
+    .main { flex: 1; padding: 40px 44px 72px; overflow-y: auto; max-width: 1100px; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-header { margin-bottom: 32px; }
+    .section-eyebrow {
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.28);
+      text-transform: uppercase; letter-spacing: .14em; margin-bottom: 7px;
+    }
+    .section-title { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: -.02em; }
+    .section-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 6px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: 10px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      border: none; transition: background .2s, box-shadow .2s, opacity .2s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 2px 12px rgba(37,99,235,.3); }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 4px 20px rgba(37,99,235,.5); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.25); }
+    .btn-ghost { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65); border: 1px solid rgba(255,255,255,0.1); }
+    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.12); color: #fff; }
+    .btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 7px; }
+    .btn-success { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+    .btn-success:hover:not(:disabled) { background: rgba(34,197,94,0.25); }
+    .btn-warn { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+    .btn-warn:hover:not(:disabled) { background: rgba(251,191,36,0.25); }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: #0d1629; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.07); overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    th {
+      padding: 12px 16px; text-align: left;
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.28);
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    td { padding: 13px 16px; font-size: 13px; color: rgba(255,255,255,0.75); border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .td-actions { display: flex; gap: 6px; }
+
+    /* ── Badge profilo ── */
+    .badge {
+      display: inline-block; padding: 2px 9px; border-radius: 10px;
+      font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    }
+    .badge-admin    { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-dir      { background: rgba(139,92,246,0.18); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
+    .badge-oper     { background: rgba(249,115,22,0.18); color: #fdba74; border: 1px solid rgba(249,115,22,0.3); }
+    .badge-log      { background: rgba(34,197,94,0.18); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
+    .badge-acq      { background: rgba(251,191,36,0.18); color: #fde68a; border: 1px solid rgba(251,191,36,0.3); }
+    .badge-on       { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+    .badge-off      { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+    .badge-locked   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    /* Audit log */
+    .audit-stream { background:#070e1d; border-radius:12px; border:1px solid rgba(255,255,255,.06);
+      max-height:380px; overflow-y:auto; font-size:12px; }
+    .audit-row { display:grid; grid-template-columns:130px 90px 80px 1fr; gap:10px;
+      padding:8px 14px; border-bottom:1px solid rgba(255,255,255,.03); align-items:start; }
+    .audit-row:last-child { border-bottom:none; }
+    .audit-ts  { color:rgba(255,255,255,.25); font-family:monospace; font-size:11px; }
+    .audit-act { font-weight:700; font-size:11px; }
+    .act-ok    { color:#4ade80; } .act-fail { color:#f87171; } .act-warn { color:#fbbf24; }
+    .act-info  { color:#93c5fd; }
+    /* Attributi */
+    .attr-tag { display:inline-block; padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600;
+      background:rgba(59,130,246,.15); color:#93c5fd; border:1px solid rgba(59,130,246,.25); margin:2px; }
+    .field textarea { width:100%; padding:9px 12px; background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.1); border-radius:9px; color:#fff; font-size:13px;
+      outline:none; resize:vertical; min-height:72px; }
+
+    /* ── Metric cards ── */
+    .metric-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: #0d1629; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 20px 22px;
+    }
+    .metric-label {
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.28);
+      text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px;
+    }
+    .metric-value { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -.02em; line-height: 1; }
+    .metric-sub { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 5px; }
+
+    .status-row { display: flex; align-items: center; gap: 9px; padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .status-row:last-child { border-bottom: none; }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .dot-green { background: #4ade80; box-shadow: 0 0 7px #4ade80; }
+    .dot-red   { background: #f87171; box-shadow: 0 0 7px #f87171; }
+    .dot-yellow{ background: #fbbf24; box-shadow: 0 0 7px #fbbf24; }
+    .dot-gray  { background: #475569; }
+    .status-label { font-size: 13px; color: rgba(255,255,255,0.65); font-weight: 500; flex: 1; }
+    .status-val { font-size: 12px; color: rgba(255,255,255,0.4); font-family: 'SF Mono', monospace; }
+
+    .progress-bar-wrap { height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 3px; transition: width .6s ease; }
+    .bar-green { background: #4ade80; }
+    .bar-yellow { background: #fbbf24; }
+    .bar-red { background: #f87171; }
+
+    /* ── Logs ── */
+    .log-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .log-filter-btn {
+      padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+      background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4);
+      transition: all .18s;
+    }
+    .log-filter-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+    .log-filter-btn.active-all  { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
+    .log-filter-btn.active-info { background: rgba(59,130,246,0.18); color: #93c5fd; border-color: rgba(59,130,246,0.35); }
+    .log-filter-btn.active-warn { background: rgba(251,191,36,0.18); color: #fbbf24; border-color: rgba(251,191,36,0.35); }
+    .log-filter-btn.active-err  { background: rgba(239,68,68,0.18); color: #f87171; border-color: rgba(239,68,68,0.35); }
+    .log-auto { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.35); }
+    .log-auto-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+
+    .log-stream {
+      background: #070e1d; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      height: 420px; overflow-y: auto;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px; padding: 12px;
+    }
+    .log-entry { display: flex; gap: 10px; padding: 3px 0; line-height: 1.5; }
+    .log-ts { color: rgba(255,255,255,0.22); white-space: nowrap; flex-shrink: 0; }
+    .log-lvl { font-weight: 700; flex-shrink: 0; width: 52px; }
+    .log-msg { color: rgba(255,255,255,0.7); word-break: break-all; }
+    .lvl-info    { color: #60a5fa; }
+    .lvl-warning { color: #fbbf24; }
+    .lvl-error   { color: #f87171; }
+    .lvl-debug   { color: #94a3b8; }
+    .lvl-critical{ color: #c084fc; }
+    .log-empty { color: rgba(255,255,255,0.18); text-align: center; padding: 40px 0; }
+
+    /* ── Maintenance ── */
+    .maint-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .maint-card {
+      background: #0d1629; border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 24px 26px;
+    }
+    .maint-icon { font-size: 24px; margin-bottom: 10px; }
+    .maint-title { font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
+    .maint-desc { font-size: 12px; color: rgba(255,255,255,0.35); margin-bottom: 16px; line-height: 1.5; }
+    .maint-result {
+      margin-top: 10px; padding: 10px 14px; border-radius: 8px;
+      font-size: 12px; display: none;
+    }
+    .maint-result.ok  { background: rgba(34,197,94,0.1); color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
+    .maint-result.err { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+
+    /* ── Version card ── */
+    .version-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .version-row:last-child { border-bottom: none; }
+    .version-key { font-size: 12px; color: rgba(255,255,255,0.35); }
+    .version-val { font-size: 13px; color: rgba(255,255,255,0.75); font-family: 'SF Mono', monospace; }
+
+    /* ── Modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+      opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+    .modal {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -52%);
+      width: 480px; max-width: 95vw;
+      background: #0d1629; border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 32px 36px; z-index: 51;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s, transform .25s;
+    }
+    .modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%); }
+    .modal-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 22px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+    .field input, .field select {
+      width: 100%; padding: 10px 14px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 9px; color: #fff; font-size: 14px;
+      outline: none; transition: border-color .2s;
+    }
+    .field input:focus, .field select:focus { border-color: rgba(59,130,246,0.5); }
+    .field select option { background: #0d1629; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+    .modal-err { font-size: 12px; color: #f87171; margin-top: 4px; display: none; }
+
+    /* ── Password expiry badges ── */
+    .badge-pwd-ok      { background: rgba(34,197,94,0.12);  color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+    .badge-pwd-warn    { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.3); }
+    .badge-pwd-expired { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-pwd-never   { background: rgba(100,116,139,0.15);color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+
+    /* ── Groups panel ── */
+    .group-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+    .group-list { display: flex; flex-direction: column; gap: 8px; }
+    .group-card {
+      background: #0d1629; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 16px 18px; cursor: pointer;
+      transition: border-color .18s, background .18s;
+    }
+    .group-card:hover { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.2); }
+    .group-card.active { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.35); }
+    .group-card-name { font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .group-card-meta { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+    .group-detail { background: #0d1629; border-radius: 14px; border: 1px solid rgba(255,255,255,0.07); padding: 28px 30px; }
+    .group-detail-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
+    .perm-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+    .perm-card {
+      background: rgba(255,255,255,0.03); border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 14px 16px;
+    }
+    .perm-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+    .perm-select {
+      width: 100%; padding: 8px 10px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; color: #fff; font-size: 13px; outline: none;
+    }
+    .perm-select:focus { border-color: rgba(59,130,246,0.4); }
+    .perm-select option { background: #0d1629; }
+    .postazioni-wrap { margin-bottom: 22px; }
+    .postazioni-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 32px; }
+    .postazione-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25);
+    }
+    .postazione-tag .tag-rm { cursor: pointer; opacity: 0.5; font-size: 13px; line-height: 1; }
+    .postazione-tag .tag-rm:hover { opacity: 1; }
+    .postazione-add { display: flex; gap: 8px; }
+    .postazione-add input {
+      flex: 1; padding: 8px 12px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; color: #fff; font-size: 13px; outline: none;
+    }
+    .postazione-add input:focus { border-color: rgba(59,130,246,0.4); }
+    .group-members { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .group-members-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+    .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .member-row:last-child { border-bottom: none; }
+    .member-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8); flex: 1; }
+    .member-username { font-size: 11px; color: rgba(255,255,255,0.3); font-family: monospace; }
+    .member-status { font-size: 11px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 12px 20px;
+      font-size: 13px; color: rgba(255,255,255,0.85);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none; z-index: 200;
+      max-width: 340px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- Auth guard -->
+<script>
+(function() {
+  const t = localStorage.getItem('stqc_token');
+  const p = localStorage.getItem('stqc_profilo');
+  if (!t) { window.location.replace('/login'); return; }
+  if (p !== 'Admin') { window.location.replace('/'); }
+})();
+</script>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav class="nav">
+  <a class="nav-back" href="/" onclick="sessionStorage.removeItem('returnPanel')">← Home</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Impostazioni</span>
+  <span class="nav-badge">Admin</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <span style="font-size:12px;color:rgba(255,255,255,0.3)" id="nav-user-name"></span>
+    <button onclick="logout()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.35);font-size:11px;font-weight:600;cursor:pointer;" onmouseover="this.style.color='#fca5a5';this.style.borderColor='rgba(248,113,113,0.3)'" onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.1)'">Esci</button>
+  </div>
+</nav>
+
+<!-- ══════════════ LAYOUT ══════════════ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-label">Gestione</div>
+    <button class="nav-item active" onclick="showSection('users')" id="tab-users">
+      <span class="ni-icon">👥</span> Utenti
+    </button>
+    <button class="nav-item" onclick="showSection('groups')" id="tab-groups">
+      <span class="ni-icon">🏷️</span> Gruppi
+    </button>
+    <button class="nav-item" onclick="showSection('auditlog')" id="tab-auditlog">
+      <span class="ni-icon">🔐</span> Log Accessi
+    </button>
+
+    <div class="sidebar-label">Sistema</div>
+    <button class="nav-item" onclick="showSection('status')" id="tab-status">
+      <span class="ni-icon">📡</span> Stato Sistema
+    </button>
+    <button class="nav-item" onclick="showSection('logs')" id="tab-logs">
+      <span class="ni-icon">📋</span> Log di Sistema
+    </button>
+
+    <div class="sidebar-label">Manutenzione</div>
+    <button class="nav-item" onclick="showSection('maintenance')" id="tab-maintenance">
+      <span class="ni-icon">🔧</span> Manutenzione
+    </button>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ══ SECTION 1 — Utenti ══ -->
+    <div class="section active" id="section-users">
+      <div class="section-header">
+        <div class="section-eyebrow">Gestione</div>
+        <div class="section-title">Utenti</div>
+        <div class="section-sub">Crea, modifica e gestisci i profili utente</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <input id="users-search" type="text" placeholder="Cerca per UserID…"
+          oninput="filterUsers()"
+          style="flex:1;min-width:200px;padding:8px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#fff;font-size:13px;outline:none"/>
+        <select id="users-filter-gruppo" onchange="filterUsers()"
+          style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#fff;font-size:13px;outline:none">
+          <option value="">Tutti i gruppi</option>
+          <option>Admin</option><option>Direttore</option><option>Operatore</option>
+          <option>Logistica</option><option>Acquisti</option>
+        </select>
+        <button class="btn btn-ghost" onclick="provisionOperatori()">⚡ Provisiona</button>
+        <button class="btn btn-primary" onclick="openCreateModal()">+ Nuovo</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Utente</th>
+              <th>Gruppo</th>
+              <th>Stato</th>
+              <th>Ultimo Accesso</th>
+              <th>Scadenza Password</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.2);padding:32px">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 6 — Gruppi ══ -->
+    <div class="section" id="section-groups">
+      <div class="section-header">
+        <div class="section-eyebrow">Gestione</div>
+        <div class="section-title">Gruppi &amp; Permessi</div>
+        <div class="section-sub">Configura permessi per sezione e postazioni associabili per ogni gruppo</div>
+      </div>
+      <div class="group-grid">
+        <div class="group-list" id="group-list">
+          <div style="padding:24px;text-align:center;color:rgba(255,255,255,.2)">Caricamento…</div>
+        </div>
+        <div class="group-detail" id="group-detail">
+          <div style="text-align:center;color:rgba(255,255,255,.2);padding:40px 0">
+            Seleziona un gruppo dalla lista
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 5 — Log Accessi ══ -->
+    <div class="section" id="section-auditlog">
+      <div class="section-header">
+        <div class="section-eyebrow">NIS2 · Sicurezza</div>
+        <div class="section-title">Log Accessi</div>
+        <div class="section-sub">Log immutabile di tutti gli accessi e le azioni — conservazione 12 mesi</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select id="audit-filter-action" onchange="loadAuditLog()" style="padding:7px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:12px;outline:none">
+          <option value="">Tutte le azioni</option>
+          <option value="LOGIN_OK">LOGIN_OK</option>
+          <option value="LOGIN_FAIL">LOGIN_FAIL</option>
+          <option value="LOGIN_BLOCKED">LOGIN_BLOCKED</option>
+          <option value="ACCOUNT_LOCKED">ACCOUNT_LOCKED</option>
+          <option value="UNLOCK_USER">UNLOCK_USER</option>
+          <option value="CREATE_USER">CREATE_USER</option>
+          <option value="UPDATE_USER">UPDATE_USER</option>
+          <option value="DISABLE_USER">DISABLE_USER</option>
+          <option value="ENABLE_USER">ENABLE_USER</option>
+          <option value="PROVISION_OPERATORI">PROVISION_OPERATORI</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadAuditLog()">↺ Aggiorna</button>
+      </div>
+      <div class="audit-stream" id="audit-stream">
+        <div style="padding:32px;text-align:center;color:rgba(255,255,255,.2)">Caricamento…</div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 2 — Stato Sistema ══ -->
+    <div class="section" id="section-status">
+      <div class="section-header">
+        <div class="section-eyebrow">Monitoraggio</div>
+        <div class="section-title">Stato Sistema</div>
+        <div class="section-sub">Risorse server, database e connettività</div>
+      </div>
+
+      <!-- Server metrics -->
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Server</div>
+      <div class="metric-grid" id="server-metrics">
+        <div class="metric-card">
+          <div class="metric-label">Uptime</div>
+          <div class="metric-value" id="m-uptime">—</div>
+          <div class="metric-sub" id="m-uptime-sub"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">CPU</div>
+          <div class="metric-value" id="m-cpu">—</div>
+          <div class="progress-bar-wrap"><div class="progress-bar" id="bar-cpu" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Memoria RAM</div>
+          <div class="metric-value" id="m-mem">—</div>
+          <div class="metric-sub" id="m-mem-sub"></div>
+          <div class="progress-bar-wrap"><div class="progress-bar" id="bar-mem" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Disco</div>
+          <div class="metric-value" id="m-disk">—</div>
+          <div class="metric-sub" id="m-disk-sub"></div>
+          <div class="progress-bar-wrap"><div class="progress-bar" id="bar-disk" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Status rows -->
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;margin-top:24px">Servizi</div>
+      <div class="table-wrap" style="padding:8px 20px">
+        <div class="status-row">
+          <div class="status-dot dot-gray" id="dot-db"></div>
+          <div class="status-label">Database SQLite</div>
+          <div class="status-val" id="val-db">—</div>
+        </div>
+        <div class="status-row">
+          <div class="status-dot dot-gray" id="dot-cf"></div>
+          <div class="status-label">Cloudflare Tunnel</div>
+          <div class="status-val" id="val-cf">—</div>
+        </div>
+        <div class="status-row">
+          <div class="status-dot dot-gray" id="dot-bk"></div>
+          <div class="status-label">Ultimo Backup</div>
+          <div class="status-val" id="val-bk">—</div>
+        </div>
+      </div>
+
+      <button class="btn btn-ghost" style="margin-top:18px;font-size:12px" onclick="loadStatus()">↺ Aggiorna</button>
+    </div>
+
+    <!-- ══ SECTION 3 — Log ══ -->
+    <div class="section" id="section-logs">
+      <div class="section-header">
+        <div class="section-eyebrow">Diagnostica</div>
+        <div class="section-title">Log di Sistema</div>
+        <div class="section-sub">Attività in tempo reale · filtro per livello</div>
+      </div>
+
+      <div class="log-toolbar">
+        <button class="log-filter-btn active-all" onclick="setLogFilter('ALL',this)">Tutti</button>
+        <button class="log-filter-btn" onclick="setLogFilter('INFO',this)">INFO</button>
+        <button class="log-filter-btn" onclick="setLogFilter('WARNING',this)">WARNING</button>
+        <button class="log-filter-btn" onclick="setLogFilter('ERROR',this)">ERROR</button>
+        <div class="log-auto">
+          <div class="log-auto-dot"></div>
+          <span>Live</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="exportLogs()" style="margin-left:auto">↓ Esporta CSV</button>
+      </div>
+
+      <div class="log-stream" id="log-stream">
+        <div class="log-empty">Caricamento log…</div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 4 — Manutenzione ══ -->
+    <div class="section" id="section-maintenance">
+      <div class="section-header">
+        <div class="section-eyebrow">Operazioni</div>
+        <div class="section-title">Manutenzione Remota</div>
+        <div class="section-sub">Backup, verifica integrità, pulizia e riavvio</div>
+      </div>
+
+      <div class="maint-grid">
+
+        <!-- Backup -->
+        <div class="maint-card">
+          <div class="maint-icon">💾</div>
+          <div class="maint-title">Backup Database</div>
+          <div class="maint-desc">Crea una copia del database SQLite e scaricala in locale.</div>
+          <button class="btn btn-success" onclick="doBackup(this)">↓ Backup &amp; Download</button>
+          <div class="maint-result" id="res-backup"></div>
+        </div>
+
+        <!-- Verifica integrità -->
+        <div class="maint-card">
+          <div class="maint-icon">🔍</div>
+          <div class="maint-title">Verifica Integrità DB</div>
+          <div class="maint-desc">Esegue PRAGMA integrity_check sul database e mostra il risultato.</div>
+          <button class="btn btn-ghost" onclick="doVerifyDB(this)">Verifica Ora</button>
+          <div class="maint-result" id="res-verify"></div>
+        </div>
+
+        <!-- Pulizia log -->
+        <div class="maint-card">
+          <div class="maint-icon">🧹</div>
+          <div class="maint-title">Pulizia Log Vecchi</div>
+          <div class="maint-desc">Rimuove i log più vecchi tenendo solo gli ultimi 200 eventi in memoria.</div>
+          <button class="btn btn-warn" onclick="doCleanupLogs(this)">Pulisci Log</button>
+          <div class="maint-result" id="res-cleanup"></div>
+        </div>
+
+        <!-- Restart -->
+        <div class="maint-card">
+          <div class="maint-icon">🔄</div>
+          <div class="maint-title">Restart Applicazione</div>
+          <div class="maint-desc">Riavvia il processo uvicorn. La pagina si ricaricherà automaticamente dopo 5 secondi.</div>
+          <button class="btn btn-danger" onclick="doRestart(this)">Riavvia App</button>
+          <div class="maint-result" id="res-restart"></div>
+        </div>
+
+        <!-- Reset inventario -->
+        <div class="maint-card" style="border:1px solid rgba(239,68,68,0.35)">
+          <div class="maint-icon">🗑️</div>
+          <div class="maint-title">Reset Inventario</div>
+          <div class="maint-desc">⚠️ Svuota tutti i dati di magazzino (movimenti, prelievi, materiali) e reimporta dall'inventario Excel aggiornato.</div>
+          <button class="btn btn-danger" onclick="doResetInventario(this)">Reset &amp; Reimporta</button>
+          <div class="maint-result" id="res-reset-inv"></div>
+        </div>
+
+      </div>
+
+      <!-- Version info -->
+      <div style="margin-top:32px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Versione Sistema</div>
+      <div class="table-wrap" style="padding:8px 20px" id="version-info">
+        <div class="version-row"><span class="version-key">Versione</span><span class="version-val" id="v-version">—</span></div>
+        <div class="version-row"><span class="version-key">Data Deploy</span><span class="version-val" id="v-deploy">—</span></div>
+        <div class="version-row"><span class="version-key">Python</span><span class="version-val" id="v-python">—</span></div>
+        <div class="version-row"><span class="version-key">Piattaforma</span><span class="version-val" id="v-platform">—</span></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════ USER MODAL ══════════════ -->
+<div class="modal-backdrop" id="user-backdrop" onclick="closeModal()"></div>
+<div class="modal" id="user-modal" style="max-height:90vh;overflow-y:auto;width:520px">
+  <div class="modal-title" id="modal-title">Nuovo Utente</div>
+  <input type="hidden" id="modal-user-id"/>
+
+  <div class="field-row">
+    <div class="field">
+      <label>UserID *</label>
+      <input type="text" id="f-username" placeholder="es. direttore" autocapitalize="none"/>
+    </div>
+    <div class="field">
+      <label>Gruppo *</label>
+      <select id="f-profilo">
+        <option value="Direttore">Direttore</option>
+        <option value="Operatore">Operatore</option>
+        <option value="Logistica">Logistica</option>
+        <option value="Acquisti">Acquisti</option>
+        <option value="Admin">Admin</option>
+      </select>
+    </div>
+  </div>
+  <div class="field">
+    <label>Email <span style="font-weight:400;font-size:10px;color:rgba(255,255,255,.3)">(opzionale)</span></label>
+    <input type="email" id="f-email" placeholder="utente@mcc.it"/>
+  </div>
+  <div class="field">
+    <label id="f-password-label">Password * <span style="font-weight:400;font-size:10px;color:rgba(255,255,255,.3)">(min 12 car., maiusc., minusc., numero, spec.)</span></label>
+    <input type="password" id="f-password" placeholder="••••••••" autocomplete="new-password"/>
+  </div>
+
+  <!-- Attributi (visibili solo in modifica) -->
+  <div id="attr-section" style="display:none;margin-top:8px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07)">
+    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Attributi Utente</div>
+    <div class="field">
+      <label>Postazioni assegnate <span style="font-weight:400;font-size:10px;color:rgba(255,255,255,.3)">(una per riga)</span></label>
+      <textarea id="f-postazioni" placeholder="Postazione Taglio 1&#10;Postazione Saldatura 1"></textarea>
+    </div>
+    <div class="field">
+      <label>Commesse visibili <span style="font-weight:400;font-size:10px;color:rgba(255,255,255,.3)">("all" oppure IDs separati da virgola)</span></label>
+      <input type="text" id="f-commesse" placeholder="all"/>
+    </div>
+  </div>
+
+  <div class="modal-err" id="modal-err"></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    <button class="btn btn-primary" id="modal-save-btn" onclick="saveUser()">Salva</button>
+  </div>
+</div>
+
+<!-- ══════════════ AUDIT MINI MODAL ══════════════ -->
+<div class="modal-backdrop" id="audit-backdrop" onclick="closeAuditModal()"></div>
+<div class="modal" id="audit-modal" style="width:640px;max-width:95vw;max-height:80vh;overflow-y:auto">
+  <div class="modal-title" id="audit-modal-title">Log accessi utente</div>
+  <div class="audit-stream" id="audit-modal-stream" style="max-height:420px"></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeAuditModal()">Chiudi</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+function getAuth() { return 'Bearer ' + localStorage.getItem('stqc_token'); }
+
+function logout() {
+  localStorage.removeItem('stqc_token');
+  localStorage.removeItem('stqc_profilo');
+  localStorage.removeItem('stqc_nome');
+  window.location.replace('/login');
+}
+
+// Show user name in nav
+const _nome = localStorage.getItem('stqc_nome') || '';
+const _navUser = document.getElementById('nav-user-name');
+if (_navUser) _navUser.textContent = _nome;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+
+  if (id === 'users')       loadUsers();
+  if (id === 'groups')      loadGroups();
+  if (id === 'auditlog')    loadAuditLog();
+  if (id === 'status')      loadStatus();
+  if (id === 'logs')        startLogPolling();
+  if (id === 'maintenance') loadVersion();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer;
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = type === 'ok' ? 'rgba(74,222,128,.3)' : type === 'err' ? 'rgba(248,113,113,.3)' : 'rgba(255,255,255,.1)';
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { Authorization: getAuth() } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch('/api/v1/admin' + path, opts);
+  if (res.status === 401) { logout(); return res; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 1 — USERS
+// ═══════════════════════════════════════════════════════════════
+
+let _allUsers = [];
+
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.2);padding:32px">Caricamento…</td></tr>';
+  try {
+    const res = await api('GET', '/users');
+    _allUsers = await res.json();
+    renderUsers(_allUsers);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#f87171;padding:32px">${esc(e.message)}</td></tr>`;
+  }
+}
+
+function filterUsers() {
+  const q     = (document.getElementById('users-search').value || '').toLowerCase();
+  const grupo = document.getElementById('users-filter-gruppo').value;
+  const filtered = _allUsers.filter(u => {
+    const matchQ = !q || (u.username||'').toLowerCase().includes(q);
+    const matchG = !grupo || u.profilo === grupo;
+    return matchQ && matchG;
+  });
+  renderUsers(filtered);
+}
+
+function renderUsers(users) {
+  const tbody = document.getElementById('users-tbody');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.2);padding:32px">Nessun utente</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => {
+    const locked = u.locked_until && new Date(u.locked_until + 'Z') > new Date();
+    const statoHtml = locked
+      ? `<span class="badge badge-locked">🔒 Bloccato</span>`
+      : `<span class="badge ${u.attivo ? 'badge-on' : 'badge-off'}">${u.attivo ? 'Attivo' : 'Disattivo'}</span>`;
+    const pwdHtml = pwdBadge(u.password_changed_at, u.password_status);
+    return `
+    <tr>
+      <td>
+        <div style="font-weight:600;color:#fff;font-family:monospace">${esc(u.username||'—')}</div>
+      </td>
+      <td><span class="badge ${grupBadge(u.profilo)}">${esc(u.profilo)}</span></td>
+      <td>${statoHtml}</td>
+      <td style="color:rgba(255,255,255,0.35);font-size:12px">${u.ultimo_accesso ? fmtDate(u.ultimo_accesso) : 'Mai'}</td>
+      <td>${pwdHtml}</td>
+      <td>
+        <div class="td-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditModal(${u.id})" title="Modifica">✎</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetPassword(${u.id}, '${esc(u.username||String(u.id))}')" title="Reset password" style="color:#fbbf24">🔑</button>
+          <button class="btn btn-ghost btn-sm" onclick="viewUserLog(${u.id}, '${esc(u.username||String(u.id))}')" title="Log accessi">📋</button>
+          ${locked ? `<button class="btn btn-warn btn-sm" onclick="unlockUser(${u.id})" title="Sblocca">🔓</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="toggleUser(${u.id}, ${u.attivo})"
+            title="${u.attivo ? 'Disabilita' : 'Riabilita'}"
+            style="${u.attivo ? 'color:#f87171' : 'color:#4ade80'}">${u.attivo ? '⊘' : '▶'}</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function pwdBadge(changed_at, status) {
+  if (!status || status === 'never_set') {
+    return `<span class="badge badge-pwd-never">Mai impostata</span>`;
+  }
+  const exp = changed_at
+    ? new Date(new Date(changed_at + (changed_at.endsWith('Z') ? '' : 'Z')).getTime() + 90*86400*1000)
+    : null;
+  const dateStr = exp ? exp.toLocaleDateString('it-IT', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+  if (status === 'expired') {
+    return `<span class="badge badge-pwd-expired" title="Scaduta il ${dateStr}">⚠ Scaduta</span>`;
+  }
+  if (status === 'warning') {
+    return `<span class="badge badge-pwd-warn" title="Scade il ${dateStr}">⚠ ${dateStr}</span>`;
+  }
+  return `<span style="font-size:12px;color:rgba(255,255,255,0.35)">${dateStr}</span>`;
+}
+
+function grupBadge(p) {
+  return { Admin:'badge-admin', Direttore:'badge-dir', Operatore:'badge-oper',
+           Logistica:'badge-log', Acquisti:'badge-acq' }[p] || 'badge-oper';
+}
+
+async function resetPassword(id, username) {
+  if (!confirm(`Generare una nuova password temporanea per "${username}"?\nVerrà mostrata una sola volta.`)) return;
+  try {
+    const res = await api('POST', `/users/${id}/reset-password`);
+    const d = await res.json();
+    const msg = `Password temporanea per ${username}:\n\n${d.temporary_password}\n\nComunicarla all'utente e chiedergli di cambiarla al primo accesso.`;
+    alert(msg);
+    loadUsers();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function provisionOperatori() {
+  if (!confirm('Creare automaticamente gli utenti Operatore per ogni postazione attiva?\nPassword default: Operatore@2026!\nGli utenti già esistenti verranno saltati.')) return;
+  try {
+    const res = await api('POST', '/users/provision-operatori');
+    const data = await res.json();
+    toast(`✅ ${data.total_created} creati, ${data.total_skipped} già esistenti — pwd: ${data.default_password}`, 'ok');
+    loadUsers();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
+  return d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Modal utente ──────────────────────────────────────────────────────────────
+function openCreateModal() {
+  document.getElementById('modal-user-id').value = '';
+  document.getElementById('modal-title').textContent = 'Nuovo Utente';
+  document.getElementById('f-username').value = '';
+  document.getElementById('f-email').value = '';
+  document.getElementById('f-profilo').value = 'Operatore';
+  document.getElementById('f-password').value = '';
+  document.getElementById('f-password-label').textContent = 'Password *';
+  document.getElementById('attr-section').style.display = 'none';
+  document.getElementById('modal-err').style.display = 'none';
+  document.getElementById('user-backdrop').classList.add('open');
+  document.getElementById('user-modal').classList.add('open');
+  document.getElementById('f-username').focus();
+}
+
+async function openEditModal(id) {
+  try {
+    const [uRes, aRes] = await Promise.all([
+      api('GET', '/users'),
+      api('GET', `/users/${id}/attributes`).catch(() => null),
+    ]);
+    const users = await uRes.json();
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+
+    document.getElementById('modal-user-id').value = id;
+    document.getElementById('modal-title').textContent = `Modifica — ${esc(u.username || u.id)}`;
+    document.getElementById('f-username').value = u.username || '';
+    document.getElementById('f-email').value = u.email || '';
+    document.getElementById('f-profilo').value = u.profilo;
+    document.getElementById('f-password').value = '';
+    document.getElementById('f-password-label').textContent = 'Password (vuoto = non cambiare)';
+    document.getElementById('modal-err').style.display = 'none';
+    document.getElementById('attr-section').style.display = 'block';
+
+    // Attributi
+    if (aRes && aRes.ok) {
+      const attrs = await aRes.json();
+      document.getElementById('f-postazioni').value = (attrs.postazioni_assegnate || []).join('\n');
+      document.getElementById('f-commesse').value =
+        Array.isArray(attrs.commesse_visibili) ? attrs.commesse_visibili.join(',') : (attrs.commesse_visibili || 'all');
+    } else {
+      document.getElementById('f-postazioni').value = '';
+      document.getElementById('f-commesse').value = 'all';
+    }
+
+    document.getElementById('user-backdrop').classList.add('open');
+    document.getElementById('user-modal').classList.add('open');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function closeModal() {
+  document.getElementById('user-backdrop').classList.remove('open');
+  document.getElementById('user-modal').classList.remove('open');
+}
+
+async function saveUser() {
+  const uid      = document.getElementById('modal-user-id').value;
+  const username = document.getElementById('f-username').value.trim();
+  const email    = document.getElementById('f-email').value.trim();
+  const profilo  = document.getElementById('f-profilo').value;
+  const password = document.getElementById('f-password').value;
+  const errEl    = document.getElementById('modal-err');
+  errEl.style.display = 'none';
+
+  if (!username) { errEl.textContent = 'UserID obbligatorio'; errEl.style.display = 'block'; return; }
+  if (!uid && !password) { errEl.textContent = 'Password obbligatoria'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('modal-save-btn');
+  btn.disabled = true; btn.textContent = 'Salvataggio…';
+
+  try {
+    const body = { username, profilo };
+    if (email)    body.email    = email;
+    if (password) body.password = password;
+
+    if (uid) {
+      await api('PATCH', `/users/${uid}`, body);
+      // Salva attributi
+      const postazioni = document.getElementById('f-postazioni').value
+        .split('\n').map(s => s.trim()).filter(Boolean);
+      const commesseRaw = document.getElementById('f-commesse').value.trim();
+      const commesse = commesseRaw === 'all' ? 'all'
+        : commesseRaw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      await api('PUT', `/users/${uid}/attributes`, {
+        postazioni_assegnate: postazioni.length ? postazioni : null,
+        commesse_visibili: commesse,
+      });
+      toast('Utente aggiornato', 'ok');
+    } else {
+      await api('POST', '/users', body);
+      toast('Utente creato', 'ok');
+    }
+    closeModal();
+    loadUsers();
+  } catch(e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salva';
+  }
+}
+
+async function toggleUser(id, currentlyActive) {
+  const label = currentlyActive ? 'Disabilitare' : 'Riabilitare';
+  if (!confirm(`${label} questo utente?`)) return;
+  try {
+    await api('POST', `/users/${id}/toggle`);
+    toast(currentlyActive ? 'Utente disabilitato' : 'Utente riabilitato', 'ok');
+    loadUsers();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function unlockUser(id) {
+  try {
+    await api('POST', `/users/${id}/unlock`);
+    toast('Account sbloccato', 'ok');
+    loadUsers();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ── Audit log modale per utente ───────────────────────────────────────────────
+async function viewUserLog(id, username) {
+  document.getElementById('audit-modal-title').textContent = `Log accessi — ${esc(username)}`;
+  document.getElementById('audit-modal-stream').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.2)">Caricamento…</div>';
+  document.getElementById('audit-backdrop').classList.add('open');
+  document.getElementById('audit-modal').classList.add('open');
+  try {
+    const res = await api('GET', `/users/${id}/audit-log`);
+    const logs = await res.json();
+    document.getElementById('audit-modal-stream').innerHTML = renderAuditRows(logs);
+  } catch(e) {
+    document.getElementById('audit-modal-stream').innerHTML = `<div style="padding:20px;color:#f87171">${esc(e.message)}</div>`;
+  }
+}
+
+function closeAuditModal() {
+  document.getElementById('audit-backdrop').classList.remove('open');
+  document.getElementById('audit-modal').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 6 — GROUPS
+// ═══════════════════════════════════════════════════════════════
+
+let _groups = [];
+let _activeGroup = null;
+
+async function loadGroups() {
+  document.getElementById('group-list').innerHTML =
+    '<div style="padding:24px;text-align:center;color:rgba(255,255,255,.2)">Caricamento…</div>';
+  try {
+    const res = await api('GET', '/groups');
+    _groups = await res.json();
+    renderGroupList();
+    if (_groups.length) selectGroup(_groups[0].name);
+  } catch(e) {
+    document.getElementById('group-list').innerHTML =
+      `<div style="padding:16px;color:#f87171">${esc(e.message)}</div>`;
+  }
+}
+
+function renderGroupList() {
+  document.getElementById('group-list').innerHTML = _groups.map(g => `
+    <div class="group-card ${_activeGroup === g.name ? 'active' : ''}" id="gc-${g.name}" onclick="selectGroup('${g.name}')">
+      <div class="group-card-name">
+        <span class="badge ${grupBadge(g.name)}">${esc(g.name)}</span>
+      </div>
+      <div class="group-card-meta">${g.user_count} utent${g.user_count === 1 ? 'e' : 'i'} · ${(g.postazioni||[]).length} postazion${(g.postazioni||[]).length === 1 ? 'e' : 'i'}</div>
+    </div>`).join('');
+}
+
+async function selectGroup(name) {
+  _activeGroup = name;
+  renderGroupList();
+  const g = _groups.find(x => x.name === name);
+  if (!g) return;
+  renderGroupDetail(g);
+  // Load members
+  try {
+    const res = await api('GET', `/groups/${encodeURIComponent(name)}/users`);
+    const members = await res.json();
+    renderGroupMembers(members);
+  } catch(e) {
+    const el = document.getElementById('group-members-list');
+    if (el) el.innerHTML = `<div style="color:#f87171;font-size:12px">${esc(e.message)}</div>`;
+  }
+}
+
+function renderGroupDetail(g) {
+  const permsMap = {};
+  (g.permissions || []).forEach(p => { permsMap[p.sezione] = p.livello; });
+
+  const sezioni = ['commesse', 'magazzino', 'admin'];
+  const permHtml = sezioni.map(s => {
+    const cur = permsMap[s] || 'none';
+    return `
+    <div class="perm-card">
+      <div class="perm-label">${s.charAt(0).toUpperCase()+s.slice(1)}</div>
+      <select class="perm-select" id="perm-${g.name}-${s}" data-group="${g.name}" data-sezione="${s}">
+        <option value="none"  ${cur==='none' ?'selected':''}>⛔ Nessuno</option>
+        <option value="read"  ${cur==='read' ?'selected':''}>👁 Lettura</option>
+        <option value="write" ${cur==='write'?'selected':''}>✏️ Scrittura</option>
+      </select>
+    </div>`;
+  }).join('');
+
+  const postazioniHtml = (g.postazioni || []).map(p => `
+    <span class="postazione-tag" id="ptag-${esc(p)}">
+      ${esc(p)}
+      <span class="tag-rm" onclick="removePostazione('${g.name}', '${esc(p)}')" title="Rimuovi">×</span>
+    </span>`).join('');
+
+  document.getElementById('group-detail').innerHTML = `
+    <div class="group-detail-title">
+      <span class="badge ${grupBadge(g.name)}" style="font-size:13px;padding:4px 12px">${esc(g.name)}</span>
+      <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,.6)">${g.user_count} utenti attivi</span>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Permessi per Sezione</div>
+    <div class="perm-grid">${permHtml}</div>
+
+    <div class="postazioni-wrap">
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Postazioni Associabili</div>
+      <div class="postazioni-tags" id="ptags-${g.name}">${postazioniHtml || '<span style="font-size:12px;color:rgba(255,255,255,.2)">Nessuna postazione</span>'}</div>
+      <div class="postazione-add">
+        <input type="text" id="ptag-input-${g.name}" placeholder="Nuova postazione…" onkeydown="if(event.key==='Enter') addPostazione('${g.name}')"/>
+        <button class="btn btn-ghost btn-sm" onclick="addPostazione('${g.name}')">+ Aggiungi</button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-primary" onclick="saveGroup('${g.name}')">💾 Salva Permessi</button>
+    </div>
+
+    <div class="group-members">
+      <div class="group-members-title">Utenti del Gruppo</div>
+      <div id="group-members-list"><div style="color:rgba(255,255,255,.2);font-size:12px">Caricamento…</div></div>
+    </div>`;
+}
+
+function renderGroupMembers(members) {
+  const el = document.getElementById('group-members-list');
+  if (!el) return;
+  if (!members.length) {
+    el.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,.2);padding:8px 0">Nessun utente in questo gruppo</div>';
+    return;
+  }
+  el.innerHTML = members.map(u => {
+    const locked = u.locked_until && new Date(u.locked_until + 'Z') > new Date();
+    const stStr = locked ? '🔒' : u.attivo ? '🟢' : '⚫';
+    return `
+    <div class="member-row">
+      <span class="member-name" style="font-family:monospace">${esc(u.username||String(u.id))}</span>
+      <span class="member-username">${esc(u.username||'—')}</span>
+      <span class="member-status">${stStr}</span>
+    </div>`;
+  }).join('');
+}
+
+function addPostazione(groupName) {
+  const input = document.getElementById(`ptag-input-${groupName}`);
+  const val = (input.value || '').trim();
+  if (!val) return;
+  const g = _groups.find(x => x.name === groupName);
+  if (!g) return;
+  if (!(g.postazioni || []).includes(val)) {
+    g.postazioni = [...(g.postazioni || []), val];
+  }
+  input.value = '';
+  renderGroupDetail(g);
+}
+
+function removePostazione(groupName, val) {
+  const g = _groups.find(x => x.name === groupName);
+  if (!g) return;
+  g.postazioni = (g.postazioni || []).filter(p => p !== val);
+  renderGroupDetail(g);
+}
+
+async function saveGroup(name) {
+  const g = _groups.find(x => x.name === name);
+  if (!g) return;
+  const sezioni = ['commesse', 'magazzino', 'admin'];
+  const permissions = sezioni.map(s => ({
+    sezione: s,
+    livello: document.getElementById(`perm-${name}-${s}`)?.value || 'none',
+  }));
+  try {
+    const res = await api('PUT', `/groups/${encodeURIComponent(name)}`, {
+      permissions,
+      postazioni: g.postazioni || [],
+    });
+    const updated = await res.json();
+    const idx = _groups.findIndex(x => x.name === name);
+    if (idx >= 0) _groups[idx] = updated;
+    toast(`Gruppo ${name} aggiornato`, 'ok');
+    renderGroupList();
+    renderGroupDetail(updated);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 5 — AUDIT LOG
+// ═══════════════════════════════════════════════════════════════
+
+async function loadAuditLog() {
+  const el     = document.getElementById('audit-stream');
+  const action = document.getElementById('audit-filter-action').value;
+  el.innerHTML = '<div style="padding:24px;text-align:center;color:rgba(255,255,255,.2)">Caricamento…</div>';
+  try {
+    const qs  = action ? `?action=${encodeURIComponent(action)}&limit=200` : '?limit=200';
+    const res = await api('GET', '/audit-logs' + qs);
+    const logs = await res.json();
+    el.innerHTML = logs.length ? renderAuditRows(logs)
+      : '<div style="padding:24px;text-align:center;color:rgba(255,255,255,.2)">Nessun evento</div>';
+  } catch(e) {
+    el.innerHTML = `<div style="padding:24px;color:#f87171">${esc(e.message)}</div>`;
+  }
+}
+
+function renderAuditRows(logs) {
+  const actClass = a => {
+    if (['LOGIN_OK','ENABLE_USER','UNLOCK_USER'].includes(a)) return 'act-ok';
+    if (['LOGIN_FAIL','LOGIN_BLOCKED','ACCOUNT_LOCKED','DISABLE_USER'].includes(a)) return 'act-fail';
+    if (['CREATE_USER','UPDATE_USER','UPDATE_ATTRIBUTES','PROVISION_OPERATORI'].includes(a)) return 'act-info';
+    return 'act-warn';
+  };
+  return logs.map(l => `
+    <div class="audit-row">
+      <span class="audit-ts">${fmtDate(l.timestamp)}</span>
+      <span class="audit-act ${actClass(l.action)}">${esc(l.action)}</span>
+      <span style="color:rgba(255,255,255,.5);font-size:12px">${esc(l.username||'—')}</span>
+      <span style="color:rgba(255,255,255,.4);font-size:11px">${esc(l.details||'')} ${l.ip_address ? `<span style="opacity:.5">[${esc(l.ip_address)}]</span>` : ''}</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 2 — STATUS
+// ═══════════════════════════════════════════════════════════════
+
+async function loadStatus() {
+  try {
+    const res = await api('GET', '/system/status');
+    const d = await res.json();
+
+    document.getElementById('m-uptime').textContent = d.uptime_human;
+    document.getElementById('m-uptime-sub').textContent = `${Math.round(d.uptime_seconds / 3600)} ore totali`;
+    document.getElementById('m-cpu').textContent = d.cpu_percent + '%';
+    setBar('bar-cpu', d.cpu_percent);
+
+    const memGb = (d.memory_used_mb / 1024).toFixed(1);
+    const memTotalGb = (d.memory_total_mb / 1024).toFixed(1);
+    document.getElementById('m-mem').textContent = d.memory_percent + '%';
+    document.getElementById('m-mem-sub').textContent = `${memGb} / ${memTotalGb} GB`;
+    setBar('bar-mem', d.memory_percent);
+
+    document.getElementById('m-disk').textContent = d.disk_percent + '%';
+    document.getElementById('m-disk-sub').textContent = `${d.disk_used_gb} / ${d.disk_total_gb} GB`;
+    setBar('bar-disk', d.disk_percent);
+
+    // DB
+    const dotDb = document.getElementById('dot-db');
+    dotDb.className = 'status-dot dot-green';
+    document.getElementById('val-db').textContent = `${d.db_size_mb} MB · ${d.db_tables} tabelle`;
+
+    // Cloudflare
+    const dotCf = document.getElementById('dot-cf');
+    dotCf.className = 'status-dot ' + (d.cloudflare_tunnel ? 'dot-green' : 'dot-gray');
+    document.getElementById('val-cf').textContent = d.cloudflare_tunnel ? 'Connesso' : 'Non rilevato';
+
+    // Backup
+    const dotBk = document.getElementById('dot-bk');
+    if (d.last_backup) {
+      dotBk.className = 'status-dot dot-green';
+      document.getElementById('val-bk').textContent = fmtDate(d.last_backup);
+    } else {
+      dotBk.className = 'status-dot dot-yellow';
+      document.getElementById('val-bk').textContent = 'Nessun backup';
+    }
+
+  } catch(e) { toast('Errore caricamento stato: ' + e.message, 'err'); }
+}
+
+function setBar(id, pct) {
+  const bar = document.getElementById(id);
+  bar.style.width = Math.min(100, pct) + '%';
+  bar.className = 'progress-bar ' + (pct > 85 ? 'bar-red' : pct > 65 ? 'bar-yellow' : 'bar-green');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 3 — LOGS
+// ═══════════════════════════════════════════════════════════════
+
+let _logFilter = 'ALL';
+let _logPollTimer = null;
+
+function setLogFilter(level, btn) {
+  _logFilter = level;
+  document.querySelectorAll('.log-filter-btn').forEach(b => {
+    b.className = 'log-filter-btn';
+  });
+  const cls = { ALL:'active-all', INFO:'active-info', WARNING:'active-warn', ERROR:'active-err' }[level] || 'active-all';
+  btn.classList.add(cls);
+  loadLogs();
+}
+
+function startLogPolling() {
+  clearInterval(_logPollTimer);
+  loadLogs();
+  _logPollTimer = setInterval(loadLogs, 4000);
+}
+
+async function loadLogs() {
+  try {
+    const params = `?limit=300${_logFilter !== 'ALL' ? '&level=' + _logFilter : ''}`;
+    const res = await api('GET', '/logs' + params);
+    const data = await res.json();
+    renderLogs(data.entries || []);
+  } catch(e) {
+    document.getElementById('log-stream').innerHTML = `<div class="log-empty" style="color:#f87171">Errore: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderLogs(entries) {
+  const el = document.getElementById('log-stream');
+  if (!entries.length) {
+    el.innerHTML = '<div class="log-empty">Nessun log disponibile</div>';
+    return;
+  }
+  const wasAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+  el.innerHTML = entries.map(e => {
+    const ts = e.timestamp.replace('T', ' ').substring(0, 19);
+    const lvlClass = 'lvl-' + e.level.toLowerCase();
+    return `<div class="log-entry"><span class="log-ts">${ts}</span><span class="log-lvl ${lvlClass}">${e.level}</span><span class="log-msg">${esc(e.logger + ': ' + e.message)}</span></div>`;
+  }).join('');
+  if (wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+
+function exportLogs() {
+  const url = `/api/v1/admin/logs/export${_logFilter !== 'ALL' ? '?level=' + _logFilter : ''}`;
+  const a = document.createElement('a');
+  a.href = url;
+  const tempAuth = document.createElement('iframe');
+  // Use fetch with auth then blob-URL trick
+  fetch(url, { headers: { Authorization: getAuth() } })
+    .then(r => r.blob())
+    .then(blob => {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `logs_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+    })
+    .catch(e => toast('Errore esportazione: ' + e.message, 'err'));
+}
+
+// Stop polling when leaving logs section
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!btn.id.includes('logs')) {
+      clearInterval(_logPollTimer);
+      _logPollTimer = null;
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 4 — MAINTENANCE
+// ═══════════════════════════════════════════════════════════════
+
+async function doBackup(btn) {
+  btn.disabled = true; btn.textContent = 'Backup in corso…';
+  const res_el = document.getElementById('res-backup');
+  try {
+    const res = await fetch('/api/v1/admin/maintenance/backup', {
+      method: 'POST', headers: { Authorization: getAuth() }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || res.statusText);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const fn = (cd.match(/filename="(.+)"/) || [])[1] || 'backup.db';
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fn;
+    link.click();
+    showResult(res_el, true, 'Backup completato: ' + fn);
+    toast('Backup scaricato', 'ok');
+  } catch(e) {
+    showResult(res_el, false, e.message);
+    toast('Errore backup: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '↓ Backup & Download';
+  }
+}
+
+async function doVerifyDB(btn) {
+  btn.disabled = true; btn.textContent = 'Verifica…';
+  const res_el = document.getElementById('res-verify');
+  try {
+    const res = await api('POST', '/maintenance/verify-db');
+    const d = await res.json();
+    showResult(res_el, d.success, d.message + (d.detail && d.detail !== 'ok' ? '\n' + d.detail : ''));
+    toast(d.message, d.success ? 'ok' : 'err');
+  } catch(e) {
+    showResult(res_el, false, e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Verifica Ora';
+  }
+}
+
+async function doCleanupLogs(btn) {
+  if (!confirm('Rimuovere i log vecchi tenendo solo gli ultimi 200?')) return;
+  btn.disabled = true; btn.textContent = 'Pulizia…';
+  const res_el = document.getElementById('res-cleanup');
+  try {
+    const res = await api('POST', '/maintenance/cleanup-logs');
+    const d = await res.json();
+    showResult(res_el, d.success, d.message);
+    toast(d.message, 'ok');
+  } catch(e) {
+    showResult(res_el, false, e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Pulisci Log';
+  }
+}
+
+async function doRestart(btn) {
+  if (!confirm('Riavviare l\'applicazione? La pagina si ricaricherà dopo 5 secondi.')) return;
+  btn.disabled = true; btn.textContent = 'Riavvio…';
+  const res_el = document.getElementById('res-restart');
+  try {
+    const res = await api('POST', '/maintenance/restart');
+    const d = await res.json();
+    showResult(res_el, true, 'Riavvio in corso. Ricaricamento in 5s…');
+    toast('Riavvio in corso…', 'ok');
+    setTimeout(() => window.location.reload(), 5000);
+  } catch(e) {
+    showResult(res_el, false, e.message);
+    btn.disabled = false; btn.textContent = 'Riavvia App';
+  }
+}
+
+async function doResetInventario(btn) {
+  if (!confirm('⚠️ ATTENZIONE: questa operazione cancellerà TUTTI i dati di magazzino (materiali, movimenti, prelievi, richieste) e reimporterà dall\'inventario Excel.\n\nContinuare?')) return;
+  btn.disabled = true; btn.textContent = 'Reset in corso…';
+  const res_el = document.getElementById('res-reset-inv');
+  try {
+    const res = await api('POST', '/maintenance/reset-inventario');
+    const d = await res.json();
+    showResult(res_el, true, d.message || 'Reset completato.');
+    toast('Inventario resettato', 'ok');
+  } catch(e) {
+    showResult(res_el, false, e.message);
+    btn.disabled = false; btn.textContent = 'Reset & Reimporta';
+  }
+}
+
+function showResult(el, ok, msg) {
+  el.className = 'maint-result ' + (ok ? 'ok' : 'err');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+async function loadVersion() {
+  try {
+    const res = await api('GET', '/version');
+    const d = await res.json();
+    document.getElementById('v-version').textContent = 'v' + d.version;
+    document.getElementById('v-deploy').textContent = d.deploy_date;
+    document.getElementById('v-python').textContent = d.python_version;
+    document.getElementById('v-platform').textContent = d.platform;
+  } catch(e) {}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// ?s= query param from home admin panels — jump to the right section
+(function() {
+  const sp = new URLSearchParams(window.location.search).get('s');
+  if (sp && document.getElementById('section-' + sp)) {
+    showSection(sp);
+  } else {
+    loadUsers();
+  }
+})();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeAuditModal(); }
+});
+</script>
+</body>
+</html>

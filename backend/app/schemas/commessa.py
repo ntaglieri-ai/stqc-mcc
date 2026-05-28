@@ -6,9 +6,10 @@ from pydantic import BaseModel, Field
 
 
 class CommessaStatus(str, Enum):
-    APERTA = "APERTA"
-    SOSPESA = "SOSPESA"
-    CHIUSA = "CHIUSA"
+    APERTA        = "APERTA"
+    IN_PRODUZIONE = "IN_PRODUZIONE"
+    SOSPESA       = "SOSPESA"
+    CHIUSA        = "CHIUSA"
 
 
 class CommessaBase(BaseModel):

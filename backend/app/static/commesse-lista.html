@@ -159,15 +159,24 @@
 </head>
 <body>
 
+<!-- Auth guard -->
+<script>
+(function() {
+  const t = localStorage.getItem('stqc_token');
+  const p = localStorage.getItem('stqc_profilo');
+  if (!t) { window.location.replace('/login'); return; }
+  if (!['Responsabile','Direttore','Admin'].includes(p)) { window.location.replace('/'); }
+})();
+</script>
+
 <!-- NAV -->
 <nav class="nav">
-  <a class="nav-back" href="/">← Home</a>
-  <span class="nav-sep">/</span>
-  <a class="nav-crumb" href="/" onclick="sessionStorage.setItem('returnPanel','gestione')">Gestione Commesse</a>
+  <a class="nav-back" href="/" onclick="sessionStorage.removeItem('returnPanel')">← Home</a>
   <span class="nav-sep">/</span>
   <span class="nav-title">In corso</span>
-  <div class="nav-actions">
+  <div class="nav-actions" style="display:flex;align-items:center;gap:10px">
     <a class="btn-new" href="/commesse/nuova">+ Nuova commessa</a>
+    <button onclick="logout()" style="padding:6px 13px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.35);font-size:11px;font-weight:600;cursor:pointer;" onmouseover="this.style.color='#fca5a5';this.style.borderColor='rgba(248,113,113,0.3)'" onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.1)'">Esci</button>
   </div>
 </nav>
 
@@ -195,7 +204,13 @@
 </div>
 
 <script>
-const AUTH = 'Basic ' + btoa('mcc:stqc2026');
+function getAuth() { return 'Bearer ' + localStorage.getItem('stqc_token'); }
+function logout() {
+  localStorage.removeItem('stqc_token');
+  localStorage.removeItem('stqc_profilo');
+  localStorage.removeItem('stqc_nome');
+  window.location.replace('/login');
+}
 
 const BG_IMGS = [
   'photo-1504917595217-d4dc5ebe6122',
@@ -302,10 +317,8 @@ function renderGrid() {
   }).join('');
 }
 
-function enterCommessa(id, codice) {
-  if (confirm(`Apri il dettaglio della commessa "${codice}"?\n\nLa pagina di dettaglio è in costruzione.`)) {
-    window.location.href = `/commesse/${id}`;
-  }
+function enterCommessa(id) {
+  window.location.href = `/commesse/${id}`;
 }
 
 async function deleteCommessa(id, codice) {
@@ -313,7 +326,7 @@ async function deleteCommessa(id, codice) {
   try {
     const res = await fetch(`/api/v1/commesse/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: AUTH },
+      headers: { Authorization: getAuth() },
     });
     if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
     allCommesse = allCommesse.filter(c => c.id !== id);
@@ -326,7 +339,7 @@ async function deleteCommessa(id, codice) {
 async function loadCommesse() {
   const grid = document.getElementById('comm-grid');
   try {
-    const res = await fetch('/api/v1/commesse?limit=500', { headers: { Authorization: AUTH } });
+    const res = await fetch('/api/v1/commesse?limit=500', { headers: { Authorization: getAuth() } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allCommesse = await res.json();
 
