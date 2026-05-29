@@ -396,6 +396,11 @@
     <button class="nav-item" onclick="showSection('maintenance')" id="tab-maintenance">
       <span class="ni-icon">🔧</span> Manutenzione
     </button>
+
+    <div class="sidebar-label">Magazzino</div>
+    <button class="nav-item" onclick="showSection('profile-types')" id="tab-profile-types">
+      <span class="ni-icon">🔩</span> Tipi profilo
+    </button>
   </aside>
 
   <!-- Main -->
@@ -639,6 +644,47 @@
       </div>
     </div>
 
+    <!-- ── Tipi profilo ── -->
+    <div class="section" id="section-profile-types">
+      <div class="section-header">
+        <div class="section-eyebrow">Magazzino</div>
+        <div class="section-title">Tipi profilo</div>
+        <div class="section-sub">Mappa prefisso → tipo materiale usata dal parser distinta per classificare ogni pezzo</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <input id="pt-new-prefisso" type="text" placeholder="Prefisso (es. HEA)"
+          style="border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;width:160px;outline:none"
+          oninput="this.value=this.value.toUpperCase()" />
+        <select id="pt-new-tipo"
+          style="border:1px solid rgba(255,255,255,.15);background:rgba(30,41,59,1);color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;outline:none">
+          <option value="">— Tipo —</option>
+          <option>TRAVI</option>
+          <option>LAMIERA</option>
+          <option>PIATTI</option>
+          <option>SCATOLATI/ANGOLARI</option>
+          <option>TONDO</option>
+          <option>QUADRI</option>
+        </select>
+        <button onclick="ptCreate()"
+          style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">
+          + Aggiungi
+        </button>
+        <span id="pt-msg" style="font-size:12px;color:#4ade80"></span>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.1)">
+            <th style="text-align:left;padding:8px 12px;color:rgba(255,255,255,.4);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.07em">Prefisso</th>
+            <th style="text-align:left;padding:8px 12px;color:rgba(255,255,255,.4);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.07em">Tipo</th>
+            <th style="width:80px"></th>
+          </tr>
+        </thead>
+        <tbody id="pt-tbody"></tbody>
+      </table>
+    </div>
+
   </main>
 </div>
 
@@ -728,12 +774,13 @@ function showSection(id) {
   document.getElementById('section-' + id).classList.add('active');
   document.getElementById('tab-' + id).classList.add('active');
 
-  if (id === 'users')       loadUsers();
-  if (id === 'groups')      loadGroups();
-  if (id === 'auditlog')    loadAuditLog();
-  if (id === 'status')      loadStatus();
-  if (id === 'logs')        startLogPolling();
-  if (id === 'maintenance') loadVersion();
+  if (id === 'users')          loadUsers();
+  if (id === 'groups')         loadGroups();
+  if (id === 'auditlog')       loadAuditLog();
+  if (id === 'status')         loadStatus();
+  if (id === 'logs')           startLogPolling();
+  if (id === 'maintenance')    loadVersion();
+  if (id === 'profile-types')  ptLoad();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1453,6 +1500,75 @@ async function loadVersion() {
     document.getElementById('v-python').textContent = d.python_version;
     document.getElementById('v-platform').textContent = d.platform;
   } catch(e) {}
+}
+
+// ── Tipi profilo ──────────────────────────────────────────────────────────────
+const TIPI_PROFILO = ['TRAVI','LAMIERA','PIATTI','SCATOLATI/ANGOLARI','TONDO','QUADRI'];
+
+async function ptLoad() {
+  const res = await fetch('/api/v1/admin/profile-types', { headers: { Authorization: getAuth() } });
+  if (!res.ok) return;
+  const rows = await res.json();
+  const tbody = document.getElementById('pt-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = rows.map(r => `
+    <tr id="pt-row-${r.id}" style="border-bottom:1px solid rgba(255,255,255,.06)">
+      <td style="padding:9px 12px;font-family:monospace;font-weight:700;color:rgba(255,255,255,.85)">${r.prefisso}</td>
+      <td style="padding:9px 12px">
+        <select onchange="ptSave(${r.id},this)"
+          style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;outline:none">
+          ${TIPI_PROFILO.map(t => `<option${t===r.tipo?' selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:9px 12px;text-align:right">
+        <button onclick="ptDelete(${r.id},'${r.prefisso}')"
+          style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer">
+          ✕
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+async function ptSave(id, sel) {
+  const tipo = sel.value;
+  const prefisso = document.querySelector(`#pt-row-${id} td:first-child`).textContent.trim();
+  const res = await fetch(`/api/v1/admin/profile-types/${id}`, {
+    method: 'PATCH',
+    headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefisso, tipo }),
+  });
+  toast(res.ok ? `${prefisso} → ${tipo} salvato` : 'Errore salvataggio', res.ok ? 'ok' : 'err');
+}
+
+async function ptCreate() {
+  const prefisso = document.getElementById('pt-new-prefisso').value.trim().toUpperCase();
+  const tipo     = document.getElementById('pt-new-tipo').value;
+  const msg      = document.getElementById('pt-msg');
+  if (!prefisso || !tipo) { msg.textContent = 'Compila prefisso e tipo'; msg.style.color='#f87171'; return; }
+  const res = await fetch('/api/v1/admin/profile-types', {
+    method: 'POST',
+    headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefisso, tipo }),
+  });
+  if (res.ok) {
+    document.getElementById('pt-new-prefisso').value = '';
+    document.getElementById('pt-new-tipo').value = '';
+    msg.textContent = `${prefisso} aggiunto`; msg.style.color='#4ade80';
+    ptLoad();
+    setTimeout(() => msg.textContent='', 2500);
+  } else {
+    const d = await res.json().catch(()=>({}));
+    msg.textContent = d.detail || 'Errore'; msg.style.color='#f87171';
+  }
+}
+
+async function ptDelete(id, prefisso) {
+  if (!confirm(`Eliminare il prefisso "${prefisso}"?`)) return;
+  const res = await fetch(`/api/v1/admin/profile-types/${id}`, {
+    method: 'DELETE', headers: { Authorization: getAuth() },
+  });
+  toast(res.ok ? `${prefisso} eliminato` : 'Errore eliminazione', res.ok ? 'ok' : 'err');
+  if (res.ok) ptLoad();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

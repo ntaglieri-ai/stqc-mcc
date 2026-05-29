@@ -67,20 +67,30 @@ async def import_inventario(
                 commessa_ref=row.get("commessa_reference"),
                 peso_u_kg=row.get("peso_u_kg"),
                 peso_1_pz=row.get("peso_1_pz"),
+                norma_uni=row.get("norma_uni"),
             )
             db.add(material)
             db.flush()
             created_materials += 1
         else:
-            # Aggiorna sempre i campi strutturati (possono essere stati arricchiti)
+            # Aggiorna sempre i campi strutturati (possono essere stati arricchiti).
+            # Per le dimensioni lineari (lunghezza barra) teniamo il valore MASSIMO:
+            # più bar lunghe sono più utili per i tagli.
             material.tipo = row.get("tipo") or material.tipo
             material.profilo = row.get("profilo") or material.profilo
-            material.dimensioni = row.get("dimensioni") or material.dimensioni
+            new_dim = row.get("dimensioni")
+            if new_dim:
+                try:
+                    if not material.dimensioni or float(new_dim) > float(material.dimensioni):
+                        material.dimensioni = new_dim
+                except (TypeError, ValueError):
+                    material.dimensioni = material.dimensioni or new_dim
             material.qualita = row.get("qualita") or material.qualita
             material.colata = row.get("colata") or material.colata
             material.commessa_ref = row.get("commessa_reference") or material.commessa_ref
-            material.peso_u_kg = row.get("peso_u_kg") or material.peso_u_kg
-            material.peso_1_pz = row.get("peso_1_pz") or material.peso_1_pz
+            material.peso_u_kg  = row.get("peso_u_kg")  or material.peso_u_kg
+            material.peso_1_pz  = row.get("peso_1_pz")  or material.peso_1_pz
+            material.norma_uni  = row.get("norma_uni")  or material.norma_uni
             existing_materials += 1
 
         existing_movement = db.scalars(

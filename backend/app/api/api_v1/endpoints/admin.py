@@ -17,6 +17,7 @@ _logger = logging.getLogger("stqc.admin")
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
@@ -603,6 +604,7 @@ def reset_inventario(db: Session = Depends(get_db)):
             commessa_ref=item.get("commessa_reference"),
             peso_u_kg=item.get("peso_u_kg"),
             peso_1_pz=item.get("peso_1_pz"),
+            norma_uni=item.get("norma_uni"),
             unita_misura="pz",
         )
         db.add(mat)
@@ -629,3 +631,59 @@ def reset_inventario(db: Session = Depends(get_db)):
         "materials_created": materials_created,
         "movements_created": movements_created,
     }
+
+
+# ── Profile Types CRUD ────────────────────────────────────────────────────────
+
+class ProfileTypeBody(BaseModel):
+    prefisso: str
+    tipo: str
+
+
+class ProfileTypeRead(BaseModel):
+    id: int
+    prefisso: str
+    tipo: str
+    model_config = {"from_attributes": True}
+
+
+@router.get("/profile-types", response_model=list[ProfileTypeRead])
+def list_profile_types(db: Session = Depends(get_db)):
+    from backend.app.models.warehouse import ProfileType
+    return db.query(ProfileType).order_by(ProfileType.prefisso).all()
+
+
+@router.post("/profile-types", response_model=ProfileTypeRead, status_code=201)
+def create_profile_type(body: ProfileTypeBody, db: Session = Depends(get_db)):
+    from backend.app.models.warehouse import ProfileType
+    existing = db.query(ProfileType).filter(ProfileType.prefisso == body.prefisso.upper()).first()
+    if existing:
+        raise HTTPException(409, f"Prefisso '{body.prefisso}' già presente")
+    pt = ProfileType(prefisso=body.prefisso.upper().strip(), tipo=body.tipo.strip())
+    db.add(pt)
+    db.commit()
+    db.refresh(pt)
+    return pt
+
+
+@router.patch("/profile-types/{pt_id}", response_model=ProfileTypeRead)
+def update_profile_type(pt_id: int, body: ProfileTypeBody, db: Session = Depends(get_db)):
+    from backend.app.models.warehouse import ProfileType
+    pt = db.get(ProfileType, pt_id)
+    if not pt:
+        raise HTTPException(404, "Tipo profilo non trovato")
+    pt.prefisso = body.prefisso.upper().strip()
+    pt.tipo     = body.tipo.strip()
+    db.commit()
+    db.refresh(pt)
+    return pt
+
+
+@router.delete("/profile-types/{pt_id}", status_code=204)
+def delete_profile_type(pt_id: int, db: Session = Depends(get_db)):
+    from backend.app.models.warehouse import ProfileType
+    pt = db.get(ProfileType, pt_id)
+    if not pt:
+        raise HTTPException(404, "Tipo profilo non trovato")
+    db.delete(pt)
+    db.commit()

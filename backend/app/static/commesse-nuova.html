@@ -1001,11 +1001,9 @@ const WIZ = {
   distinata: null,
   magazzino: null,
   availability: [],
-  fasi: null,
   activeDetailType: null,
   notes: '',
   isPreDistinta: false,
-  _fasiFetchToken: 0,
 
   open(commessa, distinata, isPreDistinta = false) {
     this.step = 1;
@@ -1014,28 +1012,12 @@ const WIZ = {
     this.isPreDistinta = isPreDistinta;
     this.magazzino = null;
     this.availability = [];
-    this.fasi = null;
     this.activeDetailType = null;
     this.notes = '';
-    // Token univoco per questa apertura: le fetch di sessioni precedenti
-    // che risolvono in ritardo vengono ignorate (evita stale fasi + stale anomalie).
-    const token = ++this._fasiFetchToken;
     document.getElementById('wiz-predistinta-banner').style.display = isPreDistinta ? 'block' : 'none';
     document.getElementById('wiz-backdrop').classList.add('open');
     document.getElementById('wiz-panel').classList.add('open');
     this.render();
-    fetch('/api/v1/commesse/' + commessa.id + '/fasi', { headers: { Authorization: getAuth() } })
-      .then(r => r.ok ? r.json() : [])
-      .then(fasi => {
-        if (this._fasiFetchToken !== token) return;   // risposta stale — scarta
-        this.fasi = fasi;
-        if (this.step === 1) this.renderStep1();
-      })
-      .catch(() => {
-        if (this._fasiFetchToken !== token) return;
-        this.fasi = [];
-        if (this.step === 1) this.renderStep1();
-      });
   },
 
   close() {
@@ -1080,17 +1062,6 @@ const WIZ = {
     const d = this.distinata;
     const items = d.items || [];
 
-    // Pezzi fisici — mappa fasi per part_number
-    const fasiByPart = new Map();
-    if (this.fasi) {
-      for (const f of this.fasi) {
-        if (!f.marca_pos) continue;
-        if (!fasiByPart.has(f.marca_pos)) fasiByPart.set(f.marca_pos, []);
-        fasiByPart.get(f.marca_pos).push(f);
-      }
-      for (const arr of fasiByPart.values()) arr.sort((a,b) => (a.sequenza||9999)-(b.sequenza||9999));
-    }
-
     const pezziHtml = items.length === 0
       ? '<div class="dp-empty">Nessun pezzo nella distinta</div>'
       : `<div class="wiz-table-wrap"><table class="wiz-table" id="pz-table">
@@ -1104,34 +1075,17 @@ const WIZ = {
               ? ` <span style="opacity:.35;font-weight:400">#${it.instance_number}</span>`
               : '';
 
-            // Pannello espanso: fasi + assembly
-            const partFasi = fasiByPart.get(it.part_number) || [];
             let detHtml = '';
             if (it.parent_assembly && it.parent_assembly !== it.part_number) {
-              detHtml += `<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;
+              detHtml += `<div style="display:inline-flex;align-items:center;gap:6px;
                 padding:5px 10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);
                 border-radius:6px;font-size:11px;color:rgba(255,255,255,.55)">
                 <span style="color:#93c5fd;font-size:13px">⊂</span>
-                Sarà parte di <strong style="font-family:monospace;color:#93c5fd;margin-left:4px">${esc(it.parent_assembly)}</strong>
+                Parte di <strong style="font-family:monospace;color:#93c5fd;margin-left:4px">${esc(it.parent_assembly)}</strong>
               </div>`;
             }
-            if (partFasi.length === 0) {
-              detHtml += `<div style="font-size:11px;color:rgba(255,255,255,.25);font-style:italic">Nessuna fase trovata per questo pezzo</div>`;
-            } else {
-              detHtml += `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.2);margin-bottom:8px">Sequenza lavorazioni</div>`;
-              partFasi.forEach((f, fi) => {
-                const seqLbl = f.sequenza != null ? `<span style="font-size:9px;font-family:monospace;color:rgba(255,255,255,.2);min-width:44px;flex-shrink:0">Seq.${f.sequenza}</span>` : '';
-                detHtml += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-                  ${seqLbl}
-                  <span style="flex:1;font-size:12px;color:rgba(255,255,255,.75)">${esc(f.fase||'—')}</span>
-                  <span style="font-size:10px;padding:1px 7px;border-radius:4px;white-space:nowrap;
-                    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
-                    color:rgba(255,255,255,.4)">${esc(f.postazione||'—')}</span>
-                </div>`;
-                if (fi < partFasi.length - 1) {
-                  detHtml += `<div style="font-size:11px;color:rgba(255,255,255,.12);padding:1px 0 1px 44px">↓</div>`;
-                }
-              });
+            if (!detHtml) {
+              detHtml = `<span style="font-size:11px;color:rgba(255,255,255,.2)">—</span>`;
             }
 
             return `<tr class="pz-row" onclick="WIZ._togglePezzoDetail(${i})" style="cursor:pointer">
@@ -1150,46 +1104,7 @@ const WIZ = {
           </tbody>
         </table></div>`;
 
-    // Fasi operative
-    let fasiSectionHtml;
-    if (this.fasi === null) {
-      fasiSectionHtml = '<div class="dp-empty" style="color:rgba(255,255,255,.3)">Caricamento fasi in corso…</div>';
-    } else if (this.fasi.length === 0) {
-      fasiSectionHtml = `<div style="display:flex;align-items:center;gap:10px;padding:14px 18px;
-        background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.08);border-radius:10px;
-        font-size:13px;color:rgba(255,255,255,.3)">
-        <span style="font-size:18px;opacity:.5">📋</span>
-        <span>File fasi operative non caricato</span>
-      </div>`;
-    } else {
-      const fg = new Map();
-      for (const f of this.fasi) {
-        const key = f.fase || 'Non specificata';
-        if (!fg.has(key)) fg.set(key, []);
-        fg.get(key).push(f);
-      }
-      fasiSectionHtml = `<div class="wiz-table-wrap"><table class="wiz-table">
-        <thead><tr>
-          <th>Fase</th>
-          <th>Postazione</th>
-          <th style="text-align:right">N. pezzi coinvolti</th>
-          <th style="text-align:right">Tempo prev. totale</th>
-        </tr></thead>
-        <tbody>${[...fg.entries()].map(([faseName, rows]) => {
-          const postazioni = [...new Set(rows.map(r => r.postazione).filter(Boolean))].join(', ') || '—';
-          const nPezzi = rows.reduce((s, r) => s + (r.quantita || 1), 0);
-          const tempTot = rows.reduce((s, r) => s + (r.tempo_tot_min || 0), 0);
-          return `<tr>
-            <td style="font-weight:700;color:rgba(255,255,255,.85)">${esc(faseName)}</td>
-            <td style="color:rgba(255,255,255,.55)">${esc(postazioni)}</td>
-            <td style="text-align:right">${fmtNum(nPezzi)}</td>
-            <td style="text-align:right;font-family:monospace">${tempTot > 0 ? Math.round(tempTot).toLocaleString('it-IT') + ' min' : '—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
-    }
-
-    // Anomalie
+    // Anomalie — solo sui pezzi della distinta
     const anomalie = [];
     const noPn = items.filter(it => !it.part_number || !String(it.part_number).trim());
     if (noPn.length > 0) anomalie.push({
@@ -1197,20 +1112,6 @@ const WIZ = {
       label: noPn.length + ' ' + (noPn.length === 1 ? 'pezzo senza' : 'pezzi senza') + ' Marca/Pos.',
       records: noPn,
     });
-    if (this.fasi && this.fasi.length > 0) {
-      const noPost = this.fasi.filter(f => !f.postazione || !f.postazione.trim());
-      if (noPost.length > 0) anomalie.push({
-        type: 'no_post', resource: 'fase', editField: 'postazione',
-        label: noPost.length + ' ' + (noPost.length === 1 ? 'fase senza' : 'fasi senza') + ' postazione',
-        records: noPost,
-      });
-      const noTempo = this.fasi.filter(f => f.tempo_tot_min == null || f.tempo_tot_min === 0);
-      if (noTempo.length > 0) anomalie.push({
-        type: 'no_tempo', resource: 'fase', editField: 'tempo_tot_min', numeric: true,
-        label: noTempo.length + ' ' + (noTempo.length === 1 ? 'fase con' : 'fasi con') + ' tempo mancante',
-        records: noTempo,
-      });
-    }
     this._anomalie = anomalie;
     this._openAnomaliaIdx = null;
 
@@ -1249,9 +1150,6 @@ const WIZ = {
 
       <div class="wiz-section-lbl">Lista pezzi</div>
       ${pezziHtml}
-
-      <div class="wiz-section-lbl">Fasi operative</div>
-      ${fasiSectionHtml}
 
       <div class="wiz-section-lbl">Anomalie</div>
       ${warnHtml}
@@ -1311,16 +1209,14 @@ const WIZ = {
       return;
     }
     const tabManuale = tab === 'manuale';
-    const phMap = { no_pn: 'Marca/Pos.', no_post: 'Postazione', no_tempo: 'Min. totali' };
+    const phMap = { no_pn: 'Marca/Pos.' };
     const placeholder = phMap[a.type] || a.editField;
 
     let contentHtml;
     if (tabManuale) {
       const rowsHtml = a.records.map((r, rIdx) => {
-        const main = a.resource === 'distinta_item'
-          ? (r.description || r.material_code || '#' + r.id)
-          : (r.fase || 'Fase #' + r.id);
-        const sub = a.resource === 'fase' && r.marca_pos ? ' · ' + r.marca_pos : '';
+        const main = r.description || r.material_code || '#' + r.id;
+        const sub = '';
         const val = r[a.editField] != null ? String(r[a.editField]) : '';
         return `<div class="anom-row">
           <div class="anom-row-label">${esc(main)}<span style="color:rgba(255,255,255,.28);margin-left:4px">${esc(sub)}</span></div>
@@ -1371,9 +1267,7 @@ const WIZ = {
     let saved = 0, failed = 0;
     for (const { record, value } of changes) {
       try {
-        const url = a.resource === 'distinta_item'
-          ? '/api/v1/warehouse/distinta/items/' + record.id
-          : '/api/v1/commesse/' + this.commessa.id + '/fasi/' + record.id;
+        const url = '/api/v1/warehouse/distinta/items/' + record.id;
         const body = { [a.editField]: a.numeric ? parseFloat(value) : value };
         const res = await fetch(url, {
           method: 'PATCH',
@@ -1407,9 +1301,7 @@ const WIZ = {
     const origText = btn ? btn.textContent : '';
     if (btn) { btn.textContent = 'Caricamento…'; btn.disabled = true; }
 
-    const url = a.resource === 'fase'
-      ? '/api/v1/commesse/' + this.commessa.id + '/fasi/delta'
-      : '/api/v1/warehouse/distinta/imports/' + this.distinata.id + '/delta';
+    const url = '/api/v1/warehouse/distinta/imports/' + this.distinata.id + '/delta';
     const fd = new FormData();
     fd.append('file', fileInput.files[0]);
 
@@ -1419,13 +1311,8 @@ const WIZ = {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || 'HTTP ' + res.status);
       }
-      if (a.resource === 'fase') {
-        const fRes = await fetch('/api/v1/commesse/' + this.commessa.id + '/fasi', { headers: { Authorization: getAuth() } });
-        if (fRes.ok) this.fasi = await fRes.json();
-      } else {
-        const dRes = await fetch('/api/v1/warehouse/distinta/imports/' + this.distinata.id, { headers: { Authorization: getAuth() } });
-        if (dRes.ok) this.distinata = await dRes.json();
-      }
+      const dRes = await fetch('/api/v1/warehouse/distinta/imports/' + this.distinata.id, { headers: { Authorization: getAuth() } });
+      if (dRes.ok) this.distinata = await dRes.json();
       this._openAnomaliaIdx = null;
       this.renderStep1();
     } catch (err) {

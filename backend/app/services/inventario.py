@@ -1,6 +1,39 @@
 from pathlib import Path
 from typing import Any, List
 
+from backend.app.services.distinta import normalize_profile
+
+# Mapping tipo → norma UNI/EN
+# Per SCATOLATI/ANGOLARI si distingue tra angolari (ANG, L) e tubi strutturali (TUBE, SHS, RHS)
+_NORMA_BY_TIPO = {
+    "TRAVI":              "EN 10034",
+    "LAMIERA":            "EN 10029",
+    "PIATTI":             "EN 10058",
+    "TONDO":              "EN 10060",
+    "QUADRI":             "EN 10059",
+}
+_PREFISSI_ANGOLARI = ("ANG", "L")
+_PREFISSI_TUBI     = ("TUBE", "SHS", "RHS", "CHS")
+
+
+def _norma_uni(tipo: str, profilo: str) -> str | None:
+    """Restituisce la norma UNI/EN in base al tipo e, per SCATOLATI/ANGOLARI,
+    al prefisso del profilo (angolari → EN 10056, tubi strutturali → EN 10210)."""
+    tipo_u   = tipo.upper().strip()
+    profilo_u = (profilo or "").upper()
+
+    if tipo_u in _NORMA_BY_TIPO:
+        return _NORMA_BY_TIPO[tipo_u]
+
+    if tipo_u == "SCATOLATI/ANGOLARI":
+        if any(profilo_u.startswith(p) for p in _PREFISSI_ANGOLARI):
+            return "EN 10056"
+        if any(profilo_u.startswith(p) for p in _PREFISSI_TUBI):
+            return "EN 10210"
+        return "EN 10210"   # default per scatolati non identificati
+
+    return None
+
 
 def parse_inventario(file_path: Path) -> List[dict]:
     """Legge il foglio 'Inventario ...' dal file .xlsm e restituisce le righe
@@ -51,7 +84,7 @@ def parse_inventario(file_path: Path) -> List[dict]:
                 return None
 
         tipo_str = tipo.strip()
-        profilo_str = _str(profilo) or ""
+        profilo_str = normalize_profile(_str(profilo)) if _str(profilo) else ""
         qualita = _str(row[4])
         colata = _str(row[5])
         commessa = _str(row[6])
@@ -87,6 +120,8 @@ def parse_inventario(file_path: Path) -> List[dict]:
             "peso_u_kg": peso_u_kg,
             "peso_1_pz": peso_1_pz,
             "quantity": qty,
+            # campi normativi
+            "norma_uni": _norma_uni(tipo_str, profilo_str),
         })
 
     return items

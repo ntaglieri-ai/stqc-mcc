@@ -21,6 +21,7 @@ from backend.app.models.warehouse import (
     Material,
     MaterialRequest,
     MovementType,
+    ProfileAlias,
     RichiestaStatus,
     StockMovement,
 )
@@ -30,7 +31,7 @@ from backend.app.schemas.warehouse import (
     StockReservationCreate,
     StockReservationRead,
 )
-from backend.app.services.cutting_stock import analyze_material, ffd_1d
+from backend.app.services.cutting_stock import analyze_material
 from backend.app.services.distinta import normalize_profile
 
 _logger = logging.getLogger("stqc.stock")
@@ -102,11 +103,16 @@ def analyze_distinta(
 
 # ── Compare distinta vs magazzino ────────────────────────────────────────────
 
+# Tipi lineari: confronto su lunghezza barra
+_TIPI_LINEARI = {"TRAVI", "SCATOLATI/ANGOLARI", "PIATTI", "TONDO", "QUADRI"}
+
+
 class DistintaCompareItem(BaseModel):
     profilo: str
     length_mm: Optional[float] = None
     qty: int = 1
     qualita: Optional[str] = None
+    tipo_profilo: Optional[str] = None
 
 
 class DistintaCompareRequest(BaseModel):
@@ -122,41 +128,68 @@ class DistintaCompareRequest(BaseModel):
 
 
 class ProfileCompareResult(BaseModel):
+    """Una riga nel risultato: un profilo specifico con qualità, aggregato su tutti i pezzi fisici."""
     profilo_norm: str
-    profilo_raw: str
+    qualita: Optional[str] = None
+    tipo_profilo: str = "SCONOSCIUTO"
     n_pezzi_richiesti: int
-    mm_richiesti: float
-    mm_disponibili: float
-    stato: str                          # disponibile | parziale | mancante | nd
-    sfrido_pct: Optional[float] = None
-    barre_necessarie: Optional[int] = None
-    inventory_rows: List[Any] = []
+    n_pezzi_coperti: int = 0
+    n_pezzi_mancanti: int = 0
+    dim_richieste: float = 0.0     # mm lineari | mm² LAMIERA — tutti i pezzi
+    dim_coperti: float = 0.0       # mm lineari | mm² — solo pezzi coperti
+    dim_consumate: float = 0.0     # mm/mm² elementi inventario usati (solo pezzi coperti)
+    stato: str                      # disponibile | parziale | mancante | nd
+    sfrido_pct: Optional[float] = None   # (dim_consumate − dim_coperti) / dim_consumate
 
 
 class DistintaCompareResult(BaseModel):
     profiles: List[ProfileCompareResult]
-    inventory_source: str               # xlsm | db
+    inventory_source: str
     n_disponibili: int
     n_parziali: int
     n_mancanti: int
-    n_nd: int                           # profili senza mm (lamiere, pezzi 0D)
+    n_nd: int
 
 
 def _parse_dim_linear(dimensioni: Any) -> float | None:
-    """Restituisce la lunghezza in mm se è un profilato lineare, None altrimenti.
-    Lineare = dimensioni è un numero o una stringa numerica pura (es. 12100, '6000').
-    NON lineare = '3000*1500', None, stringa mista.
+    """Lunghezza barra in mm (solo se dimensioni è un numero scalare, es. 12100).
+    Restituisce None per dimensioni 2D come '3000*1500'.
     """
     if dimensioni is None:
         return None
     s = str(dimensioni).strip()
-    if '*' in s or 'x' in s.lower():
+    if re.search(r'[*xX×]', s):
         return None
     try:
         v = float(s)
         return v if v > 0 else None
     except ValueError:
         return None
+
+
+def _parse_sheet_dims(dimensioni: Any) -> tuple[float, float] | None:
+    """Parsa dimensioni 2D: '3000*1500' → (3000.0, 1500.0).
+    Accetta separatori *, x, X, ×.
+    """
+    if not dimensioni:
+        return None
+    parts = re.split(r'[*xX×]', str(dimensioni).strip())
+    if len(parts) >= 2:
+        try:
+            d1, d2 = float(parts[0].strip()), float(parts[1].strip())
+            return (d1, d2) if d1 > 0 and d2 > 0 else None
+        except (ValueError, TypeError):
+            pass
+    return None
+
+
+def _parse_plate_width(profile_norm: str) -> float | None:
+    """Estrae la larghezza da un profilo lamiera normalizzato.
+    'PL10*140' → 140.0   (spessore*larghezza)
+    Restituisce None se il profilo non segue il formato PL<spessore>*<larghezza>.
+    """
+    m = re.match(r'^PL\d+(?:\.\d+)?\*(\d+(?:\.\d+)?)', profile_norm.upper())
+    return float(m.group(1)) if m else None
 
 
 def _load_inventory_xlsm() -> tuple[list[dict], str] | None:
@@ -176,111 +209,197 @@ def _load_inventory_xlsm() -> tuple[list[dict], str] | None:
         return None
 
 
-def _inventory_index(rows: list[dict]) -> dict[str, list[dict]]:
-    """Costruisce indice {profilo_normalizzato → [righe]} dall'inventario."""
-    idx: dict[str, list[dict]] = defaultdict(list)
-    for r in rows:
-        # Profilo può essere stringa o numero (lamiere con spessore numerico)
-        raw = r.get("profilo")
-        if raw is None:
-            continue
-        norm = normalize_profile(str(raw))
-        idx[norm].append(r)
-    return idx
+def _inventory_pool_by_profile(inv_rows: list[dict]) -> dict[str, list[dict]]:
+    """Raggruppa inventario per profilo normalizzato.
 
-
-def _compute_mm_disponibili(inv_rows: list[dict]) -> float:
-    """Somma mm lineari disponibili: n_pezzi × dim_mm (solo righe lineari)."""
-    total = 0.0
+    Match industriale corretto:
+        HEB240 → solo HEB240
+        IPE270 → solo IPE270
+    """
+    pool: dict[str, list[dict]] = defaultdict(list)
     for r in inv_rows:
-        n = float(r.get("quantity") or r.get("n_pezzi") or 0)
+        profilo = normalize_profile(r.get("profilo") or "")
+        if profilo:
+            pool[profilo].append(r)
+    return pool
+
+
+def _match_linear_per_piece(
+    pieces: list[tuple],      # (profilo_norm, qualita, length_mm)
+    inv_rows: list[dict],
+) -> list[dict]:
+    """Greedy per-piece: abbina ogni pezzo lineare a una barra del pool inventario.
+
+    Ogni elemento restituito:
+        profilo_norm, qualita, length_mm, covered (bool), bar_mm (float|None)
+
+    covered=True  → pezzo assegnato a una barra (bar_mm = lunghezza barra usata)
+    covered=False → nessuna barra disponibile con lunghezza ≥ richiesta
+    Sfrido = 0 sui pezzi mancanti (non consumano barre).
+    """
+    bar_pool: dict[float, int] = {}
+    for r in inv_rows:
         dim = _parse_dim_linear(r.get("dimensioni"))
+        n   = int(float(r.get("quantity") or r.get("n_pezzi") or 0))
         if dim and n > 0:
-            total += n * dim
-    return total
+            bar_pool[dim] = bar_pool.get(dim, 0) + n
+
+    available = dict(bar_pool)
+    # Ordina per lunghezza decrescente — prima i pezzi più difficili da soddisfare
+    sorted_pieces = sorted(pieces, key=lambda x: x[2], reverse=True)
+    results = []
+
+    for prof, qual, lmm in sorted_pieces:
+        fitting = [(blen, cnt) for blen, cnt in available.items()
+                   if blen >= lmm and cnt > 0]
+        if fitting:
+            best = min(fitting, key=lambda x: x[0])
+            available[best[0]] -= 1
+            results.append({"profilo_norm": prof, "qualita": qual,
+                             "length_mm": lmm, "covered": True, "bar_mm": best[0]})
+        else:
+            results.append({"profilo_norm": prof, "qualita": qual,
+                             "length_mm": lmm, "covered": False, "bar_mm": None})
+    return results
 
 
-def _dominant_bar_length(inv_rows: list[dict]) -> float | None:
-    """Lunghezza barra più comune tra le righe lineari dell'inventario."""
-    from collections import Counter
-    lengths = []
+def _match_plate_per_piece(
+    pieces: list[tuple],      # (profilo_norm, qualita, length_mm, width_mm)
+    inv_rows: list[dict],
+) -> list[dict]:
+    """Greedy per-piece: abbina ogni lamiera a un foglio del pool inventario."""
+    sheet_pool: dict[tuple[float, float], int] = {}
     for r in inv_rows:
-        dim = _parse_dim_linear(r.get("dimensioni"))
-        if dim:
-            n = int(max(1, round(float(r.get("quantity") or r.get("n_pezzi") or 1))))
-            lengths.extend([dim] * n)
-    if not lengths:
-        return None
-    return Counter(lengths).most_common(1)[0][0]
+        dims = _parse_sheet_dims(r.get("dimensioni"))
+        n    = int(float(r.get("quantity") or r.get("n_pezzi") or 0))
+        if dims and n > 0:
+            key = (max(dims), min(dims))
+            sheet_pool[key] = sheet_pool.get(key, 0) + n
+
+    available = dict(sheet_pool)
+    sorted_pieces = sorted(pieces, key=lambda x: x[2] * x[3], reverse=True)
+    results = []
+
+    for prof, qual, lmm, wmm in sorted_pieces:
+        p_max, p_min = max(lmm, wmm), min(lmm, wmm)
+        fitting = [(sdims, cnt) for sdims, cnt in available.items()
+                   if sdims[0] >= p_max and sdims[1] >= p_min and cnt > 0]
+        if fitting:
+            best = min(fitting, key=lambda x: x[0][0] * x[0][1])
+            available[best[0]] -= 1
+            results.append({"profilo_norm": prof, "qualita": qual,
+                             "lmm": lmm, "wmm": wmm,
+                             "covered": True, "sheet_area": best[0][0] * best[0][1]})
+        else:
+            results.append({"profilo_norm": prof, "qualita": qual,
+                             "lmm": lmm, "wmm": wmm,
+                             "covered": False, "sheet_area": None})
+    return results
 
 
-def _compute_sfrido(piece_lengths_mm: list[float], bar_length_mm: float) -> tuple[float, int]:
-    """Esegue FFD 1D e restituisce (sfrido_pct, n_barre_necessarie)."""
-    if not piece_lengths_mm or not bar_length_mm:
-        return 0.0, 0
-    feasible = [p for p in piece_lengths_mm if p <= bar_length_mm]
-    if not feasible:
-        return 0.0, 0
-    bins = ffd_1d(feasible, bar_length_mm)
-    n_barre = len(bins)
-    totale = n_barre * bar_length_mm
-    usato = sum(p for b in bins for p in b.pieces)
-    sfrido = (totale - usato) / totale * 100 if totale > 0 else 0.0
-    return round(sfrido, 2), n_barre
+def _aggregate_per_profile(
+    piece_results: list[dict],
+    tipo: str,
+    is_lamiera: bool = False,
+) -> list[ProfileCompareResult]:
+    """Aggrega i risultati per-pezzo in righe per (profilo_norm, qualita).
+
+    Sfrido calcolato SOLO sui pezzi coperti:
+        sfrido = (dim_consumate − dim_coperti) / dim_consumate × 100
+    I pezzi mancanti non consumano barre → sfrido_pct = None se tutti mancanti.
+    """
+    from collections import defaultdict
+    buckets: dict[tuple, dict] = defaultdict(lambda: {
+        "n_richiesti": 0, "n_coperti": 0, "n_mancanti": 0,
+        "dim_richieste": 0.0, "dim_coperti": 0.0, "dim_consumate": 0.0,
+    })
+
+    for r in piece_results:
+        key = (r["profilo_norm"], r.get("qualita") or "")
+        b = buckets[key]
+        b["n_richiesti"] += 1
+        if is_lamiera:
+            b["dim_richieste"] += r["lmm"] * r["wmm"]
+            if r["covered"]:
+                b["n_coperti"]    += 1
+                b["dim_coperti"]  += r["lmm"] * r["wmm"]
+                b["dim_consumate"] += r["sheet_area"]
+            else:
+                b["n_mancanti"] += 1
+        else:
+            b["dim_richieste"] += r["length_mm"]
+            if r["covered"]:
+                b["n_coperti"]    += 1
+                b["dim_coperti"]  += r["length_mm"]
+                b["dim_consumate"] += r["bar_mm"]
+            else:
+                b["n_mancanti"] += 1
+
+    out = []
+    for (prof, qual), b in sorted(buckets.items()):
+        dc = b["dim_consumate"]
+        dp = b["dim_coperti"]
+        sfrido = round((dc - dp) / dc * 100, 2) if dc > 0 else None
+        n_cop, n_man = b["n_coperti"], b["n_mancanti"]
+        if n_man == 0:
+            stato = "disponibile"
+        elif n_cop == 0:
+            stato = "mancante"
+        else:
+            stato = "parziale"
+        out.append(ProfileCompareResult(
+            profilo_norm=prof,
+            qualita=qual or None,
+            tipo_profilo=tipo,
+            n_pezzi_richiesti=b["n_richiesti"],
+            n_pezzi_coperti=n_cop,
+            n_pezzi_mancanti=n_man,
+            dim_richieste=round(b["dim_richieste"], 1),
+            dim_coperti=round(dp, 1),
+            dim_consumate=round(dc, 1),
+            stato=stato,
+            sfrido_pct=sfrido,
+        ))
+    return out
 
 
-@router.post("/compare-distinta", response_model=DistintaCompareResult)
+def _stato_from_match(match: dict) -> str:
+    n_cop = match["n_coperti"]
+    n_man = match["n_mancanti"]
+    if n_man == 0:
+        return "disponibile"
+    if n_cop == 0:
+        return "mancante"
+    return "parziale"
+
+
+@router.post("/compare-distinta")
 def compare_distinta_magazzino(
     req: DistintaCompareRequest,
     db: Session = Depends(get_db),
 ):
-    """Confronta i profili della distinta con il magazzino disponibile.
+    """Compare distinta vs magazzino in 5 step.
 
-    Carica l'inventario dal file XLSM se presente nella directory di lavoro,
-    altrimenti usa i dati in DB. Per ogni profilo normalizzato:
-    - Somma i mm richiesti (n_pezzi × length_mm)
-    - Calcola i mm disponibili in magazzino (n_barre × dim_barra)
-    - Determina stato: disponibile / parziale / mancante / nd
-    - Calcola sfrido FFD 1D per profilati lineari
+    Step 1 — diagnostico per pezzo: tipo_profilo + presenza tipo in materials.
+    Step 2 — mapping profili: normalizza e allinea profili distinta ↔ magazzino per tipo;
+              auto-mappa dove c'è corrispondenza esatta, inserisce i non mappati in
+              profile_aliases (profilo_magazzino=NULL) per associazione manuale.
+    Step 3 — match dimensionale greedy: per ogni pezzo usa il mapping di step 2,
+              cerca nel pool del profilo magazzino corrispondente una barra/foglio
+              con dimensioni >= distinta_items.length_mm; non somma mai.
+    Step 4 — risultato per pezzo: disponibile | mancante | non_mappato.
+    Step 5 — aggregato per (tipo, profilo_distinta): conta disponibili e mancanti.
     """
-    # ── 1. Carica inventario ──────────────────────────────────────────────────
-    inv_source = "db"
-    xlsm_result = _load_inventory_xlsm()
-    if xlsm_result:
-        inv_rows, xlsm_path = xlsm_result
-        inv_source = f"xlsm:{xlsm_path}"
-        _logger.info("Inventario da XLSM: %s (%d righe)", xlsm_path, len(inv_rows))
-    else:
-        raw_db = get_magazzino_list(db=db, limit=10_000)
-        # Normalizza il formato: get_magazzino_list usa 'n_pezzi', parse_inventario usa 'quantity'
-        inv_rows = [{**r, "quantity": r["n_pezzi"]} for r in raw_db]
-        _logger.info("Inventario da DB: %d righe", len(inv_rows))
-
-    inv_idx = _inventory_index(inv_rows)
-
-    # ── 2. Carica pezzi distinta ──────────────────────────────────────────────
-    items_raw: list[DistintaCompareItem] = []
-
-    if req.items:
-        items_raw = req.items
-    elif req.import_id:
+    # ── Carica DistintaItem della commessa/import ─────────────────────────────
+    if req.import_id:
         db_items = db.query(DistintaItem).filter(
             DistintaItem.import_id == req.import_id,
             DistintaItem.invalidato.is_(False),
         ).all()
-        items_raw = [
-            DistintaCompareItem(
-                profilo=it.description or "",
-                length_mm=float(it.length_mm) if it.length_mm else None,
-                qty=1,
-                qualita=it.material_code,
-            )
-            for it in db_items if it.description
-        ]
     elif req.commessa_id:
         from backend.app.models.commessa import Commessa
         commessa = db.get(Commessa, req.commessa_id)
-        codice = commessa.codice if commessa else None
+        codice   = commessa.codice if commessa else None
         db_items = db.query(DistintaItem).filter(
             or_(
                 DistintaItem.commessa_id == req.commessa_id,
@@ -288,98 +407,184 @@ def compare_distinta_magazzino(
             ),
             DistintaItem.invalidato.is_(False),
         ).all()
-        items_raw = [
-            DistintaCompareItem(
-                profilo=it.description or "",
-                length_mm=float(it.length_mm) if it.length_mm else None,
-                qty=1,
-                qualita=it.material_code,
-            )
-            for it in db_items if it.description
-        ]
+    else:
+        raise HTTPException(422, "Fornire import_id o commessa_id")
 
-    if not items_raw:
-        raise HTTPException(422, "Nessun pezzo trovato per il confronto")
+    if not db_items:
+        raise HTTPException(422, "Nessun pezzo trovato")
 
-    # ── 3. Aggrega distinta per profilo normalizzato ──────────────────────────
-    # {profilo_norm: {raw, n_pezzi, mm_tot, lunghezze_mm}}
-    agg: dict[str, dict] = {}
-    for it in items_raw:
-        norm = normalize_profile(it.profilo)
-        if not norm:
+    # ── STEP 1 — diagnostico per pezzo ───────────────────────────────────────
+    tipi_in_mag: set[str] = {
+        (t or "").upper()
+        for (t,) in db.query(Material.tipo).filter(Material.tipo.isnot(None)).distinct().all()
+    }
+    step1 = [
+        {
+            "part_number":       it.part_number,
+            "profilo":           it.description,
+            "tipo":              it.tipo_profilo or "SCONOSCIUTO",
+            "tipo_in_magazzino": (it.tipo_profilo or "").upper() in tipi_in_mag,
+        }
+        for it in db_items if it.description
+    ]
+
+    # ── STEP 2 — mapping profili per tipo ─────────────────────────────────────
+    # Profili distinta: {tipo → set di profili normalizzati}
+    dist_by_tipo: dict[str, set[str]] = {}
+    for it in db_items:
+        if not it.description:
             continue
-        if norm not in agg:
-            agg[norm] = {"profilo_raw": it.profilo, "n_pezzi": 0, "mm_tot": 0.0, "lunghezze": []}
-        agg[norm]["n_pezzi"] += it.qty
-        if it.length_mm and it.length_mm > 0:
-            agg[norm]["mm_tot"] += it.length_mm * it.qty
-            agg[norm]["lunghezze"].extend([it.length_mm] * it.qty)
+        tipo = (it.tipo_profilo or "SCONOSCIUTO").upper()
+        norm = normalize_profile(it.description)
+        dist_by_tipo.setdefault(tipo, set()).add(norm)
 
-    # ── 4. Confronta profilo per profilo ─────────────────────────────────────
-    results: list[ProfileCompareResult] = []
+    # Profili magazzino: {tipo → {norm_profilo → rows}}
+    mag_rows_all = db.query(Material).filter(
+        Material.tipo.isnot(None),
+        Material.profilo.isnot(None),
+    ).all()
+    mag_by_tipo: dict[str, dict[str, list]] = {}
+    for m in mag_rows_all:
+        tipo = (m.tipo or "").upper()
+        norm = normalize_profile(m.profilo or "")
+        if norm:
+            mag_by_tipo.setdefault(tipo, {}).setdefault(norm, []).append(m)
 
-    for norm, data in sorted(agg.items()):
-        matching_inv = inv_idx.get(norm, [])
-        mm_req  = data["mm_tot"]
-        mm_disp = _compute_mm_disponibili(matching_inv)
+    # Upsert profile_aliases: auto-mappa corrispondenze esatte, marca non mappati
+    mapping_result = []
+    for tipo, dist_profili in sorted(dist_by_tipo.items()):
+        mag_profili: set[str] = set(mag_by_tipo.get(tipo, {}).keys())
+        for pd in sorted(dist_profili):
+            auto_match = pd if pd in mag_profili else None
+            row = db.query(ProfileAlias).filter(
+                ProfileAlias.tipo == tipo,
+                ProfileAlias.profilo_distinta == pd,
+            ).first()
+            if row is None:
+                row = ProfileAlias(
+                    tipo=tipo,
+                    profilo_distinta=pd,
+                    profilo_magazzino=auto_match,
+                    mappato=auto_match is not None,
+                )
+                db.add(row)
+            elif not row.mappato and auto_match:
+                # Promuove a mappato se ora esiste corrispondenza
+                row.profilo_magazzino = auto_match
+                row.mappato = True
+            mapping_result.append({
+                "tipo":              tipo,
+                "profilo_distinta":  pd,
+                "profilo_magazzino": row.profilo_magazzino if row.mappato else auto_match or row.profilo_magazzino,
+                "mappato":           row.mappato or (auto_match is not None),
+            })
+    db.commit()
 
-        # Profili senza lunghezze richieste (lamiere, pezzi singoli) → nd
-        if mm_req == 0:
+    # Alias mappati: {(tipo, profilo_distinta) → profilo_magazzino}
+    alias_map: dict[tuple[str, str], str] = {
+        (r["tipo"], r["profilo_distinta"]): r["profilo_magazzino"]
+        for r in mapping_result
+        if r["mappato"] and r["profilo_magazzino"]
+    }
+
+    # ── STEP 3 — match dimensionale (pool virtuale per profilo magazzino) ─────
+    # Pool: {profilo_mag_norm → {dim_mm → count}}
+    virtual_pool: dict[str, dict[float, int]] = {}
+    for m in mag_rows_all:
+        tipo = (m.tipo or "").upper()
+        norm_mag = normalize_profile(m.profilo or "")
+        dim = _parse_dim_linear(m.dimensioni)
+        if not norm_mag or not dim:
+            continue
+        # Calcola n_pezzi dal DB magazzino (movimenti)
+        from sqlalchemy import func, case as sa_case
+        n_res = db.query(
+            func.coalesce(func.sum(sa_case(
+                (StockMovement.movement_type == MovementType.INCOMING, StockMovement.quantity),
+                else_=0,
+            )), 0).label("inc"),
+            func.coalesce(func.sum(sa_case(
+                (StockMovement.movement_type == MovementType.OUTGOING, StockMovement.quantity),
+                else_=0,
+            )), 0).label("out"),
+        ).filter(StockMovement.material_id == m.id).one()
+        n = int(float(n_res.inc) - float(n_res.out))
+        if n > 0:
+            virtual_pool.setdefault(norm_mag, {})
+            virtual_pool[norm_mag][dim] = virtual_pool[norm_mag].get(dim, 0) + n
+
+    def _consume_bar(pool: dict[float, int], length_mm: float) -> float | None:
+        """Trova e rimuove dal pool la barra più corta >= length_mm. Ritorna dim usata o None."""
+        fitting = [(d, c) for d, c in pool.items() if d >= length_mm and c > 0]
+        if not fitting:
+            return None
+        best = min(fitting, key=lambda x: x[0])
+        pool[best[0]] -= 1
+        return best[0]
+
+    # Step 4 — risultato per pezzo
+    step4: list[dict] = []
+    for it in db_items:
+        if not it.description:
+            continue
+        tipo      = (it.tipo_profilo or "SCONOSCIUTO").upper()
+        norm_dist = normalize_profile(it.description)
+        key       = (tipo, norm_dist)
+        norm_mag  = alias_map.get(key)
+        lmm       = float(it.length_mm) if it.length_mm else None
+
+        if norm_mag is None:
+            stato = "non_mappato"
+            bar_usata = None
+        elif lmm is None:
             stato = "nd"
-            sfrido_pct = None
-            n_barre = None
-        elif mm_disp == 0:
-            stato = "mancante"
-            sfrido_pct = None
-            n_barre = None
-        elif mm_disp >= mm_req:
-            stato = "disponibile"
-            bar_len = _dominant_bar_length(matching_inv)
-            if bar_len:
-                sfrido_pct, n_barre = _compute_sfrido(data["lunghezze"], bar_len)
-            else:
-                sfrido_pct, n_barre = None, None
+            bar_usata = None
         else:
-            stato = "parziale"
-            bar_len = _dominant_bar_length(matching_inv)
-            if bar_len:
-                sfrido_pct, n_barre = _compute_sfrido(data["lunghezze"], bar_len)
-            else:
-                sfrido_pct, n_barre = None, None
+            bar_usata = _consume_bar(virtual_pool.get(norm_mag, {}), lmm)
+            stato = "disponibile" if bar_usata else "mancante"
 
-        inv_summary = [
-            {
-                "profilo": r.get("profilo"),
-                "n_pezzi": r.get("quantity") or r.get("n_pezzi"),
-                "dim_mm": _parse_dim_linear(r.get("dimensioni")),
-                "dimensioni_raw": r.get("dimensioni"),
-                "qualita": r.get("qualita"),
-            }
-            for r in matching_inv
-        ]
+        step4.append({
+            "part_number":       it.part_number,
+            "profilo":           it.description,
+            "tipo":              tipo,
+            "profilo_magazzino": norm_mag,
+            "length_mm":         lmm,
+            "stato":             stato,
+            "bar_usata_mm":      bar_usata,
+        })
 
-        results.append(ProfileCompareResult(
-            profilo_norm=norm,
-            profilo_raw=data["profilo_raw"],
-            n_pezzi_richiesti=data["n_pezzi"],
-            mm_richiesti=round(mm_req, 1),
-            mm_disponibili=round(mm_disp, 1),
-            stato=stato,
-            sfrido_pct=sfrido_pct,
-            barre_necessarie=n_barre,
-            inventory_rows=inv_summary,
-        ))
+    # ── STEP 5 — aggregato per (tipo, profilo_distinta) ───────────────────────
+    from collections import Counter
+    agg: dict[tuple, Counter] = {}
+    for r in step4:
+        key = (r["tipo"], r["profilo"], r["profilo_magazzino"])
+        agg.setdefault(key, Counter())
+        agg[key][r["stato"]] += 1
 
-    # ── 5. Sommario ───────────────────────────────────────────────────────────
-    stati = [r.stato for r in results]
-    return DistintaCompareResult(
-        profiles=results,
-        inventory_source=inv_source,
-        n_disponibili=stati.count("disponibile"),
-        n_parziali=stati.count("parziale"),
-        n_mancanti=stati.count("mancante"),
-        n_nd=stati.count("nd"),
-    )
+    step5 = [
+        {
+            "tipo":              k[0],
+            "profilo_distinta":  k[1],
+            "profilo_magazzino": k[2],
+            "n_disponibili":     c.get("disponibile", 0),
+            "n_mancanti":        c.get("mancante", 0),
+            "n_non_mappati":     c.get("non_mappato", 0),
+            "n_nd":              c.get("nd", 0),
+            "stato": (
+                "disponibile" if c.get("mancante", 0) == 0 and c.get("non_mappato", 0) == 0
+                else "mancante"  if c.get("disponibile", 0) == 0
+                else "parziale"
+            ),
+        }
+        for k, c in sorted(agg.items())
+    ]
+
+    return {
+        "step1_per_pezzo":    step1,
+        "step2_mapping":      mapping_result,
+        "step4_per_pezzo":    step4,
+        "step5_per_profilo":  step5,
+    }
 
 
 # ── Material request schemas ──────────────────────────────────────────────────

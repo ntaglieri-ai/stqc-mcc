@@ -193,6 +193,7 @@ def get_magazzino_list(
             Material.commessa_ref,
             Material.peso_u_kg,
             Material.peso_1_pz,
+            Material.norma_uni,
             func.coalesce(
                 func.sum(
                     case(
@@ -239,8 +240,9 @@ def get_magazzino_list(
             "qualita": r.qualita,
             "colata": r.colata,
             "commessa_ref": r.commessa_ref,
-            "peso_kg": peso_kg,
+            "peso_kg":   peso_kg,
             "peso_u_kg": float(r.peso_u_kg) if r.peso_u_kg is not None else None,
             "peso_1_pz": peso_1_pz,
+            "norma_uni": r.norma_uni,
         })
     return result

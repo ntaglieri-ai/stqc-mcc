@@ -371,9 +371,9 @@ async function api(path, opts = {}) {
   const navUser = document.getElementById('nav-user');
   if (navUser) navUser.textContent = nome || profilo;
 
-  // Logistica-only buttons
+  // Logistica + Direttore buttons
   document.querySelectorAll('.perm-logistica').forEach(el => {
-    if (profilo !== 'Logistica') el.style.display = 'none';
+    if (profilo !== 'Logistica' && profilo !== 'Direttore') el.style.display = 'none';
   });
 
   // Import: Responsabile + Logistica (hide for Acquisti)
@@ -381,8 +381,8 @@ async function api(path, opts = {}) {
     if (profilo === 'Acquisti') el.style.display = 'none';
   });
 
-  // Show Logistica request banner
-  if (profilo === 'Logistica') {
+  // Show request banner for Logistica and Direttore
+  if (profilo === 'Logistica' || profilo === 'Direttore') {
     loadRequestsBannerCount();
   }
 })();
@@ -436,6 +436,7 @@ const MAG = {
     { key: 'profilo',      label: 'PROFILO',      align: 'l', w: '90px'  },
     { key: 'n_pezzi',      label: 'N° PEZZI',     align: 'r', w: '78px',  num: true },
     { key: 'dimensioni',   label: 'DIMENSIONI',   align: 'l', w: '105px' },
+    { key: 'norma_uni',    label: 'NORMA',        align: 'l', w: '88px'  },
     { key: 'qualita',      label: "QUALITA'",     align: 'l', w: '85px'  },
     { key: 'colata',       label: 'COLATA',       align: 'l', w: '80px'  },
     { key: 'commessa_ref', label: 'COMMESSA',     align: 'l', w: '95px'  },
@@ -736,6 +737,7 @@ const MAG = {
           <td class="text-sm font-mono text-gray-700" style="${br}">${esc(m.profilo||'')}</td>
           <td class="text-right" style="${br}">${badge}</td>
           <td class="text-sm text-gray-600" style="${br}">${esc(m.dimensioni||'')}</td>
+          <td class="text-sm text-gray-500" style="${br}">${esc(m.norma_uni||'')}</td>
           <td class="text-sm text-gray-700 font-medium" style="${br}">${esc(m.qualita||'')}</td>
           <td class="text-sm font-mono text-gray-500" style="${br}">${esc(m.colata||'')}</td>
           <td class="text-sm text-gray-500" style="${br}">${esc(m.commessa_ref||'')}</td>

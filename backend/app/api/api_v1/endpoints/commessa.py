@@ -22,7 +22,11 @@ from backend.app.models.commessa import (
 from backend.app.models.user import ProfiloUtente, User, UserAttributes
 from backend.app.models.warehouse import DistintaImport, DistintaItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
-from backend.app.services.distinta import normalized_to_db_bulk, parse_two_files
+from backend.app.services.distinta import (
+    load_prefixes_from_db,
+    normalized_to_db_bulk,
+    parse_two_files,
+)
 from backend.app.services.fasi_operative import parse_fasi_operative
 from backend.app.services.qr import generate_qr_for_uuid
 
@@ -109,9 +113,12 @@ async def upload_revisione(
     with lav_dest.open("wb") as f:
         f.write(await lavorazioni.read())
 
+    # Carica i tipi profilo dal DB per la classificazione
+    prefixes = load_prefixes_from_db(db)
+
     # Parser su copie su disco
     try:
-        items_normalized, report = parse_two_files(asm_dest, lav_dest)
+        items_normalized, report = parse_two_files(asm_dest, lav_dest, prefixes=prefixes)
     except Exception as exc:
         _logger.exception("Errore nel parsing revisione %s commessa %d", codice_rev, commessa_id)
         raise HTTPException(422, f"Errore parser: {exc}")

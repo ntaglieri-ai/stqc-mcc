@@ -165,6 +165,7 @@ class MagazzinoItemRead(BaseModel):
     peso_kg: Optional[float] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
+    norma_uni: Optional[str] = None
     unita_misura: Optional[str] = "pz"
     dimensione_2: Optional[float] = None
     quantita_prenotata: Optional[float] = 0

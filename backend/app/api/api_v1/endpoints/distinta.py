@@ -16,7 +16,12 @@ from backend.app.crud.distinta import (
 )
 from backend.app.db.session import get_db
 from backend.app.schemas.distinta import DistintaImportRead
-from backend.app.services.distinta import parse_distinta_file, parse_lista_parti
+from backend.app.services.distinta import (
+    classify_profile,
+    load_prefixes_from_db,
+    parse_distinta_file,
+    parse_lista_parti,
+)
 from backend.app.services.label import generate_label_pdf
 
 router = APIRouter()
@@ -46,6 +51,12 @@ async def import_distinta_file(
             os.remove(tmp_path)
         except OSError:
             pass
+
+    # Classificazione tipo_profilo da profile_types DB
+    prefixes = load_prefixes_from_db(db)
+    for item_data in items:
+        prof = item_data.get("description") or ""   # campo già normalizzato via _normalized_to_db
+        item_data["tipo_profilo"] = classify_profile(prof, prefixes)
 
     import_data = {
         "filename": file.filename,

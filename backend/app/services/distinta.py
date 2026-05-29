@@ -80,17 +80,55 @@ def normalize_profile(value: str | None) -> str:
     return _PROFILE_ALIASES.get(v, v)
 
 
+def classify_profile(profile_norm: str, prefixes: dict[str, str]) -> str:
+    """Classifica un profilo normalizzato cercando il prefisso più lungo che matcha.
+
+    Args:
+        profile_norm: profilo già normalizzato (es. "HEB240", "PL10*140")
+        prefixes:     dict {PREFISSO_UPPER → tipo} caricato da profile_types nel DB
+
+    Returns:
+        tipo (es. "TRAVI", "LAMIERA") oppure "SCONOSCIUTO" se nessun prefisso matcha.
+
+    La ricerca usa il prefisso più lungo per evitare che "L" catturi "LAMIERA" o "PL".
+    """
+    if not profile_norm or not prefixes:
+        return "SCONOSCIUTO"
+    v = profile_norm.upper()
+    best = max(
+        (pref for pref in prefixes if v.startswith(pref)),
+        key=len,
+        default=None,
+    )
+    return prefixes[best] if best else "SCONOSCIUTO"
+
+
+def load_prefixes_from_db(db) -> dict[str, str]:
+    """Carica {PREFISSO → tipo} dalla tabella profile_types nel DB.
+
+    Restituisce dict vuoto se la tabella non è popolata (l'import continua ma
+    tipo_profilo verrà impostato a SCONOSCIUTO per tutti i pezzi).
+    """
+    from backend.app.models.warehouse import ProfileType
+    rows = db.query(ProfileType).all()
+    return {r.prefisso.upper(): r.tipo for r in rows}
+
+
 # ── Alias colonne ─────────────────────────────────────────────────────────────
 
 ALIASES: dict[str, list[str]] = {
-    "part_code":      ["marca/pos.", "posizione", "part", "codice", "position", "parte", "marca/pos"],
-    "assembly":       ["assemb.", "assemb", "assembly", "assemblato", "asemb.", "asemb"],
-    "profile":        ["profilo", "section", "profile", "descrizione", "desc"],
-    "qty":            ["q.tà", "q.ta", "qty", "quantity", "quantita", "n°", "qta"],
-    "weight":         ["peso(kg) un.", "peso(kg)un.", "peso kg un.", "peso", "weight", "peso unit.", "peso(kg)"],
-    "length_mm":      ["lunghezza", "lungh.", "lung.", "length", "lung", "l(mm)", "l mm"],
-    "material":       ["materiale", "material", "qualità", "qualita", "quality"],
-    "commessa_ref":   ["commessa", "commessa_reference", "commessa_ref", "order"],
+    "part_code":    ["marca/pos.", "posizione", "part", "codice", "position", "parte", "marca/pos"],
+    "assembly":     ["assemb.", "assemb", "assembly", "assemblato", "asemb.", "asemb"],
+    "profile":      ["profilo", "section", "profile", "descrizione", "desc"],
+    "qty":          ["q.tà", "q.ta", "qty", "quantity", "quantita", "n°", "qta"],
+    # weight: il file assemblaggi usa "Peso(kg) un.", il file lavorazioni usa "Peso Netto (kg) per uno"
+    "weight":       ["peso(kg) un.", "peso(kg)un.", "peso kg un.", "peso", "weight",
+                     "peso unit.", "peso(kg)", "peso netto (kg) per uno", "peso netto(kg) per uno"],
+    # length_mm: il file assemblaggi usa "Lungh. (mm)" (con spazio e parentesi),
+    #            il file lavorazioni usa "Lungh." (senza parentesi)
+    "length_mm":    ["lunghezza", "lungh.", "lungh. (mm)", "lung.", "length", "lung", "l(mm)", "l mm"],
+    "material":     ["materiale", "material", "qualità", "qualita", "quality"],
+    "commessa_ref": ["commessa", "commessa_reference", "commessa_ref", "order"],
 }
 
 
@@ -284,6 +322,7 @@ def _parse_single(file_path: Path) -> tuple[list[dict], set[str]]:
 def parse_two_files(
     file_a: Path,
     file_b: Path,
+    prefixes: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict]:
     """Unisce i due file Tekla e restituisce (items, validation_report).
 
@@ -291,6 +330,9 @@ def parse_two_files(
     analizzando le colonne header di ciascun file.
     - File con "Assemb." + "Parte" in colonne distinte → lista assemblaggi
     - File con "Marca/Pos." senza "Assemb." separata   → lista lavorazioni
+
+    prefixes: dict {PREFISSO → tipo} da profile_types nel DB. Se fornito,
+              ogni pezzo viene classificato e i profili SCONOSCIUTO diventano anomalie.
     """
     type_a = _detect_file_type(file_a)
     type_b = _detect_file_type(file_b)
@@ -346,11 +388,34 @@ def parse_two_files(
         inst_counter[pc] = inst_counter.get(pc, 0) + 1
         item["instance_number"] = inst_counter[pc]
 
+    # Classificazione per tipo profilo (richiede prefixes dal DB)
+    sconosciuti: list[str] = []
+    for item in merged:
+        prof = item.get("profile") or ""
+        if prefixes is not None:
+            tipo = classify_profile(prof, prefixes)
+            item["tipo_profilo"] = tipo
+            if tipo == "SCONOSCIUTO" and prof:
+                sconosciuti.append(f"Profilo sconosciuto: {item['part_code']} ({prof})")
+        else:
+            item["tipo_profilo"] = None
+
     # Tutti i codici assemblaggio validi = part_codes + header-row assemblaggi
     known_assemblies = {i["part_code"] for i in asm_items} | asm_headers
 
     report = _validate(merged, known_assemblies)
     report["detected"] = detected
+    if sconosciuti:
+        report["errors"] = report.get("errors", []) + sconosciuti
+        report["ok"] = False
+        # Ricalcola summary
+        n_err = len(report.get("errors", []))
+        n_warn = len(report.get("warnings", []))
+        report["summary"] = (
+            f"Import CON ERRORI — {report['total_pieces']} pezzi fisici · "
+            f"{report['unique_parts']} posizioni · {report['assemblies']} assemblaggi · "
+            f"{n_err} errori · {n_warn} warning"
+        )
     return merged, report
 
 
@@ -441,4 +506,5 @@ def _normalized_to_db(item: dict) -> dict:
         "weight_kg":            item.get("weight_kg"),
         "instance_number":      item.get("instance_number"),
         "parent_assembly":      item.get("assembly_parent"),
+        "tipo_profilo":         item.get("tipo_profilo"),
     }

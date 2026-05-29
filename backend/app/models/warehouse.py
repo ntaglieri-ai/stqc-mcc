@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -21,6 +22,30 @@ from backend.app.db.base import Base
 
 def _gen_uuid() -> str:
     return str(_uuid.uuid4())
+
+
+class ProfileAlias(Base):
+    """Mappa profilo distinta → profilo magazzino per ogni tipo.
+    Popolata automaticamente dal compare (match esatto) o manualmente dall'admin.
+    profilo_magazzino=NULL → non ancora mappato, compare lo salta.
+    """
+    __tablename__ = "profile_aliases"
+    __table_args__ = (UniqueConstraint("tipo", "profilo_distinta", name="uq_profile_alias"),)
+
+    id                = Column(Integer, primary_key=True, index=True)
+    tipo              = Column(String(100), nullable=False, index=True)
+    profilo_distinta  = Column(String(200), nullable=False)
+    profilo_magazzino = Column(String(200), nullable=True)   # NULL = non mappato
+    mappato           = Column(Boolean,     nullable=False, default=False)
+
+
+class ProfileType(Base):
+    """Mappa prefisso profilo → tipo materiale (usata dal parser per classificare ogni pezzo)."""
+    __tablename__ = "profile_types"
+
+    id       = Column(Integer, primary_key=True, index=True)
+    prefisso = Column(String(50),  nullable=False, unique=True, index=True)
+    tipo     = Column(String(100), nullable=False)
 
 
 class MovementType(str, Enum):
@@ -60,6 +85,11 @@ class Material(Base):
     commessa_ref = Column(String(200), nullable=True)
     peso_u_kg = Column(Numeric(12, 4), nullable=True)
     peso_1_pz = Column(Numeric(12, 4), nullable=True)
+
+    # Campi normativi e tecnici
+    norma_uni      = Column(String(50),      nullable=True)   # es. EN 10034
+    peso_kg_m      = Column(Numeric(10, 4),  nullable=True)   # kg/m lineare
+    dimensioni_std = Column(Numeric(12, 2),  nullable=True)   # lunghezza barra std mm
 
     # Campi gestione stock avanzata
     unita_misura = Column(String(10), nullable=False, server_default="pz")
@@ -188,6 +218,7 @@ class DistintaItem(Base):
     instance_number      = Column(Integer, nullable=True)
     parent_assembly      = Column(String(200), nullable=True)
     invalidato           = Column(Boolean, nullable=False, default=False)
+    tipo_profilo         = Column(String(100), nullable=True)   # da profile_types
     qr_code              = Column(Text, nullable=True)          # base64 PNG
     mapped_material_id   = Column(Integer, ForeignKey("materials.id"), nullable=True)
 
