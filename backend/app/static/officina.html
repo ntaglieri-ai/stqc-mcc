@@ -5,448 +5,464 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>STQC · Officina</title>
+<title>F2 · Officina</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f172a;--surf:#1e293b;--surf2:#263347;
+  --border:rgba(255,255,255,.08);--text:rgba(255,255,255,.9);--muted:rgba(255,255,255,.38);
+  --green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7;
+  --r:14px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overscroll-behavior:none}
+.screen{display:none;flex-direction:column;height:100dvh}
+.screen.active{display:flex}
 
-  :root {
-    --bg:       #0f172a;
-    --surface:  #1e293b;
-    --border:   rgba(255,255,255,.08);
-    --text:     rgba(255,255,255,.9);
-    --muted:    rgba(255,255,255,.4);
-    --green:    #22c55e;
-    --blue:     #3b82f6;
-    --red:      #ef4444;
-    --amber:    #f59e0b;
-    --radius:   16px;
-  }
+/* topbar */
+.top{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--border);flex-shrink:0}
+.top-back{background:none;border:none;color:var(--blue);font-size:24px;cursor:pointer;padding:2px 6px;border-radius:8px;line-height:1;-webkit-tap-highlight-color:transparent}
+.top-info{flex:1;min-width:0}
+.top-title{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.top-user{font-size:12px;color:var(--muted);white-space:nowrap}
 
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+/* scroll body */
+.body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
 
-  /* ── Layout ── */
-  .screen { display: none; flex-direction: column; height: 100dvh; height: 100vh; }
-  .screen.active { display: flex; }
+/* card list */
+.card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .12s,transform .12s}
+.card:active{opacity:.7;transform:scale(.98)}
+.card-title{font-size:18px;font-weight:800}
+.card-sub{font-size:13px;color:var(--muted);margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;margin-top:8px}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-blue {background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amber)}
 
-  .topbar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 14px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .topbar-back { background: none; border: none; color: var(--blue); font-size: 22px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
-  .topbar-title { font-size: 17px; font-weight: 700; flex: 1; }
-  .topbar-sub   { font-size: 11px; color: var(--muted); font-weight: 400; display: block; margin-top: 1px; }
-  .topbar-user  { font-size: 12px; color: var(--muted); }
+/* ── Postazioni ── */
+.pst-group-label{
+  font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--muted);padding:18px 4px 8px;
+}
+.pst-card{
+  display:flex;align-items:center;gap:16px;
+  background:var(--surf);border:1px solid var(--border);border-radius:16px;
+  padding:18px 16px;min-height:76px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .12s,transform .1s;
+  position:relative;overflow:hidden;
+}
+.pst-card:active{background:var(--surf2);transform:scale(.98)}
+.pst-icon-wrap{
+  width:50px;height:50px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;flex-shrink:0;
+}
+.pst-name{font-size:18px;font-weight:800;line-height:1.2}
+.pst-meta{display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap}
+.pst-badge{
+  font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;
+  background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);
+}
+.pst-badge.has-work{background:rgba(59,130,246,.18);color:#93c5fd}
+.pst-dot-corso{
+  width:9px;height:9px;border-radius:50%;background:var(--amber);flex-shrink:0;
+  box-shadow:0 0 0 3px rgba(245,158,11,.25);animation:pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(245,158,11,.25)}50%{box-shadow:0 0 0 6px rgba(245,158,11,.1)}}
+.pst-in-corso-label{font-size:11px;font-weight:700;color:var(--amber)}
+.pst-arrow{margin-left:auto;color:rgba(255,255,255,.18);font-size:18px;flex-shrink:0}
 
-  .list-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+/* group header — lasciato per compatibilità */
+.group-hdr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:8px 4px 6px}
 
-  .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 18px 16px; cursor: pointer; transition: all .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .card:active { opacity: .75; transform: scale(.98); }
-  .card-title  { font-size: 17px; font-weight: 700; }
-  .card-sub    { font-size: 13px; color: var(--muted); margin-top: 4px; }
-  .card-badge  { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 12px; margin-top: 8px; }
-  .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
-  .badge-blue  { background: rgba(59,130,246,.15); color: var(--blue); }
-  .badge-amber { background: rgba(245,158,11,.15); color: var(--amber); }
+/* stato dots */
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-attesa{background:rgba(255,255,255,.2)}
+.dot-corso{background:var(--amber);box-shadow:0 0 0 3px rgba(245,158,11,.25)}
+.dot-fatto{background:var(--green)}
 
-  .empty { text-align: center; padding: 60px 24px; color: var(--muted); font-size: 15px; }
-  .spinner { display: flex; justify-content: center; padding: 60px; }
-  .spin { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* pezzo card */
+.pz-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:opacity .25s}
+.pz-card.completato{opacity:.45}
+.pz-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pz-head:active{background:rgba(255,255,255,.04)}
+.pz-info{flex:1;min-width:0}
+.pz-part{font-size:18px;font-weight:900;font-family:monospace}
+.pz-desc{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pz-stato{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;margin-top:5px}
+.stato-attesa{color:var(--muted)}
+.stato-corso{color:var(--amber)}
+.stato-fatto{color:var(--green)}
 
-  /* ── Schermata pezzo + SCAN ── */
-  .pezzo-hero {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 24px; gap: 20px;
-  }
-  .pezzo-label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
-  .pezzo-part  { font-size: 32px; font-weight: 900; font-family: monospace; text-align: center; }
-  .pezzo-prof  { font-size: 18px; color: var(--muted); text-align: center; }
+/* scan button */
+.pz-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
+.btn-scan{
+  width:100%;padding:18px;border-radius:12px;border:none;
+  font-size:16px;font-weight:800;letter-spacing:.03em;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  -webkit-tap-highlight-color:transparent;transition:opacity .15s,transform .1s
+}
+.btn-scan:active{opacity:.8;transform:scale(.98)}
+.btn-scan.scan-idle{background:var(--green);color:#fff}
+.btn-scan.scan-corso{background:var(--amber);color:#fff}
+.btn-scan.scan-fatto{background:rgba(34,197,94,.15);color:var(--green);cursor:not-allowed}
+.ts{font-size:11px;color:var(--muted);text-align:center}
 
-  .btn-scan {
-    width: 180px; height: 180px; border-radius: 50%; border: none; cursor: pointer;
-    font-size: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 6px; transition: all .2s; -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 8px 32px rgba(0,0,0,.4);
-  }
-  .btn-scan-label { font-size: 14px; font-weight: 800; letter-spacing: .05em; }
-  .btn-scan.idle  { background: var(--green);  color: #fff; }
-  .btn-scan.start { background: var(--amber);  color: #fff; }
-  .btn-scan.done  { background: var(--blue);   color: #fff; cursor: not-allowed; opacity: .8; }
-  .btn-scan:active:not(.done) { transform: scale(.95); }
+/* camera overlay */
+.cam-ov{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center}
+.cam-ov.open{display:flex}
+.cam-wrap{position:relative;width:100%;max-width:480px;aspect-ratio:1}
+#cam-video{width:100%;height:100%;object-fit:cover}
+#cam-canvas{display:none}
+.cam-frame{position:absolute;inset:12%;border:3px solid var(--green);border-radius:12px;box-shadow:0 0 0 4000px rgba(0,0,0,.6)}
+.cam-line{position:absolute;left:0;right:0;height:2px;background:var(--green);animation:scan 1.8s ease-in-out infinite}
+@keyframes scan{0%,100%{top:0}50%{top:calc(100% - 2px)}}
+.cam-status{color:#fff;margin-top:20px;font-size:15px;font-weight:600;text-align:center;padding:0 24px}
+.cam-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:22px;width:46px;height:46px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
 
-  .stato-label { font-size: 13px; font-weight: 700; text-align: center; }
-  .stato-nessuno { color: var(--muted); }
-  .stato-inizio  { color: var(--amber); }
-  .stato-fine    { color: var(--blue);  }
+/* toast */
+.toast-wrap{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:300;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:8px}
+.toast{padding:14px 22px;border-radius:14px;font-size:15px;font-weight:700;text-align:center;max-width:calc(100vw - 32px);box-shadow:0 8px 32px rgba(0,0,0,.4);animation:tin .25s ease;white-space:nowrap}
+.toast.ok{background:var(--green);color:#fff}
+.toast.err{background:var(--red);color:#fff}
+@keyframes tin{from{opacity:0;transform:translateY(16px)}}
 
-  /* ── Camera overlay ── */
-  .camera-overlay {
-    position: fixed; inset: 0; background: #000; z-index: 100;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-  }
-  .camera-overlay.open { display: flex; }
-  .camera-wrap { position: relative; width: 100%; max-width: 480px; aspect-ratio: 1; overflow: hidden; }
-  #cam-video   { width: 100%; height: 100%; object-fit: cover; }
-  #cam-canvas  { display: none; }
-  .scan-frame  {
-    position: absolute; inset: 15%; border: 3px solid var(--green);
-    border-radius: 12px; box-shadow: 0 0 0 4000px rgba(0,0,0,.55);
-  }
-  .scan-line {
-    position: absolute; left: 0; right: 0; height: 2px; background: var(--green);
-    animation: scanline 2s ease-in-out infinite;
-  }
-  @keyframes scanline { 0%,100% { top: 0; } 50% { top: calc(100% - 2px); } }
-  .camera-status { color: #fff; margin-top: 20px; font-size: 15px; font-weight: 600; }
-  .camera-close  {
-    position: absolute; top: 20px; right: 20px;
-    background: rgba(255,255,255,.15); border: none; color: #fff;
-    font-size: 22px; border-radius: 50%; width: 44px; height: 44px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-  }
-
-  /* ── Result flash ── */
-  .result-flash {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    padding: 16px 24px; border-radius: 14px; font-size: 16px; font-weight: 700;
-    box-shadow: 0 8px 32px rgba(0,0,0,.4); z-index: 200; text-align: center;
-    max-width: calc(100vw - 32px); animation: flashIn .3s ease; white-space: nowrap;
-  }
-  .result-flash.ok  { background: var(--green); color: #fff; }
-  .result-flash.err { background: var(--red);   color: #fff; }
-  @keyframes flashIn { from { opacity:0; transform:translateX(-50%) translateY(20px); } }
-
-  /* ── Login fallback ── */
-  .login-wall { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 32px; }
-  .login-wall h1 { font-size: 24px; font-weight: 900; }
-  .btn-primary { background: var(--blue); color: #fff; border: none; border-radius: 12px; padding: 14px 32px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
+/* misc */
+.empty{text-align:center;padding:60px 24px;color:var(--muted);font-size:15px}
+.spin-wrap{display:flex;justify-content:center;padding:60px}
+.spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.login-wall{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;text-align:center}
+.btn-primary{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:16px;font-weight:700;cursor:pointer;width:100%}
 </style>
 </head>
 <body>
 
-<!-- ── S0: Auth wall ─────────────────────────────────────────────────────── -->
+<!-- auth wall -->
 <div class="screen active" id="s-auth">
   <div class="login-wall">
-    <div style="font-size:48px">🏭</div>
-    <h1>F2 · Officina</h1>
-    <p style="color:var(--muted);text-align:center">Devi effettuare il login per accedere all'officina.</p>
+    <div style="font-size:52px">🔩</div>
+    <div style="font-size:26px;font-weight:900">F2 · Officina</div>
+    <p style="color:var(--muted)">Accedi per continuare.</p>
     <button class="btn-primary" onclick="location.href='/login'">Vai al login</button>
   </div>
 </div>
 
-<!-- ── S1: Lista commesse ────────────────────────────────────────────────── -->
-<div class="screen" id="s-commesse">
-  <div class="topbar">
-    <span style="font-size:22px">🏭</span>
-    <div style="flex:1">
-      <div class="topbar-title">F2 · Officina</div>
-      <span class="topbar-sub">Seleziona commessa</span>
+<!-- s1: commesse -->
+<div class="screen" id="s1">
+  <div class="top">
+    <div class="top-info">
+      <div class="top-title">🔩 F2 · Officina</div>
+      <div class="top-sub">Seleziona commessa</div>
     </div>
-    <span class="topbar-user" id="user-badge"></span>
+    <span class="top-user" id="lbl-user"></span>
   </div>
-  <div class="list-body" id="commesse-list"><div class="spinner"><div class="spin"></div></div></div>
+  <div class="body" id="list-commesse"><div class="spin-wrap"><div class="spin"></div></div></div>
 </div>
 
-<!-- ── S2: Lista fasi ────────────────────────────────────────────────────── -->
-<div class="screen" id="s-fasi">
-  <div class="topbar">
-    <button class="topbar-back" onclick="goTo('s-commesse')">←</button>
-    <div style="flex:1">
-      <div class="topbar-title" id="fasi-commessa-label">—</div>
-      <span class="topbar-sub">Seleziona fase</span>
+<!-- s2: postazioni -->
+<div class="screen" id="s2">
+  <div class="top">
+    <button class="top-back" onclick="goTo('s1')">←</button>
+    <div class="top-info">
+      <div class="top-title" id="lbl-commessa">—</div>
+      <div class="top-sub">Seleziona postazione</div>
     </div>
   </div>
-  <div class="list-body" id="fasi-list"><div class="spinner"><div class="spin"></div></div></div>
+  <div class="body" id="list-postazioni"><div class="spin-wrap"><div class="spin"></div></div></div>
 </div>
 
-<!-- ── S3: Lista pezzi ───────────────────────────────────────────────────── -->
-<div class="screen" id="s-pezzi">
-  <div class="topbar">
-    <button class="topbar-back" onclick="goTo('s-fasi')">←</button>
-    <div style="flex:1">
-      <div class="topbar-title" id="pezzi-fase-label">—</div>
-      <span class="topbar-sub">Seleziona pezzo</span>
+<!-- s3: pezzi -->
+<div class="screen" id="s3">
+  <div class="top">
+    <button class="top-back" onclick="goTo('s2')">←</button>
+    <div class="top-info">
+      <div class="top-title" id="lbl-postazione">—</div>
+      <div class="top-sub" id="lbl-postazione-sub">—</div>
     </div>
+    <button onclick="loadPezzi()" style="background:none;border:none;color:var(--blue);font-size:18px;cursor:pointer;padding:4px">↻</button>
   </div>
-  <div class="list-body" id="pezzi-list"><div class="spinner"><div class="spin"></div></div></div>
+  <div class="body" id="list-pezzi"><div class="spin-wrap"><div class="spin"></div></div></div>
 </div>
 
-<!-- ── S4: Schermata SCAN ─────────────────────────────────────────────────── -->
-<div class="screen" id="s-scan">
-  <div class="topbar">
-    <button class="topbar-back" onclick="goTo('s-pezzi')">←</button>
-    <div style="flex:1">
-      <div class="topbar-title" id="scan-part-label">—</div>
-      <span class="topbar-sub" id="scan-fase-label">—</span>
-    </div>
-  </div>
-  <div class="pezzo-hero">
-    <div>
-      <div class="pezzo-label">Marca/Pos.</div>
-      <div class="pezzo-part" id="scan-part-num">—</div>
-      <div class="pezzo-prof" id="scan-profilo">—</div>
-    </div>
-
-    <button class="btn-scan idle" id="btn-scan" onclick="openCamera()">
-      <span>📷</span>
-      <span class="btn-scan-label">SCAN</span>
-    </button>
-
-    <div class="stato-label stato-nessuno" id="scan-stato-label">Nessun scan effettuato</div>
-  </div>
-</div>
-
-<!-- ── Camera overlay ─────────────────────────────────────────────────────── -->
-<div class="camera-overlay" id="cam-overlay">
-  <button class="camera-close" onclick="closeCamera()">✕</button>
-  <div class="camera-wrap">
+<!-- camera -->
+<div class="cam-ov" id="cam-ov">
+  <button class="cam-close" onclick="camClose()">✕</button>
+  <div class="cam-wrap">
     <video id="cam-video" autoplay playsinline muted></video>
     <canvas id="cam-canvas"></canvas>
-    <div class="scan-frame"><div class="scan-line"></div></div>
+    <div class="cam-frame"><div class="cam-line"></div></div>
   </div>
-  <div class="camera-status" id="cam-status">Inquadra il QR code del pezzo</div>
+  <div class="cam-status" id="cam-status">Inquadra il QR code del pezzo</div>
 </div>
 
-<!-- jsQR — lightweight QR decoder, no external dependencies, ~60kb -->
+<!-- toasts -->
+<div class="toast-wrap" id="toasts"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
 'use strict';
 
-// ── Auth ────────────────────────────────────────────────────────────────────
+/* ── Auth ──────────────────────────────────────────────────────────────────── */
 const TOKEN = localStorage.getItem('stqc_token');
-const NOME  = localStorage.getItem('stqc_nome') || localStorage.getItem('stqc_profilo') || '';
-function getAuth() { return 'Bearer ' + TOKEN; }
+const NOME  = localStorage.getItem('stqc_nome') || localStorage.getItem('stqc_profilo') || 'Operatore';
+function auth(){ return {'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'} }
 
-if (!TOKEN) {
-  goTo('s-auth');
-} else {
-  document.getElementById('user-badge').textContent = NOME;
+if (!TOKEN) { /* s-auth già attivo */ }
+else {
+  document.getElementById('lbl-user').textContent = NOME;
   loadCommesse();
-  goTo('s-commesse');
+  goTo('s1');
 }
 
-// ── State ────────────────────────────────────────────────────────────────────
-let _commessa = null;
-let _fase     = null;
-let _pezzo    = null;   // {marca_pos, item_id, profilo, stato_corrente, item_uuid}
-let _camStream = null;
-let _rafId     = null;
+/* ── State ─────────────────────────────────────────────────────────────────── */
+let _commessa   = null;  // {id, codice}
+let _postazione = null;  // string
+let _camStream  = null;
+let _rafId      = null;
+let _scanTarget = null;  // {uuid, part_number, description} del pezzo corrente
 
-// ── Navigation ────────────────────────────────────────────────────────────────
-function goTo(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+/* ── Navigation ────────────────────────────────────────────────────────────── */
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-// ── Flash message ─────────────────────────────────────────────────────────────
-function flash(msg, type = 'ok', ms = 3000) {
-  const el = document.createElement('div');
-  el.className = `result-flash ${type}`;
+/* ── Toast ─────────────────────────────────────────────────────────────────── */
+function toast(msg, type='ok', ms=3200){
+  const wrap = document.getElementById('toasts');
+  const el   = document.createElement('div');
+  el.className = 'toast '+type;
   el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), ms);
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), ms);
 }
 
-// ── S1: Commesse ──────────────────────────────────────────────────────────────
-async function loadCommesse() {
-  const el = document.getElementById('commesse-list');
+/* ── S1: Commesse ──────────────────────────────────────────────────────────── */
+async function loadCommesse(){
+  const el = document.getElementById('list-commesse');
   try {
-    const res  = await fetch('/api/v1/commesse?status=IN_PRODUZIONE&limit=100', { headers: { Authorization: getAuth() } });
-    const data = await res.json();
-    if (!data.length) { el.innerHTML = '<div class="empty">Nessuna commessa in produzione.</div>'; return; }
-    el.innerHTML = data.map(c => `
-      <div class="card" onclick="selectCommessa(${c.id},'${esc(c.codice)}','${esc(c.cliente||'')}')">
+    const r = await fetch('/api/v1/officina/commesse',{headers:auth()});
+    const data = await r.json();
+    if(!data.length){ el.innerHTML='<div class="empty">Nessuna commessa in produzione.</div>'; return; }
+    el.innerHTML = data.map(c=>`
+      <div class="card" onclick="selCommessa(${c.id},'${esc(c.codice)}','${esc(c.cliente||'')}')">
         <div class="card-title">${esc(c.codice)}</div>
         <div class="card-sub">${esc(c.cliente||'—')}</div>
-        <span class="card-badge badge-green">IN PRODUZIONE</span>
+        <span class="badge badge-green">● In produzione</span>
       </div>`).join('');
-  } catch { el.innerHTML = '<div class="empty">Errore caricamento commesse.</div>'; }
+  } catch(e){ el.innerHTML='<div class="empty">Errore caricamento.</div>'; }
 }
 
-async function selectCommessa(id, codice, cliente) {
-  _commessa = { id, codice, cliente };
-  document.getElementById('fasi-commessa-label').textContent = codice;
-  goTo('s-fasi');
-  await loadFasi(id);
+async function selCommessa(id, codice, cliente){
+  _commessa = {id, codice, cliente};
+  document.getElementById('lbl-commessa').textContent = codice;
+  goTo('s2');
+  await loadPostazioni(id);
 }
 
-// ── S2: Fasi ──────────────────────────────────────────────────────────────────
-async function loadFasi(commessaId) {
-  const el = document.getElementById('fasi-list');
-  el.innerHTML = '<div class="spinner"><div class="spin"></div></div>';
+/* ── Icone postazioni ──────────────────────────────────────────────────────── */
+const PST_ICON = {
+  'Taglio Laser':                    { emoji:'⚡', bg:'rgba(250,204,21,.15)',  color:'#fde047' },
+  'Taglio Standard':                 { emoji:'🔪', bg:'rgba(248,113,113,.15)', color:'#fca5a5' },
+  'Forature':                        { emoji:'🔩', bg:'rgba(96,165,250,.15)',  color:'#93c5fd' },
+  'Puntature':                       { emoji:'📌', bg:'rgba(167,139,250,.15)', color:'#c4b5fd' },
+  'Saldature Finali / Assemblaggio': { emoji:'🔥', bg:'rgba(251,146,60,.15)',  color:'#fdba74' },
+  'Verniciatura':                    { emoji:'🎨', bg:'rgba(52,211,153,.15)',  color:'#6ee7b7' },
+  'Zincatura':                       { emoji:'🛡️', bg:'rgba(148,163,184,.15)', color:'#cbd5e1' },
+  'Consegna cantiere':               { emoji:'🚚', bg:'rgba(34,211,238,.15)',  color:'#67e8f9' },
+};
+const PST_DEFAULT = { emoji:'🔧', bg:'rgba(255,255,255,.08)', color:'rgba(255,255,255,.6)' };
+
+/* ── S2: Postazioni ────────────────────────────────────────────────────────── */
+async function loadPostazioni(cid){
+  const el = document.getElementById('list-postazioni');
+  el.innerHTML = '<div class="spin-wrap"><div class="spin"></div></div>';
   try {
-    const res  = await fetch(`/api/v1/commesse/${commessaId}/fasi`, { headers: { Authorization: getAuth() } });
-    const data = await res.json();
-    // Raggruppa fasi distinte per nome
-    const unique = [...new Map(data.map(f => [f.fase, f])).values()];
-    if (!unique.length) { el.innerHTML = '<div class="empty">Nessuna fase trovata.</div>'; return; }
-    el.innerHTML = unique.map(f => `
-      <div class="card" onclick="selectFase(${f.id},'${esc(f.fase||'—')}','${esc(f.postazione||'')}')">
-        <div class="card-title">${esc(f.fase||'—')}</div>
-        <div class="card-sub">${esc(f.postazione||'Postazione non assegnata')}</div>
-        <span class="card-badge badge-amber">Seq. ${f.sequenza ?? '—'}</span>
-      </div>`).join('');
-  } catch { el.innerHTML = '<div class="empty">Errore caricamento fasi.</div>'; }
+    const r = await fetch(`/api/v1/officina/${cid}/postazioni`,{headers:auth()});
+    const gruppi = await r.json();
+    if(!gruppi.length){ el.innerHTML='<div class="empty">Nessuna postazione disponibile.</div>'; return; }
+
+    el.innerHTML = gruppi.map(g=>`
+      <div class="pst-group-label">${esc(g.gruppo)}</div>
+      ${g.postazioni.map(p=>{
+        const ic = PST_ICON[p.nome] || PST_DEFAULT;
+        const totAttesa = p.attesa + p.in_corso + p.completati;
+
+        const badgeLbl  = p.attesa > 0
+          ? `${p.attesa} in attesa`
+          : totAttesa > 0
+            ? `${p.completati}/${totAttesa} completati`
+            : 'Nessun pezzo';
+        const badgeCls  = p.attesa > 0 ? 'pst-badge has-work' : 'pst-badge';
+
+        const corsoHtml = p.in_corso > 0
+          ? `<span class="pst-dot-corso"></span><span class="pst-in-corso-label">${p.in_corso} in corso</span>`
+          : '';
+
+        return `
+        <div class="pst-card" onclick="selPostazione('${esc(p.nome)}')">
+          <div class="pst-icon-wrap" style="background:${ic.bg}">
+            <span>${ic.emoji}</span>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div class="pst-name">${esc(p.nome)}</div>
+            <div class="pst-meta">
+              <span class="${badgeCls}">${badgeLbl}</span>
+              ${corsoHtml}
+            </div>
+          </div>
+          <div class="pst-arrow">›</div>
+        </div>`;
+      }).join('')}`).join('');
+  } catch(e){ el.innerHTML='<div class="empty">Errore caricamento.</div>'; }
 }
 
-async function selectFase(faseId, faseName, postazione) {
-  _fase = { id: faseId, nome: faseName, postazione };
-  document.getElementById('pezzi-fase-label').textContent = faseName;
-  goTo('s-pezzi');
-  await loadPezzi();
+function selPostazione(nome){
+  _postazione = nome;
+  const ic = PST_ICON[nome] || PST_DEFAULT;
+  document.getElementById('lbl-postazione').textContent = ic.emoji + ' ' + nome;
+  document.getElementById('lbl-postazione-sub').textContent = _commessa.codice;
+  goTo('s3');
+  loadPezzi();
 }
 
-// ── S3: Pezzi ─────────────────────────────────────────────────────────────────
-async function loadPezzi() {
-  const el = document.getElementById('pezzi-list');
-  el.innerHTML = '<div class="spinner"><div class="spin"></div></div>';
+/* ── S3: Pezzi ─────────────────────────────────────────────────────────────── */
+async function loadPezzi(){
+  const el = document.getElementById('list-pezzi');
+  el.innerHTML = '<div class="spin-wrap"><div class="spin"></div></div>';
   try {
-    const res  = await fetch(`/api/v1/commesse/${_commessa.id}/pezzi`, { headers: { Authorization: getAuth() } });
-    const data = await res.json();
-    // Filtra pezzi dove fase_corrente == _fase.nome e non già COMPLETATA
-    const filtered = data.filter(p =>
-      p.fase_corrente === _fase.nome && p.stato_corrente !== 'COMPLETATA'
-    );
-    if (!filtered.length) {
-      el.innerHTML = '<div class="empty">Nessun pezzo attivo per questa fase.</div>'; return;
-    }
-    el.innerHTML = filtered.map(p => `
-      <div class="card" onclick="selectPezzo('${esc(p.marca_pos)}',${p.item_id||'null'},'${esc(p.profilo||'')}','${p.stato_corrente}')">
-        <div class="card-title" style="font-family:monospace">${esc(p.marca_pos||'—')}</div>
-        <div class="card-sub">${esc(p.profilo||'—')}</div>
-        <span class="card-badge ${p.stato_corrente==='IN_CORSO'?'badge-amber':'badge-blue'}">
-          ${p.stato_corrente||'—'}
-        </span>
-      </div>`).join('');
-  } catch { el.innerHTML = '<div class="empty">Errore caricamento pezzi.</div>'; }
+    const pst = encodeURIComponent(_postazione);
+    const r   = await fetch(`/api/v1/officina/${_commessa.id}/postazioni/${pst}/pezzi`,{headers:auth()});
+    const pezzi = await r.json();
+    if(!pezzi.length){ el.innerHTML='<div class="empty">Nessun pezzo assegnato a questa postazione.</div>'; return; }
+    el.innerHTML = pezzi.map(p=>pezzoCard(p)).join('');
+  } catch(e){ el.innerHTML='<div class="empty">Errore caricamento pezzi.</div>'; }
 }
 
-async function selectPezzo(marcaPos, itemId, profilo, stato) {
-  // Recupera UUID del DistintaItem via item_id
-  let uuid = null;
-  if (itemId) {
-    try {
-      const r = await fetch(`/api/v1/warehouse/distinta/items/${itemId}`, { headers: { Authorization: getAuth() } });
-      if (r.ok) { const d = await r.json(); uuid = d.uuid; }
-    } catch { /* uuid remains null */ }
-  }
-  _pezzo = { marcaPos, itemId, profilo, stato, uuid };
-
-  document.getElementById('scan-part-label').textContent = marcaPos;
-  document.getElementById('scan-fase-label').textContent  = _fase.nome;
-  document.getElementById('scan-part-num').textContent    = marcaPos;
-  document.getElementById('scan-profilo').textContent     = profilo || '—';
-  updateScanButton('idle');
-  goTo('s-scan');
+function pezzoCard(p){
+  const { stato, dotCls, statoCls, statoLabel, btnCls, btnLabel, collapsed } = statoConfig(p.stato);
+  const ts = p.timestamp ? `<div class="ts">${fmtTs(p.timestamp)}</div>` : '';
+  const body = collapsed ? '' : `
+    <div class="pz-body">
+      <button class="btn-scan ${btnCls}" onclick="startScan('${p.uuid}','${esc(p.part_number||'')}','${esc(p.description||'')}')">
+        📷 ${btnLabel}
+      </button>
+      ${ts}
+    </div>`;
+  return `
+    <div class="pz-card ${collapsed?'completato':''}" id="pz-${p.uuid}">
+      <div class="pz-head" onclick="togglePezzo('${p.uuid}')">
+        <div class="dot ${dotCls}"></div>
+        <div class="pz-info">
+          <div class="pz-part">${esc(p.part_number||'—')}</div>
+          <div class="pz-desc">${esc(p.description||'—')}${p.length_mm?' · '+p.length_mm+'mm':''}</div>
+          <div class="pz-stato ${statoCls}">${statoLabel}</div>
+        </div>
+        ${collapsed?'<span style="color:var(--muted);font-size:11px">▸</span>':''}
+      </div>
+      ${body}
+    </div>`;
 }
 
-function updateScanButton(mode) {
-  const btn = document.getElementById('btn-scan');
-  const lbl = document.getElementById('scan-stato-label');
-  btn.className = `btn-scan ${mode}`;
-  if (mode === 'idle') {
-    btn.innerHTML = `<span>📷</span><span class="btn-scan-label">SCAN</span>`;
-    btn.onclick   = openCamera;
-    lbl.className = 'stato-label stato-nessuno';
-    lbl.textContent = 'Nessun scan — tocca per iniziare';
-  } else if (mode === 'start') {
-    btn.innerHTML = `<span>⏱️</span><span class="btn-scan-label">IN CORSO</span>`;
-    btn.onclick   = openCamera;
-    lbl.className = 'stato-label stato-inizio';
-    lbl.textContent = '▶ Lavoro in corso — scan per completare';
-  } else if (mode === 'done') {
-    btn.innerHTML = `<span>✅</span><span class="btn-scan-label">COMPLETATO</span>`;
-    btn.onclick   = null;
-    lbl.className = 'stato-label stato-fine';
-    lbl.textContent = '🏁 Pezzo completato';
-  }
+function statoConfig(stato){
+  if(stato==='completato') return {stato,dotCls:'dot-fatto',statoCls:'stato-fatto',statoLabel:'✓ Completato',btnCls:'scan-fatto',btnLabel:'Completato',collapsed:true};
+  if(stato==='in_corso')   return {stato,dotCls:'dot-corso',statoCls:'stato-corso',statoLabel:'⏱ In corso',btnCls:'scan-corso',btnLabel:'SCAN — Fine lavoro',collapsed:false};
+  return {stato,dotCls:'dot-attesa',statoCls:'stato-attesa',statoLabel:'In attesa',btnCls:'scan-idle',btnLabel:'SCAN — Inizia',collapsed:false};
 }
 
-// ── Camera & QR scan ──────────────────────────────────────────────────────────
-async function openCamera() {
-  const overlay = document.getElementById('cam-overlay');
-  overlay.classList.add('open');
+function togglePezzo(uuid){
+  // I pezzi completati si riaprono al tap
+  const card = document.getElementById('pz-'+uuid);
+  if(!card) return;
+  card.classList.toggle('completato');
+}
+
+function fmtTs(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+/* ── Camera ────────────────────────────────────────────────────────────────── */
+function startScan(uuid, part, desc){
+  _scanTarget = {uuid, part, desc};
+  camOpen();
+}
+
+async function camOpen(){
+  document.getElementById('cam-ov').classList.add('open');
   document.getElementById('cam-status').textContent = 'Avvio fotocamera…';
   try {
-    _camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    const video = document.getElementById('cam-video');
-    video.srcObject = _camStream;
-    await video.play();
-    document.getElementById('cam-status').textContent = 'Inquadra il QR code del pezzo';
-    _rafId = requestAnimationFrame(scanFrame);
-  } catch (err) {
+    _camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    const vid = document.getElementById('cam-video');
+    vid.srcObject = _camStream;
+    await vid.play();
+    document.getElementById('cam-status').textContent = 'Inquadra il QR del pezzo';
+    _rafId = requestAnimationFrame(camFrame);
+  } catch(e){
     document.getElementById('cam-status').textContent = '⚠ Fotocamera non disponibile';
-    console.error(err);
   }
 }
 
-function scanFrame() {
-  const video  = document.getElementById('cam-video');
-  const canvas = document.getElementById('cam-canvas');
-  if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-    _rafId = requestAnimationFrame(scanFrame); return;
-  }
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(video, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code      = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-  if (code) {
-    closeCamera();
-    handleQR(code.data);
-    return;
-  }
-  _rafId = requestAnimationFrame(scanFrame);
+function camFrame(){
+  const vid = document.getElementById('cam-video');
+  const cvs = document.getElementById('cam-canvas');
+  if(vid.readyState !== vid.HAVE_ENOUGH_DATA){ _rafId=requestAnimationFrame(camFrame); return; }
+  cvs.width=vid.videoWidth; cvs.height=vid.videoHeight;
+  const ctx = cvs.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(vid,0,0);
+  const img  = ctx.getImageData(0,0,cvs.width,cvs.height);
+  const code = jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+  if(code){ camClose(); handleQR(code.data); return; }
+  _rafId = requestAnimationFrame(camFrame);
 }
 
-function closeCamera() {
+function camClose(){
   cancelAnimationFrame(_rafId);
-  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
-  document.getElementById('cam-overlay').classList.remove('open');
+  if(_camStream){ _camStream.getTracks().forEach(t=>t.stop()); _camStream=null; }
+  document.getElementById('cam-ov').classList.remove('open');
 }
 
-async function handleQR(payload) {
-  document.getElementById('cam-status').textContent = 'Elaborazione…';
+/* ── Handle QR result ──────────────────────────────────────────────────────── */
+async function handleQR(payload){
   try {
-    const res = await fetch('/api/v1/qr/scan-evento', {
-      method:  'POST',
-      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ uuid: payload, fase_id: _fase?.id || null }),
+    const r = await fetch('/api/v1/officina/scan',{
+      method:'POST', headers:auth(),
+      body: JSON.stringify({uuid:payload, postazione:_postazione}),
     });
-    if (res.status === 409) {
-      const d = await res.json();
-      flash(d.detail || 'Pezzo già completato', 'err');
-      updateScanButton('done');
-      return;
+    if(r.status===409){
+      const d = await r.json().catch(()=>({}));
+      toast(d.detail||'Già completato','err'); return;
     }
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      flash(d.detail || 'Errore scan', 'err');
-      return;
+    if(!r.ok){
+      const d = await r.json().catch(()=>({}));
+      toast(d.detail||'Errore scan','err'); return;
     }
-    const data = await res.json();
-    flash(data.messaggio, 'ok');
-    updateScanButton(data.completato ? 'done' : 'start');
-  } catch (err) {
-    flash('Errore di rete', 'err');
-    console.error(err);
-  }
+    const data = await r.json();
+    toast(`${data.messaggio} — ${data.part_number||data.description||'pezzo'}`, 'ok');
+    // Aggiorna il pezzo nella UI senza ricaricare tutto
+    updatePezzoUI(data);
+  } catch(e){ toast('Errore di rete','err'); }
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function updatePezzoUI(data){
+  const card = document.getElementById('pz-'+data.uuid);
+  if(!card){ loadPezzi(); return; }
+  const nuovoStato = data.completato ? 'completato' : 'in_corso';
+  const p = {
+    uuid:       data.uuid,
+    part_number:data.part_number,
+    description:data.description,
+    length_mm:  null,
+    stato:      nuovoStato,
+    timestamp:  data.timestamp,
+  };
+  card.outerHTML = pezzoCard(p);
 }
+
+/* ── Utility ────────────────────────────────────────────────────────────────── */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 </script>
 </body>
 </html>

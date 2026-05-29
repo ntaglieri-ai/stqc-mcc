@@ -303,9 +303,10 @@ class ScanEvento(Base):
     """Registro degli eventi di scan QR su un pezzo fisico (DistintaItem)."""
     __tablename__ = "scan_eventi"
 
-    id          = Column(Integer,   primary_key=True, index=True)
+    id          = Column(Integer,    primary_key=True, index=True)
     item_uuid   = Column(String(36), nullable=False, index=True)
-    utente_id   = Column(Integer,   ForeignKey("users.id",           ondelete="SET NULL"), nullable=True, index=True)
-    fase_id     = Column(Integer,   ForeignKey("fasi_operative.id",  ondelete="SET NULL"), nullable=True)
-    timestamp   = Column(DateTime,  nullable=False, default=datetime.utcnow)
-    tipo_evento = Column(String(20), nullable=False)  # INIZIO_LAVORO | FINE_LAVORO
+    utente_id   = Column(Integer,    ForeignKey("users.id",           ondelete="SET NULL"), nullable=True, index=True)
+    fase_id     = Column(Integer,    ForeignKey("fasi_operative.id",  ondelete="SET NULL"), nullable=True)
+    postazione  = Column(String(100), nullable=True, index=True)
+    timestamp   = Column(DateTime,   nullable=False, default=datetime.utcnow)
+    tipo_evento = Column(String(20),  nullable=False)  # INIZIO_LAVORO | FINE_LAVORO
