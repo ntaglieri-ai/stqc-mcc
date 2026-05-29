@@ -1,13 +1,98 @@
 import json
+import re
+from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.core.auth import require_auth
 from backend.app.crud.distinta import get_distinta_item
 from backend.app.db.session import get_db
+from backend.app.models.user import User
+from backend.app.models.warehouse import DistintaItem, ScanEvento
 from backend.app.schemas.distinta import QRScanRequest, QRScanResult
 
 router = APIRouter()
+
+
+# ── Scan evento (F2 Officina) ─────────────────────────────────────────────────
+
+class ScanEventoRequest(BaseModel):
+    uuid: str
+    fase_id: Optional[int] = None
+
+
+def _extract_uuid(raw: str) -> str:
+    """Estrae l'UUID dal payload QR: URL https://.../p/{uuid}, JSON {"id":"..."}, o UUID grezzo."""
+    m = re.search(r'/p/([0-9a-f-]{36})', raw, re.IGNORECASE)
+    if m:
+        return m.group(1).lower()
+    try:
+        data = json.loads(raw)
+        if "id" in data:
+            return str(data["id"]).lower()
+    except (json.JSONDecodeError, TypeError):
+        pass
+    raw = raw.strip()
+    if re.fullmatch(r'[0-9a-f-]{36}', raw, re.IGNORECASE):
+        return raw.lower()
+    raise ValueError(f"UUID non riconoscibile nel payload: {raw!r}")
+
+
+@router.post("/scan-evento")
+def scan_evento(
+    req: ScanEventoRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    """Toggle scan su un pezzo fisico (F2 Officina).
+
+    Nessun evento o ultimo=FINE_LAVORO → INIZIO_LAVORO
+    Ultimo=INIZIO_LAVORO → FINE_LAVORO (pezzo completato, non più scannable)
+    """
+    try:
+        item_uuid = _extract_uuid(req.uuid)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
+    item = db.query(DistintaItem).filter(DistintaItem.uuid == item_uuid).first()
+    if item is None:
+        raise HTTPException(404, f"Nessun pezzo trovato per uuid={item_uuid}")
+
+    ultimo = (
+        db.query(ScanEvento)
+        .filter(ScanEvento.item_uuid == item_uuid)
+        .order_by(ScanEvento.timestamp.desc())
+        .first()
+    )
+
+    if ultimo and ultimo.tipo_evento == "FINE_LAVORO":
+        raise HTTPException(409, "Pezzo già completato — nessun ulteriore scan consentito.")
+
+    tipo_evento = "FINE_LAVORO" if (ultimo and ultimo.tipo_evento == "INIZIO_LAVORO") else "INIZIO_LAVORO"
+    messaggio   = "🏁 Fine lavoro — pezzo completato" if tipo_evento == "FINE_LAVORO" else "▶ Inizio lavoro registrato"
+
+    evento = ScanEvento(
+        item_uuid   = item_uuid,
+        utente_id   = current_user.id,
+        fase_id     = req.fase_id,
+        timestamp   = datetime.utcnow(),
+        tipo_evento = tipo_evento,
+    )
+    db.add(evento)
+    db.commit()
+
+    return {
+        "tipo_evento": tipo_evento,
+        "item_uuid":   item_uuid,
+        "part_number": item.part_number,
+        "profilo":     item.description,
+        "timestamp":   evento.timestamp.isoformat(),
+        "messaggio":   messaggio,
+        "completato":  tipo_evento == "FINE_LAVORO",
+    }
 
 
 @router.post("/scan", response_model=QRScanResult)

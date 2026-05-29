@@ -114,6 +114,42 @@
 
     /* ── Section ── */
     .sec { margin-bottom: 40px; }
+
+    /* ── Operazioni ── */
+    .op-gruppi { display: flex; flex-direction: column; gap: 28px; }
+    .op-gruppo-nome {
+      font-size: 11px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .1em; color: rgba(255,255,255,.35); margin-bottom: 10px;
+    }
+    .op-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 14px; border-radius: 10px;
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+      font-size: 13px; color: rgba(255,255,255,.72); gap: 12px;
+    }
+    .op-row-nome { flex: 1; font-weight: 600; }
+    .op-count {
+      font-size: 11px; font-weight: 700; font-family: monospace;
+      padding: 2px 9px; border-radius: 10px;
+      background: rgba(255,255,255,.07); color: rgba(255,255,255,.5);
+    }
+    .op-count.has-pezzi { background: rgba(59,130,246,.15); color: #93c5fd; }
+    .op-tag-laser  { font-size: 10px; padding: 2px 7px; border-radius: 8px; background: rgba(168,85,247,.15); color: #d8b4fe; font-weight: 700; }
+    .op-tag-std    { font-size: 10px; padding: 2px 7px; border-radius: 8px; background: rgba(34,197,94,.12);  color: #86efac; font-weight: 700; }
+    .op-stato { font-size: 11px; color: rgba(255,255,255,.28); }
+    .btn-avvia-prod {
+      margin-top: 40px; padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,.07);
+      display: flex; justify-content: flex-end;
+    }
+    .btn-avvia-prod button {
+      padding: 14px 36px; border-radius: 14px; border: none;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 24px rgba(59,130,246,.35); transition: opacity .2s, transform .15s;
+    }
+    .btn-avvia-prod button:hover  { opacity: .88; transform: translateY(-1px); }
+    .btn-avvia-prod button:active { transform: translateY(0); }
     .sec-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .sec-icon {
       width: 32px; height: 32px; border-radius: 9px;
@@ -843,49 +879,104 @@ function render(c, movements, items, magazzino, fasi) {
 
     ${notesHtml}
 
-    <div class="sec">
-      <div class="sec-hdr">
-        <div class="sec-icon sec-icon-blue">📊</div>
-        <div style="flex:1">
-          <div class="sec-title">Produzione</div>
-          <div class="sec-sub sec-sub-fasi">Fasi e pezzi fisici</div>
-        </div>
-        <div class="prod-tabs">
-          <button class="prod-tab active" data-view="fasi"  onclick="switchProdView('fasi')">📊 Fasi</button>
-          <button class="prod-tab"        data-view="pezzi" onclick="switchProdView('pezzi')">🔩 Pezzi</button>
-        </div>
-        <button id="btn-qr-refresh" onclick="refreshQRBadges()" title="Ricarica badge QR dalla distinta"
-          style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);
-                 color:rgba(255,255,255,0.35);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s"
-          onmouseover="this.style.color='#4ade80';this.style.borderColor='rgba(74,222,128,0.3)'"
-          onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.1)'">↻ QR</button>
-      </div>
-      <div id="view-fasi"><div id="fasi-content">${renderFasi(fasi)}</div></div>
-      <div id="view-pezzi" style="display:none">
-        <div class="pz-search-wrap">
-          <input class="pz-search-input" id="pz-search" type="text"
-            placeholder="Cerca Marca/Pos…" oninput="filterPezzi(this.value)" autocomplete="off"/>
-        </div>
-        <div class="pz-list" id="pz-list">${renderPezziRows(_pezzi, '')}</div>
-      </div>
-    </div>
-
-    ${PROFILO === 'Direttore' && c.status === 'APERTA' ? `
-    <div style="margin-top:40px;padding-top:32px;border-top:1px solid rgba(255,255,255,0.07);display:flex;justify-content:flex-end">
-      <button id="btn-avvia" onclick="avviaProduzione()"
-        style="padding:14px 32px;border-radius:14px;border:none;
-               background:linear-gradient(135deg,#3b82f6,#1d4ed8);
-               color:#fff;font-size:15px;font-weight:700;cursor:pointer;
-               box-shadow:0 4px 24px rgba(59,130,246,0.35);
-               transition:opacity .2s,transform .15s"
-        onmouseover="this.style.opacity='.88';this.style.transform='translateY(-1px)'"
-        onmouseout="this.style.opacity='1';this.style.transform='none'">
-        🚀 Avvia Produzione
-      </button>
-    </div>` : ''}
+    ${renderOperazioni(c, items)}
 
   `;
   if (_prodView === 'pezzi') switchProdView('pezzi');
+}
+
+/* ── Operazioni — vista fissa per stato commessa ── */
+function renderOperazioni(c, items) {
+  const isAperta = c.status === 'APERTA';
+
+  // Conta pezzi LAMIERA e non-LAMIERA dalla distinta
+  const nLamiera = items.filter(i => /^PL/i.test(i.description || '')).length;
+  const nStd     = items.filter(i => i.description && !/^PL/i.test(i.description)).length;
+
+  function opRow(nome, n, tag) {
+    const countCls = n > 0 ? 'has-pezzi' : '';
+    const countLbl = n > 0 ? `${n} pz` : '—';
+    const tagHtml  = tag ? `<span class="${tag === 'laser' ? 'op-tag-laser' : 'op-tag-std'}">${tag === 'laser' ? 'Lamiera' : 'Profilati'}</span>` : '';
+    const stato    = isAperta ? '' : `<span class="op-stato">In attesa</span>`;
+    return `<div class="op-row">
+      <span class="op-row-nome">${nome}</span>
+      ${tagHtml}
+      ${stato}
+      <span class="op-count ${countCls}">${countLbl}</span>
+    </div>`;
+  }
+
+  const gruppi = [
+    {
+      nome: '🔧 Officina',
+      rows: [
+        ...(nLamiera > 0 ? [opRow('Taglio Laser', nLamiera, 'laser')] : []),
+        opRow('Taglio Standard', nStd, nStd > 0 ? 'std' : null),
+        opRow('Forature', 0),
+        opRow('Puntature', 0),
+        opRow('Saldature Finali / Assemblaggio', 0),
+      ],
+    },
+    {
+      nome: '🎨 Preparazione Esterno',
+      rows: [
+        opRow('Verniciatura', 0),
+        opRow('Zincatura', 0),
+      ],
+    },
+    {
+      nome: '🏗️ Cantiere',
+      rows: [
+        opRow('Consegna cantiere', 0),
+      ],
+    },
+  ];
+
+  const gruppiHtml = gruppi.map(g => `
+    <div>
+      <div class="op-gruppo-nome">${g.nome}</div>
+      ${g.rows.join('')}
+    </div>`).join('');
+
+  const avviaBtn = isAperta ? `
+    <div class="btn-avvia-prod">
+      <button id="btn-avvia" onclick="avviaProduzioneNew()">🚀 Avvia produzione</button>
+    </div>` : '';
+
+  return `
+    <div class="sec">
+      <div class="sec-hdr">
+        <div class="sec-icon sec-icon-blue">🔩</div>
+        <div>
+          <div class="sec-title">Operazioni</div>
+          <div class="sec-sub">${isAperta ? 'Piano di produzione' : 'Avanzamento in tempo reale'}</div>
+        </div>
+      </div>
+      <div class="op-gruppi">${gruppiHtml}</div>
+      ${avviaBtn}
+    </div>`;
+}
+
+/* ── Avvia produzione (nuovo — solo PATCH status) ── */
+async function avviaProduzioneNew() {
+  const btn = document.getElementById('btn-avvia');
+  if (btn) { btn.disabled = true; btn.textContent = '…avvio in corso'; }
+  try {
+    const res = await fetch(`/api/v1/commesse/${commessaId}`, {
+      method:  'PATCH',
+      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ status: 'IN_PRODUZIONE' }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    toast('Produzione avviata', 'ok');
+    location.reload();
+  } catch (e) {
+    toast(`Errore: ${e.message}`, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Avvia produzione'; }
+  }
 }
 
 /* ── Change status ── */

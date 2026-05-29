@@ -122,6 +122,7 @@
     .c-dash   { background-color: #1a2e1a; }
     .c-comm   { background-color: #2a1a3e; }
     .c-mag    { background-color: #1a2a2a; }
+    .c-off    { background-color: #2a1f0e; }
     .c-acq    { background-color: #2e2a1a; }
     .c-impost { background-color: #1e1e2e; }
     .c-account { background-color: #0f1f2e; }
@@ -505,6 +506,12 @@ const CARD_DEFS = {
     title: 'Magazzino', desc: 'Stock · arrivi · prelievi per commessa',
     onclick: "go('/app?tab=magazzino')",
   },
+  officina: {
+    cls: 'c-off', img: 'photo-1565814636199-ae8133055c1c',
+    tag: 'tag-live', tagLabel: 'Live', icon: '🔩',
+    title: 'F2 · Officina', desc: 'Scan QR · registra avanzamento pezzi',
+    onclick: "go('/officina')",
+  },
   acquisti: {
     cls: 'c-acq', img: 'photo-1586528116311-ad8dd3c8310d',
     tag: 'tag-soon', tagLabel: 'Presto', icon: '🛒',
@@ -535,8 +542,8 @@ const CARD_DEFS = {
 const PROFILE_CARDS = {
   Responsabile: ['kpi', 'dashboard', 'commesse', 'magazzino', 'acquisti'],
   Direttore:    ['kpi', 'dashboard', 'commesse', 'magazzino'],
-  Operaio:      ['magazzino'],
-  Operatore:    ['magazzino'],
+  Operaio:      ['magazzino', 'officina'],
+  Operatore:    ['magazzino', 'officina'],
   Logistica:    ['magazzino'],
   Acquisti:     ['magazzino', 'acquisti'],
   Admin:        ['adm_account', 'adm_maint', 'adm_config'],
