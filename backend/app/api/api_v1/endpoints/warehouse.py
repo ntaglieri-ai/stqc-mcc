@@ -134,3 +134,18 @@ def list_magazzino(
     db: Session = Depends(get_db),
 ):
     return crud.get_magazzino_list(db=db, skip=skip, limit=limit, q=q)
+
+
+@router.delete("/materials/{material_id}", status_code=204)
+def delete_material(material_id: int, db: Session = Depends(get_db)):
+    """Rimozione fisica di un materiale e tutti i suoi movimenti (usata per item prenotati da commessa)."""
+    from sqlalchemy import select as sa_select
+    material = db.get(Material, material_id)
+    if material is None:
+        raise HTTPException(status_code=404, detail="Materiale non trovato")
+    from backend.app.models.warehouse import StockMovement as SM, CuttingPlan, StockReservation
+    db.query(SM).filter(SM.material_id == material_id).delete()
+    db.query(CuttingPlan).filter(CuttingPlan.material_id == material_id).delete()
+    db.query(StockReservation).filter(StockReservation.material_id == material_id).delete()
+    db.delete(material)
+    db.commit()

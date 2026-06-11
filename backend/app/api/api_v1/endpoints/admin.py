@@ -687,3 +687,35 @@ def delete_profile_type(pt_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Tipo profilo non trovato")
     db.delete(pt)
     db.commit()
+
+
+# ── App Settings ──────────────────────────────────────────────────────────────
+
+_ALLOWED_SETTINGS = {"backup_precommessa_path", "outcome_path"}
+
+
+class SettingsBody(BaseModel):
+    backup_precommessa_path: Optional[str] = None
+    outcome_path: Optional[str] = None
+
+
+@router.get("/settings")
+def get_settings(db: Session = Depends(get_db)):
+    from backend.app.models.settings import AppSettings
+    rows = db.query(AppSettings).all()
+    return {r.key: r.value for r in rows}
+
+
+@router.put("/settings")
+def update_settings(body: SettingsBody, db: Session = Depends(get_db)):
+    from backend.app.models.settings import AppSettings
+    data = {k: v for k, v in body.model_dump().items() if k in _ALLOWED_SETTINGS and v is not None}
+    for key, value in data.items():
+        row = db.get(AppSettings, key)
+        if row:
+            row.value = value
+        else:
+            db.add(AppSettings(key=key, value=value))
+    db.commit()
+    rows = db.query(AppSettings).all()
+    return {r.key: r.value for r in rows}

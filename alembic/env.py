@@ -10,7 +10,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Importa tutti i modelli prima di esporre Base.metadata
-import backend.app.models.commessa  # noqa: F401
+import backend.app.models.commessa   # noqa: F401
+import backend.app.models.settings   # noqa: F401
 import backend.app.models.warehouse  # noqa: F401
 from backend.app.core.config import settings
 from backend.app.db.base import Base

@@ -401,6 +401,11 @@
     <button class="nav-item" onclick="showSection('profile-types')" id="tab-profile-types">
       <span class="ni-icon">🔩</span> Tipi profilo
     </button>
+
+    <div class="sidebar-label">Configurazione</div>
+    <button class="nav-item" onclick="showSection('settings')" id="tab-settings">
+      <span class="ni-icon">⚙️</span> Impostazioni generali
+    </button>
   </aside>
 
   <!-- Main -->
@@ -685,6 +690,60 @@
       </table>
     </div>
 
+    <!-- ── Impostazioni generali ── -->
+    <div class="section" id="section-settings">
+      <div class="section-header">
+        <div class="section-eyebrow">Configurazione</div>
+        <div class="section-title">Impostazioni generali</div>
+        <div class="section-sub">Percorsi di salvataggio per i file automatici generati dal sistema</div>
+      </div>
+
+      <div class="table-wrap" style="padding:28px 32px;margin-bottom:24px">
+        <div style="display:flex;flex-direction:column;gap:20px;max-width:560px">
+
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px">
+              Percorso backup pre-commessa
+            </label>
+            <input id="set-backup-path" type="text"
+              placeholder="es. ./backups/precommessa"
+              style="width:100%;padding:9px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.85);font-size:13px;outline:none;font-family:inherit"
+              onfocus="this.style.borderColor='rgba(99,130,246,.4)'" onblur="this.style.borderColor='rgba(255,255,255,.12)'"
+            />
+            <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:5px">
+              Cartella dove vengono salvati gli snapshot JSON del magazzino prima di ogni prelievo commessa
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px">
+              Percorso file outcome
+            </label>
+            <input id="set-outcome-path" type="text"
+              placeholder="es. ./outcomes"
+              style="width:100%;padding:9px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.85);font-size:13px;outline:none;font-family:inherit"
+              onfocus="this.style.borderColor='rgba(99,130,246,.4)'" onblur="this.style.borderColor='rgba(255,255,255,.12)'"
+            />
+            <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:5px">
+              Cartella dove vengono salvati i file JSON con i materiali prelevati per ogni commessa
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;padding-top:4px">
+            <button class="btn btn-primary" onclick="saveSettings(this)">Salva impostazioni</button>
+            <span id="settings-msg" style="font-size:12px;color:rgba(255,255,255,.35)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:rgba(255,255,255,.2);line-height:1.7;max-width:560px">
+        I percorsi possono essere assoluti (<code style="color:rgba(255,255,255,.5)">/var/data/backups</code>)
+        o relativi alla directory di avvio dell'app (<code style="color:rgba(255,255,255,.5)">./backups</code>).
+        La cartella viene creata automaticamente se non esiste.
+        Se lasciati vuoti, vengono usati i percorsi predefiniti (<code style="color:rgba(255,255,255,.5)">./backups/precommessa</code> e <code style="color:rgba(255,255,255,.5)">./outcomes</code>).
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -781,6 +840,7 @@ function showSection(id) {
   if (id === 'logs')           startLogPolling();
   if (id === 'maintenance')    loadVersion();
   if (id === 'profile-types')  ptLoad();
+  if (id === 'settings')       loadSettings();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1572,6 +1632,45 @@ async function ptDelete(id, prefisso) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+// ── Impostazioni generali ─────────────────────────────────────────────────────
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/v1/admin/settings', { headers: { Authorization: getAuth() } });
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById('set-backup-path').value  = data.backup_precommessa_path || '';
+    document.getElementById('set-outcome-path').value = data.outcome_path || '';
+  } catch { /* silenzioso */ }
+}
+
+async function saveSettings(btn) {
+  btn.disabled = true;
+  const body = {
+    backup_precommessa_path: document.getElementById('set-backup-path').value.trim() || null,
+    outcome_path:            document.getElementById('set-outcome-path').value.trim() || null,
+  };
+  const msg = document.getElementById('settings-msg');
+  try {
+    const res = await fetch('/api/v1/admin/settings', {
+      method: 'PUT',
+      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const d = await res.json().catch(()=>{}); throw new Error(d?.detail || `Errore ${res.status}`); }
+    msg.style.color = 'rgba(74,222,128,.8)';
+    msg.textContent = '✓ Impostazioni salvate';
+    toast('Impostazioni salvate', 'ok');
+  } catch(e) {
+    msg.style.color = 'rgba(248,113,113,.8)';
+    msg.textContent = e.message;
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  }
+}
+
 // ?s= query param from home admin panels — jump to the right section
 (function() {
   const sp = new URLSearchParams(window.location.search).get('s');

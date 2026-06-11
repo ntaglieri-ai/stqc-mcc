@@ -10,7 +10,7 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, model_validator
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from backend.app.crud import stock as crud
@@ -671,11 +671,20 @@ def confirm_request(req_id: int, db: Session = Depends(get_db)):
     if req.status != RichiestaStatus.IN_ATTESA:
         raise HTTPException(409, f"Richiesta già in stato {req.status.value}")
 
+    # 1. Backup pre-commessa (non bloccante)
+    if req.commessa_codice:
+        try:
+            from backend.app.services.snapshot import save_backup_snapshot
+            save_backup_snapshot(db, req.commessa_codice)
+        except Exception as exc:
+            _logger.warning("Backup pre-commessa fallito (ignorato): %s", exc)
+
     try:
         mv_type = MovementType(req.movement_type)
     except ValueError:
         mv_type = MovementType.OUTGOING
 
+    # 2. Movimento OUTGOING sull'originale
     movement = StockMovement(
         material_id=req.material_id,
         quantity=req.quantity,
@@ -687,12 +696,88 @@ def confirm_request(req_id: int, db: Session = Depends(get_db)):
     )
     db.add(movement)
 
+    # 3. Split: riga clone con commessa_ref (solo per OUTGOING)
+    if mv_type == MovementType.OUTGOING and req.commessa_codice:
+        _split_material_for_commessa(
+            db=db,
+            original_material_id=req.material_id,
+            qty=float(req.quantity),
+            commessa_codice=req.commessa_codice,
+        )
+
     req.status = RichiestaStatus.CONFERMATO
     req.confirmed_at = datetime.utcnow()
     db.commit()
     db.refresh(req)
-    _logger.info("Richiesta %d confermata → movimento creato", req_id)
+
+    # 4. Outcome file (non bloccante, dopo commit)
+    if req.commessa_codice:
+        try:
+            from backend.app.services.snapshot import save_outcome
+            save_outcome(db, req.commessa_codice)
+        except Exception as exc:
+            _logger.warning("Outcome file fallito (ignorato): %s", exc)
+
+    _logger.info("Richiesta %d confermata → movimento + split creati", req_id)
     return req
+
+
+def _split_material_for_commessa(
+    db: Session,
+    original_material_id: int,
+    qty: float,
+    commessa_codice: str,
+) -> None:
+    """Crea (o aggiorna) la riga clone per il materiale prenotato dalla commessa.
+
+    - Se esiste già un materiale con lo stesso codice + suffisso commessa → aggiunge INCOMING
+    - Altrimenti → clona la riga originale con commessa_ref = commessa_codice e crea INCOMING
+    """
+    original = db.get(Material, original_material_id)
+    if not original:
+        return
+
+    suffix   = f"__{commessa_codice[:28]}"
+    new_code = (original.code[:70] + suffix)[:100]
+
+    existing = db.scalars(
+        select(Material).where(Material.code == new_code)
+    ).first()
+
+    if existing:
+        db.add(StockMovement(
+            material_id=existing.id,
+            quantity=qty,
+            movement_type=MovementType.INCOMING,
+            reason=f"Aggiunta prenotazione commessa {commessa_codice}",
+        ))
+        _logger.info("Split aggiornato: materiale %d + %s pz → clone %d", original_material_id, qty, existing.id)
+    else:
+        clone = Material(
+            code=new_code,
+            description=original.description,
+            unit=original.unit,
+            specification=original.specification,
+            tipo=original.tipo,
+            profilo=original.profilo,
+            dimensioni=original.dimensioni,
+            qualita=original.qualita,
+            colata=original.colata,
+            commessa_ref=commessa_codice,
+            peso_u_kg=original.peso_u_kg,
+            peso_1_pz=original.peso_1_pz,
+            norma_uni=original.norma_uni,
+            unita_misura=original.unita_misura,
+        )
+        db.add(clone)
+        db.flush()
+        db.add(StockMovement(
+            material_id=clone.id,
+            quantity=qty,
+            movement_type=MovementType.INCOMING,
+            reason=f"Prenotazione commessa {commessa_codice}",
+        ))
+        _logger.info("Split creato: materiale %d → clone %d con %s pz per %s", original_material_id, clone.id, qty, commessa_codice)
 
 
 @router.post("/requests/{req_id}/refuse", response_model=MaterialRequestRead)

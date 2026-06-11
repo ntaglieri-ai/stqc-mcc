@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Magazzino · MCC</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Design tokens ─────────────────────────────────────────────────
+       Naming: --color-background-{primary=darkest, secondary=raised,
+               tertiary=surface, elevated=hover/thead}
+               --color-text-{primary, secondary, muted}
+               --color-border-{primary=visible, secondary=subtle, tertiary=ghost}
+       ──────────────────────────────────────────────────────────────── */
+    :root {
+      --color-background-primary:   #0F1117;
+      --color-background-secondary: #13181F;
+      --color-background-tertiary:  #181D28;
+      --color-background-elevated:  #1D2435;
+      --color-background-overlay:   #242E44;
+
+      --color-text-primary:   #C4CFDE;
+      --color-text-secondary: #6B7E95;
+      --color-text-muted:     #3F5060;
+
+      --color-border-primary:   rgba(255,255,255,0.10);
+      --color-border-secondary: rgba(255,255,255,0.06);
+      --color-border-tertiary:  rgba(255,255,255,0.03);
+
+      /* Status — subdued industrial tones */
+      --color-status-green-bg:     rgba(34,197,94,0.08);
+      --color-status-green-border: rgba(34,197,94,0.16);
+      --color-status-green-text:   #6EE7A0;
+
+      --color-status-orange-bg:     rgba(249,115,22,0.09);
+      --color-status-orange-border: rgba(249,115,22,0.18);
+      --color-status-orange-text:   #FDBA74;
+
+      --color-status-red-bg:     rgba(239,68,68,0.08);
+      --color-status-red-border: rgba(239,68,68,0.16);
+      --color-status-red-text:   #FCA5A5;
+
+      --color-accent-bg:     rgba(99,120,200,0.10);
+      --color-accent-border: rgba(99,120,200,0.22);
+      --color-accent-text:   #8BAEFF;
+    }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--color-background-primary);
+      color: var(--color-text-primary);
+      font-size: 13px;
+    }
+
+    /* ── Shell ────────────────────────────────────────────────────────── */
+    .shell { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Topbar ───────────────────────────────────────────────────────── */
+    .topbar {
+      flex-shrink: 0; height: 54px;
+      display: flex; align-items: center; gap: 10px; padding: 0 18px;
+      background: var(--color-background-secondary);
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .topbar-back {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 500; color: var(--color-text-secondary);
+      padding: 5px 10px; border-radius: 7px; text-decoration: none;
+      transition: background .18s, color .18s;
+    }
+    .topbar-back:hover { background: var(--color-border-tertiary); color: var(--color-text-primary); }
+    .topbar-sep { color: var(--color-text-muted); font-size: 16px; user-select: none; }
+    .topbar-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .topbar-user { font-size: 11px; color: var(--color-text-muted); }
+    .btn-logout {
+      padding: 5px 12px; border-radius: 7px;
+      border: 1px solid var(--color-border-secondary);
+      background: transparent; color: var(--color-text-muted);
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: all .18s;
+    }
+    .btn-logout:hover {
+      background: var(--color-status-red-bg);
+      border-color: var(--color-status-red-border);
+      color: var(--color-status-red-text);
+    }
+
+    /* ── Body wrap ────────────────────────────────────────────────────── */
+    .body-wrap { flex: 1; display: flex; overflow: hidden; }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────── */
+    .sidebar {
+      flex-shrink: 0; width: 200px;
+      background: var(--color-background-secondary);
+      border-right: 1px solid var(--color-border-tertiary);
+      display: flex; flex-direction: column; overflow-y: auto; padding: 12px 0;
+    }
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 2px; }
+    .sb-section {
+      padding: 0 14px 6px; font-size: 10px; font-weight: 700;
+      color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .12em;
+    }
+    .sb-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 14px; cursor: pointer; font-size: 12px; font-weight: 500;
+      color: var(--color-text-secondary); border-left: 2px solid transparent;
+      transition: background .14s, color .14s;
+    }
+    .sb-item:hover { background: var(--color-border-tertiary); color: var(--color-text-primary); }
+    .sb-item.active {
+      background: var(--color-accent-bg);
+      border-left-color: var(--color-accent-text);
+      color: var(--color-accent-text); font-weight: 600;
+    }
+    .sb-count {
+      font-size: 11px; font-weight: 600; min-width: 22px; text-align: center;
+      background: var(--color-border-tertiary); color: var(--color-text-muted);
+      border-radius: 10px; padding: 1px 7px;
+    }
+    .sb-item.active .sb-count { background: var(--color-accent-bg); color: var(--color-accent-text); }
+    .sb-divider { height: 1px; background: var(--color-border-tertiary); margin: 10px 0; }
+    .sb-comm-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; }
+    .sb-comm-label { font-size: 12px; color: var(--color-text-secondary); }
+    .sb-comm-badge {
+      font-size: 11px; font-weight: 700;
+      color: var(--color-status-green-text);
+      background: var(--color-status-green-bg);
+      border-radius: 10px; padding: 1px 8px;
+    }
+
+    /* ── Main ─────────────────────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    /* ── Toolbar ──────────────────────────────────────────────────────── */
+    .toolbar {
+      flex-shrink: 0; height: 52px;
+      display: flex; align-items: center; gap: 7px; padding: 0 16px;
+      border-bottom: 1px solid var(--color-border-tertiary);
+      background: var(--color-background-secondary);
+    }
+    .search-wrap { position: relative; flex: 1; max-width: 340px; }
+    .search-ico {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      color: var(--color-text-muted); font-size: 14px; pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 7px 10px 7px 32px; border-radius: 8px;
+      background: var(--color-background-primary);
+      border: 1px solid var(--color-border-secondary);
+      color: var(--color-text-primary); font-size: 12px; font-family: inherit; outline: none;
+      transition: border-color .18s;
+    }
+    .search-input::placeholder { color: var(--color-text-muted); }
+    .search-input:focus { border-color: var(--color-accent-border); }
+    .tb-spacer { flex: 1; }
+    .tb-sep { width: 1px; height: 22px; background: var(--color-border-secondary); margin: 0 2px; }
+    .tbtn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 13px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid transparent; white-space: nowrap;
+      font-family: inherit; transition: all .16s;
+    }
+    .tbtn-n   { background: transparent; border-color: var(--color-border-secondary); color: var(--color-text-secondary); }
+    .tbtn-n:hover  { background: var(--color-border-tertiary); border-color: var(--color-border-primary); color: var(--color-text-primary); }
+    .tbtn-out { background: var(--color-status-orange-bg); border-color: var(--color-status-orange-border); color: var(--color-status-orange-text); }
+    .tbtn-out:hover { background: rgba(249,115,22,0.14); }
+    .tbtn-in  { background: var(--color-status-green-bg);  border-color: var(--color-status-green-border);  color: var(--color-status-green-text); }
+    .tbtn-in:hover  { background: rgba(34,197,94,0.14); }
+
+    /* ── Chips ────────────────────────────────────────────────────────── */
+    .chips-outer { flex-shrink: 0; overflow: visible; position: relative; z-index: 50; }
+    .chips-bar {
+      display: flex; align-items: center; gap: 5px;
+      padding: 7px 16px; border-bottom: 1px solid var(--color-border-tertiary);
+      background: var(--color-background-secondary);
+      overflow-x: scroll; overflow-y: visible; scrollbar-width: none;
+    }
+    .chips-bar::-webkit-scrollbar { display: none; }
+    .chips-lbl {
+      font-size: 10px; font-weight: 700; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; margin-right: 2px; flex-shrink: 0;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+      background: transparent; border: 1px solid var(--color-border-secondary);
+      color: var(--color-text-secondary); cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: all .14s; font-family: inherit; user-select: none;
+    }
+    .chip:hover { background: var(--color-border-tertiary); color: var(--color-text-primary); }
+    .chip.active { background: var(--color-accent-bg); border-color: var(--color-accent-border); color: var(--color-accent-text); }
+    .chip-val { font-weight: 700; font-size: 10px; color: var(--color-accent-text); }
+    .chip-reset { border-color: var(--color-status-red-border); color: var(--color-status-red-text); }
+    .chip-reset:hover { background: var(--color-status-red-bg); }
+
+    /* ── Global dropdown ─────────────────────────────────────────────── */
+    #gdd {
+      position: fixed; z-index: 9999; display: none;
+      min-width: 180px; max-height: 240px; overflow-y: auto;
+      background: var(--color-background-overlay);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+      flex-direction: column;
+    }
+    #gdd.open { display: flex; }
+    #gdd::-webkit-scrollbar { width: 3px; }
+    #gdd::-webkit-scrollbar-thumb { background: var(--color-border-secondary); }
+    .gdd-item {
+      padding: 8px 14px; font-size: 12px; color: var(--color-text-secondary);
+      cursor: pointer; transition: background .1s; white-space: nowrap;
+      border-bottom: 1px solid var(--color-border-tertiary);
+    }
+    .gdd-item:last-child { border-bottom: none; }
+    .gdd-item:hover { background: var(--color-border-tertiary); color: var(--color-text-primary); }
+    .gdd-item.sel { color: var(--color-accent-text); font-weight: 600; background: var(--color-accent-bg); }
+
+    /* ── Table ────────────────────────────────────────────────────────── */
+    .table-wrap { flex: 1; overflow-y: auto; overflow-x: auto; background: var(--color-background-tertiary); }
+    .table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+    .table-wrap::-webkit-scrollbar-track { background: var(--color-background-tertiary); }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 3px; }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 780px; }
+    thead { position: sticky; top: 0; z-index: 10; }
+
+    /* Header row 1 — labels */
+    tr.tr-head { background: var(--color-background-elevated); border-bottom: 1px solid var(--color-border-secondary); }
+    th {
+      padding: 9px 10px; text-align: left;
+      font-size: 10px; font-weight: 700; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: .1em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    th:first-child { padding-left: 16px; }
+    .th-r { text-align: right; }
+
+    /* Header row 2 — column filters */
+    tr.tr-filters { background: var(--color-background-elevated); border-bottom: 1px solid var(--color-border-secondary); }
+    tr.tr-filters th { padding: 4px 10px 5px; }
+    tr.tr-filters th:first-child { padding-left: 16px; }
+    .cf {
+      width: 100%; background: var(--color-background-primary);
+      border: 1px solid var(--color-border-secondary);
+      color: var(--color-text-primary); font-size: 11px; border-radius: 5px; padding: 3px 7px;
+      font-family: inherit; outline: none; transition: border-color .16s;
+    }
+    .cf::placeholder { color: var(--color-text-muted); font-size: 10px; }
+    .cf:focus { border-color: var(--color-accent-border); }
+    .cf.has-val { border-color: var(--color-accent-border); color: var(--color-accent-text); }
+
+    /* Body */
+    tbody tr { background: var(--color-background-tertiary); border-bottom: 1px solid var(--color-border-tertiary); transition: background .1s; }
+    tbody tr:nth-child(even) { background: rgba(255,255,255,0.016); }
+    tbody tr:hover { background: var(--color-background-elevated) !important; }
+    td {
+      padding: 9px 10px; font-size: 12px; color: var(--color-text-primary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+    }
+    td:first-child { padding-left: 16px; }
+
+    .td-tipo    { font-size: 10px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+    .td-profilo { font-weight: 600; color: var(--color-text-primary); }
+    .td-mono    { font-family: 'SF Mono','Menlo','Consolas',monospace; font-size: 11px; }
+    .td-r       { text-align: right; }
+    .td-muted   { color: var(--color-text-secondary); }
+    .td-null    { color: var(--color-text-muted); }
+
+    /* Badge n_pezzi */
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 30px; padding: 2px 8px; border-radius: 6px;
+      font-size: 12px; font-weight: 700; font-family: 'SF Mono','Menlo','Consolas',monospace;
+    }
+    .b-g { background: var(--color-status-green-bg);  color: var(--color-status-green-text);  border: 1px solid var(--color-status-green-border); }
+    .b-o { background: var(--color-status-orange-bg); color: var(--color-status-orange-text); border: 1px solid var(--color-status-orange-border); }
+    .b-r { background: var(--color-status-red-bg);    color: var(--color-status-red-text);    border: 1px solid var(--color-status-red-border); }
+
+    /* Row hover actions */
+    .row-badge { display: inline-flex; }
+    .row-act   { display: none; align-items: center; justify-content: flex-end; gap: 4px; }
+    tbody tr:hover .row-badge { display: none; }
+    tbody tr:hover .row-act   { display: flex; }
+    .ra {
+      display: flex; align-items: center; gap: 3px;
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 1px solid; transition: all .14s; font-family: inherit;
+    }
+    .ra-in  { background: var(--color-status-green-bg);  border-color: var(--color-status-green-border);  color: var(--color-status-green-text); }
+    .ra-in:hover  { background: rgba(34,197,94,0.14); }
+    .ra-out { background: var(--color-status-orange-bg); border-color: var(--color-status-orange-border); color: var(--color-status-orange-text); }
+    .ra-out:hover { background: rgba(249,115,22,0.14); }
+    .ra-del { background: var(--color-status-red-bg); border-color: var(--color-status-red-border); color: var(--color-status-red-text); }
+    .ra-del:hover { background: rgba(239,68,68,0.16); }
+
+    /* Righe prenotate da commessa */
+    tbody tr.tr-reserved { background: rgba(99,120,200,0.055) !important; }
+    tbody tr.tr-reserved:hover { background: var(--color-background-elevated) !important; }
+    .td-commessa { font-size: 11px; font-weight: 600; color: var(--color-accent-text); }
+
+    /* ── Pagination ───────────────────────────────────────────────────── */
+    .pagination {
+      flex-shrink: 0; height: 44px;
+      display: flex; align-items: center; gap: 10px; padding: 0 16px;
+      border-top: 1px solid var(--color-border-tertiary);
+      background: var(--color-background-secondary);
+    }
+    .pag-info { font-size: 11px; color: var(--color-text-muted); }
+    .pag-spc { flex: 1; }
+    .pag-lbl { font-size: 11px; color: var(--color-text-muted); }
+    .pag-sel {
+      background: var(--color-background-primary);
+      border: 1px solid var(--color-border-secondary);
+      color: var(--color-text-secondary); font-size: 11px; border-radius: 6px;
+      padding: 3px 7px; font-family: inherit; cursor: pointer; outline: none;
+    }
+    .pag-btns { display: flex; gap: 3px; align-items: center; }
+    .pb {
+      width: 27px; height: 27px; border-radius: 6px;
+      background: transparent; border: 1px solid var(--color-border-secondary);
+      color: var(--color-text-secondary); font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .14s; font-family: inherit;
+    }
+    .pb:hover:not(:disabled) { background: var(--color-border-tertiary); color: var(--color-text-primary); }
+    .pb:disabled { opacity: 0.25; cursor: default; }
+    .pb.cur { background: var(--color-accent-bg); border-color: var(--color-accent-border); color: var(--color-accent-text); }
+
+    /* ── Empty / skeleton ─────────────────────────────────────────────── */
+    .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px; gap: 8px; color: var(--color-text-muted); font-size: 13px; background: var(--color-background-tertiary); }
+    .empty-ico { font-size: 28px; opacity: 0.35; }
+    .sk td { padding-top: 10px; padding-bottom: 10px; background: var(--color-background-tertiary); }
+    .skb {
+      height: 11px; border-radius: 4px;
+      background: linear-gradient(90deg, var(--color-background-elevated) 25%, rgba(255,255,255,0.03) 50%, var(--color-background-elevated) 75%);
+      background-size: 200% 100%; animation: sh 1.4s infinite;
+    }
+    @keyframes sh { to { background-position: -200% 0; } }
+
+    /* ── Modals ───────────────────────────────────────────────────────── */
+    .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 8000; backdrop-filter: blur(5px); }
+    .backdrop.open { display: flex; }
+    .modal {
+      background: var(--color-background-overlay);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 16px; padding: 26px; width: 420px; max-width: 94vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 3px; }
+    .modal-sub { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 20px; }
+    .mf { margin-bottom: 13px; }
+    .ml { display: block; font-size: 10px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 5px; }
+    .mi {
+      width: 100%; padding: 8px 11px; border-radius: 8px;
+      background: var(--color-background-primary);
+      border: 1px solid var(--color-border-secondary);
+      color: var(--color-text-primary); font-size: 13px; font-family: inherit; outline: none; transition: border-color .18s;
+    }
+    .mi:focus { border-color: var(--color-accent-border); }
+    .mi-results { max-height: 180px; overflow-y: auto; margin-top: 4px; border-radius: 8px; background: var(--color-background-elevated); border: 1px solid var(--color-border-secondary); display: none; }
+    .mi-results.show { display: block; }
+    .mi-result { padding: 8px 12px; cursor: pointer; font-size: 12px; color: var(--color-text-secondary); transition: background .1s; border-bottom: 1px solid var(--color-border-tertiary); }
+    .mi-result:last-child { border-bottom: none; }
+    .mi-result:hover { background: var(--color-border-tertiary); color: var(--color-text-primary); }
+    .mi-result-name { font-weight: 600; color: var(--color-text-primary); }
+    .mi-result-sub { font-size: 10px; color: var(--color-text-muted); margin-top: 1px; }
+    .mi-selected { display: none; padding: 8px 12px; border-radius: 8px; margin-top: 5px; background: var(--color-accent-bg); border: 1px solid var(--color-accent-border); font-size: 12px; color: var(--color-accent-text); align-items: center; justify-content: space-between; }
+    .mi-selected.show { display: flex; }
+    .mi-sel-clear { cursor: pointer; font-size: 14px; color: var(--color-text-secondary); }
+    .mi-sel-clear:hover { color: var(--color-status-red-text); }
+    .merr { font-size: 11px; color: var(--color-status-red-text); margin-top: 8px; display: none; }
+    .merr.show { display: block; }
+    .mactions { display: flex; gap: 8px; margin-top: 20px; }
+    .mbt { flex: 1; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid transparent; font-family: inherit; transition: all .16s; }
+    .mbt-cancel { background: transparent; border-color: var(--color-border-secondary); color: var(--color-text-secondary); }
+    .mbt-cancel:hover { background: var(--color-border-tertiary); }
+    .mbt-in  { background: var(--color-status-green-bg);  color: var(--color-status-green-text);  border-color: var(--color-status-green-border); }
+    .mbt-in:hover  { background: rgba(34,197,94,0.14); }
+    .mbt-out { background: var(--color-status-orange-bg); color: var(--color-status-orange-text); border-color: var(--color-status-orange-border); }
+    .mbt-out:hover { background: rgba(249,115,22,0.14); }
+
+    /* ── Toast ────────────────────────────────────────────────────────── */
+    .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 9000; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+    .toast { padding: 9px 15px; border-radius: 9px; font-size: 12px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.4); opacity: 0; transform: translateY(6px); transition: opacity .22s, transform .22s; pointer-events: none; }
+    .toast.on { opacity: 1; transform: translateY(0); }
+    .toast-ok  { background: var(--color-background-overlay); color: var(--color-status-green-text); border: 1px solid var(--color-status-green-border); }
+    .toast-err { background: var(--color-background-overlay); color: var(--color-status-red-text);   border: 1px solid var(--color-status-red-border); }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 1280px) { .col-commessa { display: none; } }
+    @media (max-width: 1100px) { .col-colata, .th-colata { display: none; } }
+    @media (max-width: 960px)  { .col-norma,  .th-norma  { display: none; } .sidebar { width: 170px; } }
+    @media (max-width: 800px)  { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+
+<script>(function(){ if(!localStorage.getItem('stqc_token')) window.location.replace('/login'); })();</script>
+
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <nav class="topbar">
+    <a class="topbar-back" href="/">← Home</a>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-title">Magazzino</span>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-user">—</span>
+      <button class="btn-logout" onclick="logout()">Esci</button>
+    </div>
+  </nav>
+
+  <div class="body-wrap">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-section">Tipologie</div>
+      <div id="tipo-list"></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section">Commesse in magazzino</div>
+      <div id="comm-list"></div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-ico">⌕</span>
+          <input id="search-inp" class="search-input" type="text" placeholder="Cerca in tutti i campi…" oninput="onSearch()"/>
+        </div>
+        <div class="tb-spacer"></div>
+        <button class="tbtn tbtn-n" onclick="openImport()">↑ Importa inventario</button>
+        <button class="tbtn tbtn-n" onclick="openNewMat()">+ Nuovo materiale</button>
+        <div class="tb-sep"></div>
+        <button class="tbtn tbtn-out" onclick="openMov(null,'out')">↓ Uscita</button>
+        <button class="tbtn tbtn-in"  onclick="openMov(null,'in')">↑ Ingresso</button>
+      </div>
+
+      <!-- CHIPS (wrapper con overflow:visible per non clippiare il dropdown) -->
+      <div class="chips-outer">
+        <div class="chips-bar">
+          <span class="chips-lbl">Filtri:</span>
+          <button class="chip" id="ch-profilo"    data-chip="profilo"    onclick="toggleChip(event,'profilo')">Profilo<span class="chip-val" id="cv-profilo"></span></button>
+          <button class="chip" id="ch-dimensioni" data-chip="dimensioni" onclick="toggleChip(event,'dimensioni')">Dimensioni<span class="chip-val" id="cv-dimensioni"></span></button>
+          <button class="chip" id="ch-qualita"    data-chip="qualita"    onclick="toggleChip(event,'qualita')">Qualità<span class="chip-val" id="cv-qualita"></span></button>
+          <button class="chip" id="ch-norma"      data-chip="norma"      onclick="toggleChip(event,'norma')">Norma<span class="chip-val" id="cv-norma"></span></button>
+          <button class="chip" id="ch-colata"     data-chip="colata"     onclick="toggleChip(event,'colata')">Colata<span class="chip-val" id="cv-colata"></span></button>
+          <button class="chip" id="ch-commessa"   data-chip="commessa"   onclick="toggleChip(event,'commessa')">Commessa<span class="chip-val" id="cv-commessa"></span></button>
+          <button class="chip chip-reset" id="btn-reset" style="display:none" onclick="clearAll()">✕ Reset filtri</button>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-wrap" id="table-wrap">
+        <table id="tbl">
+          <colgroup>
+            <col style="width:8%"/>
+            <col style="width:15%"/>
+            <col style="width:8%"/>
+            <col style="width:12%"/>
+            <col class="col-norma"  style="width:8%"/>
+            <col style="width:8%"/>
+            <col class="col-colata" style="width:8%"/>
+            <col style="width:7%"/>
+            <col style="width:7%"/>
+            <col class="col-commessa" style="width:10%"/>
+            <col style="width:9%"/>
+          </colgroup>
+          <thead>
+            <!-- Row 1: labels -->
+            <tr class="tr-head">
+              <th>Tipo</th>
+              <th>Profilo</th>
+              <th class="th-r">N° pezzi</th>
+              <th>Dimensioni</th>
+              <th class="th-norma col-norma">Norma</th>
+              <th>Qualità</th>
+              <th class="th-colata col-colata">Colata</th>
+              <th class="th-r">Peso kg</th>
+              <th class="th-r">Peso/u</th>
+              <th class="col-commessa">Commessa</th>
+              <th></th>
+            </tr>
+            <!-- Row 2: column filters -->
+            <tr class="tr-filters" id="col-filter-row">
+              <th><input class="cf" id="cf-tipo"       placeholder="tipo…"       oninput="onCf('tipo',this)"/></th>
+              <th><input class="cf" id="cf-profilo"    placeholder="profilo…"    oninput="onCf('profilo',this)"/></th>
+              <th></th>
+              <th><input class="cf" id="cf-dimensioni" placeholder="dimensioni…" oninput="onCf('dimensioni',this)"/></th>
+              <th class="col-norma"><input class="cf" id="cf-norma" placeholder="norma…" oninput="onCf('norma',this)"/></th>
+              <th><input class="cf" id="cf-qualita"    placeholder="qualità…"    oninput="onCf('qualita',this)"/></th>
+              <th class="col-colata"><input class="cf" id="cf-colata" placeholder="colata…" oninput="onCf('colata',this)"/></th>
+              <th></th>
+              <th></th>
+              <th class="col-commessa"><input class="cf" id="cf-commessa" placeholder="commessa…" oninput="onCf('commessa',this)"/></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="empty" style="display:none">
+          <div class="empty-ico">📦</div>
+          <div>Nessun materiale trovato</div>
+        </div>
+      </div>
+
+      <!-- PAGINATION -->
+      <div class="pagination">
+        <span class="pag-info" id="pag-info">—</span>
+        <div class="pag-spc"></div>
+        <span class="pag-lbl">Righe:</span>
+        <select class="pag-sel" id="pag-sel" onchange="onRowsSel()">
+          <option value="auto">Auto</option>
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+        <div class="pag-btns">
+          <button class="pb" id="pb-prev" onclick="goPage(page-1)">‹</button>
+          <div id="pag-pages" style="display:flex;gap:3px"></div>
+          <button class="pb" id="pb-next" onclick="goPage(page+1)">›</button>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /body-wrap -->
+</div><!-- /shell -->
+
+<!-- GLOBAL DROPDOWN — portato fuori da qualsiasi overflow container -->
+<div id="gdd" role="listbox"></div>
+
+<!-- MOVEMENT MODAL -->
+<div class="backdrop" id="mov-modal" onclick="closeMov()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="mov-title">Ingresso</div>
+    <div class="modal-sub"   id="mov-sub">Registra un movimento di magazzino</div>
+    <div class="mf" id="mov-search-field">
+      <label class="ml">Materiale</label>
+      <input class="mi" id="mov-mat-search" type="text" placeholder="Cerca profilo o codice…" oninput="searchMat()" autocomplete="off"/>
+      <div class="mi-results" id="mov-mat-results"></div>
+      <div class="mi-selected" id="mov-mat-selected">
+        <span id="mov-mat-name">—</span>
+        <span class="mi-sel-clear" onclick="clearMatSel()">✕</span>
+      </div>
+    </div>
+    <div class="mf">
+      <label class="ml">Quantità (pezzi)</label>
+      <input class="mi" id="mov-qty" type="number" min="1" step="1" value="1"/>
+    </div>
+    <div class="mf">
+      <label class="ml">Causale</label>
+      <input class="mi" id="mov-reason" type="text" placeholder="es. Arrivo DDT, Prelievo commessa…"/>
+    </div>
+    <div class="mf">
+      <label class="ml">Commessa (opzionale)</label>
+      <input class="mi" id="mov-comm" type="text" placeholder="es. MCC-2024-001"/>
+    </div>
+    <div class="merr" id="mov-err"></div>
+    <div class="mactions">
+      <button class="mbt mbt-cancel" onclick="closeMov()">Annulla</button>
+      <button class="mbt" id="mov-ok" onclick="confirmMov()">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="backdrop" id="imp-modal" onclick="closeImport()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Importa inventario</div>
+    <div class="modal-sub">File .xlsm — i materiali esistenti vengono aggiornati, non duplicati.</div>
+    <div class="mf">
+      <label class="ml">File inventario (.xlsm)</label>
+      <input class="mi" id="imp-file" type="file" accept=".xlsm,.xlsx" style="padding:5px 10px"/>
+    </div>
+    <div class="merr" id="imp-err"></div>
+    <div class="mactions">
+      <button class="mbt mbt-cancel" onclick="closeImport()">Annulla</button>
+      <button class="mbt mbt-in" id="imp-ok" onclick="confirmImport()">↑ Importa</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ── Auth ───────────────────────────────────────────────────────────────────────
+const TOKEN   = localStorage.getItem('stqc_token') || '';
+const NOME    = localStorage.getItem('stqc_nome')  || '—';
+const PROFILO = localStorage.getItem('stqc_profilo') || '';
+document.getElementById('topbar-user').textContent = NOME + (PROFILO ? ' · ' + PROFILO : '');
+function hdr() { return { Authorization: 'Bearer ' + TOKEN }; }
+function logout() {
+  ['stqc_token','stqc_profilo','stqc_nome'].forEach(k => localStorage.removeItem(k));
+  window.location.replace('/login');
+}
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let allRows  = [];
+let filtered = [];
+let page     = 1;
+let rpp      = 50;
+let activeTipo      = 'tutti';
+let activeCommessa  = null;
+let searchQ         = '';
+
+// Chip filters (exact match)
+const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null, commessa: null };
+const CHIP_MAP = { profilo:'profilo', dimensioni:'dimensioni', qualita:'qualita', norma:'norma_uni', colata:'colata', commessa:'commessa_ref' };
+
+// Column filters (startsWith)
+const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'' };
+const CF_KEY = { tipo:'tipo', profilo:'profilo', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata', commessa:'commessa_ref' };
+
+// Current open chip name
+let openChip = null;
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
+(async () => {
+  renderSkeleton(12);
+  await loadStock();
+  calcRpp();
+  window.addEventListener('resize', () => { calcRpp(); renderTable(); });
+  document.addEventListener('click', closeGdd);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); }
+    if (e.key === 'Enter' && document.getElementById('mov-modal').classList.contains('open')) confirmMov();
+  });
+})();
+
+// ── Load data ──────────────────────────────────────────────────────────────────
+async function loadStock() {
+  try {
+    const r = await fetch('/api/v1/warehouse/magazzino?limit=5000', { headers: hdr() });
+    if (!r.ok) throw new Error(r.status);
+    allRows = await r.json();
+    applyFilters();
+    renderSidebar();
+  } catch { showToast('Errore caricamento magazzino', 'err'); }
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────────
+const TIPO_ORDER = ['tutti','LAMIERA','TRAVI','SCATOLATI/ANGOLARI','PIATTI','TONDO','QUADRI'];
+
+function renderSidebar() {
+  // ── Tipologie ──────────────────────────────────────────────────────────────
+  const cnt = { tutti: allRows.length };
+  for (const r of allRows) { const t = (r.tipo||'ALTRO').toUpperCase(); cnt[t] = (cnt[t]||0)+1; }
+  const extras = Object.keys(cnt).filter(t => t !== 'tutti' && !TIPO_ORDER.includes(t));
+  document.getElementById('tipo-list').innerHTML = [...TIPO_ORDER, ...extras].map(t => {
+    const n = cnt[t]||0;
+    if (t !== 'tutti' && n === 0) return '';
+    return `<div class="sb-item${activeTipo===t?' active':''}" onclick="selTipo('${esc(t)}')">
+      <span>${t==='tutti'?'Tutti':t}</span><span class="sb-count">${n}</span>
+    </div>`;
+  }).join('');
+
+  // ── Commesse (da commessa_ref in allRows) ──────────────────────────────────
+  const commCnt = {};
+  for (const r of allRows) {
+    if (r.commessa_ref) commCnt[r.commessa_ref] = (commCnt[r.commessa_ref]||0) + 1;
+  }
+  const commesse = Object.keys(commCnt).sort();
+  const commHtml = commesse.length === 0
+    ? `<div style="padding:6px 14px;font-size:11px;color:var(--color-text-muted);font-style:italic">Nessuna commessa</div>`
+    : commesse.map(c => {
+        const safe = c.replace(/'/g,"\\'");
+        return `<div class="sb-item${activeCommessa===c?' active':''}" onclick="selCommessa('${safe}')">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:128px" title="${esc(c)}">${esc(c)}</span>
+          <span class="sb-count">${commCnt[c]}</span>
+        </div>`;
+      }).join('');
+  document.getElementById('comm-list').innerHTML = commHtml;
+}
+
+function selTipo(t) { activeTipo = t; page = 1; renderSidebar(); applyFilters(); }
+
+function selCommessa(codice) {
+  activeCommessa = activeCommessa === codice ? null : codice;
+  page = 1;
+  renderSidebar();
+  applyFilters();
+}
+
+// ── Filter logic ───────────────────────────────────────────────────────────────
+function onSearch() { searchQ = document.getElementById('search-inp').value.toLowerCase(); page = 1; applyFilters(); }
+
+function onCf(col, inp) {
+  CF[col] = inp.value.trim();
+  inp.classList.toggle('has-val', CF[col].length > 0);
+  page = 1;
+  applyFilters();
+}
+
+function applyFilters() {
+  filtered = allRows.filter(r => {
+    // sidebar tipo
+    if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
+    // sidebar commessa
+    if (activeCommessa && (r.commessa_ref||'') !== activeCommessa) return false;
+    // global search
+    if (searchQ) {
+      const hay = [r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.commessa_ref,r.material_code]
+        .map(v=>(v||'').toLowerCase()).join(' ');
+      if (!hay.includes(searchQ)) return false;
+    }
+    // chip exact filters
+    for (const [k,fk] of Object.entries(CHIP_MAP)) {
+      if (AF[k] && (r[fk]||'') !== AF[k]) return false;
+    }
+    // column startsWith filters
+    for (const [col, key] of Object.entries(CF_KEY)) {
+      const v = CF[col];
+      if (v && !(r[key]||'').toLowerCase().startsWith(v.toLowerCase())) return false;
+    }
+    return true;
+  });
+  refreshChipLabels();
+  renderTable();
+  updateResetBtn();
+}
+
+// ── Global dropdown ────────────────────────────────────────────────────────────
+const gdd = document.getElementById('gdd');
+
+function toggleChip(e, name) {
+  e.stopPropagation();
+  if (openChip === name) { closeGdd(); return; }
+  openChip = name;
+  const chip = document.getElementById('ch-' + name);
+  chip.classList.add('active');
+
+  // Populate
+  const fk = CHIP_MAP[name];
+  const vals = [...new Set(
+    allRows
+      .filter(r => {
+        if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
+        if (searchQ) {
+          const hay = [r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.commessa_ref,r.material_code]
+            .map(v=>(v||'').toLowerCase()).join(' ');
+          if (!hay.includes(searchQ)) return false;
+        }
+        return true;
+      })
+      .map(r => r[fk]).filter(v => v != null && v !== '')
+  )].sort();
+
+  if (!vals.length) {
+    gdd.innerHTML = '<div class="gdd-item" style="opacity:.35;cursor:default;pointer-events:none">Nessun valore disponibile</div>';
+  } else {
+    gdd.innerHTML = vals.map(v => {
+      const s = v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div class="gdd-item${AF[name]===v?' sel':''}" onclick="selChip(event,'${name}','${s}')">${v}</div>`;
+    }).join('');
+  }
+
+  // Position below chip
+  const rect = chip.getBoundingClientRect();
+  gdd.style.left = rect.left + 'px';
+  gdd.style.top  = (rect.bottom + 4) + 'px';
+  gdd.style.minWidth = Math.max(rect.width, 180) + 'px';
+
+  // Adjust if would go off-screen right
+  gdd.classList.add('open');
+  const gRect = gdd.getBoundingClientRect();
+  if (gRect.right > window.innerWidth - 8) {
+    gdd.style.left = (window.innerWidth - gRect.width - 8) + 'px';
+  }
+  if (gRect.bottom > window.innerHeight - 8) {
+    gdd.style.top = (rect.top - gRect.height - 4) + 'px';
+  }
+}
+
+function selChip(e, name, val) {
+  e.stopPropagation();
+  AF[name] = AF[name] === val ? null : val;
+  closeGdd();
+  page = 1;
+  applyFilters();
+}
+
+function closeGdd(e) {
+  if (!openChip) return;
+  // Don't close if click was on a chip button
+  if (e && e.target && e.target.closest('.chip')) return;
+  gdd.classList.remove('open');
+  if (openChip) {
+    const ch = document.getElementById('ch-' + openChip);
+    if (ch && !AF[openChip]) ch.classList.remove('active');
+  }
+  openChip = null;
+}
+
+function refreshChipLabels() {
+  for (const name of Object.keys(CHIP_MAP)) {
+    const v = AF[name];
+    document.getElementById('cv-' + name).textContent = v ? ': ' + (v.length>10 ? v.slice(0,10)+'…' : v) : '';
+    document.getElementById('ch-' + name).classList.toggle('active', !!v);
+  }
+}
+
+function clearAll() {
+  Object.keys(AF).forEach(k => AF[k] = null);
+  Object.keys(CF).forEach(k => { CF[k]=''; const el=document.getElementById('cf-'+k); if(el){el.value='';el.classList.remove('has-val');} });
+  searchQ = ''; activeTipo = 'tutti'; activeCommessa = null; page = 1;
+  document.getElementById('search-inp').value = '';
+  renderSidebar(); applyFilters();
+}
+
+function updateResetBtn() {
+  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ || activeTipo !== 'tutti' || activeCommessa !== null;
+  document.getElementById('btn-reset').style.display = any ? 'inline-flex' : 'none';
+}
+
+// ── Table ──────────────────────────────────────────────────────────────────────
+function calcRpp() {
+  const sel = document.getElementById('pag-sel').value;
+  if (sel !== 'auto') { rpp = +sel; return; }
+  // topbar(54) + toolbar(52) + chips(38) + thead_labels(35) + thead_filters(32) + pagination(44) + buffer(8)
+  rpp = Math.max(5, Math.floor((window.innerHeight - 263) / 42));
+}
+
+function onRowsSel() { calcRpp(); page = 1; renderTable(); }
+
+function fmt(v, d=1) {
+  if (v==null) return '<span class="td-null">—</span>';
+  return (+v).toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function badgeCls(n) { return n<=0 ? 'b-r' : n<=5 ? 'b-o' : 'b-g'; }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function renderSkeleton(n) {
+  document.getElementById('tbody').innerHTML = Array.from({length:n},()=>
+    `<tr class="sk"><td></td><td><div class="skb" style="width:65%"></div></td>
+    <td></td><td><div class="skb" style="width:50%"></div></td>
+    <td class="col-norma"><div class="skb" style="width:55%"></div></td>
+    <td><div class="skb" style="width:45%"></div></td>
+    <td class="col-colata"><div class="skb" style="width:40%"></div></td>
+    <td></td><td></td><td class="col-commessa"></td><td></td></tr>`).join('');
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty');
+  const total = filtered.length;
+  if (!total) { tbody.innerHTML=''; empty.style.display='flex'; renderPag(0); return; }
+  empty.style.display = 'none';
+
+  const s = (page-1)*rpp, e = Math.min(s+rpp, total);
+  tbody.innerHTML = filtered.slice(s,e).map(r => {
+    const n   = r.n_pezzi ?? 0;
+    const mid = r.material_id;
+    const isReserved = !!(r.commessa_ref);
+    const rowClass   = isReserved ? ' class="tr-reserved"' : '';
+    const commessaTd = isReserved
+      ? `<td class="col-commessa td-commessa" title="${esc(r.commessa_ref)}">${esc(r.commessa_ref)}</td>`
+      : `<td class="col-commessa td-null" style="font-size:11px">—</td>`;
+    const delBtn = isReserved
+      ? `<button class="ra ra-del" onclick="removeReserved(${mid},event)" title="Rimuovi dal magazzino">✕</button>`
+      : '';
+    return `<tr${rowClass}>
+      <td class="td-tipo">${esc(r.tipo)||'—'}</td>
+      <td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>
+      <td class="td-r">
+        <span class="badge ${badgeCls(n)} row-badge">${Math.round(n)}</span>
+        <div class="row-act">
+          <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
+          <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
+          ${delBtn}
+        </div>
+      </td>
+      <td class="td-mono td-muted" title="${esc(r.dimensioni)}">${esc(r.dimensioni)||'—'}</td>
+      <td class="col-norma td-muted" style="font-size:11px" title="${esc(r.norma_uni)}">${esc(r.norma_uni)||'—'}</td>
+      <td class="td-muted" style="font-size:11px" title="${esc(r.qualita)}">${esc(r.qualita)||'<span class="td-null">—</span>'}</td>
+      <td class="col-colata td-muted" style="font-size:11px" title="${esc(r.colata)}">${esc(r.colata)||'—'}</td>
+      <td class="td-r td-mono td-muted">${fmt(r.peso_kg,1)}</td>
+      <td class="td-r td-mono td-muted">${fmt(r.peso_u_kg,3)}</td>
+      ${commessaTd}
+      <td></td>
+    </tr>`;
+  }).join('');
+  renderPag(total);
+}
+
+async function removeReserved(matId, e) {
+  if (e) e.stopPropagation();
+  const row = allRows.find(r => r.material_id === matId);
+  const label = row ? `${row.profilo||row.material_code} (${row.commessa_ref})` : `ID ${matId}`;
+  if (!confirm(`Rimuovere fisicamente "${label}" dal magazzino?\nQuesta operazione non può essere annullata.`)) return;
+  const res = await fetch(`/api/v1/warehouse/materials/${matId}`, { method: 'DELETE', headers: hdr() });
+  if (res.ok || res.status === 204) {
+    showToast('Item rimosso dal magazzino', 'ok');
+    await loadStock();
+  } else {
+    const d = await res.json().catch(() => ({}));
+    showToast(d?.detail || `Errore ${res.status}`, 'err');
+  }
+}
+
+function renderPag(total) {
+  const tp = Math.max(1, Math.ceil(total/rpp));
+  page = Math.min(page, tp);
+  const s = total===0 ? 0 : (page-1)*rpp+1;
+  const e = Math.min(page*rpp, total);
+  document.getElementById('pag-info').textContent = total===0 ? 'Nessun risultato' : `${s}–${e} di ${total}`;
+  document.getElementById('pb-prev').disabled = page<=1;
+  document.getElementById('pb-next').disabled = page>=tp;
+  let lo=Math.max(1,page-3), hi=Math.min(tp,lo+6); lo=Math.max(1,hi-6);
+  document.getElementById('pag-pages').innerHTML =
+    Array.from({length:hi-lo+1},(_,i)=>lo+i)
+      .map(i=>`<button class="pb${i===page?' cur':''}" onclick="goPage(${i})">${i}</button>`).join('');
+}
+
+function goPage(n) {
+  page = Math.max(1, Math.min(n, Math.ceil(filtered.length/rpp)));
+  renderTable();
+  document.getElementById('table-wrap').scrollTop = 0;
+}
+
+// ── Movement modal ─────────────────────────────────────────────────────────────
+let movCtx = null;
+
+function openMov(matId, tipo, e) {
+  if (e) e.stopPropagation();
+  movCtx = { material_id: matId, tipo };
+  const isIn = tipo === 'in';
+  document.getElementById('mov-title').textContent = isIn ? '↑ Ingresso' : '↓ Uscita';
+  const row = matId ? allRows.find(r=>r.material_id===matId) : null;
+  document.getElementById('mov-sub').textContent = row
+    ? [row.tipo, row.profilo, row.dimensioni].filter(Boolean).join(' · ')
+    : 'Seleziona il materiale';
+  document.getElementById('mov-search-field').style.display = matId ? 'none' : 'block';
+  document.getElementById('mov-mat-selected').classList.remove('show');
+  document.getElementById('mov-mat-search').value = '';
+  document.getElementById('mov-mat-results').classList.remove('show');
+  const ok = document.getElementById('mov-ok');
+  ok.className = 'mbt ' + (isIn ? 'mbt-in' : 'mbt-out');
+  ok.textContent = isIn ? '↑ Conferma ingresso' : '↓ Conferma uscita';
+  document.getElementById('mov-qty').value = '1';
+  document.getElementById('mov-reason').value = '';
+  document.getElementById('mov-comm').value = '';
+  document.getElementById('mov-err').classList.remove('show');
+  document.getElementById('mov-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('mov-qty').focus(),50);
+}
+function closeMov() { document.getElementById('mov-modal').classList.remove('open'); movCtx=null; }
+
+function searchMat() {
+  const q = document.getElementById('mov-mat-search').value.toLowerCase();
+  const res = document.getElementById('mov-mat-results');
+  if (!q) { res.classList.remove('show'); return; }
+  const hits = allRows.filter(r=>[r.profilo,r.material_code,r.tipo,r.qualita].some(v=>(v||'').toLowerCase().includes(q))).slice(0,20);
+  res.innerHTML = hits.length
+    ? hits.map(r=>`<div class="mi-result" onclick="selectMat(${r.material_id})">
+        <div class="mi-result-name">${esc(r.profilo||r.material_code)}</div>
+        <div class="mi-result-sub">${[r.tipo,r.dimensioni,r.qualita].filter(Boolean).join(' · ')}</div>
+      </div>`).join('')
+    : '<div class="mi-result" style="opacity:.35;cursor:default">Nessun risultato</div>';
+  res.classList.add('show');
+}
+function selectMat(id) {
+  const r = allRows.find(x=>x.material_id===id); if(!r) return;
+  movCtx.material_id = id;
+  document.getElementById('mov-mat-name').textContent = [r.profilo||r.material_code, r.dimensioni].filter(Boolean).join(' — ');
+  document.getElementById('mov-mat-selected').classList.add('show');
+  document.getElementById('mov-mat-results').classList.remove('show');
+  document.getElementById('mov-mat-search').value = '';
+}
+function clearMatSel() {
+  movCtx.material_id = null;
+  document.getElementById('mov-mat-selected').classList.remove('show');
+}
+async function confirmMov() {
+  const err = document.getElementById('mov-err'); err.classList.remove('show');
+  if (!movCtx?.material_id) { err.textContent='Seleziona un materiale.'; err.classList.add('show'); return; }
+  const qty = parseFloat(document.getElementById('mov-qty').value);
+  if (!qty||qty<=0) { err.textContent='Quantità non valida.'; err.classList.add('show'); return; }
+  const reason  = document.getElementById('mov-reason').value.trim() || (movCtx.tipo==='in' ? 'Ingresso manuale' : 'Uscita manuale');
+  const commessa = document.getElementById('mov-comm').value.trim() || null;
+  const ok = document.getElementById('mov-ok'); ok.disabled=true; ok.textContent='Salvataggio…';
+  try {
+    const res = await fetch('/api/v1/warehouse/movements',{
+      method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
+      body:JSON.stringify({material_id:movCtx.material_id,quantity:qty,
+        movement_type:movCtx.tipo==='in'?'INCOMING':'OUTGOING',reason,destination_commessa:commessa}),
+    });
+    if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
+    closeMov();
+    showToast(movCtx.tipo==='in'?'Ingresso registrato':'Uscita registrata','ok');
+    await loadStock();
+  } catch(e) {
+    err.textContent=e.message; err.classList.add('show');
+    ok.disabled=false; ok.textContent=movCtx.tipo==='in'?'↑ Conferma ingresso':'↓ Conferma uscita';
+  }
+}
+
+// ── Import modal ───────────────────────────────────────────────────────────────
+function openImport() { document.getElementById('imp-file').value=''; document.getElementById('imp-err').classList.remove('show'); document.getElementById('imp-modal').classList.add('open'); }
+function closeImport() { document.getElementById('imp-modal').classList.remove('open'); }
+async function confirmImport() {
+  const fi=document.getElementById('imp-file'); const err=document.getElementById('imp-err'); err.classList.remove('show');
+  if(!fi.files.length){err.textContent='Seleziona un file.'; err.classList.add('show'); return;}
+  const btn=document.getElementById('imp-ok'); btn.disabled=true; btn.textContent='Importazione…';
+  const fd=new FormData(); fd.append('file',fi.files[0]);
+  try {
+    const res=await fetch('/api/v1/inventario/import',{method:'POST',headers:hdr(),body:fd});
+    if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
+    const data=await res.json(); closeImport();
+    showToast(`Importazione completata — ${data.created_materials??''} nuovi materiali`,'ok');
+    await loadStock();
+  } catch(e){err.textContent=e.message; err.classList.add('show');}
+  finally{btn.disabled=false; btn.textContent='↑ Importa';}
+}
+
+function openNewMat() { showToast('Usa "Importa inventario" per aggiungere materiali in blocco','err'); }
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+function showToast(msg, type='ok') {
+  const w=document.getElementById('toast-wrap');
+  const el=document.createElement('div'); el.className='toast toast-'+type; el.textContent=msg;
+  w.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('on')));
+  setTimeout(()=>{el.classList.remove('on'); setTimeout(()=>w.removeChild(el),300);},3200);
+}
+</script>
+</body>
+</html>

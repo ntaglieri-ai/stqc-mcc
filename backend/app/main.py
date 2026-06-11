@@ -5,8 +5,9 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-import backend.app.models.commessa  # noqa: F401
-import backend.app.models.user  # noqa: F401
+import backend.app.models.commessa   # noqa: F401
+import backend.app.models.settings   # noqa: F401
+import backend.app.models.user       # noqa: F401
 import backend.app.models.warehouse  # noqa: F401
 from backend.app.models.user import GROUP_DEFAULTS, GROUP_POSTAZIONI_DEFAULTS
 from backend.app.api.api_v1.api import api_router, public_router
@@ -102,6 +103,10 @@ def create_app() -> FastAPI:
     @app.get("/commesse/{commessa_id}", include_in_schema=False)
     def commessa_detail_page(commessa_id: int):
         return FileResponse(STATIC_DIR / "commessa-detail.html", headers=_NO_CACHE)
+
+    @app.get("/magazzino", include_in_schema=False)
+    def magazzino_page():
+        return FileResponse(STATIC_DIR / "magazzino.html", headers=_NO_CACHE)
 
     @app.get("/officina", include_in_schema=False)
     def officina_page():
