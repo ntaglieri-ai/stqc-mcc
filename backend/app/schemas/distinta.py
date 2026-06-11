@@ -13,6 +13,7 @@ class DistintaItemBase(BaseModel):
     commessa_reference: Optional[str] = Field(None, example="COMM-2026-001")
     qr_code: Optional[str] = None
     length_mm: Optional[float] = Field(None, example=3500.0)
+    width_mm: Optional[float] = Field(None, example=250.0)
     instance_number: Optional[int] = None
     parent_assembly: Optional[str] = None
 

@@ -20,9 +20,9 @@
       --color-background-elevated:  #1D2435;
       --color-background-overlay:   #242E44;
 
-      --color-text-primary:   #C4CFDE;
-      --color-text-secondary: #6B7E95;
-      --color-text-muted:     #3F5060;
+      --color-text-primary:   #D7E0EC;
+      --color-text-secondary: #8A9BB0;
+      --color-text-muted:     #596B7E;
 
       --color-border-primary:   rgba(255,255,255,0.10);
       --color-border-secondary: rgba(255,255,255,0.06);
@@ -122,6 +122,51 @@
     }
     .sb-item.active .sb-count { background: var(--color-accent-bg); color: var(--color-accent-text); }
     .sb-divider { height: 1px; background: var(--color-border-tertiary); margin: 10px 0; }
+    .sb-comm-wrap { padding: 0 10px; position: relative; }
+    .sb-comm-toggle {
+      width: 100%; display: flex; align-items: center; gap: 8px;
+      padding: 8px 9px; border-radius: 8px;
+      border: 1px solid var(--color-border-secondary);
+      background: var(--color-background-primary);
+      color: var(--color-text-secondary); cursor: pointer; font: inherit;
+      transition: border-color .16s, color .16s, background .16s;
+    }
+    .sb-comm-toggle:hover, .sb-comm-toggle.open {
+      color: var(--color-text-primary); border-color: var(--color-accent-border);
+      background: var(--color-background-tertiary);
+    }
+    .sb-comm-toggle.active { color: var(--color-accent-text); }
+    .sb-comm-toggle-label {
+      flex: 1; min-width: 0; text-align: left; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600;
+    }
+    .sb-comm-chevron { color: var(--color-text-muted); transition: transform .16s; }
+    .sb-comm-toggle.open .sb-comm-chevron { transform: rotate(180deg); }
+    .sb-comm-menu {
+      display: none; margin-top: 5px; overflow: hidden;
+      border: 1px solid var(--color-border-primary); border-radius: 9px;
+      background: var(--color-background-overlay);
+      box-shadow: 0 12px 30px rgba(0,0,0,.38);
+    }
+    .sb-comm-menu.open { display: block; }
+    .sb-comm-search {
+      width: calc(100% - 12px); margin: 6px; padding: 7px 8px;
+      border-radius: 6px; border: 1px solid var(--color-border-secondary);
+      background: var(--color-background-primary); color: var(--color-text-primary);
+      outline: none; font: inherit; font-size: 11px;
+    }
+    .sb-comm-search:focus { border-color: var(--color-accent-border); }
+    .sb-comm-options { max-height: 225px; overflow-y: auto; padding-bottom: 4px; }
+    .sb-comm-options::-webkit-scrollbar { width: 3px; }
+    .sb-comm-options::-webkit-scrollbar-thumb { background: var(--color-border-secondary); }
+    .sb-comm-option {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 7px 9px; cursor: pointer; color: var(--color-text-secondary);
+      font-size: 11px; transition: background .12s, color .12s;
+    }
+    .sb-comm-option:hover { color: var(--color-text-primary); background: rgba(255,255,255,.045); }
+    .sb-comm-option.active { color: var(--color-accent-text); background: var(--color-accent-bg); }
+    .sb-comm-empty { padding: 10px 9px; color: var(--color-text-muted); font-size: 10px; font-style: italic; }
     .sb-comm-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; }
     .sb-comm-label { font-size: 12px; color: var(--color-text-secondary); }
     .sb-comm-badge {
@@ -199,18 +244,28 @@
     /* ── Global dropdown ─────────────────────────────────────────────── */
     #gdd {
       position: fixed; z-index: 9999; display: none;
-      min-width: 180px; max-height: 240px; overflow-y: auto;
+      min-width: 220px; max-width: 320px; overflow: hidden;
       background: var(--color-background-overlay);
       border: 1px solid var(--color-border-primary);
       border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.55);
       flex-direction: column;
     }
     #gdd.open { display: flex; }
-    #gdd::-webkit-scrollbar { width: 3px; }
-    #gdd::-webkit-scrollbar-thumb { background: var(--color-border-secondary); }
+    .gdd-search-wrap { padding: 7px; border-bottom: 1px solid var(--color-border-secondary); }
+    .gdd-search {
+      width: 100%; padding: 7px 9px; border-radius: 6px;
+      border: 1px solid var(--color-border-secondary);
+      background: var(--color-background-primary); color: var(--color-text-primary);
+      font: inherit; font-size: 11px; outline: none;
+    }
+    .gdd-search:focus { border-color: var(--color-accent-border); }
+    .gdd-list { max-height: 260px; overflow-y: auto; }
+    .gdd-list::-webkit-scrollbar { width: 3px; }
+    .gdd-list::-webkit-scrollbar-thumb { background: var(--color-border-secondary); }
     .gdd-item {
       padding: 8px 14px; font-size: 12px; color: var(--color-text-secondary);
       cursor: pointer; transition: background .1s; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
       border-bottom: 1px solid var(--color-border-tertiary);
     }
     .gdd-item:last-child { border-bottom: none; }
@@ -227,10 +282,10 @@
     thead { position: sticky; top: 0; z-index: 10; }
 
     /* Header row 1 — labels */
-    tr.tr-head { background: var(--color-background-elevated); border-bottom: 1px solid var(--color-border-secondary); }
+    tr.tr-head { background: #20283A; border-bottom: 1px solid var(--color-border-primary); }
     th {
       padding: 9px 10px; text-align: left;
-      font-size: 10px; font-weight: 700; color: var(--color-text-muted);
+      font-size: 10px; font-weight: 700; color: #73869E;
       text-transform: uppercase; letter-spacing: .1em;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
@@ -238,7 +293,7 @@
     .th-r { text-align: right; }
 
     /* Header row 2 — column filters */
-    tr.tr-filters { background: var(--color-background-elevated); border-bottom: 1px solid var(--color-border-secondary); }
+    tr.tr-filters { background: #20283A; border-bottom: 1px solid var(--color-border-primary); }
     tr.tr-filters th { padding: 4px 10px 5px; }
     tr.tr-filters th:first-child { padding-left: 16px; }
     .cf {
@@ -250,6 +305,7 @@
     .cf::placeholder { color: var(--color-text-muted); font-size: 10px; }
     .cf:focus { border-color: var(--color-accent-border); }
     .cf.has-val { border-color: var(--color-accent-border); color: var(--color-accent-text); }
+    .cf { cursor: pointer; }
 
     /* Body */
     tbody tr { background: var(--color-background-tertiary); border-bottom: 1px solid var(--color-border-tertiary); transition: background .1s; }
@@ -420,7 +476,7 @@
       <div id="tipo-list"></div>
       <div class="sb-divider"></div>
       <div class="sb-section">Commesse in magazzino</div>
-      <div id="comm-list"></div>
+      <div class="sb-comm-wrap" id="comm-list"></div>
     </aside>
 
     <!-- MAIN -->
@@ -487,16 +543,16 @@
             </tr>
             <!-- Row 2: column filters -->
             <tr class="tr-filters" id="col-filter-row">
-              <th><input class="cf" id="cf-tipo"       placeholder="tipo…"       oninput="onCf('tipo',this)"/></th>
-              <th><input class="cf" id="cf-profilo"    placeholder="profilo…"    oninput="onCf('profilo',this)"/></th>
+              <th><input class="cf" id="cf-tipo"       placeholder="tipo…"       onclick="openCfDropdown(event,'tipo')" oninput="onCf('tipo',this)"/></th>
+              <th><input class="cf" id="cf-profilo"    placeholder="profilo…"    onclick="openCfDropdown(event,'profilo')" oninput="onCf('profilo',this)"/></th>
               <th></th>
-              <th><input class="cf" id="cf-dimensioni" placeholder="dimensioni…" oninput="onCf('dimensioni',this)"/></th>
-              <th class="col-norma"><input class="cf" id="cf-norma" placeholder="norma…" oninput="onCf('norma',this)"/></th>
-              <th><input class="cf" id="cf-qualita"    placeholder="qualità…"    oninput="onCf('qualita',this)"/></th>
-              <th class="col-colata"><input class="cf" id="cf-colata" placeholder="colata…" oninput="onCf('colata',this)"/></th>
+              <th><input class="cf" id="cf-dimensioni" placeholder="dimensioni…" onclick="openCfDropdown(event,'dimensioni')" oninput="onCf('dimensioni',this)"/></th>
+              <th class="col-norma"><input class="cf" id="cf-norma" placeholder="norma…" onclick="openCfDropdown(event,'norma')" oninput="onCf('norma',this)"/></th>
+              <th><input class="cf" id="cf-qualita"    placeholder="qualità…"    onclick="openCfDropdown(event,'qualita')" oninput="onCf('qualita',this)"/></th>
+              <th class="col-colata"><input class="cf" id="cf-colata" placeholder="colata…" onclick="openCfDropdown(event,'colata')" oninput="onCf('colata',this)"/></th>
               <th></th>
               <th></th>
-              <th class="col-commessa"><input class="cf" id="cf-commessa" placeholder="commessa…" oninput="onCf('commessa',this)"/></th>
+              <th class="col-commessa"><input class="cf" id="cf-commessa" placeholder="commessa…" onclick="openCfDropdown(event,'commessa')" oninput="onCf('commessa',this)"/></th>
               <th></th>
             </tr>
           </thead>
@@ -613,11 +669,15 @@ const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata
 const CHIP_MAP = { profilo:'profilo', dimensioni:'dimensioni', qualita:'qualita', norma:'norma_uni', colata:'colata', commessa:'commessa_ref' };
 
 // Column filters (startsWith)
-const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'' };
+const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'', commessa:'' };
 const CF_KEY = { tipo:'tipo', profilo:'profilo', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata', commessa:'commessa_ref' };
 
-// Current open chip name
+// Dropdown and sidebar state
 let openChip = null;
+let dropdownCtx = null;
+let commMenuOpen = false;
+let commSearchQ = '';
+let commCounts = {};
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
@@ -625,7 +685,10 @@ let openChip = null;
   await loadStock();
   calcRpp();
   window.addEventListener('resize', () => { calcRpp(); renderTable(); });
-  document.addEventListener('click', closeGdd);
+  document.addEventListener('click', e => {
+    closeGdd(e);
+    closeCommMenu(e);
+  });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); }
     if (e.key === 'Enter' && document.getElementById('mov-modal').classList.contains('open')) confirmMov();
@@ -659,28 +722,86 @@ function renderSidebar() {
     </div>`;
   }).join('');
 
-  // ── Commesse (da commessa_ref in allRows) ──────────────────────────────────
-  const commCnt = {};
+  // ── Commesse (menu compatto e ricercabile) ─────────────────────────────────
+  commCounts = {};
   for (const r of allRows) {
-    if (r.commessa_ref) commCnt[r.commessa_ref] = (commCnt[r.commessa_ref]||0) + 1;
+    if (r.commessa_ref) commCounts[r.commessa_ref] = (commCounts[r.commessa_ref]||0) + 1;
   }
-  const commesse = Object.keys(commCnt).sort();
-  const commHtml = commesse.length === 0
-    ? `<div style="padding:6px 14px;font-size:11px;color:var(--color-text-muted);font-style:italic">Nessuna commessa</div>`
-    : commesse.map(c => {
-        const safe = c.replace(/'/g,"\\'");
-        return `<div class="sb-item${activeCommessa===c?' active':''}" onclick="selCommessa('${safe}')">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:128px" title="${esc(c)}">${esc(c)}</span>
-          <span class="sb-count">${commCnt[c]}</span>
-        </div>`;
-      }).join('');
-  document.getElementById('comm-list').innerHTML = commHtml;
+  const totalCommesse = Object.keys(commCounts).length;
+  const label = activeCommessa || (totalCommesse ? `Tutte le commesse` : 'Nessuna commessa');
+  document.getElementById('comm-list').innerHTML = `
+    <button class="sb-comm-toggle${commMenuOpen?' open':''}${activeCommessa?' active':''}"
+            id="comm-toggle" onclick="toggleCommMenu(event)">
+      <span class="sb-comm-toggle-label" title="${esc(label)}">${esc(label)}</span>
+      <span class="sb-count">${activeCommessa ? commCounts[activeCommessa] || 0 : totalCommesse}</span>
+      <span class="sb-comm-chevron">⌄</span>
+    </button>
+    <div class="sb-comm-menu${commMenuOpen?' open':''}" id="comm-menu" onclick="event.stopPropagation()">
+      <input class="sb-comm-search" id="comm-search" type="text" value="${esc(commSearchQ)}"
+             placeholder="Cerca commessa…" oninput="filterCommMenu(this.value)" autocomplete="off"/>
+      <div class="sb-comm-options" id="comm-options"></div>
+    </div>`;
+  renderCommOptions();
 }
 
 function selTipo(t) { activeTipo = t; page = 1; renderSidebar(); applyFilters(); }
 
 function selCommessa(codice) {
   activeCommessa = activeCommessa === codice ? null : codice;
+  commMenuOpen = false;
+  commSearchQ = '';
+  page = 1;
+  renderSidebar();
+  applyFilters();
+}
+
+function toggleCommMenu(e) {
+  e.stopPropagation();
+  commMenuOpen = !commMenuOpen;
+  renderSidebar();
+  if (commMenuOpen) {
+    const inp = document.getElementById('comm-search');
+    if (inp) setTimeout(() => inp.focus(), 0);
+  }
+}
+
+function closeCommMenu(e) {
+  if (!commMenuOpen) return;
+  if (e && e.target && e.target.closest('#comm-list')) return;
+  commMenuOpen = false;
+  commSearchQ = '';
+  renderSidebar();
+}
+
+function filterCommMenu(value) {
+  commSearchQ = value || '';
+  renderCommOptions();
+}
+
+function renderCommOptions() {
+  const target = document.getElementById('comm-options');
+  if (!target) return;
+  const q = commSearchQ.trim().toLowerCase();
+  const commesse = Object.keys(commCounts)
+    .filter(c => !q || c.toLowerCase().includes(q))
+    .sort((a,b) => a.localeCompare(b, 'it'));
+  const allRow = q ? '' : `
+    <div class="sb-comm-option${activeCommessa===null?' active':''}" onclick="selCommessaValue(null)">
+      <span>Tutte le commesse</span><span class="sb-count">${Object.keys(commCounts).length}</span>
+    </div>`;
+  target.innerHTML = allRow + (commesse.length
+    ? commesse.map(c => `
+      <div class="sb-comm-option${activeCommessa===c?' active':''}"
+           onclick="selCommessaValue(decodeURIComponent('${urlToken(c)}'))">
+        <span title="${esc(c)}">${esc(c)}</span><span class="sb-count">${commCounts[c]}</span>
+      </div>`).join('')
+    : '<div class="sb-comm-empty">Nessuna commessa trovata</div>');
+}
+
+function selCommessaValue(codice) {
+  activeCommessa = codice;
+  commMenuOpen = false;
+  commSearchQ = '';
   page = 1;
   renderSidebar();
   applyFilters();
@@ -694,6 +815,9 @@ function onCf(col, inp) {
   inp.classList.toggle('has-val', CF[col].length > 0);
   page = 1;
   applyFilters();
+  if (dropdownCtx?.type === 'column' && dropdownCtx.name === col) {
+    renderDropdownValues(inp.value);
+  }
 }
 
 function applyFilters() {
@@ -731,49 +855,91 @@ function toggleChip(e, name) {
   e.stopPropagation();
   if (openChip === name) { closeGdd(); return; }
   openChip = name;
+  dropdownCtx = { type: 'chip', name, key: CHIP_MAP[name], anchor: e.currentTarget };
   const chip = document.getElementById('ch-' + name);
   chip.classList.add('active');
+  openDropdown(chip, true);
+}
 
-  // Populate
-  const fk = CHIP_MAP[name];
-  const vals = [...new Set(
-    allRows
-      .filter(r => {
-        if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
-        if (searchQ) {
-          const hay = [r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.commessa_ref,r.material_code]
-            .map(v=>(v||'').toLowerCase()).join(' ');
-          if (!hay.includes(searchQ)) return false;
-        }
-        return true;
-      })
-      .map(r => r[fk]).filter(v => v != null && v !== '')
-  )].sort();
+function openCfDropdown(e, name) {
+  e.stopPropagation();
+  openChip = null;
+  dropdownCtx = { type: 'column', name, key: CF_KEY[name], anchor: e.currentTarget };
+  openDropdown(e.currentTarget, false, e.currentTarget.value);
+}
 
-  if (!vals.length) {
-    gdd.innerHTML = '<div class="gdd-item" style="opacity:.35;cursor:default;pointer-events:none">Nessun valore disponibile</div>';
-  } else {
-    gdd.innerHTML = vals.map(v => {
-      const s = v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return `<div class="gdd-item${AF[name]===v?' sel':''}" onclick="selChip(event,'${name}','${s}')">${v}</div>`;
-    }).join('');
+function openDropdown(anchor, withSearch, initialQuery='') {
+  const search = withSearch
+    ? `<div class="gdd-search-wrap">
+         <input class="gdd-search" id="gdd-search" type="text" placeholder="Cerca valore…"
+                oninput="renderDropdownValues(this.value)" onclick="event.stopPropagation()" autocomplete="off"/>
+       </div>`
+    : '';
+  gdd.innerHTML = search + '<div class="gdd-list" id="gdd-list"></div>';
+  renderDropdownValues(initialQuery);
+  positionDropdown(anchor);
+  if (withSearch) {
+    const input = document.getElementById('gdd-search');
+    if (input) setTimeout(() => input.focus(), 0);
   }
+}
 
-  // Position below chip
-  const rect = chip.getBoundingClientRect();
+function dropdownSourceRows() {
+  return allRows.filter(r => {
+    if (dropdownCtx?.type === 'column') return true;
+    if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
+    if (activeCommessa && (r.commessa_ref||'') !== activeCommessa) return false;
+    return true;
+  });
+}
+
+function renderDropdownValues(query='') {
+  const list = document.getElementById('gdd-list');
+  if (!list || !dropdownCtx) return;
+  const q = (query || '').trim().toLowerCase();
+  const vals = [...new Set(
+    dropdownSourceRows()
+      .map(r => r[dropdownCtx.key])
+      .filter(v => v != null && String(v) !== '')
+      .map(String)
+  )]
+    .filter(v => !q || v.toLowerCase().includes(q))
+    .sort((a,b) => a.localeCompare(b, 'it', {numeric:true}));
+  const selected = dropdownCtx.type === 'chip' ? AF[dropdownCtx.name] : CF[dropdownCtx.name];
+  list.innerHTML = vals.length
+    ? vals.map(v => `
+      <div class="gdd-item${selected===v?' sel':''}"
+           title="${esc(v)}" onclick="selectDropdownValue(event,decodeURIComponent('${urlToken(v)}'))">${esc(v)}</div>`).join('')
+    : '<div class="gdd-item" style="opacity:.45;cursor:default;pointer-events:none">Nessun valore disponibile</div>';
+}
+
+function selectDropdownValue(e, value) {
+  e.stopPropagation();
+  if (!dropdownCtx) return;
+  if (dropdownCtx.type === 'chip') {
+    AF[dropdownCtx.name] = AF[dropdownCtx.name] === value ? null : value;
+  } else {
+    CF[dropdownCtx.name] = value;
+    const input = document.getElementById('cf-' + dropdownCtx.name);
+    if (input) {
+      input.value = value;
+      input.classList.add('has-val');
+    }
+  }
+  page = 1;
+  closeGdd();
+  applyFilters();
+}
+
+function positionDropdown(anchor) {
+  const rect = anchor.getBoundingClientRect();
   gdd.style.left = rect.left + 'px';
   gdd.style.top  = (rect.bottom + 4) + 'px';
-  gdd.style.minWidth = Math.max(rect.width, 180) + 'px';
-
-  // Adjust if would go off-screen right
+  gdd.style.minWidth = Math.max(rect.width, 220) + 'px';
   gdd.classList.add('open');
   const gRect = gdd.getBoundingClientRect();
-  if (gRect.right > window.innerWidth - 8) {
-    gdd.style.left = (window.innerWidth - gRect.width - 8) + 'px';
-  }
-  if (gRect.bottom > window.innerHeight - 8) {
-    gdd.style.top = (rect.top - gRect.height - 4) + 'px';
-  }
+  if (gRect.right > window.innerWidth - 8) gdd.style.left = (window.innerWidth - gRect.width - 8) + 'px';
+  if (gRect.bottom > window.innerHeight - 8) gdd.style.top = Math.max(8, rect.top - gRect.height - 4) + 'px';
 }
 
 function selChip(e, name, val) {
@@ -785,15 +951,15 @@ function selChip(e, name, val) {
 }
 
 function closeGdd(e) {
-  if (!openChip) return;
-  // Don't close if click was on a chip button
-  if (e && e.target && e.target.closest('.chip')) return;
+  if (!dropdownCtx) return;
+  if (e && e.target && (e.target.closest('#gdd') || e.target.closest('.chip') || e.target.closest('.cf'))) return;
   gdd.classList.remove('open');
   if (openChip) {
     const ch = document.getElementById('ch-' + openChip);
     if (ch && !AF[openChip]) ch.classList.remove('active');
   }
   openChip = null;
+  dropdownCtx = null;
 }
 
 function refreshChipLabels() {
@@ -807,7 +973,7 @@ function refreshChipLabels() {
 function clearAll() {
   Object.keys(AF).forEach(k => AF[k] = null);
   Object.keys(CF).forEach(k => { CF[k]=''; const el=document.getElementById('cf-'+k); if(el){el.value='';el.classList.remove('has-val');} });
-  searchQ = ''; activeTipo = 'tutti'; activeCommessa = null; page = 1;
+  searchQ = ''; activeTipo = 'tutti'; activeCommessa = null; commMenuOpen = false; commSearchQ = ''; page = 1;
   document.getElementById('search-inp').value = '';
   renderSidebar(); applyFilters();
 }
@@ -833,6 +999,7 @@ function fmt(v, d=1) {
 }
 function badgeCls(n) { return n<=0 ? 'b-r' : n<=5 ? 'b-o' : 'b-g'; }
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function urlToken(s) { return encodeURIComponent(String(s)).replace(/'/g,'%27'); }
 
 function renderSkeleton(n) {
   document.getElementById('tbody').innerHTML = Array.from({length:n},()=>

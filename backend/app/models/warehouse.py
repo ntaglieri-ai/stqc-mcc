@@ -214,6 +214,7 @@ class DistintaItem(Base):
     commessa_reference   = Column(String(200), nullable=True)
     commessa_id          = Column(Integer, ForeignKey("commesse.id"), nullable=True, index=True)
     length_mm            = Column(Numeric(12, 2), nullable=True)
+    width_mm             = Column(Numeric(12, 2), nullable=True)
     weight_kg            = Column(Numeric(12, 4), nullable=True)
     instance_number      = Column(Integer, nullable=True)
     parent_assembly      = Column(String(200), nullable=True)

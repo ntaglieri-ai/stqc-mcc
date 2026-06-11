@@ -5,19 +5,20 @@ from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.crud import commessa as crud
+from backend.app.crud.warehouse import get_magazzino_list
 from backend.app.db.session import get_db
 
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, PezzoPercorso, PezzoStato,
+    CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, PezzoPercorso, PezzoStato,
 )
 from backend.app.models.user import ProfiloUtente, User, UserAttributes
 from backend.app.models.warehouse import DistintaImport, DistintaItem
@@ -25,10 +26,10 @@ from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaU
 from backend.app.services.distinta import (
     load_prefixes_from_db,
     normalized_to_db_bulk,
-    parse_two_files,
+    parse_commessa_files,
 )
 from backend.app.services.fasi_operative import parse_fasi_operative
-from backend.app.services.qr import generate_qr_for_uuid
+from backend.app.services.commessa_analysis import analyze_commessa_stock
 
 router = APIRouter()
 
@@ -78,16 +79,20 @@ def delete_commessa(commessa_id: int, db: Session = Depends(get_db)):
 
 # ── Revisioni distinta ────────────────────────────────────────────────────────
 
-@router.post("/{commessa_id}/revisioni", status_code=201)
-async def upload_revisione(
+@router.post("/{commessa_id}/analisi", status_code=201)
+async def create_analisi_commessa(
     commessa_id: int,
-    assemblaggi: UploadFile = File(..., description="Lista parti assemblaggi (.xls/.xlsx)"),
-    lavorazioni: UploadFile = File(..., description="Lavorazioni per posizione (.xls/.xlsx)"),
-    note: Optional[str] = None,
+    lista_pezzi: UploadFile = File(..., description="Lista pezzi / Lavorazioni per posizione"),
+    assemblaggi: Optional[UploadFile] = File(None, description="Lista pezzi e assemblati"),
+    disegni: Optional[List[UploadFile]] = File(None),
+    predistinta: bool = Form(False),
+    note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Carica due file Tekla, salva gli originali su disco, esegue il parser unificato
-    e crea i record DistintaItem con UUID e QR per ogni pezzo fisico."""
+    """Salva i documenti iniziali e prepara l'analisi della commessa.
+
+    Non genera QR, richieste di materiale o movimenti di magazzino.
+    """
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
     if commessa is None:
         raise HTTPException(404, "Commessa non trovata")
@@ -97,54 +102,56 @@ async def upload_revisione(
         CommessaRevisione.commessa_id == commessa_id
     ).count()
     codice_rev = f"r{existing + 1:02d}"
-
-    # Crea la directory di destinazione
     rev_dir = settings.upload_dir / f"commessa_{commessa_id}" / codice_rev
     rev_dir.mkdir(parents=True, exist_ok=True)
 
-    asm_suffix = Path(assemblaggi.filename or "assemblaggi.xls").suffix or ".xls"
-    lav_suffix = Path(lavorazioni.filename or "lavorazioni.xls").suffix or ".xls"
-    asm_dest = rev_dir / f"assemblaggi{asm_suffix}"
-    lav_dest = rev_dir / f"lavorazioni{lav_suffix}"
-
-    # Salva i file originali (mai lavorare sul file uploadato direttamente)
-    with asm_dest.open("wb") as f:
-        f.write(await assemblaggi.read())
-    with lav_dest.open("wb") as f:
-        f.write(await lavorazioni.read())
-
-    # Carica i tipi profilo dal DB per la classificazione
-    prefixes = load_prefixes_from_db(db)
-
-    # Parser su copie su disco
     try:
-        items_normalized, report = parse_two_files(asm_dest, lav_dest, prefixes=prefixes)
+        lista_suffix = Path(lista_pezzi.filename or "lista_pezzi.xls").suffix.lower() or ".xls"
+        lista_dest = rev_dir / f"lista_pezzi{lista_suffix}"
+        with lista_dest.open("wb") as f:
+            f.write(await lista_pezzi.read())
+
+        asm_dest = None
+        if assemblaggi and assemblaggi.filename:
+            asm_suffix = Path(assemblaggi.filename).suffix.lower() or ".xls"
+            asm_dest = rev_dir / f"assemblaggi{asm_suffix}"
+            with asm_dest.open("wb") as f:
+                f.write(await assemblaggi.read())
+
+        prefixes = load_prefixes_from_db(db)
+        items_normalized, report = parse_commessa_files(
+            lista_dest,
+            asm_dest,
+            prefixes=prefixes,
+        )
     except Exception as exc:
+        shutil.rmtree(rev_dir, ignore_errors=True)
         _logger.exception("Errore nel parsing revisione %s commessa %d", codice_rev, commessa_id)
         raise HTTPException(422, f"Errore parser: {exc}")
 
-    # Crea record CommessaRevisione
     revisione = CommessaRevisione(
         commessa_id=commessa_id,
         codice=codice_rev,
-        file_assemblaggi=str(asm_dest.relative_to(settings.upload_dir.parent)),
-        file_lavorazioni=str(lav_dest.relative_to(settings.upload_dir.parent)),
+        file_assemblaggi=str(asm_dest.relative_to(settings.upload_dir.parent)) if asm_dest else None,
+        file_lavorazioni=str(lista_dest.relative_to(settings.upload_dir.parent)),
+        predistinta=predistinta,
+        stato_analisi="PRONTA" if report["ok"] else "DA_VERIFICARE",
+        report_analisi=report,
         note=note,
     )
     db.add(revisione)
-    db.flush()  # ottieni l'id prima del commit
+    db.flush()
 
-    # Crea un DistintaImport "ombra" per backward compat con la UI esistente
     distinta_import = DistintaImport(
-        filename=f"{commessa.codice}_{codice_rev}",
+        filename=lista_pezzi.filename or f"{commessa.codice}_{codice_rev}",
         source_software="Tekla",
         total_items=len(items_normalized),
-        status="IMPORTED" if items_normalized else "EMPTY",
+        status=revisione.stato_analisi,
+        notes=report["summary"],
     )
     db.add(distinta_import)
     db.flush()
 
-    # Crea i DistintaItem — uno per pezzo fisico
     db_items = normalized_to_db_bulk(items_normalized)
     for item_data in db_items:
         di = DistintaItem(
@@ -154,19 +161,34 @@ async def upload_revisione(
             **{k: v for k, v in item_data.items()
                if k in {c.name for c in DistintaItem.__table__.columns} - {"id", "uuid", "qr_code"}},
         )
-        # Genera QR con UUID interno
-        try:
-            di.qr_code = generate_qr_for_uuid(di.uuid)
-        except Exception:
-            pass
         db.add(di)
 
-    db.commit()
+    for index, upload in enumerate(disegni or [], start=1):
+        if not upload.filename:
+            continue
+        original_name = Path(upload.filename).name
+        suffix = Path(original_name).suffix.lower()
+        stored_name = f"disegno_{index:03d}{suffix}"
+        destination = rev_dir / stored_name
+        with destination.open("wb") as f:
+            f.write(await upload.read())
+        db.add(CommessaDocumento(
+            commessa_id=commessa_id,
+            revisione_id=revisione.id,
+            categoria="DISEGNO",
+            filename=original_name,
+            storage_path=str(destination.relative_to(settings.upload_dir.parent)),
+            mime_type=upload.content_type,
+        ))
 
+    db.commit()
     return {
+        "commessa_id":   commessa_id,
         "revisione_id":  revisione.id,
         "codice":        codice_rev,
         "import_id":     distinta_import.id,
+        "stato_analisi": revisione.stato_analisi,
+        "predistinta":   revisione.predistinta,
         "validation":    report,
     }
 
@@ -184,13 +206,143 @@ def list_revisioni(commessa_id: int, db: Session = Depends(get_db)):
             "id":              r.id,
             "codice":          r.codice,
             "file_assemblaggi": r.file_assemblaggi,
-            "file_lavorazioni": r.file_lavorazioni,
+            "file_lista_pezzi": r.file_lavorazioni,
+            "predistinta":      r.predistinta,
+            "stato_analisi":    r.stato_analisi,
+            "report_analisi":   r.report_analisi,
             "note":            r.note,
             "imported_at":     r.imported_at,
             "n_items":         db.query(DistintaItem).filter(DistintaItem.revisione_id == r.id).count(),
+            "documenti": [
+                {
+                    "id": d.id,
+                    "categoria": d.categoria,
+                    "filename": d.filename,
+                    "mime_type": d.mime_type,
+                }
+                for d in r.documenti
+            ],
         }
         for r in revs
     ]
+
+
+def _latest_revision(db: Session, commessa_id: int) -> CommessaRevisione | None:
+    return (
+        db.query(CommessaRevisione)
+        .filter(CommessaRevisione.commessa_id == commessa_id)
+        .order_by(CommessaRevisione.id.desc())
+        .first()
+    )
+
+
+@router.get("/{commessa_id}/analisi")
+def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+
+    items = (
+        db.query(DistintaItem)
+        .filter(
+            DistintaItem.revisione_id == revisione.id,
+            DistintaItem.invalidato.is_(False),
+        )
+        .order_by(DistintaItem.part_number, DistintaItem.instance_number)
+        .all()
+    )
+    positions: dict[str, dict] = {}
+    for item in items:
+        code = item.part_number or "SENZA CODICE"
+        row = positions.setdefault(code, {
+            "part_number": code,
+            "profilo": item.description,
+            "qualita": item.material_code,
+            "tipo": item.tipo_profilo,
+            "quantita": 0,
+            "length_mm": item.length_mm,
+            "width_mm": item.width_mm,
+            "weight_kg": item.weight_kg,
+            "assemblati": set(),
+        })
+        row["quantita"] += 1
+        if item.parent_assembly:
+            row["assemblati"].add(item.parent_assembly)
+
+    position_rows = []
+    for row in positions.values():
+        row["assemblati"] = sorted(row["assemblati"])
+        position_rows.append(row)
+
+    return {
+        "commessa": {
+            "id": commessa.id,
+            "codice": commessa.codice,
+            "cliente": commessa.cliente,
+            "data_consegna_prevista": commessa.data_consegna_prevista,
+            "status": commessa.status,
+        },
+        "revisione": {
+            "id": revisione.id,
+            "codice": revisione.codice,
+            "predistinta": revisione.predistinta,
+            "stato_analisi": revisione.stato_analisi,
+            "report": revisione.report_analisi,
+            "imported_at": revisione.imported_at,
+            "files": {
+                "lista_pezzi": revisione.file_lavorazioni,
+                "assemblaggi": revisione.file_assemblaggi,
+                "documenti": [
+                    {
+                        "id": doc.id,
+                        "filename": doc.filename,
+                        "categoria": doc.categoria,
+                        "mime_type": doc.mime_type,
+                    }
+                    for doc in revisione.documenti
+                ],
+            },
+        },
+        "summary": {
+            "n_pezzi": len(items),
+            "n_posizioni": len(position_rows),
+            "n_assemblati": len({
+                item.parent_assembly for item in items if item.parent_assembly
+            }),
+            "n_profili": len({
+                (item.description, item.material_code)
+                for item in items if item.description
+            }),
+        },
+        "positions": position_rows,
+    }
+
+
+@router.get("/{commessa_id}/analisi/magazzino")
+def get_analisi_magazzino(commessa_id: int, db: Session = Depends(get_db)):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+
+    items = (
+        db.query(DistintaItem)
+        .filter(
+            DistintaItem.revisione_id == revisione.id,
+            DistintaItem.invalidato.is_(False),
+        )
+        .all()
+    )
+    inventory = get_magazzino_list(db=db, limit=10000)
+    result = analyze_commessa_stock(items, inventory)
+    result["commessa_id"] = commessa_id
+    result["revisione_id"] = revisione.id
+    return result
 
 
 # ── Fasi Operative ────────────────────────────────────────────────────────────

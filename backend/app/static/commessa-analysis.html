@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Analisi Commessa · MCC</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a1020; --panel: #11192b; --panel2: #161f32;
+      --border: rgba(255,255,255,.08); --text: #e7edf7;
+      --secondary: #91a0b4; --muted: #536177; --blue: #3b82f6;
+      --green: #4ade80; --yellow: #fbbf24; --orange: #fb923c; --red: #f87171;
+    }
+    html, body {
+      min-height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .nav {
+      height: 58px; padding: 0 28px; position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(8,15,31,.96); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav a { color: var(--secondary); text-decoration: none; font-size: 12px; }
+    .nav a:hover { color: var(--text); }
+    .nav-sep { color: var(--muted); }
+    .nav-current { font-size: 12px; font-weight: 700; }
+    .nav-user { margin-left: auto; font-size: 11px; color: var(--muted); }
+    .page { max-width: 1320px; margin: 0 auto; padding: 38px 32px 70px; }
+    .header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px; margin-bottom: 28px;
+    }
+    .eyebrow {
+      color: var(--muted); font-size: 10px; font-weight: 800;
+      letter-spacing: .14em; text-transform: uppercase; margin-bottom: 7px;
+    }
+    h1 { font-size: 31px; letter-spacing: -.035em; line-height: 1.1; }
+    .subtitle { margin-top: 8px; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+    .status {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 13px; border-radius: 20px;
+      font-size: 11px; font-weight: 800; white-space: nowrap;
+    }
+    .status.ok { color: var(--green); background: rgba(74,222,128,.09); border: 1px solid rgba(74,222,128,.25); }
+    .status.warn { color: var(--yellow); background: rgba(251,191,36,.09); border: 1px solid rgba(251,191,36,.25); }
+    .pre {
+      margin-left: 8px; color: var(--orange); background: rgba(251,146,60,.09);
+      border: 1px solid rgba(251,146,60,.25);
+    }
+    .steps {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 8px; margin-bottom: 26px;
+    }
+    .step {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 13px; border: 1px solid var(--border);
+      border-radius: 11px; background: rgba(255,255,255,.025);
+    }
+    .step-num {
+      width: 25px; height: 25px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(59,130,246,.13); color: #93c5fd;
+      font-size: 11px; font-weight: 800;
+    }
+    .step-label { font-size: 11px; font-weight: 700; color: var(--secondary); }
+    .section {
+      margin-bottom: 22px; padding: 22px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    }
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 17px;
+    }
+    .section-title { font-size: 15px; font-weight: 850; }
+    .section-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .file-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .file-card {
+      min-height: 90px; padding: 14px; border-radius: 11px;
+      background: var(--panel2); border: 1px solid var(--border);
+    }
+    .file-kind { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+    .file-name { margin-top: 8px; font-size: 12px; font-weight: 700; word-break: break-word; }
+    .file-state { margin-top: 7px; font-size: 10px; color: var(--green); }
+    .file-card.empty .file-name, .file-card.empty .file-state { color: var(--muted); }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .kpi {
+      padding: 16px; border-radius: 11px;
+      background: var(--panel2); border: 1px solid var(--border);
+    }
+    .kpi-label { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .kpi-value { margin-top: 6px; font-size: 25px; font-weight: 900; letter-spacing: -.025em; }
+    .toolbar { display: flex; gap: 10px; margin: 17px 0 11px; }
+    .search {
+      flex: 1; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: #0c1322;
+      color: var(--text); outline: none; font: inherit; font-size: 12px;
+    }
+    .search:focus { border-color: rgba(59,130,246,.5); }
+    .table-wrap {
+      max-height: 390px; overflow: auto; border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th {
+      position: sticky; top: 0; z-index: 2; padding: 9px 11px;
+      text-align: left; background: #1b2538; color: #73849a;
+      text-transform: uppercase; letter-spacing: .08em; font-size: 9px;
+    }
+    td { padding: 9px 11px; color: var(--secondary); border-top: 1px solid rgba(255,255,255,.045); }
+    tbody tr:nth-child(even) { background: rgba(255,255,255,.018); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); font-weight: 700; }
+    .right { text-align: right; }
+    .notice {
+      padding: 13px 15px; border-radius: 10px; font-size: 12px; line-height: 1.5;
+      background: rgba(74,222,128,.06); border: 1px solid rgba(74,222,128,.16); color: #86efac;
+    }
+    .notice.warn { background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.18); color: #fcd34d; }
+    .anomaly-list { display: flex; flex-direction: column; gap: 7px; }
+    .anomaly {
+      padding: 10px 12px; border-radius: 9px; font-size: 11px;
+      background: rgba(248,113,113,.06); border: 1px solid rgba(248,113,113,.16); color: #fca5a5;
+    }
+    .anomaly.warning {
+      background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.16); color: #fcd34d;
+    }
+    .stock-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 15px; }
+    .stock-kpi {
+      padding: 13px; border-radius: 10px; text-align: center; cursor: pointer;
+      border: 1px solid var(--border); background: var(--panel2); transition: border-color .15s;
+    }
+    .stock-kpi:hover, .stock-kpi.active { border-color: rgba(59,130,246,.55); }
+    .stock-num { font-size: 22px; font-weight: 900; }
+    .stock-label { margin-top: 4px; color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+    .c-disponibile { color: var(--green); }
+    .c-parziale { color: var(--orange); }
+    .c-mancante { color: var(--red); }
+    .c-non_associato, .c-da_verificare { color: var(--yellow); }
+    .tag {
+      display: inline-flex; padding: 3px 8px; border-radius: 10px;
+      font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .tag.disponibile { color: var(--green); background: rgba(74,222,128,.1); }
+    .tag.parziale { color: var(--orange); background: rgba(251,146,60,.1); }
+    .tag.mancante { color: var(--red); background: rgba(248,113,113,.1); }
+    .tag.non_associato, .tag.da_verificare { color: var(--yellow); background: rgba(251,191,36,.1); }
+    .footer-note {
+      margin-top: 22px; padding: 15px; text-align: center;
+      color: var(--secondary); font-size: 12px;
+      border: 1px dashed var(--border); border-radius: 11px;
+    }
+    .loader {
+      min-height: 360px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px; color: var(--muted);
+    }
+    .spinner {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.08); border-top-color: var(--blue);
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 900px) {
+      .steps, .kpis { grid-template-columns: repeat(2, 1fr); }
+      .file-grid { grid-template-columns: 1fr; }
+      .stock-kpis { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 620px) {
+      .page { padding: 24px 14px 50px; }
+      .header { flex-direction: column; }
+      .steps, .kpis { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  const token = localStorage.getItem("stqc_token");
+  const profile = localStorage.getItem("stqc_profilo");
+  if (!token) { location.replace("/login"); return; }
+  if (!["Responsabile", "Direttore", "Admin"].includes(profile)) location.replace("/");
+})();
+</script>
+
+<nav class="nav">
+  <a href="/commesse">← In corso</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-current" id="nav-code">Analisi Commessa</span>
+  <span class="nav-user" id="nav-user"></span>
+</nav>
+
+<main class="page" id="root">
+  <div class="loader"><div class="spinner"></div><span>Analisi della commessa…</span></div>
+</main>
+
+<script>
+const commessaId = Number(location.pathname.split("/").filter(Boolean).at(-2));
+const auth = () => ({ Authorization: "Bearer " + localStorage.getItem("stqc_token") });
+let analysisData = null;
+let stockData = null;
+let stockFilter = "tutti";
+
+document.getElementById("nav-user").textContent =
+  `${localStorage.getItem("stqc_nome") || ""} · ${localStorage.getItem("stqc_profilo") || ""}`;
+
+function esc(value) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function fmt(value) {
+  return Number(value || 0).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+}
+function basename(path) {
+  return path ? String(path).split("/").pop() : null;
+}
+
+function fileCard(kind, name, emptyText) {
+  return `<div class="file-card${name ? "" : " empty"}">
+    <div class="file-kind">${kind}</div>
+    <div class="file-name">${esc(name || emptyText)}</div>
+    <div class="file-state">${name ? "✓ Acquisito" : "Non caricato"}</div>
+  </div>`;
+}
+
+function renderPage() {
+  const c = analysisData.commessa;
+  const r = analysisData.revisione;
+  const s = analysisData.summary;
+  const report = r.report || {};
+  const docs = r.files.documenti || [];
+  document.title = `Analisi ${c.codice} · MCC`;
+  document.getElementById("nav-code").textContent = `${c.codice} · Analisi`;
+
+  document.getElementById("root").innerHTML = `
+    <header class="header">
+      <div>
+        <div class="eyebrow">Gestione Commesse</div>
+        <h1>Analisi ${esc(c.codice)}</h1>
+        <div class="subtitle">${esc(c.cliente || "Cliente non specificato")} · Revisione ${esc(r.codice)}</div>
+      </div>
+      <div>
+        <span class="status ${r.stato_analisi === "PRONTA" ? "ok" : "warn"}">
+          ${r.stato_analisi === "PRONTA" ? "✓ Analisi coerente" : "⚠ Da verificare"}
+        </span>
+        ${r.predistinta ? '<span class="status pre">Pre-distinta</span>' : ""}
+      </div>
+    </header>
+
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span><span class="step-label">File acquisiti</span></div>
+      <div class="step"><span class="step-num">2</span><span class="step-label">Riepilogo pezzi</span></div>
+      <div class="step"><span class="step-num">3</span><span class="step-label">Controllo anomalie</span></div>
+      <div class="step"><span class="step-num">4</span><span class="step-label">Analisi magazzino</span></div>
+    </div>
+
+    <section class="section">
+      <div class="section-head">
+        <div><div class="section-title">File acquisiti</div>
+        <div class="section-sub">Documenti originali conservati nella revisione ${esc(r.codice)}</div></div>
+      </div>
+      <div class="file-grid">
+        ${fileCard("Lista pezzi", basename(r.files.lista_pezzi), "File obbligatorio non disponibile")}
+        ${fileCard("Pezzi e assemblati", basename(r.files.assemblaggi), "Nessuna gerarchia caricata")}
+        ${fileCard("Schemi e disegni", docs.length ? `${docs.length} file` : null, "Nessun disegno caricato")}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div><div class="section-title">Riepilogo commessa</div>
+        <div class="section-sub">Lettura della Lista pezzi, senza ancora eseguire azioni operative</div></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Pezzi fisici</div><div class="kpi-value">${fmt(s.n_pezzi)}</div></div>
+        <div class="kpi"><div class="kpi-label">Posizioni</div><div class="kpi-value">${fmt(s.n_posizioni)}</div></div>
+        <div class="kpi"><div class="kpi-label">Assemblati</div><div class="kpi-value">${fmt(s.n_assemblati)}</div></div>
+        <div class="kpi"><div class="kpi-label">Profili / qualità</div><div class="kpi-value">${fmt(s.n_profili)}</div></div>
+      </div>
+      <div class="toolbar"><input class="search" id="position-search" placeholder="Cerca posizione, profilo o qualità…" oninput="renderPositions(this.value)"/></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Posizione</th><th>Profilo</th><th>Qualità</th><th class="right">Quantità</th><th>Assemblati</th></tr></thead>
+          <tbody id="positions-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div><div class="section-title">Controllo anomalie</div>
+        <div class="section-sub">${esc(report.summary || "Controllo completato")}</div></div>
+      </div>
+      <div id="anomalies"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div><div class="section-title">Analisi magazzino</div>
+        <div class="section-sub">Simulazione sulla giacenza corrente: nessun materiale viene prenotato o movimentato</div></div>
+      </div>
+      <div id="stock-content"><div class="loader"><div class="spinner"></div><span>Confronto con il magazzino…</span></div></div>
+    </section>
+
+    <div class="footer-note">
+      Analisi completata fino alla disponibilità materiali. Prelievi, ordini, QR e avvio produzione saranno gestiti nel passaggio successivo.
+    </div>`;
+
+  renderPositions("");
+  renderAnomalies();
+  renderStock();
+}
+
+function renderPositions(query) {
+  const q = String(query || "").trim().toLowerCase();
+  const rows = analysisData.positions.filter(row =>
+    [row.part_number, row.profilo, row.qualita, ...(row.assemblati || [])]
+      .some(value => String(value || "").toLowerCase().includes(q))
+  );
+  document.getElementById("positions-body").innerHTML = rows.map(row => `
+    <tr>
+      <td class="mono">${esc(row.part_number)}</td>
+      <td>${esc(row.profilo || "—")}</td>
+      <td>${esc(row.qualita || "—")}</td>
+      <td class="right">${fmt(row.quantita)}</td>
+      <td>${row.assemblati.length ? esc(row.assemblati.join(", ")) : "—"}</td>
+    </tr>`).join("") || '<tr><td colspan="5">Nessuna posizione trovata</td></tr>';
+}
+
+function renderAnomalies() {
+  const report = analysisData.revisione.report || {};
+  const errors = report.errors || [];
+  const warnings = report.warnings || [];
+  const target = document.getElementById("anomalies");
+  if (!errors.length && !warnings.length) {
+    target.innerHTML = '<div class="notice">✓ File coerenti: codici, quantità e gerarchia risultano allineati.</div>';
+    return;
+  }
+  target.innerHTML = `<div class="anomaly-list">
+    ${errors.map(message => `<div class="anomaly">✕ ${esc(message)}</div>`).join("")}
+    ${warnings.map(message => `<div class="anomaly warning">⚠ ${esc(message)}</div>`).join("")}
+  </div>`;
+}
+
+function setStockFilter(value) {
+  stockFilter = value;
+  renderStock();
+}
+
+function renderStock() {
+  const target = document.getElementById("stock-content");
+  if (!stockData) return;
+  const counts = stockData.counts;
+  const rows = stockData.profiles.filter(row => stockFilter === "tutti" || row.stato === stockFilter);
+  const cards = [
+    ["disponibile", "Disponibili"], ["parziale", "Parziali"], ["mancante", "Mancanti"],
+    ["non_associato", "Non associati"], ["da_verificare", "Da verificare"],
+  ];
+  target.innerHTML = `
+    <div class="stock-kpis">
+      ${cards.map(([key, label]) => `<div class="stock-kpi${stockFilter === key ? " active" : ""}" onclick="setStockFilter('${key}')">
+        <div class="stock-num c-${key}">${fmt(counts[key])}</div><div class="stock-label">${label}</div>
+      </div>`).join("")}
+    </div>
+    <div class="toolbar">
+      <input class="search" id="stock-search" placeholder="Cerca profilo o qualità…" oninput="renderStockRows(this.value)"/>
+      ${stockFilter !== "tutti" ? '<button class="search" style="flex:0;cursor:pointer" onclick="setStockFilter(\'tutti\')">Tutti</button>' : ""}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Profilo</th><th>Qualità</th><th>Stato</th><th class="right">Richiesti</th><th class="right">Coperti</th><th class="right">Mancanti</th><th class="right">Sfrido</th></tr></thead>
+        <tbody id="stock-body"></tbody>
+      </table>
+    </div>`;
+  renderStockRows("");
+}
+
+function renderStockRows(query) {
+  const q = String(query || "").trim().toLowerCase();
+  const rows = stockData.profiles.filter(row =>
+    (stockFilter === "tutti" || row.stato === stockFilter) &&
+    [row.profilo, row.qualita, row.motivo].some(value => String(value || "").toLowerCase().includes(q))
+  );
+  document.getElementById("stock-body").innerHTML = rows.map(row => `
+    <tr>
+      <td class="mono">${esc(row.profilo)}</td>
+      <td>${esc(row.qualita || "—")}</td>
+      <td><span class="tag ${row.stato}">${esc(row.stato.replaceAll("_", " "))}</span>${row.motivo ? `<div class="section-sub">${esc(row.motivo)}</div>` : ""}</td>
+      <td class="right">${fmt(row.n_richiesti)}</td>
+      <td class="right">${fmt(row.n_coperti)}</td>
+      <td class="right">${fmt(row.n_mancanti)}</td>
+      <td class="right">${row.sfrido_pct == null ? "—" : fmt(row.sfrido_pct) + "%"}</td>
+    </tr>`).join("") || '<tr><td colspan="7">Nessun profilo in questa categoria</td></tr>';
+}
+
+async function load() {
+  try {
+    const [analysisResponse, stockResponse] = await Promise.all([
+      fetch(`/api/v1/commesse/${commessaId}/analisi`, { headers: auth() }),
+      fetch(`/api/v1/commesse/${commessaId}/analisi/magazzino`, { headers: auth() }),
+    ]);
+    const analysis = await analysisResponse.json().catch(() => ({}));
+    const stock = await stockResponse.json().catch(() => ({}));
+    if (!analysisResponse.ok) throw new Error(analysis.detail || "Analisi non disponibile");
+    if (!stockResponse.ok) throw new Error(stock.detail || "Confronto magazzino non disponibile");
+    analysisData = analysis;
+    stockData = stock;
+    renderPage();
+  } catch (error) {
+    document.getElementById("root").innerHTML = `<div class="notice warn">⚠ ${esc(error.message || error)}</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>

@@ -317,7 +317,21 @@ function renderGrid() {
   }).join('');
 }
 
-function enterCommessa(id) {
+async function enterCommessa(id) {
+  try {
+    const response = await fetch(`/api/v1/commesse/${id}/revisioni`, {
+      headers: { Authorization: getAuth() },
+    });
+    if (response.ok) {
+      const revisioni = await response.json();
+      if (revisioni.length) {
+        window.location.href = `/commesse/${id}/analisi`;
+        return;
+      }
+    }
+  } catch (_) {
+    // Il dettaglio storico resta il fallback per commesse senza analisi.
+  }
   window.location.href = `/commesse/${id}`;
 }
 

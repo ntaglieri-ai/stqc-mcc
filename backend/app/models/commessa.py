@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Date, DateTime, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, Enum as SQLEnum, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
@@ -40,12 +40,32 @@ class CommessaRevisione(Base):
     commessa_id      = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
     codice           = Column(String(20), nullable=False)       # r01, r02, …
     file_assemblaggi = Column(String(500), nullable=True)       # path relativo su disco
-    file_lavorazioni = Column(String(500), nullable=True)
+    file_lavorazioni = Column(String(500), nullable=True)       # lista pezzi / lavorazioni per posizione
+    predistinta      = Column(Boolean, nullable=False, default=False)
+    stato_analisi    = Column(String(30), nullable=False, default="PRONTA")
+    report_analisi   = Column(JSON, nullable=True)
     note             = Column(Text, nullable=True)
     imported_at      = Column(DateTime, default=datetime.utcnow)
 
     commessa = relationship("Commessa", back_populates="revisioni")
     items    = relationship("DistintaItem", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
+    documenti = relationship("CommessaDocumento", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
+
+
+class CommessaDocumento(Base):
+    """Allegato originale caricato insieme a una revisione della commessa."""
+    __tablename__ = "commessa_documenti"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    commessa_id  = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
+    categoria    = Column(String(50), nullable=False, default="DISEGNO")
+    filename     = Column(String(255), nullable=False)
+    storage_path = Column(String(500), nullable=False)
+    mime_type    = Column(String(150), nullable=True)
+    uploaded_at  = Column(DateTime, default=datetime.utcnow)
+
+    revisione = relationship("CommessaRevisione", back_populates="documenti")
 
 
 class FaseStatus(str, Enum):

@@ -6,1900 +6,449 @@
   <title>Nuova Commessa · MCC</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; }
-
-    /* ── Split layout ── */
-    .split { display: flex; height: 100vh; }
-
-    /* ── Left hero ── */
-    .left {
-      width: 32%;
-      position: relative;
-      overflow: hidden;
-      flex-shrink: 0;
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a; color: #fff;
     }
+    .split { display: flex; height: 100vh; }
+    .left { width: 32%; position: relative; overflow: hidden; flex-shrink: 0; }
     .left-bg {
       position: absolute; inset: 0;
-      background-image: url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=900&q=85');
+      background-image: url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=900&q=85");
       background-size: cover; background-position: center;
-      transform: scale(1.04);
-      transition: transform 8s ease;
+      transform: scale(1.04); transition: transform 8s ease;
     }
     .left-bg.loaded { transform: scale(1); }
     .left-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(160deg, rgba(8,15,31,0.5) 0%, rgba(8,15,31,0.78) 60%, rgba(8,15,31,0.95) 100%);
+      background: linear-gradient(160deg, rgba(8,15,31,.5), rgba(8,15,31,.78) 60%, rgba(8,15,31,.95));
     }
     .left-content {
-      position: relative; z-index: 2;
-      height: 100%;
+      position: relative; z-index: 2; height: 100%;
       display: flex; flex-direction: column; justify-content: space-between;
       padding: 36px 40px;
     }
-    .left-nav {
-      display: flex; align-items: center; gap: 10px;
-    }
+    .left-nav { display: flex; align-items: center; gap: 10px; }
     .left-back {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 13px; font-weight: 500;
-      color: rgba(255,255,255,0.4);
-      text-decoration: none; cursor: pointer;
-      padding: 6px 11px; border-radius: 8px;
+      display: flex; align-items: center; gap: 7px; padding: 6px 11px;
+      border-radius: 8px; color: rgba(255,255,255,.4);
+      text-decoration: none; font-size: 13px; font-weight: 500;
       transition: background .2s, color .2s;
     }
-    .left-back:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
+    .left-back:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.85); }
     .left-logo-dot {
       width: 10px; height: 10px; border-radius: 50%;
       background: #3b82f6; box-shadow: 0 0 12px #3b82f6;
     }
     .left-logo-text {
-      font-size: 13px; font-weight: 600;
-      color: rgba(255,255,255,0.4); letter-spacing: .12em; text-transform: uppercase;
+      font-size: 13px; font-weight: 600; color: rgba(255,255,255,.4);
+      letter-spacing: .12em; text-transform: uppercase;
     }
-    .left-brand {}
     .left-mcc {
-      font-size: clamp(56px, 7vw, 88px);
-      font-weight: 900; color: #fff; line-height: 1;
-      letter-spacing: -.03em; text-shadow: 0 4px 32px rgba(0,0,0,0.4);
+      font-size: clamp(56px, 7vw, 88px); font-weight: 900; line-height: 1;
+      letter-spacing: -.03em; text-shadow: 0 4px 32px rgba(0,0,0,.4);
     }
     .left-sub {
       margin-top: 12px; font-size: 14px; font-weight: 500;
-      color: rgba(255,255,255,0.55); letter-spacing: .03em; line-height: 1.65;
+      color: rgba(255,255,255,.55); letter-spacing: .03em; line-height: 1.65;
     }
-    .left-sub strong { color: rgba(255,255,255,0.88); font-weight: 700; }
+    .left-sub strong { color: rgba(255,255,255,.88); font-weight: 700; }
     .left-meta { margin-top: 24px; display: flex; align-items: center; gap: 14px; }
     .left-badge {
       padding: 5px 12px; border-radius: 20px;
-      background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4);
+      background: rgba(59,130,246,.2); border: 1px solid rgba(59,130,246,.4);
       color: #93c5fd; font-size: 11px; font-weight: 600;
       letter-spacing: .06em; text-transform: uppercase;
     }
-    .left-version { font-size: 11px; color: rgba(255,255,255,0.2); }
+    .left-version { font-size: 11px; color: rgba(255,255,255,.2); }
 
-    /* ── Right form panel ── */
-    .right {
-      flex: 1;
-      background: #0a1020;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-    }
+    .right { flex: 1; background: #0a1020; display: flex; overflow-y: auto; }
     .form-wrap {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 52px 44px;
-      max-width: 980px;
-      width: 100%;
-      margin: 0 auto;
+      flex: 1; display: flex; flex-direction: column; justify-content: center;
+      padding: 52px 44px; max-width: 980px; width: 100%; margin: 0 auto;
     }
-    .form-eyebrow {
-      font-size: 11px; font-weight: 700;
-      color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: .14em; margin-bottom: 7px;
-    }
-    .form-title {
-      font-size: 26px; font-weight: 900; color: rgba(255,255,255,0.93);
-      letter-spacing: -.025em; margin-bottom: 4px;
-    }
-    .form-subtitle { font-size: 14px; color: rgba(255,255,255,0.35); margin-bottom: 40px; line-height: 1.5; }
-
-    /* ── Field ── */
-    .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
-    .field-label {
-      font-size: 12px; font-weight: 700;
-      color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: .07em;
-    }
-    .field-label span { color: #f87171; margin-left: 2px; }
-    .field-input {
-      width: 100%; padding: 13px 16px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 11px;
-      font-size: 15px; color: rgba(255,255,255,0.9);
-      outline: none; transition: border-color .2s, background .2s;
-      font-family: inherit;
-    }
-    .field-input:focus { border-color: rgba(59,130,246,0.6); background: rgba(255,255,255,0.07); }
-    .field-input::placeholder { color: rgba(255,255,255,0.18); }
-
-    /* ── Upload 3-box row ── */
-    .upload-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-    }
-    .upload-box {
-      border: 2px dashed rgba(255,255,255,0.1);
-      border-radius: 13px;
-      padding: 20px 16px 18px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .upload-box:hover, .upload-box.drag-over {
-      border-color: #3b82f6;
-      background: rgba(59,130,246,0.06);
-    }
-    .upload-box.has-file {
-      border-color: rgba(74,222,128,0.35);
-      background: rgba(74,222,128,0.04);
-    }
-    .upload-box input[type=file] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-    }
-    .ub-req-badge {
-      display: inline-block; padding: 2px 7px; border-radius: 8px; margin-bottom: 10px;
-      font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    }
-    .ub-req-badge.required { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-    .ub-req-badge.optional { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.1); }
-    .ub-icon { font-size: 24px; margin-bottom: 8px; line-height: 1; }
-    .ub-label { font-size: 13px; font-weight: 800; color: rgba(255,255,255,0.85); margin-bottom: 3px; line-height: 1.3; }
-    .ub-sub { font-size: 11px; color: rgba(255,255,255,0.32); margin-bottom: 10px; line-height: 1.45; }
-    .ub-hint { font-size: 10px; color: rgba(255,255,255,0.2); margin-bottom: 4px; font-family: monospace; }
-    .ub-cta { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); }
-    .ub-selected {
-      font-size: 11px; font-weight: 700; color: #4ade80; margin-top: 8px;
-      display: none; align-items: center; gap: 5px; justify-content: center;
-      text-align: center; word-break: break-all; line-height: 1.4;
-    }
-    .ub-selected.visible { display: flex; flex-direction: column; }
-    .ub-selected-name { color: #4ade80; }
-    .ub-selected-count { font-size: 10px; color: rgba(74,222,128,0.7); }
-
-    /* keep legacy .file-selected used nowhere but guard */
-    .file-selected { display: none; }
-    .file-zone { display: none; }
-
-    /* ── Divider ── */
-    .divider {
-      display: flex; align-items: center; gap: 12px; margin: 8px 0 24px;
-    }
-    .divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
-    .divider-text { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: .08em; }
-
-    /* ── Submit button ── */
-    .btn-create {
-      width: 100%; padding: 16px;
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      color: #fff; border: none; border-radius: 13px;
-      font-size: 16px; font-weight: 800; letter-spacing: -.01em;
-      cursor: pointer; margin-top: 28px;
-      transition: all .2s;
-      box-shadow: 0 6px 24px rgba(37,99,235,.38);
-    }
-    .btn-create:hover:not(:disabled) { background: linear-gradient(135deg, #1d4ed8, #1e40af); box-shadow: 0 8px 32px rgba(37,99,235,.52); transform: translateY(-1px); }
-    .btn-create:active:not(:disabled) { transform: translateY(0); }
-    .btn-create:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
-
-    /* ── Feedback ── */
-    .feedback {
-      margin-top: 16px; padding: 14px 18px; border-radius: 11px;
-      font-size: 13px; font-weight: 600; display: none; align-items: flex-start; gap: 10px; line-height: 1.5;
-    }
-    .feedback.visible { display: flex; }
-    .feedback.success { background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.25); color: #4ade80; }
-    .feedback.error   { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); color: #f87171; }
-
-    /* ── Success overlay ── */
-    .success-state { display: none; flex-direction: column; align-items: center; text-align: center; gap: 20px; padding: 20px 0; }
-    .success-state.visible { display: flex; }
-    .success-icon { font-size: 56px; line-height: 1; }
-    .success-title { font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -.025em; }
-    .success-sub { font-size: 14px; color: rgba(255,255,255,0.4); max-width: 320px; line-height: 1.6; }
-    .success-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-    .btn-go { padding: 11px 24px; border-radius: 11px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; transition: all .2s; }
-    .btn-go.primary { background: #2563eb; color: #fff; box-shadow: 0 4px 18px rgba(37,99,235,.38); }
-    .btn-go.primary:hover { background: #1d4ed8; transform: translateY(-1px); }
-    .btn-go.secondary { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.1); }
-    .btn-go.secondary:hover { background: rgba(255,255,255,0.11); color: #fff; }
-
-    /* ══════════════════════════════════════════
-       WIZARD PANEL
-    ══════════════════════════════════════════ */
-    #wiz-backdrop {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.65);
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-      opacity: 0; pointer-events: none;
-      transition: opacity .38s cubic-bezier(.4,0,.2,1); z-index: 300;
-    }
-    #wiz-backdrop.open { opacity: 1; pointer-events: auto; }
-
-    #wiz-panel {
-      position: fixed; top: 0; left: 0; right: 0;
-      width: 100%;
-      height: 100vh;
-      background: #080f1f;
-      transform: translateX(100%);
-      transition: transform .42s cubic-bezier(.4,0,.2,1);
-      z-index: 301;
-      display: flex; flex-direction: column; overflow: hidden;
-    }
-    #wiz-panel.open { transform: translateX(0); }
-
-    /* Progress bar */
-    .wiz-progress {
-      display: flex; align-items: center; padding: 22px max(40px, calc((100% - 880px) / 2));
-      border-bottom: 1px solid rgba(255,255,255,.06); flex-shrink: 0; gap: 0;
-    }
-    .wiz-step-item { display: flex; align-items: center; flex: 1; }
-    .wiz-step-item:last-child { flex: 0; }
-    .wiz-dot {
-      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 800; border: 2px solid rgba(255,255,255,.1);
-      color: rgba(255,255,255,.25); transition: all .3s; cursor: default;
-    }
-    .wiz-dot.done  { background:#16a34a; border-color:#16a34a; color:#fff; }
-    .wiz-dot.active{ background:#2563eb; border-color:#2563eb; color:#fff; box-shadow:0 0 14px rgba(37,99,235,.5); }
-    .wiz-step-label {
-      font-size: 11px; font-weight: 600; color: rgba(255,255,255,.25);
-      margin-left: 8px; white-space: nowrap; transition: color .3s;
-    }
-    .wiz-step-label.active { color: rgba(255,255,255,.85); }
-    .wiz-step-label.done   { color: #4ade80; }
-    .wiz-connector { flex: 1; height: 1px; background: rgba(255,255,255,.07); margin: 0 10px; transition: background .3s; }
-    .wiz-connector.done { background: #16a34a; }
-    .wiz-close-btn {
-      flex-shrink: 0; margin-left: 20px;
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.05);
-      color: rgba(255,255,255,.4); font-size: 15px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background .2s, color .2s;
-    }
-    .wiz-close-btn:hover { background: rgba(255,255,255,.13); color: #fff; }
-
-    /* Scrollable body */
-    .wiz-body { flex: 1; overflow-y: auto; padding: 36px max(40px, calc((100% - 880px) / 2)); }
-    .wiz-body::-webkit-scrollbar { width: 4px; }
-    .wiz-body::-webkit-scrollbar-track { background: transparent; }
-    .wiz-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
-
-    .wiz-title    { font-size: 21px; font-weight: 900; color: #fff; letter-spacing: -.025em; margin-bottom: 4px; }
-    .wiz-subtitle { font-size: 13px; color: rgba(255,255,255,.38); margin-bottom: 24px; line-height: 1.55; }
-
-    /* Info box */
-    .wiz-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
-    .wiz-info-card {
-      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
-      border-radius: 10px; padding: 14px 16px;
-    }
-    .wiz-info-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.28); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
-    .wiz-info-val   { font-size: 15px; font-weight: 700; color: rgba(255,255,255,.85); word-break: break-all; }
-
-    /* Section label */
-    .wiz-section-lbl {
-      font-size: 10px; font-weight: 700; color: rgba(255,255,255,.28);
-      text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; margin-top: 8px;
-    }
-
-    /* Table */
-    .wiz-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-    .wiz-table th {
-      padding: 7px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .07em; color: rgba(255,255,255,.3);
-      border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; white-space: nowrap;
-    }
-    .wiz-table td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.04); color: rgba(255,255,255,.7); vertical-align: middle; }
-    .wiz-table tbody tr:last-child td { border-bottom: none; }
-    .wiz-table tbody tr:nth-child(even) td { background: rgba(255,255,255,.02); }
-    .wiz-table-wrap { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 11px; overflow: hidden; margin-bottom: 20px; max-height: 300px; overflow-y: auto; }
-    .wiz-table-wrap::-webkit-scrollbar { width: 3px; }
-    .wiz-table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
-
-    /* Availability summary */
-    .avail-summary { display: flex; gap: 12px; margin-bottom: 20px; }
-    .avail-card { flex: 1; padding: 14px; border-radius: 10px; text-align: center; }
-    .avail-num { font-size: 26px; font-weight: 900; line-height: 1; }
-    .avail-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
-    .avail-ok   { background: rgba(74,222,128,.1);  border: 1px solid rgba(74,222,128,.2);  color: #4ade80; }
-    .avail-part { background: rgba(251,191,36,.1);  border: 1px solid rgba(251,191,36,.2);  color: #fbbf24; }
-    .avail-miss { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.2); color: #f87171; }
-
-    .badge-ok      { color:#4ade80; font-weight:700; font-size:13px; }
-    .badge-part    { color:#fb923c; font-weight:700; font-size:13px; }
-    .badge-miss    { color:#f87171; font-weight:700; font-size:13px; }
-    .badge-manuale { color:#fbbf24; font-weight:700; font-size:13px; }
-    .avail-manual  { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.2); color: #fbbf24; }
-    .sfrido-warn {
-      margin: 16px 0 20px;
-      padding: 14px 18px;
-      background: rgba(248,113,113,.08);
-      border: 1px solid rgba(248,113,113,.3);
-      border-radius: 11px;
-      font-size: 13px; color: #f87171; line-height: 1.55;
-    }
-    .sfrido-warn strong { font-weight: 800; }
-    .sfrido-tbl { width:100%; border-collapse:collapse; font-size:12px; margin-top:4px; }
-    .sfrido-tbl th { padding:6px 10px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.3); border-bottom:1px solid rgba(255,255,255,.06); }
-    .sfrido-tbl td { padding:6px 10px; color:rgba(255,255,255,.65); border-bottom:1px solid rgba(255,255,255,.04); }
-    .sfrido-tbl tr:last-child td { color:rgba(255,255,255,.85); font-weight:700; border-top:1px solid rgba(255,255,255,.1); border-bottom:none; }
-
-    /* Avail card clickable */
-    .avail-card-btn { cursor: pointer; transition: transform .18s, box-shadow .18s; user-select: none; }
-    .avail-card-btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-    .avail-hint { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: 0.5; margin-top: 6px; }
-
-    /* Detail popup overlay */
-    #detail-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.72);
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      z-index: 400;
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; pointer-events: none;
-      transition: opacity .22s;
-    }
-    #detail-overlay.open { opacity: 1; pointer-events: auto; }
-    #detail-box {
-      width: min(720px, 90vw); max-height: 74vh;
-      background: #0b1526;
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 18px;
-      box-shadow: 0 32px 100px rgba(0,0,0,.9);
-      display: flex; flex-direction: column;
-      transform: translateY(14px) scale(0.98);
-      transition: transform .22s;
-    }
-    #detail-overlay.open #detail-box { transform: translateY(0) scale(1); }
-    .dp-header {
-      padding: 20px 24px 16px;
-      border-bottom: 1px solid rgba(255,255,255,.07);
-      display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0;
-    }
-    .dp-title { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -.01em; }
-    .dp-close {
-      width: 30px; height: 30px; border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.05); color: rgba(255,255,255,.4);
-      font-size: 14px; cursor: pointer; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .2s, color .2s;
-    }
-    .dp-close:hover { background: rgba(255,255,255,.13); color: #fff; }
-    .dp-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
-    .dp-body::-webkit-scrollbar { width: 4px; }
-    .dp-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
-    .dp-empty { padding: 32px 0; text-align: center; color: rgba(255,255,255,.25); font-size: 13px; }
-    .dp-note {
-      padding: 12px 16px; margin-bottom: 16px;
-      background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.2);
-      border-radius: 10px; font-size: 12px; color: rgba(255,255,255,.5); line-height: 1.55;
-    }
-    .dp-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-    .dp-tbl th { padding: 7px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: rgba(255,255,255,.3); border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; }
-    .dp-tbl th.r { text-align: right; }
-    .dp-tbl td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.04); color: rgba(255,255,255,.7); }
-    .dp-tbl tbody tr:last-child td { border-bottom: none; }
-    .dp-tbl tbody tr:hover td { background: rgba(255,255,255,.025); }
-    .dp-tbl .r { text-align: right; }
-    .dp-tbl .mono { font-family: monospace; font-weight: 700; color: rgba(255,255,255,.9); }
-    .dp-tbl .muted { font-family: monospace; font-size: 11px; color: rgba(255,255,255,.4); }
-    .dp-tbl .c-ok   { color: #4ade80; font-weight: 700; }
-    .dp-tbl .c-warn { color: #fbbf24; font-weight: 700; }
-    .dp-tbl .c-err  { color: #f87171; font-weight: 700; }
-    .dp-tbl .c-part { color: #fb923c; font-weight: 700; }
-    .dp-total td { border-top: 1px solid rgba(255,255,255,.1) !important; border-bottom: none !important; color: rgba(255,255,255,.88); }
-
-    /* Textarea */
-    .wiz-textarea {
-      width: 100%; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
-      border-radius: 10px; padding: 12px 16px; font-size: 14px; color: rgba(255,255,255,.8);
-      outline: none; resize: vertical; min-height: 90px; font-family: inherit;
-      transition: border-color .2s;
-    }
-    .wiz-textarea:focus { border-color: rgba(59,130,246,.5); }
-    .wiz-textarea::placeholder { color: rgba(255,255,255,.18); }
-
-    /* Confirm box */
-    .wiz-warn-box {
-      background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.2);
-      border-radius: 11px; padding: 16px 18px; margin-bottom: 22px;
-      font-size: 13px; color: rgba(255,255,255,.65); line-height: 1.6;
-    }
-    .wiz-warn-box strong { color: #fbbf24; }
-
-    /* Action buttons */
-    .wiz-action-btn {
-      width: 100%; padding: 16px 22px; border-radius: 13px; border: none; margin-bottom: 12px;
-      text-align: left; cursor: pointer; transition: all .22s;
-      display: flex; align-items: center; gap: 16px;
-    }
-    .wiz-action-btn:hover { transform: translateY(-2px); }
-    .wiz-action-btn:active { transform: translateY(0); }
-    .wiz-action-btn .wiz-action-icon { font-size: 26px; flex-shrink: 0; }
-    .wiz-action-btn .wiz-action-text-title { font-size: 15px; font-weight: 800; color: #fff; }
-    .wiz-action-btn .wiz-action-text-desc  { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 2px; line-height: 1.4; }
-    .wiz-action-green  { background: rgba(22,163,74,.18);  border: 1px solid rgba(22,163,74,.4);  }
-    .wiz-action-green:hover  { background: rgba(22,163,74,.28);  box-shadow: 0 8px 28px rgba(22,163,74,.3);  }
-    .wiz-action-orange { background: rgba(234,88,12,.18);  border: 1px solid rgba(234,88,12,.4);  }
-    .wiz-action-orange:hover { background: rgba(234,88,12,.28);  box-shadow: 0 8px 28px rgba(234,88,12,.3);  }
-    .wiz-action-red    { background: rgba(220,38,38,.18);  border: 1px solid rgba(220,38,38,.4);  }
-    .wiz-action-red:hover    { background: rgba(220,38,38,.28);  box-shadow: 0 8px 28px rgba(220,38,38,.3);  }
-    .wiz-action-cancel { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); padding: 10px 18px; border-radius: 9px; font-size: 13px; color: rgba(255,255,255,.4); cursor: pointer; transition: all .2s; }
-    .wiz-action-cancel:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.7); }
-
-    /* Footer */
-    .wiz-footer {
-      padding: 18px max(40px, calc((100% - 880px) / 2)); border-top: 1px solid rgba(255,255,255,.06);
-      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-    }
-    .wiz-btn-primary {
-      padding: 11px 28px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700;
-      background: #2563eb; color: #fff; cursor: pointer; transition: all .2s;
-      box-shadow: 0 4px 16px rgba(37,99,235,.35);
-    }
-    .wiz-btn-primary:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
-    .wiz-btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
-    .wiz-btn-back {
-      font-size: 13px; font-weight: 500; color: rgba(255,255,255,.35);
-      background: none; border: none; cursor: pointer; padding: 8px 4px; transition: color .2s;
-    }
-    .wiz-btn-back:hover { color: rgba(255,255,255,.75); }
-
-    /* Spinner */
-    .wiz-spinner { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; gap: 16px; }
-    .spin-ring { width: 38px; height: 38px; border-radius: 50%; border: 3px solid rgba(255,255,255,.08); border-top-color: #3b82f6; animation: spin .75s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spin-label { font-size: 13px; color: rgba(255,255,255,.35); }
-
-    /* Fasi tag list */
-    .fasi-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    .fasi-tag { padding: 3px 10px; border-radius: 20px; background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.25); font-size: 11px; color: #93c5fd; font-weight: 600; }
-
-    /* Toggle switch */
-    .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
-    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,.12); border-radius: 12px; transition: .2s; }
-    .toggle-slider::before { position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: rgba(255,255,255,.45); border-radius: 50%; transition: .2s; }
-    .toggle input:checked + .toggle-slider { background: rgba(234,88,12,.55); border: 1px solid rgba(234,88,12,.4); }
-    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: #fb923c; }
-
-    /* Breadcrumb */
     .bc { display: flex; align-items: center; gap: 7px; font-size: 12px; margin-bottom: 28px; }
-    .bc a { color: rgba(255,255,255,.38); text-decoration: none; padding: 3px 7px; border-radius: 6px; transition: background .2s, color .2s; }
+    .bc a {
+      color: rgba(255,255,255,.38); text-decoration: none;
+      padding: 3px 7px; border-radius: 6px;
+    }
     .bc a:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.75); }
     .bc-sep { color: rgba(255,255,255,.15); }
     .bc-cur { color: rgba(255,255,255,.6); font-weight: 600; padding: 3px 7px; }
+    .form-eyebrow {
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,.28);
+      text-transform: uppercase; letter-spacing: .14em; margin-bottom: 7px;
+    }
+    .form-title {
+      font-size: 26px; font-weight: 900; color: rgba(255,255,255,.93);
+      letter-spacing: -.025em; margin-bottom: 4px;
+    }
+    .form-subtitle {
+      font-size: 14px; color: rgba(255,255,255,.35);
+      margin-bottom: 40px; line-height: 1.5;
+    }
+    .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
+    .field-label {
+      font-size: 12px; font-weight: 700; color: rgba(255,255,255,.45);
+      text-transform: uppercase; letter-spacing: .07em;
+    }
+    .field-label span { color: #f87171; margin-left: 2px; }
+    .field-input {
+      width: 100%; padding: 13px 16px; border-radius: 11px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      font: inherit; font-size: 15px; color: rgba(255,255,255,.9);
+      outline: none; transition: border-color .2s, background .2s;
+    }
+    .field-input:focus { border-color: rgba(59,130,246,.6); background: rgba(255,255,255,.07); }
+    .field-input::placeholder { color: rgba(255,255,255,.18); }
+    .section-line { height: 1px; background: rgba(255,255,255,.07); margin: 8px 0 18px; }
+    .document-title { font-size: 14px; font-weight: 800; color: rgba(255,255,255,.88); margin-bottom: 3px; }
+    .document-subtitle { font-size: 12px; color: rgba(255,255,255,.35); }
+    .predistinta {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; margin: 16px 0;
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
+      border-radius: 11px;
+    }
+    .predistinta-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.8); }
+    .predistinta-sub { font-size: 11px; color: rgba(255,255,255,.35); margin-top: 2px; }
+    .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: rgba(255,255,255,.12); border-radius: 12px; transition: .2s;
+    }
+    .toggle-slider::before {
+      position: absolute; content: ""; width: 18px; height: 18px;
+      left: 3px; bottom: 3px; border-radius: 50%;
+      background: rgba(255,255,255,.45); transition: .2s;
+    }
+    .toggle input:checked + .toggle-slider {
+      background: rgba(234,88,12,.55); border: 1px solid rgba(234,88,12,.4);
+    }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: #fb923c; }
 
-    /* Pre-distinta banner in wizard */
-    #wiz-predistinta-banner {
-      display: none; flex-shrink: 0;
-      padding: 10px 40px;
-      background: rgba(234,88,12,.1);
-      border-bottom: 1px solid rgba(234,88,12,.2);
+    .upload-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .upload-box {
+      min-height: 164px; padding: 20px 16px 18px;
+      display: flex; flex-direction: column; align-items: center;
+      position: relative; text-align: center; cursor: pointer;
+      border: 2px dashed rgba(255,255,255,.1); border-radius: 13px;
+      transition: border-color .2s, background .2s;
     }
-    #wiz-predistinta-banner span { font-size: 12px; color: #fb923c; line-height: 1.5; }
-    #wiz-predistinta-banner strong { font-weight: 800; }
-    .wiz-action-blue { background: rgba(37,99,235,.18); border: 1px solid rgba(37,99,235,.4); }
-    .wiz-action-blue:hover { background: rgba(37,99,235,.28); box-shadow: 0 8px 28px rgba(37,99,235,.3); }
-    .anom-correggi-btn {
-      padding: 4px 11px; border-radius: 7px; border: 1px solid rgba(251,191,36,.35);
-      background: rgba(251,191,36,.08); color: #fbbf24; font-size: 11px; font-weight: 700;
-      cursor: pointer; transition: all .18s; white-space: nowrap; flex-shrink: 0;
+    .upload-box:hover, .upload-box.drag-over {
+      border-color: #3b82f6; background: rgba(59,130,246,.06);
     }
-    .anom-correggi-btn:hover { background: rgba(251,191,36,.18); border-color: rgba(251,191,36,.6); }
-    .anom-panel { margin-top: 4px; margin-bottom: 2px; padding: 16px 18px;
-      background: rgba(10,16,32,.9); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; }
-    .anom-tab-btns { display: flex; gap: 4px; margin-bottom: 14px;
-      background: rgba(255,255,255,.04); border-radius: 9px; padding: 3px; }
-    .anom-tab-btn { flex: 1; padding: 7px; border-radius: 7px; font-size: 12px; font-weight: 700;
-      border: none; background: transparent; color: rgba(255,255,255,.32); cursor: pointer; transition: all .18s; }
-    .anom-tab-btn.active { background: rgba(255,255,255,.09); color: rgba(255,255,255,.82); }
-    .anom-rows-wrap { max-height: 240px; overflow-y: auto; margin-bottom: 12px; }
-    .anom-row { display: flex; align-items: center; gap: 10px; padding: 7px 0;
-      border-bottom: 1px solid rgba(255,255,255,.04); }
-    .anom-row:last-child { border-bottom: none; }
-    .anom-row-label { flex: 1; min-width: 0; font-size: 12px; color: rgba(255,255,255,.55);
-      font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .anom-input { flex: 1; padding: 6px 10px;
-      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
-      border-radius: 8px; font-size: 12px; color: rgba(255,255,255,.88);
-      outline: none; transition: border-color .2s; font-family: monospace; }
-    .anom-input:focus { border-color: rgba(59,130,246,.5); }
-    .anom-save-btn { padding: 8px 20px; border-radius: 9px; border: none;
-      background: #2563eb; color: #fff; font-size: 13px; font-weight: 700;
-      cursor: pointer; transition: all .2s; }
-    .anom-save-btn:hover:not(:disabled) { background: #1d4ed8; }
-    .anom-save-btn:disabled { opacity: .45; cursor: not-allowed; }
-    .dp-verify-btn {
-      padding: 4px 10px; border-radius: 7px; border: 1px solid rgba(74,222,128,.3);
-      background: rgba(74,222,128,.08); color: #4ade80; font-size: 11px; font-weight: 600;
-      cursor: pointer; transition: all .18s; white-space: nowrap;
+    .upload-box.has-file {
+      border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.04);
     }
-    .dp-verify-btn:hover { background: rgba(74,222,128,.18); border-color: rgba(74,222,128,.5); }
-
-    /* ── QR Gallery (post-generazione) ── */
-    .qr-gallery-hdr {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+    .upload-box input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
     }
-    .qr-gallery-title { font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -.02em; }
-    .qr-gallery-meta  { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 5px; line-height: 1.5; }
-    .qr-btn-print-all {
-      padding: 10px 22px; border-radius: 10px; border: none;
-      background: #2563eb; color: #fff; font-size: 13px; font-weight: 700;
-      cursor: pointer; transition: all .2s; white-space: nowrap; flex-shrink: 0;
-      box-shadow: 0 4px 14px rgba(37,99,235,.35);
+    .ub-req-badge {
+      padding: 2px 7px; border-radius: 8px; margin-bottom: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
     }
-    .qr-btn-print-all:hover { background: #1d4ed8; transform: translateY(-1px); }
-    /* expanded detail inside QR gallery */
-    .qr-det-inner { display: flex; align-items: flex-start; gap: 18px; }
-    .qr-det-fields { display: flex; flex-direction: column; gap: 7px; flex: 1; padding-top: 4px; }
-    .qr-det-field  { display: flex; flex-direction: column; gap: 1px; }
-    .qr-det-lbl    { font-size: 9px; color: rgba(255,255,255,.3); text-transform: uppercase; letter-spacing: .07em; }
-    .qr-det-val    { font-size: 12px; color: rgba(255,255,255,.82); line-height: 1.4; }
-    .qr-det-val.mono { font-family: monospace; font-weight: 700; font-size: 13px; }
-    .qr-det-val.dim  { color: rgba(255,255,255,.45); font-size: 11px; }
-    /* print card — hidden on screen, shown as A6 page in @media print */
-    .qr-card { display: none; flex-direction: column; align-items: center; text-align: center; background: #fff; }
-    .qr-img   { width: 100%; max-width: 106px; height: auto; display: block; margin-bottom: 6px; }
-    .qr-marca { font-size: 11px; font-weight: 800; color: #111; font-family: monospace; line-height: 1.3; word-break: break-all; }
-    .qr-profilo { font-size: 10px; color: #444; margin-top: 2px; line-height: 1.3; }
-    .qr-material { font-size: 9px; color: #666; margin-top: 2px; }
-    .qr-length   { font-size: 9px; color: #666; margin-top: 1px; }
-    .qr-parent-lbl { font-size: 9px; color: #888; margin-top: 3px; font-style: italic; }
-
-    @media print {
-      body > *:not(#wiz-panel) { display: none !important; }
-      #wiz-panel {
-        position: static !important; transform: none !important;
-        width: 100% !important; height: auto !important; overflow: visible !important;
-        border: none !important; box-shadow: none !important; background: #fff !important;
-        display: block !important;
-      }
-      .wiz-progress, .wiz-footer, #wiz-predistinta-banner { display: none !important; }
-      .wiz-body { overflow: visible !important; padding: 0 !important; }
-      .qr-gallery-hdr { display: none !important; }
-      .wiz-table-wrap { overflow: visible !important; }
-      .wiz-table thead { display: none !important; }
-      /* hide data rows, show all detail rows */
-      .pz-row { display: none !important; }
-      .qr-det-row { display: table-row !important; }
-      .qr-det-row > td:first-child { display: none !important; }
-      .qr-det-row > td { padding: 0 !important; border: none !important; }
-      /* hide the inline screen image, show the print card */
-      .qr-screen-img { display: none !important; }
-      .qr-card { display: flex !important; }
-      @page { size: A6 portrait; margin: 5mm; }
-      .qr-card {
-        width: 95mm; min-height: 128mm; padding: 7mm;
-        page-break-after: always; break-after: page;
-        margin: 0; border-radius: 0;
-        justify-content: center;
-      }
-      .qr-img      { width: 65mm; max-width: 65mm; margin-bottom: 6mm; }
-      .qr-marca    { font-size: 15pt; font-weight: 800; color: #000; }
-      .qr-profilo  { font-size: 11pt; color: #333; margin-top: 3mm; }
-      .qr-material { font-size: 10pt; color: #555; margin-top: 2mm; }
-      .qr-length   { font-size: 10pt; color: #555; margin-top: 1mm; }
-      .qr-parent-lbl { font-size: 9pt; color: #888; margin-top: 2mm; font-style: italic; }
+    .ub-req-badge.required {
+      background: rgba(239,68,68,.15); color: #f87171;
+      border: 1px solid rgba(239,68,68,.25);
+    }
+    .ub-req-badge.optional {
+      background: rgba(255,255,255,.06); color: rgba(255,255,255,.3);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+    .ub-icon { font-size: 24px; margin-bottom: 8px; line-height: 1; }
+    .ub-label { font-size: 13px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 3px; }
+    .ub-sub { font-size: 11px; color: rgba(255,255,255,.32); margin-bottom: 10px; line-height: 1.45; }
+    .ub-hint { font: 10px monospace; color: rgba(255,255,255,.2); margin-bottom: 4px; }
+    .ub-cta { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.3); }
+    .ub-selected {
+      display: none; margin-top: 8px; font-size: 11px; font-weight: 700;
+      color: #4ade80; text-align: center; word-break: break-all; line-height: 1.4;
+    }
+    .ub-selected.visible { display: flex; flex-direction: column; }
+    .ub-selected-count { font-size: 10px; color: rgba(74,222,128,.7); }
+    .btn-create {
+      width: 100%; padding: 16px; margin-top: 28px;
+      border: none; border-radius: 13px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff; font-size: 16px; font-weight: 800;
+      cursor: pointer; box-shadow: 0 6px 24px rgba(37,99,235,.38);
+      transition: all .2s;
+    }
+    .btn-create:hover:not(:disabled) {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      box-shadow: 0 8px 32px rgba(37,99,235,.52); transform: translateY(-1px);
+    }
+    .btn-create:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .feedback {
+      display: none; margin-top: 16px; padding: 14px 18px;
+      border-radius: 11px; font-size: 13px; font-weight: 600;
+      align-items: flex-start; gap: 10px; line-height: 1.5;
+    }
+    .feedback.visible { display: flex; }
+    .feedback.error {
+      background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25);
+      color: #f87171;
+    }
+    @media (max-width: 900px) {
+      html, body { overflow: auto; }
+      .split { min-height: 100vh; height: auto; }
+      .left { display: none; }
+      .form-wrap { padding: 36px 24px; }
+    }
+    @media (max-width: 680px) {
+      .upload-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-
-<!-- Auth guard -->
 <script>
 (function() {
-  const t = localStorage.getItem('stqc_token');
-  const p = localStorage.getItem('stqc_profilo');
-  if (!t) { window.location.replace('/login'); return; }
-  if (!['Responsabile','Direttore','Admin'].includes(p)) { window.location.replace('/'); }
+  const token = localStorage.getItem("stqc_token");
+  const profile = localStorage.getItem("stqc_profilo");
+  if (!token) { location.replace("/login"); return; }
+  if (!["Responsabile", "Direttore", "Admin"].includes(profile)) location.replace("/");
 })();
 </script>
 
 <div class="split">
-
-  <!-- ══════ LEFT HERO ══════ -->
   <div class="left">
     <div class="left-bg" id="hero-bg"></div>
     <div class="left-overlay"></div>
     <div class="left-content">
-
       <div class="left-nav">
         <a class="left-back" href="/" onclick="sessionStorage.setItem('returnPanel','gestione')">← Indietro</a>
-        <span style="color:rgba(255,255,255,0.12);font-size:18px">/</span>
+        <span style="color:rgba(255,255,255,.12);font-size:18px">/</span>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="left-logo-dot"></div>
           <span class="left-logo-text">MCC Srl</span>
         </div>
       </div>
-
-      <div class="left-brand">
+      <div>
         <div class="left-mcc">STQC</div>
         <div class="left-sub">
           <strong>Nuova Commessa</strong><br>
-          Crea il progetto e importa la distinta per avviare il tracciamento QR.
+          Crea il progetto e carica i documenti per avviare l'analisi.
         </div>
         <div class="left-meta">
           <span class="left-badge">Gestione Commesse</span>
           <span class="left-version">STQC v1.0</span>
         </div>
       </div>
-
     </div>
   </div>
 
-  <!-- ══════ RIGHT FORM ══════ -->
   <div class="right">
     <div class="form-wrap">
-
       <nav class="bc">
-        <a href="/">Home</a>
-        <span class="bc-sep">/</span>
-        <a href="/commesse">In corso</a>
-        <span class="bc-sep">/</span>
+        <a href="/">Home</a><span class="bc-sep">/</span>
+        <a href="/commesse">In corso</a><span class="bc-sep">/</span>
         <span class="bc-cur">Nuova Commessa</span>
       </nav>
 
       <div class="form-eyebrow">Nuova Commessa</div>
       <div class="form-title">Crea il progetto</div>
-      <div class="form-subtitle">Inserisci il nome della commessa e carica la distinta per avviare il tracciamento.</div>
+      <div class="form-subtitle">Inserisci i dati generali e carica i documenti disponibili.</div>
 
-      <!-- FORM -->
       <form id="nuova-form" onsubmit="handleSubmit(event)">
-
         <div class="field">
           <label class="field-label" for="f-nome">Nome commessa <span>*</span></label>
-          <input class="field-input" id="f-nome" name="codice" type="text"
-            placeholder="es. COMM-2026-001" required autocomplete="off"
-            oninput="clearFeedback()" />
+          <input class="field-input" id="f-nome" type="text"
+            placeholder="es. COMM-2026-001" required autocomplete="off" oninput="clearFeedback()"/>
         </div>
-
         <div class="field">
           <label class="field-label" for="f-cliente">Cliente</label>
-          <input class="field-input" id="f-cliente" name="cliente" type="text"
-            placeholder="es. Officine Ferretti Srl" />
+          <input class="field-input" id="f-cliente" type="text" placeholder="es. Officine Ferretti Srl"/>
         </div>
-
         <div class="field">
           <label class="field-label" for="f-consegna">Consegna prevista</label>
-          <input class="field-input" id="f-consegna" name="data_consegna_prevista" type="date" />
+          <input class="field-input" id="f-consegna" type="date"/>
         </div>
 
-        <div style="height:1px;background:rgba(255,255,255,0.07);margin:8px 0 18px"></div>
+        <div class="section-line"></div>
+        <div class="document-title">Documenti Commessa</div>
+        <div class="document-subtitle">Il contenuto verrà elaborato nella pagina Analisi Commessa</div>
 
-        <div style="margin-bottom:14px">
-          <div style="font-size:14px;font-weight:800;color:rgba(255,255,255,0.88);margin-bottom:3px">Documenti Commessa</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.35)">Carica i file necessari per avviare il tracciamento</div>
-        </div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;margin-bottom:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:11px">
+        <div class="predistinta">
           <div>
-            <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.8)">Pre-distinta</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:2px">Distinta provvisoria in attesa della definitiva</div>
+            <div class="predistinta-title">Pre-distinta</div>
+            <div class="predistinta-sub">Documenti provvisori in attesa della versione definitiva</div>
           </div>
           <label class="toggle">
-            <input type="checkbox" id="f-predistinta">
+            <input type="checkbox" id="f-predistinta"/>
             <span class="toggle-slider"></span>
           </label>
         </div>
 
         <div class="upload-row">
-
-          <!-- Box 1 — Lista pezzi (obbligatorio) -->
           <div class="upload-box" id="ub-distinta">
-            <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm"
-              onchange="ubSelected('ub-distinta','f-distinta',false)" />
+            <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm" required
+              onchange="ubSelected('ub-distinta','f-distinta',false)"/>
             <span class="ub-req-badge required">Obbligatorio</span>
             <div class="ub-icon">📊</div>
             <div class="ub-label">Lista pezzi</div>
-            <div class="ub-sub">Per verifica magazzino, ordini e QR code</div>
+            <div class="ub-sub">Posizioni, profili, quantità e dimensioni</div>
             <div class="ub-hint">.xlsx · .xls · .xlsm</div>
             <div class="ub-cta">Trascina o clicca</div>
             <div class="ub-selected" id="ub-distinta-sel">
-              <span class="ub-selected-name" id="ub-distinta-name"></span>
+              <span id="ub-distinta-name"></span>
             </div>
           </div>
 
-          <!-- Box 2 — Lista pezzi e assemblati (opzionale) -->
           <div class="upload-box" id="ub-fasi">
             <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm"
-              onchange="ubSelected('ub-fasi','f-fasi',false)" />
+              onchange="ubSelected('ub-fasi','f-fasi',false)"/>
             <span class="ub-req-badge optional">Opzionale</span>
             <div class="ub-icon">🔧</div>
             <div class="ub-label">Lista pezzi e assemblati</div>
-            <div class="ub-sub">Lista fasi di lavorazione della commessa</div>
+            <div class="ub-sub">Collega i pezzi ai relativi assemblati</div>
             <div class="ub-hint">.xlsx · .xls · .xlsm</div>
             <div class="ub-cta">Trascina o clicca</div>
             <div class="ub-selected" id="ub-fasi-sel">
-              <span class="ub-selected-name" id="ub-fasi-name"></span>
+              <span id="ub-fasi-name"></span>
             </div>
           </div>
 
-          <!-- Box 3 — Schemi e Disegni (opzionale, multipli) -->
           <div class="upload-box" id="ub-disegni">
-            <input type="file" id="f-disegni" accept=".pdf,.dwg,.jpg,.jpeg,.png"
-              multiple onchange="ubSelected('ub-disegni','f-disegni',true)" />
+            <input type="file" id="f-disegni" accept=".pdf,.dwg,.jpg,.jpeg,.png" multiple
+              onchange="ubSelected('ub-disegni','f-disegni',true)"/>
             <span class="ub-req-badge optional">Opzionale</span>
             <div class="ub-icon">📐</div>
             <div class="ub-label">Schemi e Disegni</div>
-            <div class="ub-sub">Disegni tecnici per fase — nessun limite di file</div>
+            <div class="ub-sub">Documentazione tecnica della commessa</div>
             <div class="ub-hint">.pdf · .dwg · .jpg · .png</div>
             <div class="ub-cta">Trascina o clicca</div>
             <div class="ub-selected" id="ub-disegni-sel">
-              <span class="ub-selected-name" id="ub-disegni-name"></span>
+              <span id="ub-disegni-name"></span>
               <span class="ub-selected-count" id="ub-disegni-count"></span>
             </div>
           </div>
-
         </div>
 
-        <button type="submit" class="btn-create" id="btn-submit">
-          Crea Commessa
-        </button>
-
+        <button type="submit" class="btn-create" id="btn-submit">Avvia analisi commessa</button>
       </form>
-
-      <!-- Feedback -->
       <div class="feedback" id="feedback"></div>
-
-      <!-- Success state (replaces form) -->
-      <div class="success-state" id="success-state">
-        <div class="success-icon">✅</div>
-        <div class="success-title" id="success-title">Commessa creata</div>
-        <div class="success-sub" id="success-sub">La commessa è stata creata con successo.</div>
-        <div class="success-actions">
-          <a class="btn-go primary" href="/commesse">Vai alle commesse</a>
-          <a class="btn-go secondary" href="/commesse/nuova" onclick="resetForm()">+ Nuova commessa</a>
-        </div>
-      </div>
-
     </div>
-  </div>
-
-</div>
-
-<!-- ══ WIZARD BACKDROP ══ -->
-<div id="wiz-backdrop"></div>
-
-<!-- ══ WIZARD PANEL ══ -->
-<div id="wiz-panel">
-  <div class="wiz-progress" id="wiz-progress"></div>
-  <div id="wiz-predistinta-banner">
-    <span>⚠️ <strong>Pre-distinta</strong> — Dati provvisori. Analisi e calcoli sono temporanei e soggetti a revisione alla ricezione della distinta definitiva.</span>
-  </div>
-  <div class="wiz-body" id="wiz-body"></div>
-  <div class="wiz-footer" id="wiz-footer"></div>
-</div>
-
-<!-- ══ DETAIL POPUP ══ -->
-<div id="detail-overlay" onclick="WIZ._closeDetailPopup()">
-  <div id="detail-box" onclick="event.stopPropagation()">
-    <div class="dp-header">
-      <span class="dp-title" id="dp-title"></span>
-      <button class="dp-close" onclick="WIZ._closeDetailPopup()">✕</button>
-    </div>
-    <div class="dp-body" id="dp-body"></div>
   </div>
 </div>
 
 <script>
-function getAuth() { return 'Bearer ' + localStorage.getItem('stqc_token'); }
-function logout() {
-  localStorage.removeItem('stqc_token');
-  localStorage.removeItem('stqc_profilo');
-  localStorage.removeItem('stqc_nome');
-  window.location.replace('/login');
-}
+const authHeader = () => "Bearer " + localStorage.getItem("stqc_token");
 
-window.addEventListener('load', () => {
-  document.getElementById('hero-bg').classList.add('loaded');
-});
+window.addEventListener("load", () => document.getElementById("hero-bg").classList.add("loaded"));
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') WIZ._closeDetailPopup();
-});
-
-// ── Upload box helpers ─────────────────────────────────────────────────────────
 function ubSelected(boxId, inputId, multi) {
   const input = document.getElementById(inputId);
-  const box   = document.getElementById(boxId);
-  const sel   = document.getElementById(boxId + '-sel');
-  const name  = document.getElementById(boxId + '-name');
-  const count = document.getElementById(boxId + '-count');
-
-  if (input.files && input.files.length > 0) {
-    box.classList.add('has-file');
-    sel.classList.add('visible');
-    if (multi && input.files.length > 1) {
-      name.textContent = input.files[0].name + (input.files.length > 1 ? ` +${input.files.length - 1}` : '');
-      if (count) count.textContent = `${input.files.length} file selezionati`;
-    } else {
-      name.textContent = input.files[0].name;
-      if (count) count.textContent = '';
-    }
-  } else {
-    box.classList.remove('has-file');
-    sel.classList.remove('visible');
-  }
+  const box = document.getElementById(boxId);
+  const selected = document.getElementById(boxId + "-sel");
+  const name = document.getElementById(boxId + "-name");
+  const count = document.getElementById(boxId + "-count");
+  const files = Array.from(input.files || []);
+  box.classList.toggle("has-file", files.length > 0);
+  selected.classList.toggle("visible", files.length > 0);
+  if (!files.length) return;
+  name.textContent = files[0].name + (multi && files.length > 1 ? ` +${files.length - 1}` : "");
+  if (count) count.textContent = files.length > 1 ? `${files.length} file selezionati` : "";
 }
 
-function _ubDrop(boxId, inputId, multi, files) {
+function setupDrop(boxId, inputId, multi) {
+  const box = document.getElementById(boxId);
   const input = document.getElementById(inputId);
-  const dt = new DataTransfer();
-  if (multi) { Array.from(files).forEach(f => dt.items.add(f)); }
-  else if (files[0]) { dt.items.add(files[0]); }
-  input.files = dt.files;
-  ubSelected(boxId, inputId, multi);
-}
-
-// Drag & drop for all 3 upload boxes
-[
-  { box: 'ub-distinta', input: 'f-distinta', multi: false },
-  { box: 'ub-fasi',     input: 'f-fasi',     multi: false },
-  { box: 'ub-disegni',  input: 'f-disegni',  multi: true  },
-].forEach(({ box, input, multi }) => {
-  const el = document.getElementById(box);
-  el.addEventListener('dragover',  e => { e.preventDefault(); el.classList.add('drag-over'); });
-  el.addEventListener('dragleave', ()  => el.classList.remove('drag-over'));
-  el.addEventListener('drop', e => {
-    e.preventDefault();
-    el.classList.remove('drag-over');
-    if (e.dataTransfer.files.length) _ubDrop(box, input, multi, e.dataTransfer.files);
+  box.addEventListener("dragover", event => {
+    event.preventDefault();
+    box.classList.add("drag-over");
   });
-});
-
-// legacy alias so handleSubmit can still read f-distinta via onFileSelected if ever called
-function onFileSelected(input) { ubSelected('ub-distinta', 'f-distinta', false); }
-
-function showFeedback(type, msg) {
-  const el = document.getElementById('feedback');
-  el.className = `feedback ${type} visible`;
-  el.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span><span>${msg}</span>`;
+  box.addEventListener("dragleave", () => box.classList.remove("drag-over"));
+  box.addEventListener("drop", event => {
+    event.preventDefault();
+    box.classList.remove("drag-over");
+    const transfer = new DataTransfer();
+    const files = Array.from(event.dataTransfer.files || []);
+    (multi ? files : files.slice(0, 1)).forEach(file => transfer.items.add(file));
+    input.files = transfer.files;
+    ubSelected(boxId, inputId, multi);
+  });
 }
+
+setupDrop("ub-distinta", "f-distinta", false);
+setupDrop("ub-fasi", "f-fasi", false);
+setupDrop("ub-disegni", "f-disegni", true);
 
 function clearFeedback() {
-  const el = document.getElementById('feedback');
-  el.className = 'feedback';
+  document.getElementById("feedback").className = "feedback";
 }
 
-async function handleSubmit(e) {
-  e.preventDefault();
+function showError(message) {
+  const feedback = document.getElementById("feedback");
+  feedback.className = "feedback error visible";
+  feedback.textContent = "✕ " + message;
+}
+
+async function handleSubmit(event) {
+  event.preventDefault();
   clearFeedback();
 
-  const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
-  btn.textContent = 'Creazione in corso…';
-
-  const nome      = document.getElementById('f-nome').value.trim();
-  const cliente   = document.getElementById('f-cliente').value.trim() || null;
-  const consegna  = document.getElementById('f-consegna').value || null;
-  const fileInput = document.getElementById('f-distinta');
-
-  // 1 — Crea commessa
-  let commessa;
-  try {
-    const res = await fetch('/api/v1/commesse', {
-      method: 'POST',
-      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ codice: nome, cliente, data_consegna_prevista: consegna || undefined, status: 'APERTA' }),
-    });
-    if (res.status === 409) {
-      showFeedback('error', `Una commessa con codice "${nome}" esiste già.`);
-      btn.disabled = false; btn.textContent = 'Crea Commessa'; return;
-    }
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || `HTTP ${res.status}`); }
-    commessa = await res.json();
-  } catch (err) {
-    showFeedback('error', `Impossibile creare la commessa: ${err.message}`);
-    btn.disabled = false; btn.textContent = 'Crea Commessa'; return;
-  }
-
-  // 1b — Importa fasi operative (non bloccante)
-  const fasiFile = document.getElementById('f-fasi').files?.[0];
-  if (fasiFile) {
-    btn.textContent = 'Importazione fasi…';
-    try {
-      const fd = new FormData();
-      fd.append('file', fasiFile);
-      await fetch(`/api/v1/commesse/${commessa.id}/fasi/import`, {
-        method: 'POST', headers: { Authorization: getAuth() }, body: fd,
-      });
-    } catch { /* non bloccante */ }
-  }
-
-  // 2 — Importa distinta (se presente) — cattura dati completi per il wizard
-  const hasFile = fileInput.files && fileInput.files[0];
-  if (hasFile) {
-    btn.textContent = 'Importazione distinta…';
-    let distinataData = null;
-    try {
-      const fd = new FormData();
-      fd.append('file', fileInput.files[0]);
-      const res2 = await fetch('/api/v1/warehouse/distinta/import', {
-        method: 'POST', headers: { Authorization: getAuth() }, body: fd,
-      });
-      if (res2.ok) distinataData = await res2.json();
-    } catch { /* handled below */ }
-
-    btn.disabled = false; btn.textContent = 'Crea Commessa';
-
-    if (distinataData && distinataData.items && distinataData.items.length > 0) {
-      // Apri wizard con i dati
-      WIZ.open(commessa, distinataData, document.getElementById('f-predistinta').checked);
-      return;
-    }
-    // Distinta vuota o errore: mostra success normale
-    showSuccessState(commessa, 'La distinta è stata importata ma non contiene pezzi riconoscibili.');
+  const button = document.getElementById("btn-submit");
+  const listaPezzi = document.getElementById("f-distinta").files[0];
+  if (!listaPezzi) {
+    showError("La Lista pezzi è obbligatoria.");
     return;
   }
 
-  // Nessun file: success diretto
-  btn.disabled = false; btn.textContent = 'Crea Commessa';
-  showSuccessState(commessa, '');
+  button.disabled = true;
+  button.textContent = "Creazione commessa…";
+
+  let commessa;
+  try {
+    const response = await fetch("/api/v1/commesse", {
+      method: "POST",
+      headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        codice: document.getElementById("f-nome").value.trim(),
+        cliente: document.getElementById("f-cliente").value.trim() || null,
+        data_consegna_prevista: document.getElementById("f-consegna").value || null,
+        status: "APERTA",
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || `Errore creazione commessa (${response.status})`);
+    commessa = data;
+
+    button.textContent = "Caricamento e analisi file…";
+    const formData = new FormData();
+    formData.append("lista_pezzi", listaPezzi);
+    const assemblaggi = document.getElementById("f-fasi").files[0];
+    if (assemblaggi) formData.append("assemblaggi", assemblaggi);
+    for (const file of document.getElementById("f-disegni").files) {
+      formData.append("disegni", file);
+    }
+    formData.append("predistinta", String(document.getElementById("f-predistinta").checked));
+
+    const analysisResponse = await fetch(`/api/v1/commesse/${commessa.id}/analisi`, {
+      method: "POST",
+      headers: { Authorization: authHeader() },
+      body: formData,
+    });
+    const analysis = await analysisResponse.json().catch(() => ({}));
+    if (!analysisResponse.ok) throw new Error(analysis.detail || `Errore analisi file (${analysisResponse.status})`);
+
+    location.replace(`/commesse/${commessa.id}/analisi`);
+  } catch (error) {
+    if (commessa?.id) {
+      await fetch(`/api/v1/commesse/${commessa.id}`, {
+        method: "DELETE",
+        headers: { Authorization: authHeader() },
+      }).catch(() => {});
+    }
+    showError(error.message || String(error));
+    button.disabled = false;
+    button.textContent = "Avvia analisi commessa";
+  }
 }
-
-function showSuccessState(commessa, extra) {
-  document.getElementById('nuova-form').style.display = 'none';
-  document.getElementById('success-title').textContent = `Commessa "${commessa.codice}" creata`;
-  document.getElementById('success-sub').textContent = `La commessa è stata creata con successo.${extra ? ' ' + extra : ''}`;
-  document.getElementById('success-state').classList.add('visible');
-}
-
-function resetForm() {
-  document.getElementById('nuova-form').reset();
-  document.getElementById('nuova-form').style.display = '';
-  document.getElementById('file-selected-label').classList.remove('visible');
-  document.getElementById('success-state').classList.remove('visible');
-  clearFeedback();
-}
-
-/* ═══════════════════════════════════════════════════════
-   WIZARD — 2-step post-import guided flow
-═══════════════════════════════════════════════════════ */
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmtNum(n) { return n != null ? Number(n).toLocaleString('it-IT', {maximumFractionDigits:2}) : '—'; }
-
-/* Deve rispecchiare normalize_profile() in backend/app/services/distinta.py */
-const _PROFILE_ALIASES = {
-  LAMIERA10:'PL10', P10:'PL10', LAMIERA15:'PL15', P15:'PL15',
-  LAMIERA20:'PL20', P20:'PL20', LAMIERA25:'PL25', P25:'PL25',
-  LAMIERA30:'PL30', P30:'PL30',
-};
-function normalizeProfile(v) {
-  if (!v) return '';
-  v = v.toUpperCase().trim().replace(/\s+/g, '').replace(/-/g, '');
-  return _PROFILE_ALIASES[v] || v;
-}
-
-const STEP_LABELS = ['Riepilogo distinta', 'Disponibilità magazzino'];
-
-const WIZ = {
-  step: 1,
-  commessa: null,
-  distinata: null,
-  magazzino: null,
-  availability: [],
-  activeDetailType: null,
-  notes: '',
-  isPreDistinta: false,
-
-  open(commessa, distinata, isPreDistinta = false) {
-    this.step = 1;
-    this.commessa = commessa;
-    this.distinata = distinata;
-    this.isPreDistinta = isPreDistinta;
-    this.magazzino = null;
-    this.availability = [];
-    this.activeDetailType = null;
-    this.notes = '';
-    document.getElementById('wiz-predistinta-banner').style.display = isPreDistinta ? 'block' : 'none';
-    document.getElementById('wiz-backdrop').classList.add('open');
-    document.getElementById('wiz-panel').classList.add('open');
-    this.render();
-  },
-
-  close() {
-    document.getElementById('wiz-backdrop').classList.remove('open');
-    document.getElementById('wiz-panel').classList.remove('open');
-  },
-
-  goStep(n) {
-    this.step = n;
-    this.render();
-    document.getElementById('wiz-body').scrollTop = 0;
-  },
-
-  render() {
-    this.renderProgress();
-    this['renderStep' + this.step]();
-  },
-
-  renderProgress() {
-    const el = document.getElementById('wiz-progress');
-    const stepsHtml = STEP_LABELS.map((lbl, i) => {
-      const n = i + 1;
-      const done   = n < this.step;
-      const active = n === this.step;
-      const dotCls = done ? 'done' : active ? 'active' : '';
-      const lblCls = done ? 'done' : active ? 'active' : '';
-      const connCls = done ? 'done' : '';
-      const connector = n < STEP_LABELS.length
-        ? `<div class="wiz-connector ${connCls}"></div>` : '';
-      return `
-        <div class="wiz-step-item">
-          <div class="wiz-dot ${dotCls}">${done ? '✓' : n}</div>
-          <span class="wiz-step-label ${lblCls}">${lbl}</span>
-          ${connector}
-        </div>`;
-    }).join('');
-    el.innerHTML = stepsHtml + `<button class="wiz-close-btn" onclick="WIZ.cancel()" title="Chiudi e torna al form">✕</button>`;
-  },
-
-  /* ─── STEP 1: Riepilogo distinta ─── */
-  renderStep1() {
-    const d = this.distinata;
-    const items = d.items || [];
-
-    const pezziHtml = items.length === 0
-      ? '<div class="dp-empty">Nessun pezzo nella distinta</div>'
-      : `<div class="wiz-table-wrap"><table class="wiz-table" id="pz-table">
-          <thead><tr>
-            <th style="width:40px"></th>
-            <th>Marca/Pos.</th>
-            <th>Profilo</th>
-          </tr></thead>
-          <tbody>${items.map((it, i) => {
-            const instSuffix = it.instance_number != null
-              ? ` <span style="opacity:.35;font-weight:400">#${it.instance_number}</span>`
-              : '';
-
-            let detHtml = '';
-            if (it.parent_assembly && it.parent_assembly !== it.part_number) {
-              detHtml += `<div style="display:inline-flex;align-items:center;gap:6px;
-                padding:5px 10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);
-                border-radius:6px;font-size:11px;color:rgba(255,255,255,.55)">
-                <span style="color:#93c5fd;font-size:13px">⊂</span>
-                Parte di <strong style="font-family:monospace;color:#93c5fd;margin-left:4px">${esc(it.parent_assembly)}</strong>
-              </div>`;
-            }
-            if (!detHtml) {
-              detHtml = `<span style="font-size:11px;color:rgba(255,255,255,.2)">—</span>`;
-            }
-
-            return `<tr class="pz-row" onclick="WIZ._togglePezzoDetail(${i})" style="cursor:pointer">
-              <td style="text-align:center;color:rgba(255,255,255,.2);font-size:10px" id="pz-arr-${i}">▶</td>
-              <td style="font-family:monospace;font-weight:700;font-size:11px;color:rgba(255,255,255,.78)">${esc(it.part_number||'—')}${instSuffix}</td>
-              <td style="color:rgba(255,255,255,.55)">${esc(it.description||'—')}</td>
-            </tr>
-            <tr id="pz-det-${i}" style="display:none">
-              <td></td>
-              <td colspan="2" style="padding:10px 12px 14px;background:rgba(37,99,235,.04);
-                border-bottom:1px solid rgba(255,255,255,.04)">
-                ${detHtml}
-              </td>
-            </tr>`;
-          }).join('')}
-          </tbody>
-        </table></div>`;
-
-    // Anomalie — solo sui pezzi della distinta
-    const anomalie = [];
-    const noPn = items.filter(it => !it.part_number || !String(it.part_number).trim());
-    if (noPn.length > 0) anomalie.push({
-      type: 'no_pn', resource: 'distinta_item', editField: 'part_number',
-      label: noPn.length + ' ' + (noPn.length === 1 ? 'pezzo senza' : 'pezzi senza') + ' Marca/Pos.',
-      records: noPn,
-    });
-    this._anomalie = anomalie;
-    this._openAnomaliaIdx = null;
-
-    const warnHtml = anomalie.length === 0
-      ? `<div style="padding:10px 14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);border-radius:9px;font-size:12px;color:rgba(74,222,128,.8)">✓ Nessuna anomalia rilevata</div>`
-      : `<div style="display:flex;flex-direction:column;gap:4px">${anomalie.map((a, idx) =>
-          `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.18);border-radius:9px">
-            <span style="font-size:12px;color:#fbbf24">⚠ ${esc(a.label)}</span>
-            <button class="anom-correggi-btn" onclick="WIZ._openAnomaliaPanel(${idx})">Correggi →</button>
-          </div>
-          <div id="anom-panel-${idx}" style="display:none"></div>`
-        ).join('')}</div>`;
-
-    document.getElementById('wiz-body').innerHTML = `
-      <div class="wiz-title">Riepilogo distinta</div>
-      <div class="wiz-subtitle">Verifica i dati letti dal file prima di procedere.</div>
-
-      <div class="wiz-info-grid">
-        <div class="wiz-info-card">
-          <div class="wiz-info-label">Commessa</div>
-          <div class="wiz-info-val">${esc(this.commessa.codice)}</div>
-        </div>
-        <div class="wiz-info-card">
-          <div class="wiz-info-label">File caricato</div>
-          <div class="wiz-info-val" style="font-size:12px">${esc(d.filename)}</div>
-        </div>
-        <div class="wiz-info-card">
-          <div class="wiz-info-label">Pezzi identificati</div>
-          <div class="wiz-info-val" style="font-size:22px;color:#4ade80">${items.length}</div>
-        </div>
-        <div class="wiz-info-card">
-          <div class="wiz-info-label">Stato importazione</div>
-          <div class="wiz-info-val" style="font-size:13px">${esc(d.status)}</div>
-        </div>
-      </div>
-
-      <div class="wiz-section-lbl">Lista pezzi</div>
-      ${pezziHtml}
-
-      <div class="wiz-section-lbl">Anomalie</div>
-      ${warnHtml}
-
-      <div class="wiz-section-lbl">Note</div>
-      <textarea class="wiz-textarea" id="wiz-notes"
-        placeholder="Eventuali osservazioni da registrare insieme alla commessa…">${esc(this.notes)}</textarea>
-    `;
-
-    document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" onclick="WIZ._confirmStep1()">Confermo — i dati sono corretti →</button>
-      <button class="wiz-btn-back" onclick="WIZ.cancel()">← Annulla</button>
-    `;
-  },
-
-  _confirmStep1() {
-    const notesEl = document.getElementById('wiz-notes');
-    if (notesEl) this.notes = notesEl.value;
-    this.goStep(2);
-  },
-
-  _togglePezzoDetail(i) {
-    const det = document.getElementById('pz-det-' + i);
-    const arr = document.getElementById('pz-arr-' + i);
-    if (!det) return;
-    const open = det.style.display !== 'none';
-    det.style.display = open ? 'none' : 'table-row';
-    if (arr) arr.textContent = open ? '▶' : '▼';
-  },
-
-  _openAnomaliaPanel(idx) {
-    const panel = document.getElementById('anom-panel-' + idx);
-    if (!panel) return;
-    // Toggle
-    if (this._openAnomaliaIdx === idx && panel.style.display !== 'none') {
-      panel.style.display = 'none';
-      this._openAnomaliaIdx = null;
-      return;
-    }
-    // Close others
-    (this._anomalie || []).forEach((_, i) => {
-      const p = document.getElementById('anom-panel-' + i);
-      if (p) p.style.display = 'none';
-    });
-    this._openAnomaliaIdx = idx;
-    panel.style.display = 'block';
-    this._renderAnomaliaPanel(idx, 'manuale');
-  },
-
-  _renderAnomaliaPanel(idx, tab) {
-    const a = (this._anomalie || [])[idx];
-    const panel = document.getElementById('anom-panel-' + idx);
-    if (!panel) return;
-    if (!a) {
-      // _anomalie è cambiato per un re-render concorrente: mostra messaggio
-      panel.innerHTML = '<div style="padding:12px;font-size:12px;color:rgba(255,255,255,.35)">Ricaricamento in corso…</div>';
-      return;
-    }
-    const tabManuale = tab === 'manuale';
-    const phMap = { no_pn: 'Marca/Pos.' };
-    const placeholder = phMap[a.type] || a.editField;
-
-    let contentHtml;
-    if (tabManuale) {
-      const rowsHtml = a.records.map((r, rIdx) => {
-        const main = r.description || r.material_code || '#' + r.id;
-        const sub = '';
-        const val = r[a.editField] != null ? String(r[a.editField]) : '';
-        return `<div class="anom-row">
-          <div class="anom-row-label">${esc(main)}<span style="color:rgba(255,255,255,.28);margin-left:4px">${esc(sub)}</span></div>
-          <input class="anom-input" type="${a.numeric ? 'number' : 'text'}"
-            placeholder="${placeholder}" value="${esc(val)}" data-ridx="${rIdx}"
-            ${a.numeric ? 'step="0.1" min="0"' : ''} />
-        </div>`;
-      }).join('');
-      contentHtml = `
-        <div class="anom-rows-wrap">${rowsHtml}</div>
-        <button class="anom-save-btn" onclick="WIZ._saveCorrezioni(${idx})">💾 Salva correzioni</button>`;
-    } else {
-      contentHtml = `
-        <p style="font-size:12px;color:rgba(255,255,255,.45);line-height:1.6;margin-bottom:14px">
-          Carica un file .xlsx con le sole righe corrette. Il sistema aggiornerà solo i record presenti nel file, senza reimportare la distinta completa.
-        </p>
-        <input type="file" id="anom-delta-${idx}" accept=".xlsx,.xlsm" style="display:none"
-          onchange="WIZ._uploadDeltaFile(${idx})">
-        <button class="anom-save-btn" onclick="document.getElementById('anom-delta-${idx}').click()">📂 Seleziona file .xlsx</button>`;
-    }
-
-    panel.innerHTML = `<div class="anom-panel">
-      <div class="anom-tab-btns">
-        <button class="anom-tab-btn${tabManuale ? ' active' : ''}" onclick="WIZ._renderAnomaliaPanel(${idx},'manuale')">Correzione manuale</button>
-        <button class="anom-tab-btn${!tabManuale ? ' active' : ''}" onclick="WIZ._renderAnomaliaPanel(${idx},'delta')">Carica file delta</button>
-      </div>
-      ${contentHtml}
-    </div>`;
-  },
-
-  async _saveCorrezioni(idx) {
-    const a = (this._anomalie || [])[idx];
-    const panel = document.getElementById('anom-panel-' + idx);
-    if (!panel || !a) return;
-    const inputs = panel.querySelectorAll('.anom-input');
-    const btn = panel.querySelector('.anom-save-btn');
-
-    const changes = [];
-    inputs.forEach((input) => {
-      const rIdx = parseInt(input.dataset.ridx, 10);
-      const val = input.value.trim();
-      if (val) changes.push({ record: a.records[rIdx], value: val });
-    });
-    if (!changes.length) return;
-
-    if (btn) { btn.textContent = 'Salvataggio…'; btn.disabled = true; }
-
-    let saved = 0, failed = 0;
-    for (const { record, value } of changes) {
-      try {
-        const url = '/api/v1/warehouse/distinta/items/' + record.id;
-        const body = { [a.editField]: a.numeric ? parseFloat(value) : value };
-        const res = await fetch(url, {
-          method: 'PATCH',
-          headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (res.ok) {
-          record[a.editField] = a.numeric ? parseFloat(value) : value;
-          saved++;
-        } else {
-          failed++;
-        }
-      } catch { failed++; }
-    }
-
-    if (saved > 0) {
-      this._openAnomaliaIdx = null;
-      this.renderStep1();
-    } else if (btn) {
-      btn.textContent = '✕ Errore — riprova';
-      btn.disabled = false;
-    }
-  },
-
-  async _uploadDeltaFile(idx) {
-    const fileInput = document.getElementById('anom-delta-' + idx);
-    if (!fileInput || !fileInput.files[0]) return;
-    const a = (this._anomalie || [])[idx];
-    const panel = document.getElementById('anom-panel-' + idx);
-    const btn = panel ? panel.querySelector('.anom-save-btn') : null;
-    const origText = btn ? btn.textContent : '';
-    if (btn) { btn.textContent = 'Caricamento…'; btn.disabled = true; }
-
-    const url = '/api/v1/warehouse/distinta/imports/' + this.distinata.id + '/delta';
-    const fd = new FormData();
-    fd.append('file', fileInput.files[0]);
-
-    try {
-      const res = await fetch(url, { method: 'POST', headers: { Authorization: getAuth() }, body: fd });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'HTTP ' + res.status);
-      }
-      const dRes = await fetch('/api/v1/warehouse/distinta/imports/' + this.distinata.id, { headers: { Authorization: getAuth() } });
-      if (dRes.ok) this.distinata = await dRes.json();
-      this._openAnomaliaIdx = null;
-      this.renderStep1();
-    } catch (err) {
-      if (btn) { btn.textContent = origText; btn.disabled = false; }
-      if (panel) {
-        const errEl = document.createElement('div');
-        errEl.style.cssText = 'margin-top:10px;padding:8px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:8px;font-size:12px;color:#f87171';
-        errEl.textContent = '✕ ' + String(err.message || err);
-        btn ? btn.parentNode.insertBefore(errEl, btn.nextSibling) : panel.appendChild(errEl);
-      }
-    }
-  },
-
-  /* ─── STEP 2: Verifica disponibilità magazzino ─── */
-  async renderStep2() {
-    document.getElementById('wiz-body').innerHTML = `
-      <div class="wiz-title">Verifica disponibilità magazzino</div>
-      <div class="wiz-subtitle">Controllo stock in corso…</div>
-      <div class="wiz-spinner"><div class="spin-ring"></div><div class="spin-label">Interrogazione magazzino…</div></div>
-    `;
-    document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" disabled>Caricamento…</button>
-      <button class="wiz-btn-back" onclick="WIZ.goStep(1)">← Torna indietro</button>
-    `;
-
-    if (!this.magazzino) {
-      try {
-        const res = await fetch('/api/v1/warehouse/magazzino?limit=1000', { headers: { Authorization: getAuth() } });
-        if (res.ok) this.magazzino = await res.json();
-        else this.magazzino = [];
-      } catch { this.magazzino = []; }
-    }
-
-    this.computeAvailability();
-    this.renderStep2Results();
-  },
-
-  computeAvailability() {
-    const items = this.distinata.items || [];
-    const mag   = this.magazzino || [];
-
-    this.availability = items.map(item => {
-      const profilo = normalizeProfile(item.description);
-      const qualita = (item.material_code || '').toUpperCase().trim();
-
-      // Match primario: PROFILO + QUALITÀ
-      let match = null;
-      if (profilo && qualita) {
-        match = mag.find(m =>
-          normalizeProfile(m.profilo) === profilo &&
-          (m.qualita || '').toUpperCase().trim() === qualita
-        );
-      }
-      // Fallback: solo PROFILO
-      if (!match && profilo) {
-        match = mag.find(m => normalizeProfile(m.profilo) === profilo);
-      }
-
-      const richiesta  = item.quantity || 0;
-      const length_mm  = parseFloat(item.length_mm) || null;
-
-      // Caso 1 — non trovato in magazzino
-      if (!match) {
-        return { item, match: null, stato: 'missing', richiesta, length_mm,
-                 disponibile: 0, dim_mm: null, n_pezzi_usati: 0,
-                 lunghezza_richiesta: length_mm ? length_mm * richiesta : null,
-                 lunghezza_consumata: null, sfrido_mm: null, sfrido_pct: null };
-      }
-
-      const dim_mm     = parseFloat(match.dimensioni) || null;
-      const disponibile = match.n_pezzi || 0;
-
-      // Caso 2 — trovato ma DIMENSIONI vuoto
-      if (!dim_mm) {
-        return { item, match, stato: 'manuale', richiesta, length_mm,
-                 disponibile, dim_mm: null, n_pezzi_usati: null,
-                 lunghezza_richiesta: null, lunghezza_consumata: null, sfrido_mm: null, sfrido_pct: null };
-      }
-
-      if (length_mm && length_mm > 0) {
-        // Pezzo più lungo della barra → impossibile → mancante
-        if (length_mm > dim_mm) {
-          return { item, match, stato: 'missing', richiesta, length_mm,
-                   disponibile, dim_mm, n_pezzi_usati: 0,
-                   lunghezza_richiesta: length_mm * richiesta,
-                   lunghezza_consumata: null, sfrido_mm: null, sfrido_pct: null };
-        }
-
-        const pezzi_per_barra  = Math.floor(dim_mm / length_mm);
-        const barre_necessarie = Math.ceil(richiesta / pezzi_per_barra);
-        const lunghezza_richiesta = length_mm * richiesta;
-
-        if (disponibile >= barre_necessarie) {
-          // Caso 3 — disponibile e sufficiente
-          const lunghezza_consumata = barre_necessarie * dim_mm;
-          const sfrido_mm  = lunghezza_consumata - lunghezza_richiesta;
-          const sfrido_pct = lunghezza_consumata > 0 ? sfrido_mm / lunghezza_consumata * 100 : 0;
-          return { item, match, stato: 'ok', richiesta, length_mm,
-                   disponibile, dim_mm, n_pezzi_usati: barre_necessarie, pezzi_ottenibili: richiesta,
-                   lunghezza_richiesta, lunghezza_consumata, sfrido_mm, sfrido_pct };
-        } else {
-          // Caso 4 — parziale
-          const barre_disp       = disponibile;
-          const pezzi_ottenibili = barre_disp * pezzi_per_barra;
-          const lunghezza_consumata = barre_disp * dim_mm;
-          const lunghezza_usata  = Math.min(pezzi_ottenibili, richiesta) * length_mm;
-          const sfrido_mm  = lunghezza_consumata - lunghezza_usata;
-          const sfrido_pct = lunghezza_consumata > 0 ? sfrido_mm / lunghezza_consumata * 100 : 0;
-          return { item, match, stato: 'partial', richiesta, length_mm,
-                   disponibile, dim_mm, n_pezzi_usati: barre_disp, pezzi_ottenibili,
-                   lunghezza_richiesta, lunghezza_consumata, sfrido_mm, sfrido_pct };
-        }
-      } else {
-        // Nessuna lunghezza — confronto semplice su N° pezzi
-        if (disponibile >= richiesta) {
-          return { item, match, stato: 'ok', richiesta, length_mm: null,
-                   disponibile, dim_mm, n_pezzi_usati: richiesta, pezzi_ottenibili: richiesta,
-                   lunghezza_richiesta: null, lunghezza_consumata: null, sfrido_mm: null, sfrido_pct: null };
-        } else {
-          return { item, match, stato: 'partial', richiesta, length_mm: null,
-                   disponibile, dim_mm, n_pezzi_usati: disponibile, pezzi_ottenibili: disponibile,
-                   lunghezza_richiesta: null, lunghezza_consumata: null, sfrido_mm: null, sfrido_pct: null };
-        }
-      }
-    });
-  },
-
-  renderStep2Results() {
-    const av        = this.availability;
-    const nOk       = av.filter(r => r.stato === 'ok').length;
-    const nManuale  = av.filter(r => r.stato === 'manuale').length;
-    const nPartial  = av.filter(r => r.stato === 'partial').length;
-    const nMissing  = av.filter(r => r.stato === 'missing').length;
-    const nDisponibili = nOk + nManuale;
-
-    const { sfridoRows, totSfridoPct } = this._calcSfrido();
-    const sfridoStyle = sfridoRows.length === 0
-      ? 'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.3)'
-      : totSfridoPct >= 20
-        ? 'background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:#f87171'
-        : 'background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);color:#fbbf24';
-
-    const canPrelievi = nMissing === 0;
-    const canPartial  = (nDisponibili + nPartial) > 0 && nMissing > 0;
-    const disabledStyle = 'opacity:.38;cursor:not-allowed';
-
-    document.getElementById('wiz-body').innerHTML = `
-      <div class="wiz-title">Verifica disponibilità magazzino</div>
-      <div class="wiz-subtitle">Risultato del controllo stock per i ${av.length} materiali. Clicca un box per il dettaglio.</div>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <div class="avail-card avail-ok avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('ok')">
-          <div class="avail-num" id="kpi-ok-num">${nOk}</div>
-          <div class="avail-lbl">Disponibili</div>
-          <div class="avail-hint" id="kpi-ok-hint">Dettaglio →</div>
-        </div>
-        <div class="avail-card avail-manual avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('manuale')">
-          <div class="avail-num" id="kpi-manuale-num">${nManuale}</div>
-          <div class="avail-lbl">Verifica manuale</div>
-          <div class="avail-hint" id="kpi-manuale-hint">Dettaglio →</div>
-        </div>
-        <div class="avail-card avail-part avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('partial')">
-          <div class="avail-num" id="kpi-partial-num">${nPartial}</div>
-          <div class="avail-lbl">Parziali</div>
-          <div class="avail-hint" id="kpi-partial-hint">Dettaglio →</div>
-        </div>
-        <div class="avail-card avail-miss avail-card-btn" style="flex:1;min-width:100px" onclick="WIZ._toggleDetail('missing')">
-          <div class="avail-num" id="kpi-missing-num">${nMissing}</div>
-          <div class="avail-lbl">Mancanti</div>
-          <div class="avail-hint" id="kpi-missing-hint">Dettaglio →</div>
-        </div>
-        <div class="avail-card avail-card-btn" style="flex:1;min-width:100px;${sfridoStyle}" onclick="WIZ._toggleDetail('sfrido')">
-          <div class="avail-num" id="kpi-sfrido-num">${sfridoRows.length ? totSfridoPct.toFixed(1) + '%' : '—'}</div>
-          <div class="avail-lbl">Sfrido totale</div>
-          <div class="avail-hint" id="kpi-sfrido-hint">Dettaglio →</div>
-        </div>
-      </div>
-
-      <div id="avail-detail-section" style="display:none;margin-top:14px;padding:16px 20px;
-        background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:auto"></div>
-
-      <div class="wiz-section-lbl" style="margin-top:24px">Azioni</div>
-
-      <button class="wiz-action-btn wiz-action-blue" onclick="WIZ.doGenQR()">
-        <div class="wiz-action-icon">🔷</div>
-        <div>
-          <div class="wiz-action-text-title">Genera QR per tutti i pezzi</div>
-          <div class="wiz-action-text-desc">Crea i QR code per tutti i pezzi della distinta, arricchiti con fase, postazione e sequenza.</div>
-        </div>
-      </button>
-
-      <button class="wiz-action-btn wiz-action-green" onclick="WIZ.doRichiediPrelievi()"
-        ${canPrelievi ? '' : 'disabled'} style="${canPrelievi ? '' : disabledStyle}">
-        <div class="wiz-action-icon">🟢</div>
-        <div>
-          <div class="wiz-action-text-title">Richiedi prelievi e avvia commessa</div>
-          <div class="wiz-action-text-desc">Tutto disponibile — invia richiesta prelievo a Logistica per tutti i ${av.length} profili.</div>
-        </div>
-      </button>
-
-      <button class="wiz-action-btn wiz-action-orange" onclick="WIZ.doPartial()"
-        ${canPartial ? '' : 'disabled'} style="${canPartial ? '' : disabledStyle}">
-        <div class="wiz-action-icon">🟠</div>
-        <div>
-          <div class="wiz-action-text-title">Procedi parzialmente</div>
-          <div class="wiz-action-text-desc">Invia richiesta per i ${nDisponibili + nPartial} profili disponibili/parziali. Genera ordine per i ${nMissing} mancanti.</div>
-        </div>
-      </button>
-
-      <button class="wiz-action-btn wiz-action-red" onclick="WIZ.doOrderAll()">
-        <div class="wiz-action-icon">🔴</div>
-        <div>
-          <div class="wiz-action-text-title">Ordina tutto</div>
-          <div class="wiz-action-text-desc">Non scala il magazzino — crea ordine completo. Commessa in stato "In attesa materiali".</div>
-        </div>
-      </button>
-    `;
-
-    document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-back" onclick="WIZ.goStep(1)">← Torna indietro</button>
-    `;
-  },
-
-  _toggleDetail(type) {
-    const section = document.getElementById('avail-detail-section');
-    if (!section) return;
-    if (this.activeDetailType === type) {
-      this.activeDetailType = null;
-      section.style.display = 'none';
-      document.querySelectorAll('.avail-hint').forEach(h => { if (h) h.textContent = 'Dettaglio →'; });
-      return;
-    }
-    this.activeDetailType = type;
-    section.style.display = 'block';
-    this._renderDetailContent(type);
-    document.querySelectorAll('.avail-hint').forEach(h => { if (h) h.textContent = 'Dettaglio →'; });
-    const hintIds = { ok:'kpi-ok-hint', manuale:'kpi-manuale-hint', partial:'kpi-partial-hint', missing:'kpi-missing-hint', sfrido:'kpi-sfrido-hint' };
-    const hintEl = document.getElementById(hintIds[type]);
-    if (hintEl) hintEl.textContent = '▲ Chiudi';
-    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  },
-
-  _renderDetailContent(type) {
-    const section = document.getElementById('avail-detail-section');
-    if (!section) return;
-    const av = this.availability;
-    const { sfridoRows, totConsumed, totSfrido, totSfridoPct } = this._calcSfrido();
-
-    let title, bodyHtml;
-
-    if (type === 'ok') {
-      title = '✅ Materiali disponibili';
-      const rows = av.filter(r => r.stato === 'ok');
-      bodyHtml = rows.length === 0
-        ? '<div class="dp-empty">Nessun materiale disponibile</div>'
-        : `<table class="dp-tbl">
-            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th><th class="r">Disponibili</th></tr></thead>
-            <tbody>${rows.map(r => `<tr>
-              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
-              <td class="muted">${esc(r.item.material_code||'—')}</td>
-              <td class="r">${fmtNum(r.richiesta)}</td>
-              <td class="r c-ok">${fmtNum(r.disponibile)}</td>
-            </tr>`).join('')}</tbody>
-          </table>`;
-
-    } else if (type === 'manuale') {
-      title = '⚠️ Verifica manuale';
-      const rows = av.reduce((acc, r, idx) => r.stato === 'manuale' ? [...acc, Object.assign({}, r, {_idx: idx})] : acc, []);
-      bodyHtml = rows.length === 0
-        ? '<div class="dp-empty">Tutti i materiali sono stati verificati ✓</div>'
-        : `<div class="dp-note">Presenti in magazzino ma dimensioni non disponibili — confermare manualmente.</div>
-           <table class="dp-tbl">
-            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th><th class="r">In stock</th><th></th></tr></thead>
-            <tbody>${rows.map(r => `<tr>
-              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
-              <td class="muted">${esc(r.item.material_code||'—')}</td>
-              <td class="r">${fmtNum(r.richiesta)}</td>
-              <td class="r c-warn">${fmtNum(r.disponibile)}</td>
-              <td><button class="dp-verify-btn" onclick="WIZ.markVerificato(${r._idx})">Segna come verificato</button></td>
-            </tr>`).join('')}</tbody>
-          </table>`;
-
-    } else if (type === 'partial') {
-      title = '🟠 Materiali parziali';
-      const rows = av.filter(r => r.stato === 'partial');
-      bodyHtml = rows.length === 0
-        ? '<div class="dp-empty">Nessun materiale parziale</div>'
-        : `<table class="dp-tbl">
-            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th><th class="r">Disponibili</th></tr></thead>
-            <tbody>${rows.map(r => `<tr>
-              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
-              <td class="muted">${esc(r.item.material_code||'—')}</td>
-              <td class="r">${fmtNum(r.richiesta)}</td>
-              <td class="r"><span class="c-part">${fmtNum(r.disponibile)}</span> <span style="color:rgba(255,255,255,.3);font-size:10px">di ${fmtNum(r.richiesta)}</span></td>
-            </tr>`).join('')}</tbody>
-          </table>`;
-
-    } else if (type === 'missing') {
-      title = '❌ Materiali mancanti';
-      const rows = av.filter(r => r.stato === 'missing');
-      bodyHtml = rows.length === 0
-        ? '<div class="dp-empty">Nessun materiale mancante</div>'
-        : `<table class="dp-tbl">
-            <thead><tr><th>Profilo</th><th>Materiale</th><th class="r">Richiesti</th></tr></thead>
-            <tbody>${rows.map(r => `<tr>
-              <td class="mono">${esc(r.item.description||r.item.part_number||'—')}</td>
-              <td class="muted">${esc(r.item.material_code||'—')}</td>
-              <td class="r c-err">${fmtNum(r.richiesta)}</td>
-            </tr>`).join('')}</tbody>
-          </table>`;
-
-    } else if (type === 'sfrido') {
-      title = 'Sfrido totale';
-      bodyHtml = sfridoRows.length === 0
-        ? '<div class="dp-empty">Nessun dato sfrido disponibile (nessun materiale con lunghezze calcolate)</div>'
-        : `<table class="dp-tbl">
-            <thead><tr>
-              <th>Materiale</th>
-              <th class="r">Richiesti (mm)</th>
-              <th class="r">Consumati (mm)</th>
-              <th class="r">Sfrido (mm)</th>
-              <th class="r">Sfrido %</th>
-            </tr></thead>
-            <tbody>
-              ${sfridoRows.map(r => {
-                const sc = (r.sfrido_pct||0) > 20 ? 'c-err' : 'c-warn';
-                return `<tr>
-                  <td><span class="mono">${esc(r.item.description||r.item.part_number||'—')}</span> <span class="muted">${esc(r.item.material_code||'')}</span></td>
-                  <td class="r">${r.lunghezza_richiesta ? Math.round(r.lunghezza_richiesta).toLocaleString('it') : '—'}</td>
-                  <td class="r">${r.lunghezza_consumata ? Math.round(r.lunghezza_consumata).toLocaleString('it') : '—'}</td>
-                  <td class="r ${sc}">${Math.round(r.sfrido_mm||0).toLocaleString('it')}</td>
-                  <td class="r ${sc}">${(r.sfrido_pct||0).toFixed(1)}%</td>
-                </tr>`;
-              }).join('')}
-              <tr class="dp-total">
-                <td><strong>TOTALE</strong></td>
-                <td></td>
-                <td class="r"><strong>${Math.round(totConsumed).toLocaleString('it')}</strong></td>
-                <td class="r" style="color:${totSfridoPct >= 20 ? '#f87171' : '#fbbf24'}"><strong>${Math.round(totSfrido).toLocaleString('it')}</strong></td>
-                <td class="r" style="color:${totSfridoPct >= 20 ? '#f87171' : '#fbbf24'}"><strong>${totSfridoPct.toFixed(1)}%</strong></td>
-              </tr>
-            </tbody>
-          </table>`;
-    } else {
-      title = ''; bodyHtml = '';
-    }
-
-    section.innerHTML = `<div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:12px">${title}</div>${bodyHtml}`;
-  },
-
-  markVerificato(idx) {
-    if (!this.availability[idx]) return;
-    this.availability[idx].stato = 'ok';
-    const wasOpen = this.activeDetailType;
-    this.activeDetailType = null;
-    this.renderStep2Results();
-    if (wasOpen) this._toggleDetail(wasOpen);
-  },
-
-  /* ─── Azione: Genera QR ─── */
-  async doGenQR() {
-    this._showActionSpinner('Generazione QR per tutti i pezzi…');
-    try {
-      const importId   = this.distinata.id;
-      const commessaId = this.commessa.id;
-      const res = await fetch(
-        '/api/v1/warehouse/distinta/imports/' + importId + '/generate-qr?commessa_id=' + commessaId,
-        { method: 'POST', headers: { Authorization: getAuth() } }
-      );
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      const impRes = await fetch('/api/v1/warehouse/distinta/imports/' + importId, { headers: { Authorization: getAuth() } });
-      const impData = impRes.ok ? await impRes.json() : null;
-      const items = (impData?.items || []).filter(i => i.qr_code);
-
-      if (items.length === 0) {
-        this._actionDone('⚠️ Nessun QR generato', 'Nessun pezzo disponibile nell\'importazione o errore nella generazione.');
-        return;
-      }
-      this._showQRGallery(data, items);
-    } catch(err) {
-      this._actionError(err);
-    }
-  },
-
-  /* ─── Gallery post-generazione QR ─── */
-  _showQRGallery(data, items) {
-    const validItems = items.filter(i => i.qr_code && i.part_number);
-    const total = validItems.length;
-    const failedCount = data.failed ? data.failed.length : 0;
-
-    let html = `
-      <div class="qr-gallery-hdr">
-        <div>
-          <div class="qr-gallery-title">${total} QR generati</div>
-          <div class="qr-gallery-meta">Commessa <strong>${esc(this.commessa.codice)}</strong>${failedCount > 0 ? ` · <span style="color:#f87171">${failedCount} falliti</span>` : ''}</div>
-        </div>
-        <button class="qr-btn-print-all" onclick="WIZ._printQR()">🖨 Stampa tutti</button>
-      </div>
-      <div class="wiz-table-wrap"><table class="wiz-table">
-        <thead><tr>
-          <th style="width:40px"></th>
-          <th>Marca/Pos.</th>
-          <th>Profilo</th>
-        </tr></thead>
-        <tbody>`;
-
-    validItems.forEach((item, i) => {
-      const instLabel = item.instance_number != null ? ' #' + item.instance_number : '';
-      const instSuffix = item.instance_number != null
-        ? ` <span style="opacity:.35;font-weight:400">#${item.instance_number}</span>` : '';
-
-      const hasParent = item.parent_assembly && item.parent_assembly !== item.part_number;
-      const lenStr   = item.length_mm ? Math.round(Number(item.length_mm)).toLocaleString('it') + ' mm' : null;
-
-      html += `
-          <tr class="pz-row" onclick="WIZ._toggleQRRow(${i})" style="cursor:pointer">
-            <td style="text-align:center;color:rgba(255,255,255,.2);font-size:10px" id="qr-arr-${i}">▶</td>
-            <td style="font-family:monospace;font-weight:700;font-size:11px;color:rgba(255,255,255,.78)">${esc(item.part_number)}${instSuffix}</td>
-            <td style="color:rgba(255,255,255,.55)">${esc(item.description||'—')}</td>
-          </tr>
-          <tr id="qr-det-${i}" class="qr-det-row" style="display:none">
-            <td></td>
-            <td colspan="2" style="padding:12px 14px 16px;background:rgba(37,99,235,.04);border-bottom:1px solid rgba(255,255,255,.04)">
-              <div class="qr-det-inner">
-                <img class="qr-screen-img" src="data:image/png;base64,${item.qr_code}"
-                     alt="QR ${esc(item.part_number)}"
-                     style="width:96px;height:96px;flex-shrink:0;image-rendering:pixelated;border-radius:4px">
-                <div class="qr-det-fields">
-                  <div class="qr-det-field">
-                    <span class="qr-det-lbl">Marca/Pos.</span>
-                    <span class="qr-det-val mono">${esc(item.part_number)}${instSuffix}</span>
-                  </div>
-                  ${item.description ? `<div class="qr-det-field">
-                    <span class="qr-det-lbl">Profilo</span>
-                    <span class="qr-det-val">${esc(item.description)}</span>
-                  </div>` : ''}
-                  ${item.material_code ? `<div class="qr-det-field">
-                    <span class="qr-det-lbl">Materiale</span>
-                    <span class="qr-det-val">${esc(item.material_code)}${item.material_description ? ` <span class="dim">${esc(item.material_description)}</span>` : ''}</span>
-                  </div>` : ''}
-                  ${lenStr ? `<div class="qr-det-field">
-                    <span class="qr-det-lbl">Lunghezza</span>
-                    <span class="qr-det-val">${lenStr}</span>
-                  </div>` : ''}
-                  ${hasParent ? `<div class="qr-det-field">
-                    <span class="qr-det-lbl">Assemblato</span>
-                    <span class="qr-det-val mono">${esc(item.parent_assembly)}</span>
-                  </div>` : ''}
-                </div>
-              </div>
-              <div class="qr-card">
-                <img class="qr-img" src="data:image/png;base64,${item.qr_code}" alt="">
-                <div class="qr-marca">${esc(item.part_number)}${esc(instLabel)}</div>
-                ${item.description ? `<div class="qr-profilo">${esc(item.description)}</div>` : ''}
-                ${item.material_code ? `<div class="qr-material">${esc(item.material_code)}${item.material_description ? ' · ' + esc(item.material_description) : ''}</div>` : ''}
-                ${lenStr ? `<div class="qr-length">${lenStr}</div>` : ''}
-                ${hasParent ? `<div class="qr-parent-lbl">Asm: ${esc(item.parent_assembly)}</div>` : ''}
-              </div>
-            </td>
-          </tr>`;
-    });
-
-    html += `</tbody></table></div>`;
-
-    document.getElementById('wiz-body').innerHTML = html;
-    document.getElementById('wiz-footer').innerHTML = `
-      <button class="wiz-btn-primary" onclick="WIZ._printQR()">🖨 Stampa tutti</button>
-      <button class="wiz-btn-primary" onclick="WIZ.renderStep2Results()" style="background:#1e3a5f;box-shadow:none">Fatto →</button>
-    `;
-  },
-
-  _toggleQRRow(i) {
-    const det = document.getElementById('qr-det-' + i);
-    const arr = document.getElementById('qr-arr-' + i);
-    if (!det) return;
-    const open = det.style.display !== 'none';
-    det.style.display = open ? 'none' : 'table-row';
-    if (arr) arr.textContent = open ? '▶' : '▼';
-  },
-
-  _printQR() { window.print(); },
-
-  /* ─── Azione: Richiedi prelievi (tutti) ─── */
-  async doRichiediPrelievi() {
-    this._showActionSpinner('Invio richieste prelievo a Logistica…');
-    try {
-      const rows = this.availability.filter(r => r.stato !== 'missing');
-      await this._createRequests(rows);
-      this._actionDone('✅ Richieste inviate a Logistica', 'Richieste di prelievo create. La Logistica riceverà notifica e confermerà i prelievi.');
-    } catch(err) {
-      this._actionError(err);
-    }
-  },
-
-  /* ─── Azione: Procedi parzialmente ─── */
-  async doPartial() {
-    this._showActionSpinner('Invio richieste prelievo parziali…');
-    try {
-      const rows = this.availability.filter(r => r.stato === 'ok' || r.stato === 'partial' || r.stato === 'manuale');
-      await this._createRequests(rows);
-      this._actionDone('🟠 Richieste parziali inviate', 'Richieste create per i materiali disponibili. Ordine in F5 Acquisti per i mancanti.');
-    } catch(err) {
-      this._actionError(err);
-    }
-  },
-
-  /* ─── Azione: Ordina tutto ─── */
-  async doOrderAll() {
-    this._actionDone('🔴 Commessa in attesa materiali', 'Nessuna scalatura. Un ordine verrà generato in F5 Acquisti per tutti i materiali richiesti.');
-  },
-
-  cancel() {
-    this.close();
-    resetForm();
-  },
-
-  async _createRequests(rows) {
-    const codice = this.commessa.codice;
-    const ref    = this.distinata?.filename || null;
-    const cid    = this.commessa.id;
-
-    for (const r of rows) {
-      if (!r.match) continue;
-
-      const qty = r.n_pezzi_usati ?? Math.min(r.richiesta, r.disponibile);
-      if (!qty || qty <= 0) continue;
-
-      const res = await fetch('/api/v1/stock/requests', {
-        method: 'POST',
-        headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          commessa_id: cid,
-          commessa_codice: codice,
-          material_id: r.match.material_id,
-          material_description: r.item.description || r.item.part_number || null,
-          material_code: r.match.code || null,
-          quantity: qty,
-          movement_type: 'OUTGOING',
-          reason: `Prelievo commessa ${codice}`,
-          reference: ref,
-        }),
-      });
-      if (!res.ok) throw new Error(`Richiesta fallita per ${r.item.description||r.item.part_number} (HTTP ${res.status})`);
-    }
-  },
-
-  _calcSfrido() {
-    const sfridoRows  = this.availability.filter(r => r.sfrido_mm !== null && r.sfrido_mm !== undefined);
-    const totConsumed = sfridoRows.reduce((s, r) => s + (r.lunghezza_consumata || 0), 0);
-    const totSfrido   = sfridoRows.reduce((s, r) => s + (r.sfrido_mm || 0), 0);
-    return { sfridoRows, totConsumed, totSfrido, totSfridoPct: totConsumed > 0 ? totSfrido / totConsumed * 100 : 0 };
-  },
-
-  _closeDetailPopup() {},
-
-  _showActionSpinner(msg) {
-    document.getElementById('wiz-body').innerHTML = `
-      <div class="wiz-spinner" style="padding-top:100px">
-        <div class="spin-ring"></div>
-        <div class="spin-label">${esc(msg)}</div>
-      </div>`;
-    document.getElementById('wiz-footer').innerHTML = '';
-  },
-
-  _actionDone(title, msg) {
-    document.getElementById('wiz-body').innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 20px;gap:18px">
-        <div style="font-size:54px;line-height:1">${title.split(' ')[0]}</div>
-        <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-.02em">${esc(title.replace(/^[^\s]+\s/,''))}</div>
-        <div style="font-size:14px;color:rgba(255,255,255,.4);max-width:380px;line-height:1.6">${esc(msg)}</div>
-        <a href="/commesse/${this.commessa.id}"
-          style="margin-top:8px;padding:12px 28px;background:#2563eb;color:#fff;border-radius:11px;text-decoration:none;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(37,99,235,.4)">
-          Vai alla commessa →
-        </a>
-      </div>`;
-    document.getElementById('wiz-footer').innerHTML = '';
-  },
-
-  _actionError(err) {
-    document.getElementById('wiz-body').innerHTML += `
-      <div style="margin-top:16px;padding:14px 18px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:10px;color:#f87171;font-size:13px">
-        ✕ Errore: ${esc(String(err.message || err))}
-      </div>`;
-  },
-};
 </script>
 </body>
 </html>

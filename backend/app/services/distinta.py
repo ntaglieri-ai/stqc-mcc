@@ -7,6 +7,7 @@ Output normalizzato (indipendente dal CAD):
         "weight_kg":       float | None,
         "qty":             int,          # totale da espandere in istanze
         "length_mm":       float | None,
+        "width_mm":        float | None,
         "material":        str | None,
         "assembly_parent": str | None,
     }
@@ -17,6 +18,7 @@ Ogni parte con qty > 1 viene espansa in N record separati
 from __future__ import annotations
 
 import re
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any, List
 
@@ -127,6 +129,7 @@ ALIASES: dict[str, list[str]] = {
     # length_mm: il file assemblaggi usa "Lungh. (mm)" (con spazio e parentesi),
     #            il file lavorazioni usa "Lungh." (senza parentesi)
     "length_mm":    ["lunghezza", "lungh.", "lungh. (mm)", "lung.", "length", "lung", "l(mm)", "l mm"],
+    "width_mm":     ["larghezza", "largh.", "largh. (mm)", "width", "w(mm)", "w mm"],
     "material":     ["materiale", "material", "qualità", "qualita", "quality"],
     "commessa_ref": ["commessa", "commessa_reference", "commessa_ref", "order"],
 }
@@ -306,6 +309,7 @@ def _parse_single(file_path: Path) -> tuple[list[dict], set[str]]:
             "profile":         normalize_profile(_str_cell(row, col_map, "profile")),
             "weight_kg":       _float_cell(row, col_map, "weight"),
             "length_mm":       _float_cell(row, col_map, "length_mm"),
+            "width_mm":        _float_cell(row, col_map, "width_mm"),
             "material":        _str_cell(row, col_map, "material"),
             "assembly_parent": current_assembly if has_separate_assembly else _str_cell(row, col_map, "assembly"),
             "commessa_ref":    _str_cell(row, col_map, "commessa_ref") or commessa_ref,
@@ -317,80 +321,107 @@ def _parse_single(file_path: Path) -> tuple[list[dict], set[str]]:
     return items, assembly_headers
 
 
-# ── Parser unificato due file ─────────────────────────────────────────────────
+# ── Parser commessa ───────────────────────────────────────────────────────────
 
-def parse_two_files(
-    file_a: Path,
-    file_b: Path,
+def _parse_assembly_hierarchy(file_path: Path) -> tuple[dict[str, deque[str]], set[str], list[str]]:
+    """Restituisce le assegnazioni part_code → coda assemblati.
+
+    La quantità fisica di una parte è:
+        quantità assemblato × quantità parte per assemblato
+
+    Il file assemblaggi arricchisce la lista pezzi con il parent, ma non decide
+    mai il numero totale di pezzi: la sorgente autoritativa resta il file
+    "Lavorazioni per posizione".
+    """
+    rows = _extract_rows(file_path)
+    if not rows:
+        return {}, set(), []
+
+    header_idx = _find_header_row(rows, ALIASES["assembly"] + ALIASES["part_code"])
+    col_map = _build_col_map(rows[header_idx])
+    if "assembly" not in col_map or "part_code" not in col_map:
+        return {}, set(), ["Il file assemblaggi non contiene le colonne Assemb. e Parte"]
+
+    parents_by_part: dict[str, deque[str]] = defaultdict(deque)
+    assemblies: set[str] = set()
+    warnings: list[str] = []
+    current_assembly: str | None = None
+    current_assembly_qty = 0
+
+    for row in rows[header_idx + 1:]:
+        assembly = _str_cell(row, col_map, "assembly")
+        part = _str_cell(row, col_map, "part_code")
+        qty = _float_cell(row, col_map, "qty")
+
+        if _is_valid_part_code(assembly) and not part:
+            current_assembly = assembly
+            current_assembly_qty = max(1, int(round(qty or 1)))
+            assemblies.add(assembly)
+            continue
+
+        if not _is_valid_part_code(part):
+            continue
+        if not current_assembly:
+            warnings.append(f"Parte senza assemblato: {part}")
+            continue
+
+        qty_each = max(1, int(round(qty or 1)))
+        parents_by_part[part].extend(
+            [current_assembly] * (current_assembly_qty * qty_each)
+        )
+
+    return dict(parents_by_part), assemblies, warnings
+
+
+def parse_commessa_files(
+    lista_pezzi_path: Path,
+    assemblaggi_path: Path | None = None,
     prefixes: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict]:
-    """Unisce i due file Tekla e restituisce (items, validation_report).
+    """Legge i file iniziali di una commessa.
 
-    L'ordine dei parametri non conta: il tipo viene rilevato automaticamente
-    analizzando le colonne header di ciascun file.
-    - File con "Assemb." + "Parte" in colonne distinte → lista assemblaggi
-    - File con "Marca/Pos." senza "Assemb." separata   → lista lavorazioni
-
-    prefixes: dict {PREFISSO → tipo} da profile_types nel DB. Se fornito,
-              ogni pezzo viene classificato e i profili SCONOSCIUTO diventano anomalie.
+    ``lista_pezzi_path`` è obbligatorio e determina posizioni, quantità e dati
+    tecnici. ``assemblaggi_path`` è opzionale e aggiunge la relazione tra ogni
+    pezzo fisico e il relativo assemblato senza modificare le quantità.
     """
-    type_a = _detect_file_type(file_a)
-    type_b = _detect_file_type(file_b)
+    detected_lista = _detect_file_type(lista_pezzi_path)
+    if detected_lista != "lavorazioni":
+        raise ValueError(
+            "Il file Lista pezzi non è una 'Lavorazione per posizione' riconoscibile"
+        )
 
-    if type_a == "assemblaggi" and type_b != "assemblaggi":
-        assemblaggi_path, lavorazioni_path = file_a, file_b
-    elif type_b == "assemblaggi" and type_a != "assemblaggi":
-        assemblaggi_path, lavorazioni_path = file_b, file_a
-    else:
-        # Fallback: usa l'ordine passato (entrambi uguali o unknown)
-        assemblaggi_path, lavorazioni_path = file_a, file_b
+    items, _ = _parse_single(lista_pezzi_path)
+    if not items:
+        raise ValueError("Il file Lista pezzi non contiene posizioni riconoscibili")
 
-    detected = {"file_a": type_a, "file_b": type_b,
-                "assemblaggi": assemblaggi_path.name,
-                "lavorazioni": lavorazioni_path.name}
+    parent_queues: dict[str, deque[str]] = {}
+    assembly_headers: set[str] = set()
+    hierarchy_warnings: list[str] = []
+    detected_assemblaggi = None
 
-    asm_items, asm_headers  = _parse_single(assemblaggi_path)
-    lav_items, _lav_headers = _parse_single(lavorazioni_path)
+    if assemblaggi_path is not None:
+        detected_assemblaggi = _detect_file_type(assemblaggi_path)
+        if detected_assemblaggi != "assemblaggi":
+            raise ValueError(
+                "Il file Pezzi e assemblati non contiene una gerarchia riconoscibile"
+            )
+        parent_queues, assembly_headers, hierarchy_warnings = _parse_assembly_hierarchy(
+            assemblaggi_path
+        )
 
-    # Indice lavorazioni per part_code — conserva il primo match
-    lav_index: dict[str, dict] = {}
-    for item in lav_items:
-        pc = item["part_code"]
-        if pc and pc not in lav_index:
-            lav_index[pc] = item
+    for item in items:
+        pc = item.get("part_code") or ""
+        queue = parent_queues.get(pc)
+        item["assembly_parent"] = queue.popleft() if queue else None
 
-    merged: list[dict] = []
-    for item in asm_items:
-        lav = lav_index.get(item["part_code"] or "", {})
-        merged.append({
-            "part_code":       item["part_code"],
-            "profile":         item["profile"] or lav.get("profile"),
-            "weight_kg":       item["weight_kg"] or lav.get("weight_kg"),
-            "qty":             item["qty"],
-            "instance_number": item["instance_number"],
-            "length_mm":       item["length_mm"] or lav.get("length_mm"),
-            "material":        item["material"] or lav.get("material"),
-            "assembly_parent": item["assembly_parent"],
-            "commessa_ref":    item["commessa_ref"] or lav.get("commessa_ref"),
-        })
+    unmatched_hierarchy = sum(len(queue) for queue in parent_queues.values())
+    missing_hierarchy = sum(
+        1 for item in items
+        if assemblaggi_path is not None and item.get("assembly_parent") is None
+    )
 
-    # Aggiungi pezzi presenti solo in lavorazioni (non in assemblaggi)
-    asm_codes = {i["part_code"] for i in asm_items}
-    for item in lav_items:
-        if item["part_code"] not in asm_codes:
-            merged.append(item)
-
-    # Renumerazione globale per part_code — ogni pezzo fisico ha un inst unico
-    # (un codice può comparire sotto più assemblaggi: ogni occorrenza è un pezzo distinto)
-    inst_counter: dict[str, int] = {}
-    for item in merged:
-        pc = item["part_code"] or ""
-        inst_counter[pc] = inst_counter.get(pc, 0) + 1
-        item["instance_number"] = inst_counter[pc]
-
-    # Classificazione per tipo profilo (richiede prefixes dal DB)
     sconosciuti: list[str] = []
-    for item in merged:
+    for item in items:
         prof = item.get("profile") or ""
         if prefixes is not None:
             tipo = classify_profile(prof, prefixes)
@@ -400,23 +431,61 @@ def parse_two_files(
         else:
             item["tipo_profilo"] = None
 
-    # Tutti i codici assemblaggio validi = part_codes + header-row assemblaggi
-    known_assemblies = {i["part_code"] for i in asm_items} | asm_headers
+    report = _validate(items, assembly_headers or None)
+    report["detected"] = {
+        "lista_pezzi": detected_lista,
+        "assemblaggi": detected_assemblaggi,
+        "lista_pezzi_filename": lista_pezzi_path.name,
+        "assemblaggi_filename": assemblaggi_path.name if assemblaggi_path else None,
+    }
+    report["positions"] = len({i["part_code"] for i in items if i.get("part_code")})
+    report["assemblies"] = len(assembly_headers)
+    report["hierarchy"] = {
+        "linked_pieces": len(items) - missing_hierarchy if assemblaggi_path else 0,
+        "pieces_without_parent": missing_hierarchy if assemblaggi_path else 0,
+        "extra_hierarchy_links": unmatched_hierarchy,
+    }
 
-    report = _validate(merged, known_assemblies)
-    report["detected"] = detected
-    if sconosciuti:
-        report["errors"] = report.get("errors", []) + sconosciuti
-        report["ok"] = False
-        # Ricalcola summary
-        n_err = len(report.get("errors", []))
-        n_warn = len(report.get("warnings", []))
-        report["summary"] = (
-            f"Import CON ERRORI — {report['total_pieces']} pezzi fisici · "
-            f"{report['unique_parts']} posizioni · {report['assemblies']} assemblaggi · "
-            f"{n_err} errori · {n_warn} warning"
+    errors = list(report.get("errors", []))
+    warnings = list(report.get("warnings", [])) + hierarchy_warnings
+    if unmatched_hierarchy:
+        errors.append(
+            f"La gerarchia contiene {unmatched_hierarchy} pezzi non presenti nella Lista pezzi"
         )
-    return merged, report
+    if missing_hierarchy:
+        errors.append(
+            f"{missing_hierarchy} pezzi della Lista pezzi non hanno un assemblato associato"
+        )
+    errors.extend(sconosciuti)
+
+    report["errors"] = errors
+    report["warnings"] = warnings
+    report["ok"] = not errors
+    report["summary"] = (
+        f"Analisi {'OK' if report['ok'] else 'CON ANOMALIE'} — "
+        f"{len(items)} pezzi fisici · {report['positions']} posizioni · "
+        f"{len(assembly_headers)} assemblaggi · "
+        f"{len(errors)} errori · {len(warnings)} warning"
+    )
+    return items, report
+
+
+# ── Parser unificato due file (compatibilità) ─────────────────────────────────
+
+def parse_two_files(
+    file_a: Path,
+    file_b: Path,
+    prefixes: dict[str, str] | None = None,
+) -> tuple[list[dict], dict]:
+    """Compatibilità per i chiamanti storici; usa il parser commessa corretto."""
+    type_a = _detect_file_type(file_a)
+    type_b = _detect_file_type(file_b)
+
+    if type_a == "lavorazioni" and type_b == "assemblaggi":
+        return parse_commessa_files(file_a, file_b, prefixes)
+    if type_b == "lavorazioni" and type_a == "assemblaggi":
+        return parse_commessa_files(file_b, file_a, prefixes)
+    raise ValueError("Servono una Lista pezzi e una Lista pezzi e assemblati riconoscibili")
 
 
 # ── Validazione ───────────────────────────────────────────────────────────────
@@ -503,6 +572,7 @@ def _normalized_to_db(item: dict) -> dict:
         "material_description": None,
         "commessa_reference":   item.get("commessa_ref"),
         "length_mm":            item.get("length_mm"),
+        "width_mm":             item.get("width_mm"),
         "weight_kg":            item.get("weight_kg"),
         "instance_number":      item.get("instance_number"),
         "parent_assembly":      item.get("assembly_parent"),

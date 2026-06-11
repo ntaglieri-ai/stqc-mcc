@@ -100,6 +100,10 @@ def create_app() -> FastAPI:
     def commesse_nuova_page():
         return FileResponse(STATIC_DIR / "commesse-nuova.html", headers=_NO_CACHE)
 
+    @app.get("/commesse/{commessa_id}/analisi", include_in_schema=False)
+    def commessa_analysis_page(commessa_id: int):
+        return FileResponse(STATIC_DIR / "commessa-analysis.html", headers=_NO_CACHE)
+
     @app.get("/commesse/{commessa_id}", include_in_schema=False)
     def commessa_detail_page(commessa_id: int):
         return FileResponse(STATIC_DIR / "commessa-detail.html", headers=_NO_CACHE)
