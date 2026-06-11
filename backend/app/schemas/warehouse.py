@@ -80,7 +80,7 @@ class ReceiptBase(BaseModel):
     ddt_date: date
     supplier_id: int
     material_id: int
-    batch_id: Optional[int]
+    batch_id: Optional[int] = None
     quantity: float = Field(..., example=100.0)
     unit: str = Field("PZ", example="KG")
     notes: Optional[str] = None

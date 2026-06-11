@@ -67,23 +67,34 @@ def get_stock_balance(db: Session, material_id: int) -> dict | None:
     if material is None:
         return None
 
+    # INCOMING aumenta la giacenza
     total_incoming = db.scalar(
         select(func.coalesce(func.sum(StockMovement.quantity), 0))
         .where(StockMovement.material_id == material_id)
         .where(StockMovement.movement_type == MovementType.INCOMING)
     )
+    # OUTGOING e SFRIDO riducono la giacenza
     total_outgoing = db.scalar(
         select(func.coalesce(func.sum(StockMovement.quantity), 0))
         .where(StockMovement.material_id == material_id)
-        .where(StockMovement.movement_type == MovementType.OUTGOING)
+        .where(StockMovement.movement_type.in_([MovementType.OUTGOING, MovementType.SFRIDO]))
     )
+    # ADJUSTMENT è firmato: positivo = rettifica in aumento, negativo = rettifica in riduzione
+    total_adjustment = db.scalar(
+        select(func.coalesce(func.sum(StockMovement.quantity), 0))
+        .where(StockMovement.material_id == material_id)
+        .where(StockMovement.movement_type == MovementType.ADJUSTMENT)
+    )
+    inc  = float(total_incoming   or 0)
+    out  = float(total_outgoing   or 0)
+    adj  = float(total_adjustment or 0)
     return {
         "material_id": material.id,
         "material_code": material.code,
         "material_description": material.description,
-        "total_incoming": float(total_incoming or 0),
-        "total_outgoing": float(total_outgoing or 0),
-        "current_stock": float((total_incoming or 0) - (total_outgoing or 0)),
+        "total_incoming": inc,
+        "total_outgoing": out,
+        "current_stock": inc - out + adj,
     }
 
 
@@ -194,6 +205,7 @@ def get_magazzino_list(
             Material.peso_u_kg,
             Material.peso_1_pz,
             Material.norma_uni,
+            # INCOMING aumenta la giacenza
             func.coalesce(
                 func.sum(
                     case(
@@ -203,15 +215,26 @@ def get_magazzino_list(
                 ),
                 0,
             ).label("total_incoming"),
+            # OUTGOING e SFRIDO riducono la giacenza
             func.coalesce(
                 func.sum(
                     case(
-                        (StockMovement.movement_type == MovementType.OUTGOING, StockMovement.quantity),
+                        (StockMovement.movement_type.in_([MovementType.OUTGOING, MovementType.SFRIDO]), StockMovement.quantity),
                         else_=0,
                     )
                 ),
                 0,
             ).label("total_outgoing"),
+            # ADJUSTMENT è firmato (positivo = rettifica +, negativo = rettifica -)
+            func.coalesce(
+                func.sum(
+                    case(
+                        (StockMovement.movement_type == MovementType.ADJUSTMENT, StockMovement.quantity),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_adjustment"),
         )
         .outerjoin(StockMovement, StockMovement.material_id == Material.id)
         .group_by(Material.id)
@@ -227,9 +250,9 @@ def get_magazzino_list(
     rows = db.execute(stmt.offset(skip).limit(limit)).all()
     result = []
     for r in rows:
-        n_pezzi = float(r.total_incoming - r.total_outgoing)
+        n_pezzi   = float(r.total_incoming - r.total_outgoing + r.total_adjustment)
         peso_1_pz = float(r.peso_1_pz) if r.peso_1_pz is not None else None
-        peso_kg = round(n_pezzi * peso_1_pz, 3) if peso_1_pz is not None else None
+        peso_kg   = round(n_pezzi * peso_1_pz, 3) if peso_1_pz is not None else None
         result.append({
             "material_id": r.id,
             "material_code": r.code,

@@ -1,10 +1,21 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.app.crud import warehouse as crud
 from backend.app.db.session import get_db
+from backend.app.models.warehouse import (
+    Batch,
+    Certificate,
+    CuttingPlan,
+    Material,
+    MaterialRequest,
+    Receipt,
+    StockMovement,
+    StockReservation,
+)
 from backend.app.schemas import warehouse as warehouse_schemas
 
 router = APIRouter()
@@ -84,6 +95,8 @@ def create_receipt(
     receipt_in: warehouse_schemas.ReceiptCreate,
     db: Session = Depends(get_db),
 ):
+    if receipt_in.quantity <= 0:
+        raise HTTPException(status_code=422, detail="La quantità deve essere maggiore di zero")
     return crud.create_receipt(db=db, obj_in=receipt_in)
 
 
@@ -115,6 +128,8 @@ def create_stock_movement(
     movement_in: warehouse_schemas.StockMovementCreate,
     db: Session = Depends(get_db),
 ):
+    if movement_in.quantity <= 0:
+        raise HTTPException(status_code=422, detail="La quantità deve essere maggiore di zero")
     return crud.create_stock_movement(db=db, obj_in=movement_in)
 
 
@@ -138,14 +153,42 @@ def list_magazzino(
 
 @router.delete("/materials/{material_id}", status_code=204)
 def delete_material(material_id: int, db: Session = Depends(get_db)):
-    """Rimozione fisica di un materiale e tutti i suoi movimenti (usata per item prenotati da commessa)."""
-    from sqlalchemy import select as sa_select
+    """Rimozione fisica di un materiale con cascade manuale.
+
+    Ordine di eliminazione (rispetta i vincoli FK anche con SQLite foreign_keys=OFF):
+      1. Certificati → dipendono da Receipt
+      2. MaterialRequest → dipende da Material
+      3. StockMovement → dipende da Material e Batch
+      4. CuttingPlan → dipende da Material
+      5. StockReservation → dipende da Material
+      6. Receipt → dipende da Material e Batch
+      7. Batch → dipende da Material
+      8. DistintaItem.mapped_material_id → SET NULL
+      9. Material
+    """
     material = db.get(Material, material_id)
     if material is None:
         raise HTTPException(status_code=404, detail="Materiale non trovato")
-    from backend.app.models.warehouse import StockMovement as SM, CuttingPlan, StockReservation
-    db.query(SM).filter(SM.material_id == material_id).delete()
-    db.query(CuttingPlan).filter(CuttingPlan.material_id == material_id).delete()
-    db.query(StockReservation).filter(StockReservation.material_id == material_id).delete()
+
+    # 1. Certificati (tramite receipts di questo materiale)
+    receipt_ids = [r.id for r in db.query(Receipt.id).filter(Receipt.material_id == material_id)]
+    if receipt_ids:
+        db.query(Certificate).filter(Certificate.receipt_id.in_(receipt_ids)).delete(synchronize_session=False)
+
+    # 2–7. Dipendenze dirette
+    db.query(MaterialRequest).filter(MaterialRequest.material_id == material_id).delete(synchronize_session=False)
+    db.query(StockMovement).filter(StockMovement.material_id == material_id).delete(synchronize_session=False)
+    db.query(CuttingPlan).filter(CuttingPlan.material_id == material_id).delete(synchronize_session=False)
+    db.query(StockReservation).filter(StockReservation.material_id == material_id).delete(synchronize_session=False)
+    db.query(Receipt).filter(Receipt.material_id == material_id).delete(synchronize_session=False)
+    db.query(Batch).filter(Batch.material_id == material_id).delete(synchronize_session=False)
+
+    # 8. DistintaItem: NULL out FK (non cancella il pezzo, solo scollega il materiale)
+    db.execute(
+        text("UPDATE distinta_items SET mapped_material_id = NULL WHERE mapped_material_id = :mid"),
+        {"mid": material_id},
+    )
+
+    # 9. Materiale
     db.delete(material)
     db.commit()
