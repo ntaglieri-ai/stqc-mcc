@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.crud import commessa as crud
-from backend.app.crud.warehouse import get_magazzino_list
 from backend.app.db.session import get_db
 
 _logger = logging.getLogger("stqc.commessa")
@@ -29,7 +28,7 @@ from backend.app.services.distinta import (
     parse_commessa_files,
 )
 from backend.app.services.fasi_operative import parse_fasi_operative
-from backend.app.services.commessa_analysis import analyze_commessa_stock
+from backend.app.services.commessa_analysis import classify_commessa_materials
 
 router = APIRouter()
 
@@ -308,7 +307,7 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
         },
         "summary": {
             "n_pezzi": len(items),
-            "n_posizioni": len(position_rows),
+            "n_codici_pezzo": len(position_rows),
             "n_assemblati": len({
                 item.parent_assembly for item in items if item.parent_assembly
             }),
@@ -321,8 +320,8 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/{commessa_id}/analisi/magazzino")
-def get_analisi_magazzino(commessa_id: int, db: Session = Depends(get_db)):
+@router.get("/{commessa_id}/analisi/materiali")
+def get_classificazione_materiali(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
     if commessa is None:
         raise HTTPException(404, "Commessa non trovata")
@@ -338,8 +337,7 @@ def get_analisi_magazzino(commessa_id: int, db: Session = Depends(get_db)):
         )
         .all()
     )
-    inventory = get_magazzino_list(db=db, limit=10000)
-    result = analyze_commessa_stock(items, inventory)
+    result = classify_commessa_materials(items)
     result["commessa_id"] = commessa_id
     result["revisione_id"] = revisione.id
     return result

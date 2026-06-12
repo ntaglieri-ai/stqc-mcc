@@ -170,9 +170,30 @@ class MagazzinoItemRead(BaseModel):
     dimensione_2: Optional[float] = None
     quantita_prenotata: Optional[float] = 0
     quantita_uscita: Optional[float] = 0
+    physical_items_count: int = 0
 
     class Config:
         from_attributes = True
+
+
+class WarehousePhysicalItemRead(BaseModel):
+    id: int
+    uuid: str
+    material_id: int
+    ordinal: int
+    status: str
+    created_at: datetime
+    exited_at: Optional[datetime] = None
+    label: str
+
+
+class WarehouseScanRequest(BaseModel):
+    payload: str
+
+
+class WarehouseScanResult(BaseModel):
+    item: WarehousePhysicalItemRead
+    material: MagazzinoItemRead
 
 
 # ── Stock Reservations ──────────────────────────────────────────────────────

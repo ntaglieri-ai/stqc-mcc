@@ -97,7 +97,7 @@ class Material(Base):
     quantita_prenotata = Column(Numeric(18, 6), nullable=False, server_default="0")
     quantita_uscita = Column(Numeric(18, 6), nullable=False, server_default="0")
 
-    # QR magazzino — stesso schema dei pezzi lavorati
+    # Legacy: i QR operativi sono ora sui singoli WarehouseItem.
     qr_uuid = Column(String(36), nullable=True, index=True)
     qr_code = Column(Text, nullable=True)   # base64 PNG
 
@@ -106,6 +106,48 @@ class Material(Base):
     movements = relationship("StockMovement", back_populates="material")
     cutting_plans = relationship("CuttingPlan", back_populates="material")
     stock_reservations = relationship("StockReservation", back_populates="material")
+    physical_items = relationship(
+        "WarehouseItem",
+        back_populates="material",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="WarehouseItem.ordinal",
+    )
+
+
+class WarehouseItem(Base):
+    """Singolo elemento fisico presente o transitato dal magazzino."""
+    __tablename__ = "warehouse_items"
+    __table_args__ = (
+        UniqueConstraint("material_id", "ordinal", name="uq_warehouse_item_ordinal"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), nullable=False, default=_gen_uuid, unique=True, index=True)
+    material_id = Column(
+        Integer,
+        ForeignKey("materials.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ordinal = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="AVAILABLE", index=True)
+    source_movement_id = Column(
+        Integer,
+        ForeignKey("stock_movements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    exit_movement_id = Column(
+        Integer,
+        ForeignKey("stock_movements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    exited_at = Column(DateTime, nullable=True)
+
+    material = relationship("Material", back_populates="physical_items")
 
 
 class Batch(Base):
@@ -118,7 +160,7 @@ class Batch(Base):
     produced_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
 
-    # QR magazzino
+    # Legacy: i QR operativi sono ora sui singoli WarehouseItem.
     qr_uuid = Column(String(36), nullable=True, index=True)
     qr_code = Column(Text, nullable=True)   # base64 PNG
 

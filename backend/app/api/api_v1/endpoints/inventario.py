@@ -1,5 +1,4 @@
 import os
-from datetime import date
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -7,9 +6,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.crud import warehouse as crud
 from backend.app.db.session import get_db
 from backend.app.models.warehouse import Material, MovementType, StockMovement
 from backend.app.services.inventario import parse_inventario
+from backend.app.services.warehouse_items import reconcile_available_items
 
 router = APIRouter()
 
@@ -41,12 +42,11 @@ async def import_inventario(
     if not rows:
         raise HTTPException(status_code=422, detail="Nessuna riga di stock trovata nel file")
 
-    today = date.today().isoformat()
-    reason = f"Inventario iniziale {today}"
-
     created_materials = 0
     existing_materials = 0
     created_movements = 0
+    physical_items_created = 0
+    physical_items_closed = 0
 
     for row in rows:
         material = db.scalars(
@@ -93,27 +93,29 @@ async def import_inventario(
             material.norma_uni  = row.get("norma_uni")  or material.norma_uni
             existing_materials += 1
 
-        existing_movement = db.scalars(
-            select(StockMovement).where(
-                StockMovement.material_id == material.id,
-                StockMovement.reason == reason,
-                StockMovement.movement_type == MovementType.INCOMING,
+        balance = crud.get_stock_balance(db=db, material_id=material.id)
+        current_stock = float(balance["current_stock"] if balance else 0)
+        target_stock = float(row["quantity"])
+        delta = target_stock - current_stock
+        if abs(delta) > 1e-9:
+            movement = StockMovement(
+                material_id=material.id,
+                quantity=delta,
+                movement_type=MovementType.ADJUSTMENT,
+                reason="Riconciliazione inventario",
+                destination_commessa=row.get("commessa_reference"),
+                reference=file.filename,
             )
-        ).first()
+            db.add(movement)
+            created_movements += 1
 
-        if existing_movement:
-            continue
-
-        movement = StockMovement(
-            material_id=material.id,
-            quantity=row["quantity"],
-            movement_type=MovementType.INCOMING,
-            reason=reason,
-            destination_commessa=row.get("commessa_reference"),
-            reference=file.filename,
-        )
-        db.add(movement)
-        created_movements += 1
+        try:
+            sync = reconcile_available_items(db, material, target_stock)
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(status_code=422, detail=f"{material.code}: {exc}")
+        physical_items_created += sync["created"]
+        physical_items_closed += sync["closed"]
 
     db.commit()
 
@@ -123,4 +125,6 @@ async def import_inventario(
         "materials_created": created_materials,
         "materials_existing": existing_materials,
         "movements_created": created_movements,
+        "physical_items_created": physical_items_created,
+        "physical_items_closed": physical_items_closed,
     }

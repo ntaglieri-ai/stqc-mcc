@@ -1,8 +1,10 @@
 import logging
+import base64
+import re
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 import backend.app.models.commessa   # noqa: F401
@@ -12,6 +14,7 @@ import backend.app.models.warehouse  # noqa: F401
 from backend.app.models.user import GROUP_DEFAULTS, GROUP_POSTAZIONI_DEFAULTS
 from backend.app.api.api_v1.api import api_router, public_router
 from backend.app.core.log_collector import log_collector  # noqa: F401 — initialises log capture
+from backend.app.services.qr import generate_qr_for_uuid
 
 STATIC_DIR = Path(__file__).parent / "static"
 _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"}
@@ -111,6 +114,21 @@ def create_app() -> FastAPI:
     @app.get("/magazzino", include_in_schema=False)
     def magazzino_page():
         return FileResponse(STATIC_DIR / "magazzino.html", headers=_NO_CACHE)
+
+    @app.get("/p/{item_uuid}", include_in_schema=False)
+    def qr_resolve_page(item_uuid: str):
+        return FileResponse(STATIC_DIR / "qr-item.html", headers=_NO_CACHE)
+
+    @app.get("/qr-image/{item_uuid}.png", include_in_schema=False)
+    def qr_image(item_uuid: str):
+        if not re.fullmatch(r"[0-9a-f-]{36}", item_uuid, re.IGNORECASE):
+            return Response(status_code=404)
+        png = base64.b64decode(generate_qr_for_uuid(item_uuid.lower()))
+        return Response(
+            content=png,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
 
     @app.get("/officina", include_in_schema=False)
     def officina_page():

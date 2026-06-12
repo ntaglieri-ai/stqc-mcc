@@ -179,30 +179,21 @@ def download_item_label(item_id: int, db: Session = Depends(get_db)):
 
 @router.post("/bulk-qr-init")
 def bulk_qr_init(db: Session = Depends(get_db)):
-    """Genera UUID e QR per tutti i materials e batches del magazzino che ne sono privi.
-    Da eseguire una sola volta al primo avvio dopo la migrazione."""
-    import uuid as _uuid
-    from sqlalchemy import select
-    from backend.app.models.warehouse import Batch, Material
-    from backend.app.services.qr import generate_qr_for_uuid
+    """Allinea i QR ai singoli elementi fisici, mai alla riga aggregata."""
+    from backend.app.crud.warehouse import get_magazzino_list
+    from backend.app.models.warehouse import Material
+    from backend.app.services.warehouse_items import reconcile_available_items
 
-    mat_count = 0
-    for mat in db.scalars(select(Material).where(Material.qr_uuid.is_(None))).all():
-        mat.qr_uuid = str(_uuid.uuid4())
-        try:
-            mat.qr_code = generate_qr_for_uuid(mat.qr_uuid)
-        except Exception:
-            pass
-        mat_count += 1
-
-    batch_count = 0
-    for batch in db.scalars(select(Batch).where(Batch.qr_uuid.is_(None))).all():
-        batch.qr_uuid = str(_uuid.uuid4())
-        try:
-            batch.qr_code = generate_qr_for_uuid(batch.qr_uuid)
-        except Exception:
-            pass
-        batch_count += 1
-
+    created = 0
+    closed = 0
+    rows = get_magazzino_list(db=db, limit=10000)
+    for row in rows:
+        material = db.get(Material, row["material_id"])
+        result = reconcile_available_items(db, material, row["n_pezzi"])
+        created += result["created"]
+        closed += result["closed"]
     db.commit()
-    return {"materials_updated": mat_count, "batches_updated": batch_count}
+    return {
+        "physical_items_created": created,
+        "physical_items_closed": closed,
+    }

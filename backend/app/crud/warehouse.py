@@ -9,6 +9,7 @@ from backend.app.models.warehouse import (
     Receipt,
     StockMovement,
     Supplier,
+    WarehouseItem,
 )
 from backend.app.schemas import warehouse as warehouse_schemas
 
@@ -205,6 +206,15 @@ def get_magazzino_list(
             Material.peso_u_kg,
             Material.peso_1_pz,
             Material.norma_uni,
+            (
+                select(func.count(WarehouseItem.id))
+                .where(
+                    WarehouseItem.material_id == Material.id,
+                    WarehouseItem.status == "AVAILABLE",
+                )
+                .correlate(Material)
+                .scalar_subquery()
+            ).label("physical_items_count"),
             # INCOMING aumenta la giacenza
             func.coalesce(
                 func.sum(
@@ -267,5 +277,6 @@ def get_magazzino_list(
             "peso_u_kg": float(r.peso_u_kg) if r.peso_u_kg is not None else None,
             "peso_1_pz": peso_1_pz,
             "norma_uni": r.norma_uni,
+            "physical_items_count": int(r.physical_items_count or 0),
         })
     return result

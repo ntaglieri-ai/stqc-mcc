@@ -277,6 +277,10 @@
 </div>
 
 <script>
+const NEXT_URL = new URLSearchParams(location.search).get('next');
+const LOGIN_DESTINATION = NEXT_URL && NEXT_URL.startsWith('/') && !NEXT_URL.startsWith('//')
+  ? NEXT_URL
+  : '/';
 // ── Tab switch ────────────────────────────────────────────────────────────────
 function switchTab(t) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (t === 'standard')));
@@ -319,7 +323,7 @@ async function doLogin(e) {
     }
     const data = await res.json();
     saveSession(data);
-    window.location.replace('/');
+    window.location.replace(LOGIN_DESTINATION);
   } catch(err) {
     showError('err-standard', err.message);
   } finally {
@@ -367,7 +371,7 @@ async function doPinLogin() {
     }
     const data = await res.json();
     saveSession(data);
-    window.location.replace('/');
+    window.location.replace(LOGIN_DESTINATION);
   } catch(err) {
     showError('err-operaio', err.message);
     _pin = '';
@@ -387,7 +391,7 @@ function saveSession(data) {
 // Redirect if already logged in
 (function() {
   const t = localStorage.getItem('stqc_token');
-  if (t) window.location.replace('/');
+  if (t) window.location.replace(LOGIN_DESTINATION);
 })();
 
 // Hero animation

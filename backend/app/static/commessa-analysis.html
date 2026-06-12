@@ -101,7 +101,12 @@
     .table-wrap {
       max-height: 390px; overflow: auto; border-radius: 10px;
       border: 1px solid var(--border);
+      scrollbar-color: #46556b #101827;
+      scrollbar-width: thin;
     }
+    .table-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+    .table-wrap::-webkit-scrollbar-track { background: #101827; }
+    .table-wrap::-webkit-scrollbar-thumb { background: #46556b; border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
     th {
       position: sticky; top: 0; z-index: 2; padding: 9px 11px;
@@ -117,6 +122,12 @@
       background: rgba(74,222,128,.06); border: 1px solid rgba(74,222,128,.16); color: #86efac;
     }
     .notice.warn { background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.18); color: #fcd34d; }
+    .explanation {
+      margin: 13px 0 16px; padding: 13px 15px; border-radius: 10px;
+      background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.16);
+      color: var(--secondary); font-size: 11px; line-height: 1.55;
+    }
+    .explanation strong { color: #bfdbfe; }
     .anomaly-list { display: flex; flex-direction: column; gap: 7px; }
     .anomaly {
       padding: 10px 12px; border-radius: 9px; font-size: 11px;
@@ -125,7 +136,7 @@
     .anomaly.warning {
       background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.16); color: #fcd34d;
     }
-    .stock-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 15px; }
+    .stock-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
     .stock-kpi {
       padding: 13px; border-radius: 10px; text-align: center; cursor: pointer;
       border: 1px solid var(--border); background: var(--panel2); transition: border-color .15s;
@@ -133,18 +144,7 @@
     .stock-kpi:hover, .stock-kpi.active { border-color: rgba(59,130,246,.55); }
     .stock-num { font-size: 22px; font-weight: 900; }
     .stock-label { margin-top: 4px; color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
-    .c-disponibile { color: var(--green); }
-    .c-parziale { color: var(--orange); }
-    .c-mancante { color: var(--red); }
-    .c-non_associato, .c-da_verificare { color: var(--yellow); }
-    .tag {
-      display: inline-flex; padding: 3px 8px; border-radius: 10px;
-      font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
-    }
-    .tag.disponibile { color: var(--green); background: rgba(74,222,128,.1); }
-    .tag.parziale { color: var(--orange); background: rgba(251,146,60,.1); }
-    .tag.mancante { color: var(--red); background: rgba(248,113,113,.1); }
-    .tag.non_associato, .tag.da_verificare { color: var(--yellow); background: rgba(251,191,36,.1); }
+    .stock-meta { margin-top: 5px; color: var(--secondary); font-size: 10px; }
     .footer-note {
       margin-top: 22px; padding: 15px; text-align: center;
       color: var(--secondary); font-size: 12px;
@@ -250,7 +250,7 @@ function renderPage() {
       <div class="step"><span class="step-num">1</span><span class="step-label">File acquisiti</span></div>
       <div class="step"><span class="step-num">2</span><span class="step-label">Riepilogo pezzi</span></div>
       <div class="step"><span class="step-num">3</span><span class="step-label">Controllo anomalie</span></div>
-      <div class="step"><span class="step-num">4</span><span class="step-label">Analisi magazzino</span></div>
+      <div class="step"><span class="step-num">4</span><span class="step-label">Classificazione materiali</span></div>
     </div>
 
     <section class="section">
@@ -272,14 +272,18 @@ function renderPage() {
       </div>
       <div class="kpis">
         <div class="kpi"><div class="kpi-label">Pezzi fisici</div><div class="kpi-value">${fmt(s.n_pezzi)}</div></div>
-        <div class="kpi"><div class="kpi-label">Posizioni</div><div class="kpi-value">${fmt(s.n_posizioni)}</div></div>
+        <div class="kpi"><div class="kpi-label">Part number distinti</div><div class="kpi-value">${fmt(s.n_codici_pezzo)}</div></div>
         <div class="kpi"><div class="kpi-label">Assemblati</div><div class="kpi-value">${fmt(s.n_assemblati)}</div></div>
         <div class="kpi"><div class="kpi-label">Profili / qualità</div><div class="kpi-value">${fmt(s.n_profili)}</div></div>
       </div>
-      <div class="toolbar"><input class="search" id="position-search" placeholder="Cerca posizione, profilo o qualità…" oninput="renderPositions(this.value)"/></div>
+      <div class="explanation">
+        <strong>Come leggere i numeri:</strong> il part number identifica un particolare della distinta.
+        La quantità indica quante copie fisiche devono essere prodotte. Per esempio, un part number con quantità 26 rappresenta 26 pezzi fisici uguali.
+      </div>
+      <div class="toolbar"><input class="search" id="position-search" placeholder="Cerca part number, profilo o qualità…" oninput="renderPositions(this.value)"/></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Posizione</th><th>Profilo</th><th>Qualità</th><th class="right">Quantità</th><th>Assemblati</th></tr></thead>
+          <thead><tr><th>Part number</th><th>Profilo</th><th>Qualità</th><th class="right">Pezzi fisici</th><th>Assemblati</th></tr></thead>
           <tbody id="positions-body"></tbody>
         </table>
       </div>
@@ -295,14 +299,18 @@ function renderPage() {
 
     <section class="section">
       <div class="section-head">
-        <div><div class="section-title">Analisi magazzino</div>
-        <div class="section-sub">Simulazione sulla giacenza corrente: nessun materiale viene prenotato o movimentato</div></div>
+        <div><div class="section-title">Materiali per categoria</div>
+        <div class="section-sub">Distribuzione dei ${fmt(s.n_pezzi)} pezzi fisici per famiglia di materiale, profilo e qualità</div></div>
       </div>
-      <div id="stock-content"><div class="loader"><div class="spinner"></div><span>Confronto con il magazzino…</span></div></div>
+      <div class="explanation">
+        <strong>Questa tabella raggruppa i dati:</strong> ogni riga riunisce tutti i part number che utilizzano lo stesso tipo di materiale, profilo e qualità.
+        “Part number distinti” indica quanti codici diversi sono compresi nel gruppo, non quanti pezzi contiene.
+      </div>
+      <div id="stock-content"><div class="loader"><div class="spinner"></div><span>Classificazione materiali…</span></div></div>
     </section>
 
     <div class="footer-note">
-      Analisi completata fino alla disponibilità materiali. Prelievi, ordini, QR e avvio produzione saranno gestiti nel passaggio successivo.
+      La copertura reale dei pezzi, il piano di taglio e lo sfrido saranno calcolati nel passaggio successivo.
     </div>`;
 
   renderPositions("");
@@ -323,7 +331,7 @@ function renderPositions(query) {
       <td>${esc(row.qualita || "—")}</td>
       <td class="right">${fmt(row.quantita)}</td>
       <td>${row.assemblati.length ? esc(row.assemblati.join(", ")) : "—"}</td>
-    </tr>`).join("") || '<tr><td colspan="5">Nessuna posizione trovata</td></tr>';
+    </tr>`).join("") || '<tr><td colspan="5">Nessun part number trovato</td></tr>';
 }
 
 function renderAnomalies() {
@@ -349,25 +357,22 @@ function setStockFilter(value) {
 function renderStock() {
   const target = document.getElementById("stock-content");
   if (!stockData) return;
-  const counts = stockData.counts;
-  const rows = stockData.profiles.filter(row => stockFilter === "tutti" || row.stato === stockFilter);
-  const cards = [
-    ["disponibile", "Disponibili"], ["parziale", "Parziali"], ["mancante", "Mancanti"],
-    ["non_associato", "Non associati"], ["da_verificare", "Da verificare"],
-  ];
+  const rows = stockData.groups.filter(row => stockFilter === "tutti" || row.tipo === stockFilter);
   target.innerHTML = `
     <div class="stock-kpis">
-      ${cards.map(([key, label]) => `<div class="stock-kpi${stockFilter === key ? " active" : ""}" onclick="setStockFilter('${key}')">
-        <div class="stock-num c-${key}">${fmt(counts[key])}</div><div class="stock-label">${label}</div>
+      ${stockData.types.map(row => `<div class="stock-kpi${stockFilter === row.tipo ? " active" : ""}" onclick="setStockFilter('${esc(row.tipo)}')">
+        <div class="stock-num">${fmt(row.n_pezzi)}</div>
+        <div class="stock-label">${esc(row.tipo)}</div>
+        <div class="stock-meta">${fmt(row.n_codici_pezzo)} part number distinti · ${fmt(row.n_gruppi)} profili/qualità</div>
       </div>`).join("")}
     </div>
     <div class="toolbar">
-      <input class="search" id="stock-search" placeholder="Cerca profilo o qualità…" oninput="renderStockRows(this.value)"/>
+      <input class="search" id="stock-search" placeholder="Cerca tipo, profilo o qualità…" oninput="renderStockRows(this.value)"/>
       ${stockFilter !== "tutti" ? '<button class="search" style="flex:0;cursor:pointer" onclick="setStockFilter(\'tutti\')">Tutti</button>' : ""}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Profilo</th><th>Qualità</th><th>Stato</th><th class="right">Richiesti</th><th class="right">Coperti</th><th class="right">Mancanti</th><th class="right">Sfrido</th></tr></thead>
+        <thead><tr><th>Tipo materiale</th><th>Profilo</th><th>Qualità</th><th class="right">Pezzi fisici</th><th class="right">Part number distinti</th></tr></thead>
         <tbody id="stock-body"></tbody>
       </table>
     </div>`;
@@ -376,32 +381,30 @@ function renderStock() {
 
 function renderStockRows(query) {
   const q = String(query || "").trim().toLowerCase();
-  const rows = stockData.profiles.filter(row =>
-    (stockFilter === "tutti" || row.stato === stockFilter) &&
-    [row.profilo, row.qualita, row.motivo].some(value => String(value || "").toLowerCase().includes(q))
+  const rows = stockData.groups.filter(row =>
+    (stockFilter === "tutti" || row.tipo === stockFilter) &&
+    [row.tipo, row.profilo, row.qualita].some(value => String(value || "").toLowerCase().includes(q))
   );
   document.getElementById("stock-body").innerHTML = rows.map(row => `
     <tr>
+      <td>${esc(row.tipo)}</td>
       <td class="mono">${esc(row.profilo)}</td>
       <td>${esc(row.qualita || "—")}</td>
-      <td><span class="tag ${row.stato}">${esc(row.stato.replaceAll("_", " "))}</span>${row.motivo ? `<div class="section-sub">${esc(row.motivo)}</div>` : ""}</td>
-      <td class="right">${fmt(row.n_richiesti)}</td>
-      <td class="right">${fmt(row.n_coperti)}</td>
-      <td class="right">${fmt(row.n_mancanti)}</td>
-      <td class="right">${row.sfrido_pct == null ? "—" : fmt(row.sfrido_pct) + "%"}</td>
-    </tr>`).join("") || '<tr><td colspan="7">Nessun profilo in questa categoria</td></tr>';
+      <td class="right">${fmt(row.n_pezzi)}</td>
+      <td class="right">${fmt(row.n_codici_pezzo)}</td>
+    </tr>`).join("") || '<tr><td colspan="5">Nessun profilo in questa categoria</td></tr>';
 }
 
 async function load() {
   try {
     const [analysisResponse, stockResponse] = await Promise.all([
       fetch(`/api/v1/commesse/${commessaId}/analisi`, { headers: auth() }),
-      fetch(`/api/v1/commesse/${commessaId}/analisi/magazzino`, { headers: auth() }),
+      fetch(`/api/v1/commesse/${commessaId}/analisi/materiali`, { headers: auth() }),
     ]);
     const analysis = await analysisResponse.json().catch(() => ({}));
     const stock = await stockResponse.json().catch(() => ({}));
     if (!analysisResponse.ok) throw new Error(analysis.detail || "Analisi non disponibile");
-    if (!stockResponse.ok) throw new Error(stock.detail || "Confronto magazzino non disponibile");
+    if (!stockResponse.ok) throw new Error(stock.detail || "Classificazione materiali non disponibile");
     analysisData = analysis;
     stockData = stock;
     renderPage();

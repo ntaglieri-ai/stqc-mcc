@@ -350,6 +350,58 @@
     .ra-out:hover { background: rgba(249,115,22,0.14); }
     .ra-del { background: var(--color-status-red-bg); border-color: var(--color-status-red-border); color: var(--color-status-red-text); }
     .ra-del:hover { background: rgba(239,68,68,0.16); }
+    .ra-qr { background: var(--color-accent-bg); border-color: var(--color-accent-border); color: var(--color-accent-text); }
+    .ra-qr:hover { background: rgba(59,130,246,.16); }
+    .stock-row { cursor: pointer; }
+    .stock-row.expanded { background: var(--color-background-elevated) !important; }
+    .physical-detail td { padding: 0; white-space: normal; overflow: visible; }
+    .physical-panel {
+      padding: 16px 18px 19px; background: #0c1322;
+      border-top: 1px solid var(--color-accent-border);
+      border-bottom: 1px solid var(--color-border-primary);
+    }
+    .physical-head { display:flex;align-items:center;gap:12px;margin-bottom:13px; }
+    .physical-title { font-size:13px;font-weight:750;color:var(--color-text-primary); }
+    .physical-sub { font-size:10px;color:var(--color-text-muted);margin-top:2px; }
+    .physical-spacer { flex:1; }
+    .physical-page { display:flex;align-items:center;gap:6px;color:var(--color-text-muted);font-size:10px; }
+    .physical-grid {
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));
+      gap:9px;max-height:315px;overflow:auto;padding-right:4px;
+    }
+    .physical-card {
+      display:grid;grid-template-columns:58px 1fr;gap:10px;align-items:center;
+      padding:9px;border-radius:9px;border:1px solid var(--color-border-secondary);
+      background:var(--color-background-tertiary);
+      cursor:pointer;
+    }
+    .physical-card:hover { border-color:var(--color-accent-border);background:var(--color-background-elevated); }
+    .physical-qr { width:58px;height:58px;background:#fff;border-radius:5px;display:block; }
+    .physical-code { font-size:11px;font-weight:750;color:var(--color-text-primary); }
+    .physical-uuid { margin-top:4px;font-family:'SF Mono','Menlo',monospace;font-size:8px;color:var(--color-text-muted);word-break:break-all;line-height:1.35; }
+    .physical-print { margin-top:6px;background:none;border:0;padding:0;color:var(--color-accent-text);font:inherit;font-size:10px;cursor:pointer; }
+    .physical-loading { padding:24px;text-align:center;color:var(--color-text-muted);font-size:11px; }
+    .scan-result { margin-top:14px;padding:13px;border:1px solid var(--color-border-secondary);border-radius:9px;background:var(--color-background-primary);display:none; }
+    .scan-result.show { display:block; }
+    .scan-name { font-size:14px;font-weight:800;color:var(--color-text-primary); }
+    .scan-meta { margin-top:6px;font-size:11px;color:var(--color-text-secondary);line-height:1.55; }
+    .label-config { display:flex;align-items:center;gap:6px; }
+    .label-select,.label-text {
+      height:27px;border-radius:6px;border:1px solid var(--color-border-secondary);
+      background:var(--color-background-primary);color:var(--color-text-secondary);
+      font:inherit;font-size:10px;padding:0 7px;outline:none;
+    }
+    .label-text { width:170px; }
+    .modal.qr-preview-modal { width:720px;max-width:94vw; }
+    .qr-preview-body { display:grid;grid-template-columns:280px minmax(260px,1fr);gap:24px;align-items:center;margin-top:18px; }
+    .qr-preview-img { width:260px;height:260px;background:#fff;border-radius:10px;padding:8px;display:block; }
+    .qr-preview-code { font-size:17px;font-weight:850;color:var(--color-text-primary); }
+    .qr-preview-uuid { margin-top:8px;font-family:'SF Mono','Menlo',monospace;font-size:10px;color:var(--color-text-muted);word-break:break-all;line-height:1.5; }
+    .qr-preview-help { margin-top:14px;font-size:11px;color:var(--color-text-secondary);line-height:1.5; }
+    @media (max-width:700px) {
+      .qr-preview-body { grid-template-columns:1fr; }
+      .qr-preview-img { margin:0 auto;max-width:100%;height:auto; }
+    }
 
     /* Righe prenotate da commessa */
     tbody tr.tr-reserved { background: rgba(99,120,200,0.055) !important; }
@@ -491,6 +543,7 @@
         <div class="tb-spacer"></div>
         <button class="tbtn tbtn-n" onclick="openImport()">↑ Importa inventario</button>
         <button class="tbtn tbtn-n" onclick="openNewMat()">+ Nuovo materiale</button>
+        <button class="tbtn tbtn-n" onclick="openScan()">▣ Scansiona QR</button>
         <div class="tb-sep"></div>
         <button class="tbtn tbtn-out" onclick="openMov(null,'out')">↓ Uscita</button>
         <button class="tbtn tbtn-in"  onclick="openMov(null,'in')">↑ Ingresso</button>
@@ -641,6 +694,56 @@
   </div>
 </div>
 
+<!-- SCAN MODAL -->
+<div class="backdrop" id="scan-modal" onclick="closeScan()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Scansiona QR magazzino</div>
+    <div class="modal-sub">Usa un lettore barcode oppure incolla il contenuto del QR e premi Invio.</div>
+    <div class="mf">
+      <label class="ml">Codice letto</label>
+      <input class="mi" id="scan-payload" type="text" placeholder="https://stqc.mcc.eu/p/…" onkeydown="if(event.key==='Enter')resolveScan()"/>
+    </div>
+    <div class="merr" id="scan-err"></div>
+    <div class="scan-result" id="scan-result"></div>
+    <div class="mactions">
+      <button class="mbt mbt-cancel" onclick="closeScan()">Chiudi</button>
+      <button class="mbt mbt-in" onclick="resolveScan()">Cerca</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR PREVIEW MODAL -->
+<div class="backdrop" id="qr-preview-modal" onclick="closeQrPreview()">
+  <div class="modal qr-preview-modal" onclick="event.stopPropagation()">
+    <div class="modal-title">QR elemento fisico</div>
+    <div class="modal-sub">Anteprima ingrandita e configurazione etichetta.</div>
+    <div class="qr-preview-body">
+      <img class="qr-preview-img" id="qr-preview-img" alt="QR ingrandito"/>
+      <div>
+        <div class="qr-preview-code" id="qr-preview-code"></div>
+        <div class="qr-preview-uuid" id="qr-preview-uuid"></div>
+        <div class="qr-preview-help">Il QR resta quadrato per garantire la lettura. Il foglio stampato può essere verticale, rettangolare o compatto.</div>
+        <div class="mf" style="margin-top:16px">
+          <label class="ml">Formato etichetta</label>
+          <select class="mi" id="preview-label-format" onchange="saveLabelConfig(this.value,null)">
+            <option value="a6">A6 verticale · 105×148 mm</option>
+            <option value="rect">Rettangolare · 100×50 mm</option>
+            <option value="compact">Compatta · 70×35 mm</option>
+          </select>
+        </div>
+        <div class="mf">
+          <label class="ml">Scritta aggiuntiva</label>
+          <input class="mi" id="preview-label-text" maxlength="80" placeholder="es. AREA TAGLIO A" oninput="saveLabelConfig(null,this.value)"/>
+        </div>
+      </div>
+    </div>
+    <div class="mactions">
+      <button class="mbt mbt-cancel" onclick="closeQrPreview()">Chiudi</button>
+      <button class="mbt mbt-in" onclick="printPreviewItem()">Stampa etichetta</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
@@ -678,6 +781,12 @@ let dropdownCtx = null;
 let commMenuOpen = false;
 let commSearchQ = '';
 let commCounts = {};
+let expandedMaterial = null;
+const physicalCache = {};
+const physicalPages = {};
+let previewItem = null;
+let labelFormat = localStorage.getItem('stqc_label_format') || 'rect';
+let labelText = localStorage.getItem('stqc_label_text') || '';
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
@@ -690,7 +799,7 @@ let commCounts = {};
     closeCommMenu(e);
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); }
+    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); }
     if (e.key === 'Enter' && document.getElementById('mov-modal').classList.contains('open')) confirmMov();
   });
 })();
@@ -698,6 +807,9 @@ let commCounts = {};
 // ── Load data ──────────────────────────────────────────────────────────────────
 async function loadStock() {
   try {
+    expandedMaterial = null;
+    Object.keys(physicalCache).forEach(key => delete physicalCache[key]);
+    Object.keys(physicalPages).forEach(key => delete physicalPages[key]);
     const r = await fetch('/api/v1/warehouse/magazzino?limit=5000', { headers: hdr() });
     if (!r.ok) throw new Error(r.status);
     allRows = await r.json();
@@ -1023,14 +1135,14 @@ function renderTable() {
     const n   = r.n_pezzi ?? 0;
     const mid = r.material_id;
     const isReserved = !!(r.commessa_ref);
-    const rowClass   = isReserved ? ' class="tr-reserved"' : '';
     const commessaTd = isReserved
       ? `<td class="col-commessa td-commessa" title="${esc(r.commessa_ref)}">${esc(r.commessa_ref)}</td>`
       : `<td class="col-commessa td-null" style="font-size:11px">—</td>`;
     const delBtn = isReserved
       ? `<button class="ra ra-del" onclick="removeReserved(${mid},event)" title="Rimuovi dal magazzino">✕</button>`
       : '';
-    return `<tr${rowClass}>
+    const expanded = expandedMaterial === mid;
+    const mainRow = `<tr class="stock-row${isReserved?' tr-reserved':''}${expanded?' expanded':''}" onclick="togglePhysicalItems(${mid},event)">
       <td class="td-tipo">${esc(r.tipo)||'—'}</td>
       <td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>
       <td class="td-r">
@@ -1038,6 +1150,7 @@ function renderTable() {
         <div class="row-act">
           <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
           <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
+          <button class="ra ra-qr" onclick="togglePhysicalItems(${mid},event)">▣ QR</button>
           ${delBtn}
         </div>
       </td>
@@ -1048,10 +1161,117 @@ function renderTable() {
       <td class="td-r td-mono td-muted">${fmt(r.peso_kg,1)}</td>
       <td class="td-r td-mono td-muted">${fmt(r.peso_u_kg,3)}</td>
       ${commessaTd}
-      <td></td>
+      <td><span style="color:var(--color-accent-text);font-size:10px">${r.physical_items_count||0} QR ${expanded?'▴':'▾'}</span></td>
     </tr>`;
+    const detailRow = expanded
+      ? `<tr class="physical-detail"><td colspan="11">${renderPhysicalPanel(r)}</td></tr>`
+      : '';
+    return mainRow + detailRow;
   }).join('');
   renderPag(total);
+}
+
+function renderPhysicalPanel(row) {
+  const items = physicalCache[row.material_id];
+  if (!items) return '<div class="physical-panel"><div class="physical-loading">Caricamento elementi fisici…</div></div>';
+  const pageSize = 60;
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(physicalPages[row.material_id] || 1, totalPages);
+  const visibleItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  return `<div class="physical-panel">
+    <div class="physical-head">
+      <div><div class="physical-title">${esc(row.profilo||row.material_code)} · ${items.length} elementi fisici</div>
+      <div class="physical-sub">Ogni elemento mantiene lo stesso UUID per tutta la propria vita.</div></div>
+      <div class="physical-spacer"></div>
+      <div class="physical-page">
+        <button class="pb" ${currentPage<=1?'disabled':''} onclick="changePhysicalPage(${row.material_id},${currentPage-1},event)">‹</button>
+        <span>${currentPage} / ${totalPages}</span>
+        <button class="pb" ${currentPage>=totalPages?'disabled':''} onclick="changePhysicalPage(${row.material_id},${currentPage+1},event)">›</button>
+      </div>
+      <div class="label-config">
+        <select class="label-select" onchange="saveLabelConfig(this.value,null);renderTable()" onclick="event.stopPropagation()">
+          <option value="a6" ${labelFormat==='a6'?'selected':''}>A6</option>
+          <option value="rect" ${labelFormat==='rect'?'selected':''}>100×50</option>
+          <option value="compact" ${labelFormat==='compact'?'selected':''}>70×35</option>
+        </select>
+        <input class="label-text" value="${esc(labelText)}" maxlength="80" placeholder="Scritta etichetta"
+          oninput="saveLabelConfig(null,this.value)" onclick="event.stopPropagation()"/>
+      </div>
+      <button class="ra ra-qr" onclick="printAllLabels(${row.material_id},event)">▣ Stampa tutte</button>
+    </div>
+    <div class="physical-grid">
+      ${visibleItems.map(item=>`<div class="physical-card" onclick="openQrPreview('${item.uuid}',event)">
+        <img class="physical-qr" src="/qr-image/${item.uuid}.png" loading="lazy" alt="QR ${esc(item.label)}"/>
+        <div><div class="physical-code">${esc(item.label)}</div>
+        <div class="physical-uuid">${esc(item.uuid)}</div>
+        <button class="physical-print" onclick="printItemLabel('${item.uuid}',event)">Stampa etichetta</button></div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function saveLabelConfig(format,text) {
+  if(format!==null){labelFormat=format;localStorage.setItem('stqc_label_format',format);}
+  if(text!==null){labelText=text;localStorage.setItem('stqc_label_text',text);}
+}
+
+function openQrPreview(uuid,e) {
+  if(e)e.stopPropagation();
+  const items=Object.values(physicalCache).flat();
+  previewItem=items.find(item=>item.uuid===uuid);
+  if(!previewItem)return;
+  document.getElementById('qr-preview-img').src=`/qr-image/${uuid}.png`;
+  document.getElementById('qr-preview-code').textContent=previewItem.label;
+  document.getElementById('qr-preview-uuid').textContent=previewItem.uuid;
+  document.getElementById('preview-label-format').value=labelFormat;
+  document.getElementById('preview-label-text').value=labelText;
+  document.getElementById('qr-preview-modal').classList.add('open');
+}
+function closeQrPreview(){document.getElementById('qr-preview-modal').classList.remove('open');previewItem=null;}
+function printPreviewItem(){if(previewItem)printItemLabel(previewItem.uuid);}
+
+function changePhysicalPage(materialId,newPage,e) {
+  if(e)e.stopPropagation();
+  physicalPages[materialId]=newPage;
+  renderTable();
+}
+
+async function togglePhysicalItems(materialId,e) {
+  if(e) e.stopPropagation();
+  expandedMaterial = expandedMaterial === materialId ? null : materialId;
+  if(expandedMaterial===materialId && !physicalPages[materialId]) physicalPages[materialId]=1;
+  renderTable();
+  if (expandedMaterial !== materialId || physicalCache[materialId]) return;
+  try {
+    const res=await fetch(`/api/v1/warehouse/materials/${materialId}/items`,{headers:hdr()});
+    const data=await res.json().catch(()=>[]);
+    if(!res.ok) throw new Error(data.detail||`Errore ${res.status}`);
+    physicalCache[materialId]=data;
+  } catch(err) {
+    physicalCache[materialId]=[];
+    showToast(err.message,'err');
+  }
+  if(expandedMaterial===materialId) renderTable();
+}
+
+async function openPdf(url) {
+  const res=await fetch(url,{headers:hdr()});
+  if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.detail||`Errore ${res.status}`);}
+  const blob=await res.blob();
+  window.open(URL.createObjectURL(blob),'_blank','noopener');
+}
+function labelQuery() {
+  const params=new URLSearchParams({format:labelFormat});
+  if(labelText.trim())params.set('text',labelText.trim());
+  return params.toString();
+}
+async function printAllLabels(materialId,e) {
+  if(e)e.stopPropagation();
+  try{await openPdf(`/api/v1/warehouse/materials/${materialId}/labels.pdf?${labelQuery()}`);}catch(err){showToast(err.message,'err');}
+}
+async function printItemLabel(uuid,e) {
+  if(e)e.stopPropagation();
+  try{await openPdf(`/api/v1/warehouse/items/${uuid}/label.pdf?${labelQuery()}`);}catch(err){showToast(err.message,'err');}
 }
 
 async function removeReserved(matId, e) {
@@ -1185,6 +1405,30 @@ async function confirmImport() {
 }
 
 function openNewMat() { showToast('Usa "Importa inventario" per aggiungere materiali in blocco','err'); }
+
+// ── QR scan ───────────────────────────────────────────────────────────────────
+function openScan(){
+  document.getElementById('scan-payload').value='';
+  document.getElementById('scan-err').classList.remove('show');
+  document.getElementById('scan-result').classList.remove('show');
+  document.getElementById('scan-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('scan-payload').focus(),50);
+}
+function closeScan(){document.getElementById('scan-modal').classList.remove('open');}
+async function resolveScan(){
+  const payload=document.getElementById('scan-payload').value.trim();
+  const err=document.getElementById('scan-err');err.classList.remove('show');
+  if(!payload){err.textContent='Scansiona o inserisci un codice.';err.classList.add('show');return;}
+  try{
+    const res=await fetch('/api/v1/warehouse/items/scan',{method:'POST',headers:{...hdr(),'Content-Type':'application/json'},body:JSON.stringify({payload})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(data.detail||`Errore ${res.status}`);
+    const i=data.item,m=data.material;
+    const target=document.getElementById('scan-result');
+    target.innerHTML=`<div class="scan-name">${esc(i.label)}</div><div class="scan-meta">${[m.tipo,m.profilo,m.dimensioni,m.qualita].filter(Boolean).map(esc).join(' · ')}<br>Stato: ${esc(i.status)}<br>UUID: ${esc(i.uuid)}</div>`;
+    target.classList.add('show');
+  }catch(ex){err.textContent=ex.message;err.classList.add('show');}
+}
 
 // ── Toast ──────────────────────────────────────────────────────────────────────
 function showToast(msg, type='ok') {

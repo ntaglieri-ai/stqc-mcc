@@ -11,10 +11,44 @@ from backend.app.core.auth import require_auth
 from backend.app.crud.distinta import get_distinta_item
 from backend.app.db.session import get_db
 from backend.app.models.user import User
-from backend.app.models.warehouse import DistintaItem, ScanEvento
+from backend.app.models.warehouse import DistintaItem, ScanEvento, WarehouseItem
 from backend.app.schemas.distinta import QRScanRequest, QRScanResult
 
 router = APIRouter()
+
+
+@router.get("/resolve/{item_uuid}")
+def resolve_uuid(item_uuid: str, db: Session = Depends(get_db)):
+    """Risolve un UUID stampato, distinguendo magazzino e pezzo commessa."""
+    value = item_uuid.lower().strip()
+    warehouse_item = db.query(WarehouseItem).filter(WarehouseItem.uuid == value).first()
+    if warehouse_item:
+        material = warehouse_item.material
+        return {
+            "entity": "WAREHOUSE_ITEM",
+            "uuid": warehouse_item.uuid,
+            "status": warehouse_item.status,
+            "ordinal": warehouse_item.ordinal,
+            "material": {
+                "id": material.id,
+                "code": material.code,
+                "tipo": material.tipo,
+                "profilo": material.profilo,
+                "dimensioni": material.dimensioni,
+                "qualita": material.qualita,
+                "colata": material.colata,
+            },
+        }
+    commessa_item = db.query(DistintaItem).filter(DistintaItem.uuid == value).first()
+    if commessa_item:
+        return {
+            "entity": "COMMESSA_ITEM",
+            "uuid": commessa_item.uuid,
+            "part_number": commessa_item.part_number,
+            "profilo": commessa_item.description,
+            "commessa_id": commessa_item.commessa_id,
+        }
+    raise HTTPException(status_code=404, detail="QR non riconosciuto")
 
 
 # ── Scan evento (F2 Officina) ─────────────────────────────────────────────────
