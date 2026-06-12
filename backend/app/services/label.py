@@ -4,20 +4,22 @@ import io
 from fpdf import FPDF
 
 from backend.app.models.warehouse import DistintaItem
+from backend.app.services.qr import generate_qr_for_uuid
 
 
 def generate_label_pdf(item: DistintaItem) -> bytes:
     """Genera un PDF etichetta A6 (105x148 mm) con QR e dati del pezzo."""
     pdf = FPDF(orientation="P", unit="mm", format=(105, 148))
     pdf.set_margins(8, 8, 8)
+    pdf.set_auto_page_break(False)
     pdf.add_page()
 
     # --- QR image (se presente) ---
-    if item.qr_code:
+    if item.qr_attivo:
         try:
             from PIL import Image
 
-            qr_bytes = base64.b64decode(item.qr_code)
+            qr_bytes = base64.b64decode(item.qr_code or generate_qr_for_uuid(item.uuid))
             img = Image.open(io.BytesIO(qr_bytes))
             tmp = io.BytesIO()
             img.save(tmp, format="PNG")
@@ -66,6 +68,6 @@ def generate_label_pdf(item: DistintaItem) -> bytes:
     # --- Footer con item_id ---
     pdf.set_y(-15)
     pdf.set_font("Helvetica", "I", 7)
-    pdf.cell(0, 5, f"ID: {item.id}", align="C")
+    pdf.cell(0, 5, f"UUID: {item.uuid}", align="C")
 
-    return pdf.output()
+    return bytes(pdf.output())

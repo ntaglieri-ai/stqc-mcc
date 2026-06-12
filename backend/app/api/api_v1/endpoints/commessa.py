@@ -2,6 +2,7 @@ import logging
 import shutil
 import tempfile
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -134,10 +135,36 @@ async def create_analisi_commessa(
         file_assemblaggi=str(asm_dest.relative_to(settings.upload_dir.parent)) if asm_dest else None,
         file_lavorazioni=str(lista_dest.relative_to(settings.upload_dir.parent)),
         predistinta=predistinta,
+        corrente=True,
         stato_analisi="PRONTA" if report["ok"] else "DA_VERIFICARE",
         report_analisi=report,
+        step4_completed_at=datetime.utcnow(),
         note=note,
     )
+
+    revisioni_precedenti = (
+        db.query(CommessaRevisione)
+        .filter(
+            CommessaRevisione.commessa_id == commessa_id,
+            CommessaRevisione.corrente.is_(True),
+        )
+        .all()
+    )
+    for precedente in revisioni_precedenti:
+        precedente.corrente = False
+        (
+            db.query(DistintaItem)
+            .filter(DistintaItem.revisione_id == precedente.id)
+            .update(
+                {
+                    DistintaItem.invalidato: True,
+                    DistintaItem.qr_attivo: False,
+                    DistintaItem.stato_tracciamento: "SUPERATO",
+                },
+                synchronize_session=False,
+            )
+        )
+
     db.add(revisione)
     db.flush()
 
@@ -188,6 +215,9 @@ async def create_analisi_commessa(
         "import_id":     distinta_import.id,
         "stato_analisi": revisione.stato_analisi,
         "predistinta":   revisione.predistinta,
+        "corrente":      revisione.corrente,
+        "step4_completed_at": revisione.step4_completed_at,
+        "step51_completed_at": revisione.step51_completed_at,
         "validation":    report,
     }
 
@@ -207,8 +237,11 @@ def list_revisioni(commessa_id: int, db: Session = Depends(get_db)):
             "file_assemblaggi": r.file_assemblaggi,
             "file_lista_pezzi": r.file_lavorazioni,
             "predistinta":      r.predistinta,
+            "corrente":         r.corrente,
             "stato_analisi":    r.stato_analisi,
             "report_analisi":   r.report_analisi,
+            "step4_completed_at": r.step4_completed_at,
+            "step51_completed_at": r.step51_completed_at,
             "note":            r.note,
             "imported_at":     r.imported_at,
             "n_items":         db.query(DistintaItem).filter(DistintaItem.revisione_id == r.id).count(),
@@ -227,6 +260,17 @@ def list_revisioni(commessa_id: int, db: Session = Depends(get_db)):
 
 
 def _latest_revision(db: Session, commessa_id: int) -> CommessaRevisione | None:
+    corrente = (
+        db.query(CommessaRevisione)
+        .filter(
+            CommessaRevisione.commessa_id == commessa_id,
+            CommessaRevisione.corrente.is_(True),
+        )
+        .order_by(CommessaRevisione.id.desc())
+        .first()
+    )
+    if corrente is not None:
+        return corrente
     return (
         db.query(CommessaRevisione)
         .filter(CommessaRevisione.commessa_id == commessa_id)
@@ -288,9 +332,13 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
             "id": revisione.id,
             "codice": revisione.codice,
             "predistinta": revisione.predistinta,
+            "corrente": revisione.corrente,
             "stato_analisi": revisione.stato_analisi,
             "report": revisione.report_analisi,
             "imported_at": revisione.imported_at,
+            "step4_completed_at": revisione.step4_completed_at,
+            "step51_completed_at": revisione.step51_completed_at,
+            "step51_completato": revisione.step51_completed_at is not None,
             "files": {
                 "lista_pezzi": revisione.file_lavorazioni,
                 "assemblaggi": revisione.file_assemblaggi,
@@ -307,6 +355,7 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
         },
         "summary": {
             "n_pezzi": len(items),
+            "n_qr_attivi": sum(1 for item in items if item.qr_attivo),
             "n_codici_pezzo": len(position_rows),
             "n_assemblati": len({
                 item.parent_assembly for item in items if item.parent_assembly
@@ -317,6 +366,112 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
             }),
         },
         "positions": position_rows,
+    }
+
+
+@router.post("/{commessa_id}/step-5-1")
+def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
+    """Attiva record e QR dei pezzi della revisione corrente.
+
+    Non associa materiali, non prenota e non movimenta il magazzino.
+    """
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    if not revisione.corrente:
+        raise HTTPException(409, "La revisione non è più corrente")
+    if revisione.stato_analisi != "PRONTA":
+        raise HTTPException(409, "Risolvi le anomalie dello Step 4 prima di generare i QR")
+
+    items_query = db.query(DistintaItem).filter(
+        DistintaItem.revisione_id == revisione.id,
+        DistintaItem.invalidato.is_(False),
+    )
+    total = items_query.count()
+    if total == 0:
+        raise HTTPException(409, "La revisione non contiene pezzi fisici")
+
+    items_query.update(
+        {
+            DistintaItem.qr_attivo: True,
+            DistintaItem.stato_tracciamento: "DA_PRODURRE",
+        },
+        synchronize_session=False,
+    )
+    if revisione.step51_completed_at is None:
+        revisione.step51_completed_at = datetime.utcnow()
+    db.commit()
+    return {
+        "commessa_id": commessa_id,
+        "revisione_id": revisione.id,
+        "step": "5.1",
+        "stato": "COMPLETATO",
+        "qr_attivi": total,
+        "predistinta": revisione.predistinta,
+        "step51_completed_at": revisione.step51_completed_at,
+    }
+
+
+@router.get("/{commessa_id}/step-5-1/items")
+def list_commessa_item_qr(
+    commessa_id: int,
+    skip: int = 0,
+    limit: int = 60,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+):
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    if revisione.step51_completed_at is None:
+        raise HTTPException(409, "Lo Step 5.1 non è ancora stato completato")
+
+    query = db.query(DistintaItem).filter(
+        DistintaItem.revisione_id == revisione.id,
+        DistintaItem.invalidato.is_(False),
+        DistintaItem.qr_attivo.is_(True),
+    )
+    if q:
+        pattern = f"%{q.strip()}%"
+        query = query.filter(or_(
+            DistintaItem.part_number.ilike(pattern),
+            DistintaItem.description.ilike(pattern),
+            DistintaItem.material_code.ilike(pattern),
+            DistintaItem.parent_assembly.ilike(pattern),
+        ))
+    total = query.count()
+    safe_limit = min(max(limit, 1), 200)
+    items = (
+        query.order_by(DistintaItem.part_number, DistintaItem.instance_number, DistintaItem.id)
+        .offset(max(skip, 0))
+        .limit(safe_limit)
+        .all()
+    )
+    return {
+        "commessa_id": commessa_id,
+        "revisione_id": revisione.id,
+        "total": total,
+        "skip": max(skip, 0),
+        "limit": safe_limit,
+        "items": [
+            {
+                "id": item.id,
+                "uuid": item.uuid,
+                "part_number": item.part_number,
+                "instance_number": item.instance_number,
+                "profilo": item.description,
+                "qualita": item.material_code,
+                "assemblato": item.parent_assembly,
+                "stato": item.stato_tracciamento,
+                "qr_image_url": f"/qr-image/{item.uuid}.png",
+                "resolve_url": f"/p/{item.uuid}",
+                "label_url": f"/api/v1/warehouse/distinta/items/{item.id}/label.pdf",
+            }
+            for item in items
+        ],
     }
 
 

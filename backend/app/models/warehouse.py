@@ -263,6 +263,8 @@ class DistintaItem(Base):
     invalidato           = Column(Boolean, nullable=False, default=False)
     tipo_profilo         = Column(String(100), nullable=True)   # da profile_types
     qr_code              = Column(Text, nullable=True)          # base64 PNG
+    qr_attivo            = Column(Boolean, nullable=False, default=False, index=True)
+    stato_tracciamento   = Column(String(30), nullable=False, default="NON_GENERATO")
     mapped_material_id   = Column(Integer, ForeignKey("materials.id"), nullable=True)
 
     distinta_import = relationship("DistintaImport", back_populates="items")

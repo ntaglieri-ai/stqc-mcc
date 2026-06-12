@@ -404,9 +404,21 @@
     }
 
     /* Righe prenotate da commessa */
-    tbody tr.tr-reserved { background: rgba(99,120,200,0.055) !important; }
-    tbody tr.tr-reserved:hover { background: var(--color-background-elevated) !important; }
-    .td-commessa { font-size: 11px; font-weight: 600; color: var(--color-accent-text); }
+    tbody tr.tr-reserved {
+      background: linear-gradient(90deg, rgba(245,158,11,.13), rgba(245,158,11,.035) 36%, rgba(245,158,11,.018)) !important;
+      box-shadow: inset 4px 0 0 #f59e0b;
+    }
+    tbody tr.tr-reserved:hover {
+      background: linear-gradient(90deg, rgba(245,158,11,.19), rgba(245,158,11,.07) 42%, rgba(245,158,11,.035)) !important;
+    }
+    tbody tr.tr-reserved .td-profilo { color: #f8fafc; }
+    .td-commessa { font-size: 11px; font-weight: 700; color: #fbbf24; }
+    .reserved-badge {
+      display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:6px;
+      border:1px solid rgba(245,158,11,.32);background:rgba(245,158,11,.12);
+      color:#fbbf24;font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;
+    }
+    .reserved-code { margin-top:4px;color:#fde68a;font-size:10px;font-weight:750; }
 
     /* ── Pagination ───────────────────────────────────────────────────── */
     .pagination {
@@ -543,7 +555,7 @@
         <div class="tb-spacer"></div>
         <button class="tbtn tbtn-n" onclick="openImport()">↑ Importa inventario</button>
         <button class="tbtn tbtn-n" onclick="openNewMat()">+ Nuovo materiale</button>
-        <button class="tbtn tbtn-n" onclick="openScan()">▣ Scansiona QR</button>
+        <button class="tbtn tbtn-n" onclick="openScan()">▣ Cerca tramite QR</button>
         <div class="tb-sep"></div>
         <button class="tbtn tbtn-out" onclick="openMov(null,'out')">↓ Uscita</button>
         <button class="tbtn tbtn-in"  onclick="openMov(null,'in')">↑ Ingresso</button>
@@ -697,8 +709,8 @@
 <!-- SCAN MODAL -->
 <div class="backdrop" id="scan-modal" onclick="closeScan()">
   <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title">Scansiona QR magazzino</div>
-    <div class="modal-sub">Usa un lettore barcode oppure incolla il contenuto del QR e premi Invio.</div>
+    <div class="modal-title">Cerca materiale tramite QR</div>
+    <div class="modal-sub">Usa un lettore barcode oppure incolla il contenuto del QR per identificare il record di magazzino.</div>
     <div class="mf">
       <label class="ml">Codice letto</label>
       <input class="mi" id="scan-payload" type="text" placeholder="https://stqc.mcc.eu/p/…" onkeydown="if(event.key==='Enter')resolveScan()"/>
@@ -1136,7 +1148,10 @@ function renderTable() {
     const mid = r.material_id;
     const isReserved = !!(r.commessa_ref);
     const commessaTd = isReserved
-      ? `<td class="col-commessa td-commessa" title="${esc(r.commessa_ref)}">${esc(r.commessa_ref)}</td>`
+      ? `<td class="col-commessa td-commessa" title="Materiale riservato alla commessa ${esc(r.commessa_ref)}">
+          <span class="reserved-badge">● Riservato</span>
+          <div class="reserved-code">${esc(r.commessa_ref)}</div>
+        </td>`
       : `<td class="col-commessa td-null" style="font-size:11px">—</td>`;
     const delBtn = isReserved
       ? `<button class="ra ra-del" onclick="removeReserved(${mid},event)" title="Rimuovi dal magazzino">✕</button>`

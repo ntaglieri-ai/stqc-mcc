@@ -10,7 +10,7 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, model_validator
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.app.crud import stock as crud
@@ -414,9 +414,18 @@ def compare_distinta_magazzino(
         raise HTTPException(422, "Nessun pezzo trovato")
 
     # ── STEP 1 — diagnostico per pezzo ───────────────────────────────────────
+    materiali_disponibili = db.query(Material).filter(
+        or_(
+            Material.commessa_ref.is_(None),
+            func.trim(Material.commessa_ref) == "",
+        )
+    )
     tipi_in_mag: set[str] = {
         (t or "").upper()
-        for (t,) in db.query(Material.tipo).filter(Material.tipo.isnot(None)).distinct().all()
+        for (t,) in materiali_disponibili.with_entities(Material.tipo)
+        .filter(Material.tipo.isnot(None))
+        .distinct()
+        .all()
     }
     step1 = [
         {
@@ -442,6 +451,10 @@ def compare_distinta_magazzino(
     mag_rows_all = db.query(Material).filter(
         Material.tipo.isnot(None),
         Material.profilo.isnot(None),
+        or_(
+            Material.commessa_ref.is_(None),
+            func.trim(Material.commessa_ref) == "",
+        ),
     ).all()
     mag_by_tipo: dict[str, dict[str, list]] = {}
     for m in mag_rows_all:

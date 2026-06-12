@@ -84,6 +84,8 @@ async def import_distinta_file(
         if generate_qr:
             try:
                 si.qr_code = generate_qr_for_uuid(si.uuid)
+                si.qr_attivo = True
+                si.stato_tracciamento = "DA_PRODURRE"
             except Exception:
                 pass
     db.commit()
@@ -127,6 +129,8 @@ def generate_qr_for_import(
     for item in items:
         try:
             item.qr_code = generate_qr_for_uuid(item.uuid)
+            item.qr_attivo = True
+            item.stato_tracciamento = "DA_PRODURRE"
             if commessa_id:
                 item.commessa_id = commessa_id
             count += 1
@@ -168,6 +172,8 @@ def download_item_label(item_id: int, db: Session = Depends(get_db)):
     item = get_distinta_item(db=db, item_id=item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Pezzo non trovato")
+    if not item.qr_attivo or item.invalidato:
+        raise HTTPException(status_code=409, detail="QR non attivo per questo pezzo")
     pdf_bytes = generate_label_pdf(item)
     filename = f"etichetta_{item.part_number or item_id}.pdf"
     return Response(

@@ -39,7 +39,11 @@ def resolve_uuid(item_uuid: str, db: Session = Depends(get_db)):
                 "colata": material.colata,
             },
         }
-    commessa_item = db.query(DistintaItem).filter(DistintaItem.uuid == value).first()
+    commessa_item = db.query(DistintaItem).filter(
+        DistintaItem.uuid == value,
+        DistintaItem.qr_attivo.is_(True),
+        DistintaItem.invalidato.is_(False),
+    ).first()
     if commessa_item:
         return {
             "entity": "COMMESSA_ITEM",
@@ -47,6 +51,7 @@ def resolve_uuid(item_uuid: str, db: Session = Depends(get_db)):
             "part_number": commessa_item.part_number,
             "profilo": commessa_item.description,
             "commessa_id": commessa_item.commessa_id,
+            "stato": commessa_item.stato_tracciamento,
         }
     raise HTTPException(status_code=404, detail="QR non riconosciuto")
 
@@ -91,7 +96,11 @@ def scan_evento(
     except ValueError as exc:
         raise HTTPException(422, str(exc))
 
-    item = db.query(DistintaItem).filter(DistintaItem.uuid == item_uuid).first()
+    item = db.query(DistintaItem).filter(
+        DistintaItem.uuid == item_uuid,
+        DistintaItem.qr_attivo.is_(True),
+        DistintaItem.invalidato.is_(False),
+    ).first()
     if item is None:
         raise HTTPException(404, f"Nessun pezzo trovato per uuid={item_uuid}")
 
@@ -150,9 +159,15 @@ def scan_qr(request: QRScanRequest, db: Session = Depends(get_db)):
     item = get_distinta_item(db=db, item_id=item_id)
     if item is None:
         raise HTTPException(status_code=404, detail=f"Nessun pezzo trovato per item_id={item_id}")
+    if not item.qr_attivo or item.invalidato:
+        raise HTTPException(status_code=409, detail="QR non attivo per questo pezzo")
 
     result = QRScanResult(
         id=item.id,
+        uuid=item.uuid,
+        commessa_id=item.commessa_id,
+        qr_attivo=item.qr_attivo,
+        stato_tracciamento=item.stato_tracciamento,
         part_number=item.part_number,
         description=item.description,
         quantity=item.quantity,
@@ -172,9 +187,15 @@ def get_item_by_id(item_id: int, db: Session = Depends(get_db)):
     item = get_distinta_item(db=db, item_id=item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Pezzo non trovato")
+    if not item.qr_attivo or item.invalidato:
+        raise HTTPException(status_code=409, detail="QR non attivo per questo pezzo")
 
     return QRScanResult(
         id=item.id,
+        uuid=item.uuid,
+        commessa_id=item.commessa_id,
+        qr_attivo=item.qr_attivo,
+        stato_tracciamento=item.stato_tracciamento,
         part_number=item.part_number,
         description=item.description,
         quantity=item.quantity,

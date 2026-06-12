@@ -150,6 +150,56 @@
       color: var(--secondary); font-size: 12px;
       border: 1px dashed var(--border); border-radius: 11px;
     }
+    .workflow-card {
+      padding: 18px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--panel2);
+    }
+    .workflow-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .workflow-title { font-size: 14px; font-weight: 850; }
+    .workflow-copy { margin-top: 5px; color: var(--secondary); font-size: 11px; line-height: 1.55; }
+    .btn {
+      border: 1px solid rgba(59,130,246,.38); border-radius: 9px; padding: 10px 15px;
+      color: #dbeafe; background: rgba(59,130,246,.16); font: inherit;
+      font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap;
+    }
+    .btn:hover { background: rgba(59,130,246,.25); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn.secondary { background: transparent; border-color: var(--border); color: var(--secondary); }
+    .revision-form {
+      display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px;
+      margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border);
+    }
+    .upload-field {
+      padding: 11px; border: 1px dashed rgba(255,255,255,.16);
+      border-radius: 9px; background: #0c1322;
+    }
+    .upload-field label { display: block; margin-bottom: 6px; color: var(--secondary); font-size: 10px; font-weight: 750; }
+    .upload-field input { width: 100%; color: var(--secondary); font-size: 10px; }
+    .revision-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .feedback { color: var(--secondary); font-size: 11px; }
+    .feedback.error { color: var(--red); }
+    .qr-summary { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+    .qr-count { font-size: 26px; font-weight: 900; color: var(--green); }
+    .qr-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 9px; margin-top: 12px;
+    }
+    .qr-card {
+      display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center;
+      min-width: 0; padding: 9px; border: 1px solid var(--border);
+      border-radius: 10px; background: #0c1322;
+    }
+    .qr-card img { width: 64px; height: 64px; padding: 3px; border-radius: 5px; background: #fff; }
+    .qr-code { font-size: 10px; font-weight: 850; color: var(--text); overflow-wrap: anywhere; }
+    .qr-meta { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .qr-link { display: inline-block; margin-top: 5px; color: #93c5fd; font-size: 9px; text-decoration: none; }
+    .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 10px; }
+    .revision-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
+    .revision-chip {
+      padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+      color: var(--secondary); background: rgba(255,255,255,.02); font-size: 10px;
+    }
+    .revision-chip.current { color: #bfdbfe; border-color: rgba(59,130,246,.35); }
     .loader {
       min-height: 360px; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px; color: var(--muted);
@@ -164,6 +214,7 @@
       .steps, .kpis { grid-template-columns: repeat(2, 1fr); }
       .file-grid { grid-template-columns: 1fr; }
       .stock-kpis { grid-template-columns: repeat(2, 1fr); }
+      .revision-form { grid-template-columns: 1fr; }
     }
     @media (max-width: 620px) {
       .page { padding: 24px 14px 50px; }
@@ -198,7 +249,11 @@ const commessaId = Number(location.pathname.split("/").filter(Boolean).at(-2));
 const auth = () => ({ Authorization: "Bearer " + localStorage.getItem("stqc_token") });
 let analysisData = null;
 let stockData = null;
+let revisionData = [];
 let stockFilter = "tutti";
+let qrPage = 0;
+const qrPageSize = 60;
+let qrQuery = "";
 
 document.getElementById("nav-user").textContent =
   `${localStorage.getItem("stqc_nome") || ""} · ${localStorage.getItem("stqc_profilo") || ""}`;
@@ -252,6 +307,8 @@ function renderPage() {
       <div class="step"><span class="step-num">3</span><span class="step-label">Controllo anomalie</span></div>
       <div class="step"><span class="step-num">4</span><span class="step-label">Classificazione materiali</span></div>
     </div>
+
+    ${renderRevisionWorkflow(r)}
 
     <section class="section">
       <div class="section-head">
@@ -309,13 +366,182 @@ function renderPage() {
       <div id="stock-content"><div class="loader"><div class="spinner"></div><span>Classificazione materiali…</span></div></div>
     </section>
 
+    <section class="section" id="step-5-1">
+      <div class="section-head">
+        <div><div class="section-title">Step 5.1 · QR dei pezzi di commessa</div>
+        <div class="section-sub">Un record e un QR univoco per ogni pezzo fisico della revisione corrente</div></div>
+      </div>
+      <div class="workflow-card">
+        <div class="workflow-head">
+          <div>
+            <div class="workflow-title">${r.step51_completato ? "QR generati" : "Pronto per generare i QR"}</div>
+            <div class="workflow-copy">
+              ${r.step51_completato
+                ? `${fmt(s.n_qr_attivi)} pezzi sono identificati e nello stato DA PRODURRE. Nessun materiale è stato associato o movimentato.`
+                : "L'operazione attiva gli UUID già assegnati ai pezzi e li porta nello stato DA PRODURRE. Non interviene sul magazzino."}
+            </div>
+          </div>
+          ${r.step51_completato
+            ? `<div class="qr-count">${fmt(s.n_qr_attivi)}</div>`
+            : `<button class="btn" id="generate-qr-btn" onclick="generateStep51()" ${r.stato_analisi !== "PRONTA" ? "disabled" : ""}>Genera QR pezzi</button>`}
+        </div>
+        <div id="step51-feedback" class="feedback"></div>
+        ${r.step51_completato ? `
+          <div class="toolbar">
+            <input class="search" placeholder="Cerca part number, profilo, qualità o assemblato…" oninput="searchQrItems(this.value)"/>
+          </div>
+          <div id="qr-items"><div class="loader"><div class="spinner"></div><span>Caricamento QR…</span></div></div>
+        ` : ""}
+      </div>
+    </section>
+
     <div class="footer-note">
-      La copertura reale dei pezzi, il piano di taglio e lo sfrido saranno calcolati nel passaggio successivo.
+      Lo Step 5.1 identifica i pezzi della commessa. Associazione ai grezzi, copertura, piano di taglio e sfrido appartengono agli step successivi.
     </div>`;
 
   renderPositions("");
   renderAnomalies();
   renderStock();
+  if (r.step51_completato) loadQrItems();
+}
+
+function renderRevisionWorkflow(revision) {
+  const chips = revisionData.map(row => `
+    <div class="revision-chip${row.corrente ? " current" : ""}">
+      ${esc(row.codice)} · ${row.predistinta ? "pre-distinta" : "definitiva"}
+      ${row.corrente ? " · corrente" : " · archiviata"}
+    </div>`).join("");
+  if (!revision.predistinta) {
+    return `<section class="section">
+      <div class="section-head"><div><div class="section-title">Versione della distinta</div>
+      <div class="section-sub">La revisione corrente è definitiva</div></div></div>
+      <div class="revision-list">${chips}</div>
+    </section>`;
+  }
+  return `<section class="section">
+    <div class="section-head"><div><div class="section-title">Pre-distinta · analisi preliminare</div>
+    <div class="section-sub">Step 4 e Step 5.1 possono essere eseguiti, ma la produzione resterà bloccata fino alla distinta definitiva</div></div></div>
+    <div class="notice warn">
+      Caricando la distinta definitiva verrà creata una nuova revisione: lo Step 4 sarà rieseguito e gli eventuali QR preliminari saranno archiviati e disattivati.
+    </div>
+    <div class="revision-list">${chips}</div>
+    <form class="revision-form" onsubmit="uploadDefinitive(event)">
+      <div class="upload-field"><label>Lista pezzi definitiva *</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm" required/></div>
+      <div class="upload-field"><label>Pezzi e assemblati</label><input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm"/></div>
+      <div class="upload-field"><label>Schemi e disegni</label><input type="file" id="def-disegni" multiple accept=".pdf,.dwg,.jpg,.jpeg,.png"/></div>
+      <div class="revision-actions">
+        <span class="feedback" id="revision-feedback"></span>
+        <button class="btn" id="revision-submit" type="submit">Carica distinta definitiva e riesegui Step 4</button>
+      </div>
+    </form>
+  </section>`;
+}
+
+async function uploadDefinitive(event) {
+  event.preventDefault();
+  const button = document.getElementById("revision-submit");
+  const feedback = document.getElementById("revision-feedback");
+  const lista = document.getElementById("def-lista").files[0];
+  if (!lista) return;
+  button.disabled = true;
+  feedback.className = "feedback";
+  feedback.textContent = "Caricamento e nuova analisi in corso…";
+  const body = new FormData();
+  body.append("lista_pezzi", lista);
+  const assemblaggi = document.getElementById("def-assemblaggi").files[0];
+  if (assemblaggi) body.append("assemblaggi", assemblaggi);
+  for (const file of document.getElementById("def-disegni").files) body.append("disegni", file);
+  body.append("predistinta", "false");
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/analisi`, {
+      method: "POST", headers: auth(), body,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Impossibile analizzare la distinta definitiva");
+    location.reload();
+  } catch (error) {
+    feedback.className = "feedback error";
+    feedback.textContent = error.message || String(error);
+    button.disabled = false;
+  }
+}
+
+async function generateStep51() {
+  const button = document.getElementById("generate-qr-btn");
+  const feedback = document.getElementById("step51-feedback");
+  button.disabled = true;
+  feedback.textContent = "Generazione dei record QR in corso…";
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/step-5-1`, {
+      method: "POST", headers: auth(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Impossibile completare lo Step 5.1");
+    await load();
+  } catch (error) {
+    feedback.className = "feedback error";
+    feedback.textContent = error.message || String(error);
+    button.disabled = false;
+  }
+}
+
+function searchQrItems(value) {
+  qrQuery = String(value || "").trim();
+  qrPage = 0;
+  loadQrItems();
+}
+
+async function changeQrPage(delta) {
+  qrPage = Math.max(0, qrPage + delta);
+  await loadQrItems();
+}
+
+async function loadQrItems() {
+  const target = document.getElementById("qr-items");
+  if (!target) return;
+  const params = new URLSearchParams({
+    skip: String(qrPage * qrPageSize),
+    limit: String(qrPageSize),
+  });
+  if (qrQuery) params.set("q", qrQuery);
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/step-5-1/items?${params}`, { headers: auth() });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "QR non disponibili");
+    const pages = Math.max(1, Math.ceil(data.total / data.limit));
+    target.innerHTML = `
+      <div class="qr-grid">
+        ${data.items.map(item => `<div class="qr-card">
+          <img src="${esc(item.qr_image_url)}" alt="QR ${esc(item.part_number)}"/>
+          <div>
+            <div class="qr-code">${esc(item.part_number || "SENZA CODICE")} · #${esc(item.instance_number || item.id)}</div>
+            <div class="qr-meta">${esc(item.profilo || "—")}<br/>${esc(item.stato)}</div>
+            <a class="qr-link" href="#" onclick="printCommessaLabel('${esc(item.label_url)}',event)">Stampa etichetta</a>
+          </div>
+        </div>`).join("")}
+      </div>
+      <div class="pagination">
+        <span>${fmt(data.total)} QR · pagina ${qrPage + 1} di ${pages}</span>
+        <button class="btn secondary" onclick="changeQrPage(-1)" ${qrPage === 0 ? "disabled" : ""}>Indietro</button>
+        <button class="btn secondary" onclick="changeQrPage(1)" ${qrPage + 1 >= pages ? "disabled" : ""}>Avanti</button>
+      </div>`;
+  } catch (error) {
+    target.innerHTML = `<div class="notice warn">${esc(error.message || error)}</div>`;
+  }
+}
+
+async function printCommessaLabel(url, event) {
+  event.preventDefault();
+  try {
+    const response = await fetch(url, { headers: auth() });
+    const data = response.ok ? await response.blob() : await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Etichetta non disponibile");
+    const objectUrl = URL.createObjectURL(data);
+    window.open(objectUrl, "_blank", "noopener");
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+  } catch (error) {
+    alert(error.message || String(error));
+  }
 }
 
 function renderPositions(query) {
@@ -397,16 +623,20 @@ function renderStockRows(query) {
 
 async function load() {
   try {
-    const [analysisResponse, stockResponse] = await Promise.all([
+    const [analysisResponse, stockResponse, revisionsResponse] = await Promise.all([
       fetch(`/api/v1/commesse/${commessaId}/analisi`, { headers: auth() }),
       fetch(`/api/v1/commesse/${commessaId}/analisi/materiali`, { headers: auth() }),
+      fetch(`/api/v1/commesse/${commessaId}/revisioni`, { headers: auth() }),
     ]);
     const analysis = await analysisResponse.json().catch(() => ({}));
     const stock = await stockResponse.json().catch(() => ({}));
+    const revisions = await revisionsResponse.json().catch(() => ([]));
     if (!analysisResponse.ok) throw new Error(analysis.detail || "Analisi non disponibile");
     if (!stockResponse.ok) throw new Error(stock.detail || "Classificazione materiali non disponibile");
+    if (!revisionsResponse.ok) throw new Error(revisions.detail || "Revisioni non disponibili");
     analysisData = analysis;
     stockData = stock;
+    revisionData = revisions;
     renderPage();
   } catch (error) {
     document.getElementById("root").innerHTML = `<div class="notice warn">⚠ ${esc(error.message || error)}</div>`;

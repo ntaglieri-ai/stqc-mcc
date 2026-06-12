@@ -24,7 +24,10 @@ class DistintaItemCreate(DistintaItemBase):
 
 class DistintaItemRead(DistintaItemBase):
     id: int
+    uuid: str
     commessa_id: Optional[int] = None
+    qr_attivo: bool = False
+    stato_tracciamento: str = "NON_GENERATO"
 
     class Config:
         from_attributes = True
