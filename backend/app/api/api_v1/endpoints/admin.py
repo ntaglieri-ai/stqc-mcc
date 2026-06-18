@@ -556,31 +556,27 @@ def current_role():
 @router.post("/maintenance/reset-inventario")
 def reset_inventario(db: Session = Depends(get_db)):
     from backend.app.models.warehouse import (
-        Batch, Certificate, CuttingPlan, DistintaItem, Material,
-        MaterialRequest, Receipt, StockMovement, StockReservation,
+        Material, StockMovement, WarehouseItem,
     )
     from backend.app.services.inventario import parse_inventario
+    from backend.app.services.warehouse_items import reconcile_available_items
 
     _logger.warning("Reset inventario avviato")
-
-    deleted = {}
-    deleted["material_requests"]  = db.query(MaterialRequest).delete()
-    deleted["cutting_plans"]      = db.query(CuttingPlan).delete()
-    deleted["stock_reservations"] = db.query(StockReservation).delete()
-    deleted["stock_movements"]    = db.query(StockMovement).delete()
-    deleted["certificates"]       = db.query(Certificate).delete()
-    deleted["receipts"]           = db.query(Receipt).delete()
-    deleted["batches"]            = db.query(Batch).delete()
-    db.execute(text("UPDATE distinta_items SET mapped_material_id = NULL"))
-    deleted["materials"] = db.query(Material).delete()
-    db.commit()
-    _logger.info("Tabelle svuotate: %s", deleted)
 
     if not INVENTARIO_PATH.exists():
         raise HTTPException(404, f"File inventario non trovato: {INVENTARIO_PATH}")
 
     rows = parse_inventario(INVENTARIO_PATH)
+
+    deleted = {}
+    deleted["warehouse_items"]    = db.query(WarehouseItem).delete()
+    deleted["stock_movements"]    = db.query(StockMovement).delete()
+    deleted["materials"] = db.query(Material).delete()
+    db.commit()
+    _logger.info("Tabelle svuotate: %s", deleted)
+
     materials_created = movements_created = 0
+    physical_items_created = 0
 
     merged: dict = {}
     for item in rows:
@@ -601,7 +597,7 @@ def reset_inventario(db: Session = Depends(get_db)):
             dimensioni=item.get("dimensioni"),
             qualita=item.get("qualita"),
             colata=item.get("colata"),
-            commessa_ref=item.get("commessa_reference"),
+            commessa_ref=None,
             peso_u_kg=item.get("peso_u_kg"),
             peso_1_pz=item.get("peso_1_pz"),
             norma_uni=item.get("norma_uni"),
@@ -620,6 +616,8 @@ def reset_inventario(db: Session = Depends(get_db)):
                 reason="Carico iniziale da inventario Excel",
             ))
             movements_created += 1
+            sync = reconcile_available_items(db, mat, qty)
+            physical_items_created += sync["created"]
 
     db.commit()
     _logger.info("Reset inventario completato: %d materiali, %d movimenti", materials_created, movements_created)
@@ -630,6 +628,7 @@ def reset_inventario(db: Session = Depends(get_db)):
         "deleted": deleted,
         "materials_created": materials_created,
         "movements_created": movements_created,
+        "physical_items_created": physical_items_created,
     }
 
 

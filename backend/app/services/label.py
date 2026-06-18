@@ -9,6 +9,9 @@ from backend.app.services.qr import generate_qr_for_uuid
 
 def generate_label_pdf(item: DistintaItem) -> bytes:
     """Genera un PDF etichetta A6 (105x148 mm) con QR e dati del pezzo."""
+    piece_code = item.part_number or "-"
+    if item.part_number and item.instance_number is not None:
+        piece_code = f"{item.part_number}-{int(item.instance_number):03d}"
     pdf = FPDF(orientation="P", unit="mm", format=(105, 148))
     pdf.set_margins(8, 8, 8)
     pdf.set_auto_page_break(False)
@@ -41,7 +44,7 @@ def generate_label_pdf(item: DistintaItem) -> bytes:
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(35, 7, "Pos. / Parte:", new_x="END", new_y="LAST")
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 7, item.part_number or "-", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 7, piece_code, new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(35, 7, "Profilo:", new_x="END", new_y="LAST")
@@ -65,9 +68,9 @@ def generate_label_pdf(item: DistintaItem) -> bytes:
         pdf.set_font("Helvetica", "", 10)
         pdf.cell(0, 7, item.commessa_reference, new_x="LMARGIN", new_y="NEXT")
 
-    # --- Footer con item_id ---
+    # --- Footer con codice leggibile ---
     pdf.set_y(-15)
     pdf.set_font("Helvetica", "I", 7)
-    pdf.cell(0, 5, f"UUID: {item.uuid}", align="C")
+    pdf.cell(0, 5, f"QR: {piece_code}", align="C")
 
     return bytes(pdf.output())

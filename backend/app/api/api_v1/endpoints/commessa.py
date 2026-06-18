@@ -18,7 +18,7 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, PezzoPercorso, PezzoStato,
+    CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
 )
 from backend.app.models.user import ProfiloUtente, User, UserAttributes
 from backend.app.models.warehouse import DistintaImport, DistintaItem
@@ -30,8 +30,49 @@ from backend.app.services.distinta import (
 )
 from backend.app.services.fasi_operative import parse_fasi_operative
 from backend.app.services.commessa_analysis import classify_commessa_materials
+from backend.app.services.qr import generate_qr_for_payload
 
 router = APIRouter()
+
+
+def _piece_qr_code(part_number: str | None, instance_number: int | None, fallback_id: int | None = None) -> str:
+    base = (part_number or "").strip()
+    if not base:
+        base = f"PEZZO-{fallback_id or 'SENZA-CODICE'}"
+    if instance_number is not None:
+        return f"{base}-{int(instance_number):03d}"
+    return base
+
+
+def _create_piece_from_item(
+    db: Session,
+    item: DistintaItem,
+    commessa_id: int,
+    revisione_id: int,
+) -> Piece:
+    progressivo = int(item.instance_number or 1)
+    qr_code = _piece_qr_code(item.part_number, item.instance_number, item.id)
+    piece = Piece(
+        qr_code=qr_code,
+        qr_payload=qr_code,
+        commessa_id=commessa_id,
+        revisione_id=revisione_id,
+        distinta_item_id=item.id,
+        assemblato_id=item.parent_assembly,
+        marca_pos=item.part_number or f"PEZZO-{item.id}",
+        progressivo=progressivo,
+        profilo=item.description,
+        materiale=item.material_code,
+        materiale_descrizione=item.material_description,
+        lunghezza_mm=item.length_mm,
+        larghezza_mm=item.width_mm,
+        peso_kg=item.weight_kg,
+        tipo_profilo=item.tipo_profilo,
+        stato_attuale="NON_GENERATO",
+        qr_attivo=False,
+    )
+    db.add(piece)
+    return piece
 
 
 @router.post("", response_model=CommessaRead, status_code=201)
@@ -164,6 +205,18 @@ async def create_analisi_commessa(
                 synchronize_session=False,
             )
         )
+        (
+            db.query(Piece)
+            .filter(Piece.revisione_id == precedente.id)
+            .update(
+                {
+                    Piece.qr_attivo: False,
+                    Piece.stato_attuale: "SUPERATO",
+                    Piece.updated_at: datetime.utcnow(),
+                },
+                synchronize_session=False,
+            )
+        )
 
     db.add(revisione)
     db.flush()
@@ -179,6 +232,7 @@ async def create_analisi_commessa(
     db.flush()
 
     db_items = normalized_to_db_bulk(items_normalized)
+    inserted_items: list[DistintaItem] = []
     for item_data in db_items:
         di = DistintaItem(
             import_id=distinta_import.id,
@@ -188,6 +242,11 @@ async def create_analisi_commessa(
                if k in {c.name for c in DistintaItem.__table__.columns} - {"id", "uuid", "qr_code"}},
         )
         db.add(di)
+        inserted_items.append(di)
+
+    db.flush()
+    for di in inserted_items:
+        _create_piece_from_item(db, di, commessa_id, revisione.id)
 
     for index, upload in enumerate(disegni or [], start=1):
         if not upload.filename:
@@ -297,6 +356,12 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
         .order_by(DistintaItem.part_number, DistintaItem.instance_number)
         .all()
     )
+    pieces = (
+        db.query(Piece)
+        .filter(Piece.revisione_id == revisione.id)
+        .order_by(Piece.marca_pos, Piece.progressivo, Piece.id)
+        .all()
+    )
     positions: dict[str, dict] = {}
     for item in items:
         code = item.part_number or "SENZA CODICE"
@@ -354,11 +419,11 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
             },
         },
         "summary": {
-            "n_pezzi": len(items),
-            "n_qr_attivi": sum(1 for item in items if item.qr_attivo),
+            "n_pezzi": len(pieces) if pieces else len(items),
+            "n_qr_attivi": sum(1 for piece in pieces if piece.qr_attivo),
             "n_codici_pezzo": len(position_rows),
             "n_assemblati": len({
-                item.parent_assembly for item in items if item.parent_assembly
+                piece.assemblato_id for piece in pieces if piece.assemblato_id
             }),
             "n_profili": len({
                 (item.description, item.material_code)
@@ -386,23 +451,28 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
     if revisione.stato_analisi != "PRONTA":
         raise HTTPException(409, "Risolvi le anomalie dello Step 4 prima di generare i QR")
 
-    items_query = db.query(DistintaItem).filter(
-        DistintaItem.revisione_id == revisione.id,
-        DistintaItem.invalidato.is_(False),
-    )
-    total = items_query.count()
+    pieces = db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
+    total = len(pieces)
     if total == 0:
         raise HTTPException(409, "La revisione non contiene pezzi fisici")
 
-    items_query.update(
-        {
-            DistintaItem.qr_attivo: True,
-            DistintaItem.stato_tracciamento: "DA_PRODURRE",
-        },
-        synchronize_session=False,
-    )
+    item_ids = [piece.distinta_item_id for piece in pieces if piece.distinta_item_id]
+    items_by_id = {
+        item.id: item
+        for item in db.query(DistintaItem).filter(DistintaItem.id.in_(item_ids)).all()
+    } if item_ids else {}
+    now = datetime.utcnow()
+    for piece in pieces:
+        piece.qr_attivo = True
+        piece.stato_attuale = "DA_PRODURRE"
+        piece.updated_at = now
+        item = items_by_id.get(piece.distinta_item_id)
+        if item:
+            item.qr_attivo = True
+            item.stato_tracciamento = "DA_PRODURRE"
+            item.qr_code = generate_qr_for_payload(piece.qr_payload)
     if revisione.step51_completed_at is None:
-        revisione.step51_completed_at = datetime.utcnow()
+        revisione.step51_completed_at = now
     db.commit()
     return {
         "commessa_id": commessa_id,
@@ -429,23 +499,23 @@ def list_commessa_item_qr(
     if revisione.step51_completed_at is None:
         raise HTTPException(409, "Lo Step 5.1 non è ancora stato completato")
 
-    query = db.query(DistintaItem).filter(
-        DistintaItem.revisione_id == revisione.id,
-        DistintaItem.invalidato.is_(False),
-        DistintaItem.qr_attivo.is_(True),
+    query = db.query(Piece).filter(
+        Piece.revisione_id == revisione.id,
+        Piece.qr_attivo.is_(True),
     )
     if q:
         pattern = f"%{q.strip()}%"
         query = query.filter(or_(
-            DistintaItem.part_number.ilike(pattern),
-            DistintaItem.description.ilike(pattern),
-            DistintaItem.material_code.ilike(pattern),
-            DistintaItem.parent_assembly.ilike(pattern),
+            Piece.qr_code.ilike(pattern),
+            Piece.marca_pos.ilike(pattern),
+            Piece.profilo.ilike(pattern),
+            Piece.materiale.ilike(pattern),
+            Piece.assemblato_id.ilike(pattern),
         ))
     total = query.count()
     safe_limit = min(max(limit, 1), 200)
     items = (
-        query.order_by(DistintaItem.part_number, DistintaItem.instance_number, DistintaItem.id)
+        query.order_by(Piece.marca_pos, Piece.progressivo, Piece.id)
         .offset(max(skip, 0))
         .limit(safe_limit)
         .all()
@@ -459,16 +529,17 @@ def list_commessa_item_qr(
         "items": [
             {
                 "id": item.id,
-                "uuid": item.uuid,
-                "part_number": item.part_number,
-                "instance_number": item.instance_number,
-                "profilo": item.description,
-                "qualita": item.material_code,
-                "assemblato": item.parent_assembly,
-                "stato": item.stato_tracciamento,
-                "qr_image_url": f"/qr-image/{item.uuid}.png",
-                "resolve_url": f"/p/{item.uuid}",
-                "label_url": f"/api/v1/warehouse/distinta/items/{item.id}/label.pdf",
+                "distinta_item_id": item.distinta_item_id,
+                "qr_code": item.qr_code,
+                "part_number": item.marca_pos,
+                "instance_number": item.progressivo,
+                "profilo": item.profilo,
+                "qualita": item.materiale,
+                "assemblato": item.assemblato_id,
+                "stato": item.stato_attuale,
+                "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
+                "resolve_url": f"/p/{item.qr_code}",
+                "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
             }
             for item in items
         ],

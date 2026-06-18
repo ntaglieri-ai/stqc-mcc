@@ -990,8 +990,6 @@ async function changeStatus(newStatus) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const updated = await res.json();
     toast(`Stato aggiornato → ${newStatus}`, 'ok');
-    const mRes = await fetch(`/api/v1/warehouse/movements?commessa_id=${commessaId}&limit=500`, { headers: { Authorization: getAuth() } });
-    _movements = mRes.ok ? await mRes.json() : _movements;
     render(updated, _movements, _items, _magazzino, _fasi);
   } catch (e) {
     toast(`Errore: ${e.message}`, 'err');
@@ -1176,24 +1174,22 @@ async function refreshQRBadges() {
 /* ── Load ── */
 async function load() {
   try {
-    const [cRes, mRes, dRes, magRes, fRes, pzRes] = await Promise.all([
+    const [cRes, dRes, magRes, fRes, pzRes] = await Promise.all([
       fetch(`/api/v1/commesse/${commessaId}`, { headers: { Authorization: getAuth() } }),
-      fetch(`/api/v1/warehouse/movements?commessa_id=${commessaId}&limit=500`, { headers: { Authorization: getAuth() } }),
       fetch(`/api/v1/warehouse/distinta/imports?limit=200`, { headers: { Authorization: getAuth() } }),
       fetch(`/api/v1/warehouse/magazzino?limit=500`, { headers: { Authorization: getAuth() } }),
       fetch(`/api/v1/commesse/${commessaId}/fasi`, { headers: { Authorization: getAuth() } }),
       fetch(`/api/v1/commesse/${commessaId}/pezzi`, { headers: { Authorization: getAuth() } }),
     ]);
     if (!cRes.ok) throw new Error(cRes.status === 404 ? 'Commessa non trovata' : `HTTP ${cRes.status}`);
-    const [c, movements, imports, magazzino, fasi, pezzi] = await Promise.all([
+    const [c, imports, magazzino, fasi, pezzi] = await Promise.all([
       cRes.json(),
-      mRes.ok ? mRes.json() : [],
       dRes.ok ? dRes.json() : [],
       magRes.ok ? magRes.json() : [],
       fRes.ok ? fRes.json() : [],
       pzRes.ok ? pzRes.json() : [],
     ]);
-    _movements = movements;
+    _movements = [];
     _magazzino = magazzino;
     _fasi      = fasi;
     _pezzi     = pezzi;

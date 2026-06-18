@@ -69,18 +69,13 @@ async def import_distinta_file(
     for item_data in items:
         create_distinta_item(db=db, obj_in={"import_id": distinta_import.id, **item_data})
 
-    # mapping materiale <-> pezzo (sempre) e generazione QR (solo se richiesto)
-    from backend.app.models.warehouse import DistintaItem, Material
+    # Generazione QR distinta. Il mapping con il magazzino è sospeso fino allo step 5.2.
+    from backend.app.models.warehouse import DistintaItem
     from backend.app.services.qr import generate_qr_for_uuid
     from sqlalchemy import select
 
     saved_items = db.scalars(select(DistintaItem).where(DistintaItem.import_id == distinta_import.id)).all()
     for si in saved_items:
-        mapped_material = None
-        if si.material_code:
-            mapped_material = db.scalars(select(Material).where(Material.code == si.material_code)).first()
-        if mapped_material:
-            si.mapped_material_id = mapped_material.id
         if generate_qr:
             try:
                 si.qr_code = generate_qr_for_uuid(si.uuid)

@@ -403,23 +403,6 @@
       .qr-preview-img { margin:0 auto;max-width:100%;height:auto; }
     }
 
-    /* Righe prenotate da commessa */
-    tbody tr.tr-reserved {
-      background: linear-gradient(90deg, rgba(245,158,11,.13), rgba(245,158,11,.035) 36%, rgba(245,158,11,.018)) !important;
-      box-shadow: inset 4px 0 0 #f59e0b;
-    }
-    tbody tr.tr-reserved:hover {
-      background: linear-gradient(90deg, rgba(245,158,11,.19), rgba(245,158,11,.07) 42%, rgba(245,158,11,.035)) !important;
-    }
-    tbody tr.tr-reserved .td-profilo { color: #f8fafc; }
-    .td-commessa { font-size: 11px; font-weight: 700; color: #fbbf24; }
-    .reserved-badge {
-      display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:6px;
-      border:1px solid rgba(245,158,11,.32);background:rgba(245,158,11,.12);
-      color:#fbbf24;font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;
-    }
-    .reserved-code { margin-top:4px;color:#fde68a;font-size:10px;font-weight:750; }
-
     /* ── Pagination ───────────────────────────────────────────────────── */
     .pagination {
       flex-shrink: 0; height: 44px;
@@ -509,7 +492,6 @@
     .toast-err { background: var(--color-background-overlay); color: var(--color-status-red-text);   border: 1px solid var(--color-status-red-border); }
 
     /* ── Responsive ───────────────────────────────────────────────────── */
-    @media (max-width: 1280px) { .col-commessa { display: none; } }
     @media (max-width: 1100px) { .col-colata, .th-colata { display: none; } }
     @media (max-width: 960px)  { .col-norma,  .th-norma  { display: none; } .sidebar { width: 170px; } }
     @media (max-width: 800px)  { .sidebar { display: none; } }
@@ -538,9 +520,6 @@
     <aside class="sidebar">
       <div class="sb-section">Tipologie</div>
       <div id="tipo-list"></div>
-      <div class="sb-divider"></div>
-      <div class="sb-section">Commesse in magazzino</div>
-      <div class="sb-comm-wrap" id="comm-list"></div>
     </aside>
 
     <!-- MAIN -->
@@ -570,7 +549,6 @@
           <button class="chip" id="ch-qualita"    data-chip="qualita"    onclick="toggleChip(event,'qualita')">Qualità<span class="chip-val" id="cv-qualita"></span></button>
           <button class="chip" id="ch-norma"      data-chip="norma"      onclick="toggleChip(event,'norma')">Norma<span class="chip-val" id="cv-norma"></span></button>
           <button class="chip" id="ch-colata"     data-chip="colata"     onclick="toggleChip(event,'colata')">Colata<span class="chip-val" id="cv-colata"></span></button>
-          <button class="chip" id="ch-commessa"   data-chip="commessa"   onclick="toggleChip(event,'commessa')">Commessa<span class="chip-val" id="cv-commessa"></span></button>
           <button class="chip chip-reset" id="btn-reset" style="display:none" onclick="clearAll()">✕ Reset filtri</button>
         </div>
       </div>
@@ -588,8 +566,7 @@
             <col class="col-colata" style="width:8%"/>
             <col style="width:7%"/>
             <col style="width:7%"/>
-            <col class="col-commessa" style="width:10%"/>
-            <col style="width:9%"/>
+            <col style="width:19%"/>
           </colgroup>
           <thead>
             <!-- Row 1: labels -->
@@ -603,7 +580,6 @@
               <th class="th-colata col-colata">Colata</th>
               <th class="th-r">Peso kg</th>
               <th class="th-r">Peso/u</th>
-              <th class="col-commessa">Commessa</th>
               <th></th>
             </tr>
             <!-- Row 2: column filters -->
@@ -617,7 +593,6 @@
               <th class="col-colata"><input class="cf" id="cf-colata" placeholder="colata…" onclick="openCfDropdown(event,'colata')" oninput="onCf('colata',this)"/></th>
               <th></th>
               <th></th>
-              <th class="col-commessa"><input class="cf" id="cf-commessa" placeholder="commessa…" onclick="openCfDropdown(event,'commessa')" oninput="onCf('commessa',this)"/></th>
               <th></th>
             </tr>
           </thead>
@@ -675,11 +650,7 @@
     </div>
     <div class="mf">
       <label class="ml">Causale</label>
-      <input class="mi" id="mov-reason" type="text" placeholder="es. Arrivo DDT, Prelievo commessa…"/>
-    </div>
-    <div class="mf">
-      <label class="ml">Commessa (opzionale)</label>
-      <input class="mi" id="mov-comm" type="text" placeholder="es. MCC-2024-001"/>
+      <input class="mi" id="mov-reason" type="text" placeholder="es. Arrivo DDT, Rettifica inventario…"/>
     </div>
     <div class="merr" id="mov-err"></div>
     <div class="mactions">
@@ -776,23 +747,19 @@ let filtered = [];
 let page     = 1;
 let rpp      = 50;
 let activeTipo      = 'tutti';
-let activeCommessa  = null;
 let searchQ         = '';
 
 // Chip filters (exact match)
-const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null, commessa: null };
-const CHIP_MAP = { profilo:'profilo', dimensioni:'dimensioni', qualita:'qualita', norma:'norma_uni', colata:'colata', commessa:'commessa_ref' };
+const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
+const CHIP_MAP = { profilo:'profilo', dimensioni:'dimensioni', qualita:'qualita', norma:'norma_uni', colata:'colata' };
 
 // Column filters (startsWith)
-const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'', commessa:'' };
-const CF_KEY = { tipo:'tipo', profilo:'profilo', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata', commessa:'commessa_ref' };
+const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'' };
+const CF_KEY = { tipo:'tipo', profilo:'profilo', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata' };
 
 // Dropdown and sidebar state
 let openChip = null;
 let dropdownCtx = null;
-let commMenuOpen = false;
-let commSearchQ = '';
-let commCounts = {};
 let expandedMaterial = null;
 const physicalCache = {};
 const physicalPages = {};
@@ -808,7 +775,6 @@ let labelText = localStorage.getItem('stqc_label_text') || '';
   window.addEventListener('resize', () => { calcRpp(); renderTable(); });
   document.addEventListener('click', e => {
     closeGdd(e);
-    closeCommMenu(e);
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); }
@@ -846,90 +812,9 @@ function renderSidebar() {
     </div>`;
   }).join('');
 
-  // ── Commesse (menu compatto e ricercabile) ─────────────────────────────────
-  commCounts = {};
-  for (const r of allRows) {
-    if (r.commessa_ref) commCounts[r.commessa_ref] = (commCounts[r.commessa_ref]||0) + 1;
-  }
-  const totalCommesse = Object.keys(commCounts).length;
-  const label = activeCommessa || (totalCommesse ? `Tutte le commesse` : 'Nessuna commessa');
-  document.getElementById('comm-list').innerHTML = `
-    <button class="sb-comm-toggle${commMenuOpen?' open':''}${activeCommessa?' active':''}"
-            id="comm-toggle" onclick="toggleCommMenu(event)">
-      <span class="sb-comm-toggle-label" title="${esc(label)}">${esc(label)}</span>
-      <span class="sb-count">${activeCommessa ? commCounts[activeCommessa] || 0 : totalCommesse}</span>
-      <span class="sb-comm-chevron">⌄</span>
-    </button>
-    <div class="sb-comm-menu${commMenuOpen?' open':''}" id="comm-menu" onclick="event.stopPropagation()">
-      <input class="sb-comm-search" id="comm-search" type="text" value="${esc(commSearchQ)}"
-             placeholder="Cerca commessa…" oninput="filterCommMenu(this.value)" autocomplete="off"/>
-      <div class="sb-comm-options" id="comm-options"></div>
-    </div>`;
-  renderCommOptions();
 }
 
 function selTipo(t) { activeTipo = t; page = 1; renderSidebar(); applyFilters(); }
-
-function selCommessa(codice) {
-  activeCommessa = activeCommessa === codice ? null : codice;
-  commMenuOpen = false;
-  commSearchQ = '';
-  page = 1;
-  renderSidebar();
-  applyFilters();
-}
-
-function toggleCommMenu(e) {
-  e.stopPropagation();
-  commMenuOpen = !commMenuOpen;
-  renderSidebar();
-  if (commMenuOpen) {
-    const inp = document.getElementById('comm-search');
-    if (inp) setTimeout(() => inp.focus(), 0);
-  }
-}
-
-function closeCommMenu(e) {
-  if (!commMenuOpen) return;
-  if (e && e.target && e.target.closest('#comm-list')) return;
-  commMenuOpen = false;
-  commSearchQ = '';
-  renderSidebar();
-}
-
-function filterCommMenu(value) {
-  commSearchQ = value || '';
-  renderCommOptions();
-}
-
-function renderCommOptions() {
-  const target = document.getElementById('comm-options');
-  if (!target) return;
-  const q = commSearchQ.trim().toLowerCase();
-  const commesse = Object.keys(commCounts)
-    .filter(c => !q || c.toLowerCase().includes(q))
-    .sort((a,b) => a.localeCompare(b, 'it'));
-  const allRow = q ? '' : `
-    <div class="sb-comm-option${activeCommessa===null?' active':''}" onclick="selCommessaValue(null)">
-      <span>Tutte le commesse</span><span class="sb-count">${Object.keys(commCounts).length}</span>
-    </div>`;
-  target.innerHTML = allRow + (commesse.length
-    ? commesse.map(c => `
-      <div class="sb-comm-option${activeCommessa===c?' active':''}"
-           onclick="selCommessaValue(decodeURIComponent('${urlToken(c)}'))">
-        <span title="${esc(c)}">${esc(c)}</span><span class="sb-count">${commCounts[c]}</span>
-      </div>`).join('')
-    : '<div class="sb-comm-empty">Nessuna commessa trovata</div>');
-}
-
-function selCommessaValue(codice) {
-  activeCommessa = codice;
-  commMenuOpen = false;
-  commSearchQ = '';
-  page = 1;
-  renderSidebar();
-  applyFilters();
-}
 
 // ── Filter logic ───────────────────────────────────────────────────────────────
 function onSearch() { searchQ = document.getElementById('search-inp').value.toLowerCase(); page = 1; applyFilters(); }
@@ -948,11 +833,9 @@ function applyFilters() {
   filtered = allRows.filter(r => {
     // sidebar tipo
     if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
-    // sidebar commessa
-    if (activeCommessa && (r.commessa_ref||'') !== activeCommessa) return false;
     // global search
     if (searchQ) {
-      const hay = [r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.commessa_ref,r.material_code]
+      const hay = [r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code]
         .map(v=>(v||'').toLowerCase()).join(' ');
       if (!hay.includes(searchQ)) return false;
     }
@@ -1012,7 +895,6 @@ function dropdownSourceRows() {
   return allRows.filter(r => {
     if (dropdownCtx?.type === 'column') return true;
     if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
-    if (activeCommessa && (r.commessa_ref||'') !== activeCommessa) return false;
     return true;
   });
 }
@@ -1097,13 +979,13 @@ function refreshChipLabels() {
 function clearAll() {
   Object.keys(AF).forEach(k => AF[k] = null);
   Object.keys(CF).forEach(k => { CF[k]=''; const el=document.getElementById('cf-'+k); if(el){el.value='';el.classList.remove('has-val');} });
-  searchQ = ''; activeTipo = 'tutti'; activeCommessa = null; commMenuOpen = false; commSearchQ = ''; page = 1;
+  searchQ = ''; activeTipo = 'tutti'; page = 1;
   document.getElementById('search-inp').value = '';
   renderSidebar(); applyFilters();
 }
 
 function updateResetBtn() {
-  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ || activeTipo !== 'tutti' || activeCommessa !== null;
+  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ || activeTipo !== 'tutti';
   document.getElementById('btn-reset').style.display = any ? 'inline-flex' : 'none';
 }
 
@@ -1132,7 +1014,7 @@ function renderSkeleton(n) {
     <td class="col-norma"><div class="skb" style="width:55%"></div></td>
     <td><div class="skb" style="width:45%"></div></td>
     <td class="col-colata"><div class="skb" style="width:40%"></div></td>
-    <td></td><td></td><td class="col-commessa"></td><td></td></tr>`).join('');
+    <td></td><td></td><td></td></tr>`).join('');
 }
 
 function renderTable() {
@@ -1146,18 +1028,8 @@ function renderTable() {
   tbody.innerHTML = filtered.slice(s,e).map(r => {
     const n   = r.n_pezzi ?? 0;
     const mid = r.material_id;
-    const isReserved = !!(r.commessa_ref);
-    const commessaTd = isReserved
-      ? `<td class="col-commessa td-commessa" title="Materiale riservato alla commessa ${esc(r.commessa_ref)}">
-          <span class="reserved-badge">● Riservato</span>
-          <div class="reserved-code">${esc(r.commessa_ref)}</div>
-        </td>`
-      : `<td class="col-commessa td-null" style="font-size:11px">—</td>`;
-    const delBtn = isReserved
-      ? `<button class="ra ra-del" onclick="removeReserved(${mid},event)" title="Rimuovi dal magazzino">✕</button>`
-      : '';
     const expanded = expandedMaterial === mid;
-    const mainRow = `<tr class="stock-row${isReserved?' tr-reserved':''}${expanded?' expanded':''}" onclick="togglePhysicalItems(${mid},event)">
+    const mainRow = `<tr class="stock-row${expanded?' expanded':''}" onclick="togglePhysicalItems(${mid},event)">
       <td class="td-tipo">${esc(r.tipo)||'—'}</td>
       <td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>
       <td class="td-r">
@@ -1166,7 +1038,6 @@ function renderTable() {
           <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
           <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
           <button class="ra ra-qr" onclick="togglePhysicalItems(${mid},event)">▣ QR</button>
-          ${delBtn}
         </div>
       </td>
       <td class="td-mono td-muted" title="${esc(r.dimensioni)}">${esc(r.dimensioni)||'—'}</td>
@@ -1175,11 +1046,10 @@ function renderTable() {
       <td class="col-colata td-muted" style="font-size:11px" title="${esc(r.colata)}">${esc(r.colata)||'—'}</td>
       <td class="td-r td-mono td-muted">${fmt(r.peso_kg,1)}</td>
       <td class="td-r td-mono td-muted">${fmt(r.peso_u_kg,3)}</td>
-      ${commessaTd}
       <td><span style="color:var(--color-accent-text);font-size:10px">${r.physical_items_count||0} QR ${expanded?'▴':'▾'}</span></td>
     </tr>`;
     const detailRow = expanded
-      ? `<tr class="physical-detail"><td colspan="11">${renderPhysicalPanel(r)}</td></tr>`
+      ? `<tr class="physical-detail"><td colspan="10">${renderPhysicalPanel(r)}</td></tr>`
       : '';
     return mainRow + detailRow;
   }).join('');
@@ -1289,21 +1159,6 @@ async function printItemLabel(uuid,e) {
   try{await openPdf(`/api/v1/warehouse/items/${uuid}/label.pdf?${labelQuery()}`);}catch(err){showToast(err.message,'err');}
 }
 
-async function removeReserved(matId, e) {
-  if (e) e.stopPropagation();
-  const row = allRows.find(r => r.material_id === matId);
-  const label = row ? `${row.profilo||row.material_code} (${row.commessa_ref})` : `ID ${matId}`;
-  if (!confirm(`Rimuovere fisicamente "${label}" dal magazzino?\nQuesta operazione non può essere annullata.`)) return;
-  const res = await fetch(`/api/v1/warehouse/materials/${matId}`, { method: 'DELETE', headers: hdr() });
-  if (res.ok || res.status === 204) {
-    showToast('Item rimosso dal magazzino', 'ok');
-    await loadStock();
-  } else {
-    const d = await res.json().catch(() => ({}));
-    showToast(d?.detail || `Errore ${res.status}`, 'err');
-  }
-}
-
 function renderPag(total) {
   const tp = Math.max(1, Math.ceil(total/rpp));
   page = Math.min(page, tp);
@@ -1345,7 +1200,6 @@ function openMov(matId, tipo, e) {
   ok.textContent = isIn ? '↑ Conferma ingresso' : '↓ Conferma uscita';
   document.getElementById('mov-qty').value = '1';
   document.getElementById('mov-reason').value = '';
-  document.getElementById('mov-comm').value = '';
   document.getElementById('mov-err').classList.remove('show');
   document.getElementById('mov-modal').classList.add('open');
   setTimeout(()=>document.getElementById('mov-qty').focus(),50);
@@ -1383,13 +1237,12 @@ async function confirmMov() {
   const qty = parseFloat(document.getElementById('mov-qty').value);
   if (!qty||qty<=0) { err.textContent='Quantità non valida.'; err.classList.add('show'); return; }
   const reason  = document.getElementById('mov-reason').value.trim() || (movCtx.tipo==='in' ? 'Ingresso manuale' : 'Uscita manuale');
-  const commessa = document.getElementById('mov-comm').value.trim() || null;
   const ok = document.getElementById('mov-ok'); ok.disabled=true; ok.textContent='Salvataggio…';
   try {
     const res = await fetch('/api/v1/warehouse/movements',{
       method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
       body:JSON.stringify({material_id:movCtx.material_id,quantity:qty,
-        movement_type:movCtx.tipo==='in'?'INCOMING':'OUTGOING',reason,destination_commessa:commessa}),
+        movement_type:movCtx.tipo==='in'?'INCOMING':'OUTGOING',reason}),
     });
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
     closeMov();

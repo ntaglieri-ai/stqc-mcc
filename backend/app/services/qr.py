@@ -15,6 +15,11 @@ def generate_qr_for_uuid(item_uuid: str) -> str:
     return _make_qr_png_base64(url)
 
 
+def generate_qr_for_payload(payload: str) -> str:
+    """QR con payload testuale esatto, usato per codici pezzo leggibili."""
+    return _make_qr_png_base64(payload)
+
+
 def generate_qr_png_base64(data: dict) -> str:
     """Legacy: genera QR da un dizionario (usato da endpoint vecchi)."""
     return _make_qr_png_base64(json.dumps(data, ensure_ascii=False))

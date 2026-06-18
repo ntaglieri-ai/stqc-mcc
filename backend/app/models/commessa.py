@@ -53,6 +53,7 @@ class CommessaRevisione(Base):
     commessa = relationship("Commessa", back_populates="revisioni")
     items    = relationship("DistintaItem", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
     documenti = relationship("CommessaDocumento", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
+    pieces = relationship("Piece", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class CommessaDocumento(Base):
@@ -69,6 +70,49 @@ class CommessaDocumento(Base):
     uploaded_at  = Column(DateTime, default=datetime.utcnow)
 
     revisione = relationship("CommessaRevisione", back_populates="documenti")
+
+
+class Piece(Base):
+    """Pezzo fisico tracciabile generato dall'analisi commessa."""
+    __tablename__ = "pieces"
+    __table_args__ = (
+        UniqueConstraint("revisione_id", "qr_code", name="uq_piece_revision_qr_code"),
+        UniqueConstraint("distinta_item_id", name="uq_piece_distinta_item"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    qr_code = Column(String(220), nullable=False, index=True)
+    qr_payload = Column(String(220), nullable=False)
+
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
+    distinta_item_id = Column(Integer, ForeignKey("distinta_items.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    assemblato_id = Column(String(200), nullable=True, index=True)
+    marca_pos = Column(String(200), nullable=False, index=True)
+    progressivo = Column(Integer, nullable=False)
+
+    profilo = Column(String(400), nullable=True)
+    materiale = Column(String(100), nullable=True)
+    materiale_descrizione = Column(String(400), nullable=True)
+    lunghezza_mm = Column(Numeric(12, 2), nullable=True)
+    larghezza_mm = Column(Numeric(12, 2), nullable=True)
+    peso_kg = Column(Numeric(12, 4), nullable=True)
+    tipo_profilo = Column(String(100), nullable=True)
+
+    colata = Column(String(100), nullable=True)
+    lotto = Column(String(100), nullable=True)
+    certificato_31 = Column(String(255), nullable=True)
+    materiale_origine_id = Column(Integer, nullable=True)
+    fornitore = Column(String(200), nullable=True)
+
+    stato_attuale = Column(String(30), nullable=False, default="NON_GENERATO", index=True)
+    ultima_postazione = Column(String(100), nullable=True)
+    qr_attivo = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    revisione = relationship("CommessaRevisione", back_populates="pieces")
 
 
 class FaseStatus(str, Enum):

@@ -512,9 +512,9 @@ async function loadQrItems() {
     target.innerHTML = `
       <div class="qr-grid">
         ${data.items.map(item => `<div class="qr-card">
-          <img src="${esc(item.qr_image_url)}" alt="QR ${esc(item.part_number)}"/>
+          <img src="${esc(item.qr_image_url)}" alt="QR ${esc(item.qr_code || item.part_number)}"/>
           <div>
-            <div class="qr-code">${esc(item.part_number || "SENZA CODICE")} · #${esc(item.instance_number || item.id)}</div>
+            <div class="qr-code">${esc(item.qr_code || item.part_number || "SENZA CODICE")}</div>
             <div class="qr-meta">${esc(item.profilo || "—")}<br/>${esc(item.stato)}</div>
             <a class="qr-link" href="#" onclick="printCommessaLabel('${esc(item.label_url)}',event)">Stampa etichetta</a>
           </div>

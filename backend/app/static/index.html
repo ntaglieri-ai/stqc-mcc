@@ -439,7 +439,6 @@ const MAG = {
     { key: 'norma_uni',    label: 'NORMA',        align: 'l', w: '88px'  },
     { key: 'qualita',      label: "QUALITA'",     align: 'l', w: '85px'  },
     { key: 'colata',       label: 'COLATA',       align: 'l', w: '80px'  },
-    { key: 'commessa_ref', label: 'COMMESSA',     align: 'l', w: '95px'  },
     { key: 'peso_kg',      label: 'PESO [KG]',    align: 'r', w: '88px',  num: true },
     { key: 'peso_u_kg',    label: 'PESO/U [KG]',  align: 'r', w: '80px',  num: true },
     { key: 'peso_1_pz',    label: 'PESO 1 PZ',    align: 'r', w: '78px',  num: true },
@@ -636,7 +635,7 @@ const MAG = {
       if (this.dimFilter && !(m.dimensioni||'').toLowerCase().includes(this.dimFilter.toLowerCase())) return false;
       if (this.searchFilter) {
         const s = this.searchFilter.toLowerCase();
-        const hay = [m.tipo, m.profilo, m.dimensioni, m.qualita, m.colata, m.commessa_ref]
+        const hay = [m.tipo, m.profilo, m.dimensioni, m.qualita, m.colata]
           .filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(s)) return false;
       }
@@ -740,7 +739,6 @@ const MAG = {
           <td class="text-sm text-gray-500" style="${br}">${esc(m.norma_uni||'')}</td>
           <td class="text-sm text-gray-700 font-medium" style="${br}">${esc(m.qualita||'')}</td>
           <td class="text-sm font-mono text-gray-500" style="${br}">${esc(m.colata||'')}</td>
-          <td class="text-sm text-gray-500" style="${br}">${esc(m.commessa_ref||'')}</td>
           <td class="text-sm text-right font-mono font-semibold text-gray-800" style="${br}">${fmtNum(m.peso_kg)}</td>
           <td class="text-sm text-right text-gray-400" style="${br}">${fmtNum(m.peso_u_kg)}</td>
           <td class="text-sm text-right text-gray-400" style="${br}">${fmtNum(m.peso_1_pz)}</td>
@@ -824,7 +822,7 @@ const MAG = {
       <!-- Info grid -->
       <div style="background:#f9fafb;border-radius:12px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
         ${[['Tipo',m.tipo],['Profilo',m.profilo],['Dimensioni',m.dimensioni],['Qualità',m.qualita],
-           ['Colata',m.colata],['Commessa',m.commessa_ref],
+           ['Colata',m.colata],
            ['Peso 1 pz', m.peso_1_pz ? fmtNum(m.peso_1_pz)+' kg' : null],
            ['Peso/u [kg]', m.peso_u_kg ? fmtNum(m.peso_u_kg) : null],
         ].map(([l,v]) => `<div>
@@ -1155,58 +1153,13 @@ document.addEventListener('click', e => {
 
 // ── Requests panel ───────────────────────────────────────────────────────────
 async function loadRequestsBannerCount() {
-  try {
-    const reqs = await api('/stock/requests?status=IN_ATTESA');
-    const banner = document.getElementById('req-banner');
-    const txt = document.getElementById('req-banner-txt');
-    if (!banner) return;
-    if (reqs.length > 0) {
-      txt.textContent = `${reqs.length} richiesta${reqs.length > 1 ? 'e' : ''} di prelievo in attesa`;
-      banner.classList.remove('hidden');
-    } else {
-      banner.classList.add('hidden');
-    }
-  } catch(_) {}
+  const banner = document.getElementById('req-banner');
+  if (banner) banner.classList.add('hidden');
 }
 
 async function loadRequestsPanel() {
   const body = document.getElementById('req-panel-body');
-  body.innerHTML = '<p class="text-gray-400 text-sm">Caricamento…</p>';
-  try {
-    const reqs = await api('/stock/requests?status=IN_ATTESA');
-    if (!reqs.length) {
-      body.innerHTML = '<p class="text-gray-400 text-sm text-center py-10">Nessuna richiesta in attesa.</p>';
-      return;
-    }
-    // Group by commessa
-    const byComm = {};
-    reqs.forEach(r => {
-      const key = r.commessa_codice || `#${r.commessa_id}`;
-      if (!byComm[key]) byComm[key] = [];
-      byComm[key].push(r);
-    });
-    let html = '';
-    Object.entries(byComm).forEach(([comm, items]) => {
-      html += `<div class="border border-gray-200 rounded-xl overflow-hidden mb-2">
-        <div class="bg-gray-50 px-4 py-2 font-semibold text-sm text-gray-700 border-b border-gray-200">Commessa: ${esc(comm)}</div>`;
-      items.forEach(r => {
-        const desc = r.material_description || r.material_code || `Mat #${r.material_id}`;
-        const qty = Number(r.quantity).toLocaleString('it-IT', {maximumFractionDigits: 3});
-        html += `<div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0">
-          <div class="flex-1 min-w-0">
-            <div class="text-sm font-medium text-gray-900 truncate">${esc(desc)}</div>
-            <div class="text-xs text-gray-400">Qta: ${qty}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
-          </div>
-          <button onclick="confirmRequest(${r.id})" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-medium flex-shrink-0">✓ Conferma</button>
-          <button onclick="openRefuseModal(${r.id})" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg font-medium flex-shrink-0">Rifiuta</button>
-        </div>`;
-      });
-      html += '</div>';
-    });
-    body.innerHTML = html;
-  } catch(e) {
-    body.innerHTML = `<p class="text-red-500 text-sm">${e.message}</p>`;
-  }
+  body.innerHTML = '<p class="text-gray-400 text-sm text-center py-10">Richieste/prelievi commessa sospesi. Il collegamento magazzino-commessa sarà progettato nello step 5.2.</p>';
 }
 
 function openRequestsPanel() {
@@ -1221,26 +1174,11 @@ function closeRequestsPanel() {
 }
 
 async function confirmRequest(id) {
-  try {
-    await api(`/stock/requests/${id}/confirm`, { method: 'POST' });
-    loadRequestsPanel();
-    loadRequestsBannerCount();
-  } catch(e) { alert('Errore: ' + e.message); }
+  alert('Richieste/prelievi commessa sospesi fino allo step 5.2.');
 }
 
 async function confirmAllRequests() {
-  const body = document.getElementById('req-panel-body');
-  const btns = body.querySelectorAll('button');
-  btns.forEach(b => b.disabled = true);
-  try {
-    const reqs = await api('/stock/requests?status=IN_ATTESA');
-    for (const r of reqs) {
-      await api(`/stock/requests/${r.id}/confirm`, { method: 'POST' });
-    }
-    loadRequestsPanel();
-    loadRequestsBannerCount();
-    MAG.load();
-  } catch(e) { alert('Errore: ' + e.message); }
+  alert('Richieste/prelievi commessa sospesi fino allo step 5.2.');
 }
 
 function openRefuseModal(id) {
@@ -1256,19 +1194,8 @@ function closeRefuseModal() {
 }
 
 async function submitRefuse() {
-  const id = document.getElementById('refuse-req-id').value;
-  const note = document.getElementById('refuse-note').value.trim();
-  if (!note) { alert('Le note sono obbligatorie per il rifiuto.'); return; }
-  try {
-    await api(`/stock/requests/${id}/refuse`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note }),
-    });
-    closeRefuseModal();
-    loadRequestsPanel();
-    loadRequestsBannerCount();
-  } catch(e) { alert('Errore: ' + e.message); }
+  closeRefuseModal();
+  alert('Richieste/prelievi commessa sospesi fino allo step 5.2.');
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

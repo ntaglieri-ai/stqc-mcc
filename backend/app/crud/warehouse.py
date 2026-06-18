@@ -162,14 +162,11 @@ def get_movements(
     skip: int = 0,
     limit: int = 100,
     material_id: int | None = None,
-    commessa_id: int | None = None,
     movement_type: str | None = None,
 ) -> list[StockMovement]:
     stmt = select(StockMovement)
     if material_id:
         stmt = stmt.where(StockMovement.material_id == material_id)
-    if commessa_id:
-        stmt = stmt.where(StockMovement.commessa_id == commessa_id)
     if movement_type:
         stmt = stmt.where(StockMovement.movement_type == movement_type)
     return db.scalars(stmt.order_by(StockMovement.occurred_at.desc()).offset(skip).limit(limit)).all()
@@ -202,7 +199,6 @@ def get_magazzino_list(
             Material.dimensioni,
             Material.qualita,
             Material.colata,
-            Material.commessa_ref,
             Material.peso_u_kg,
             Material.peso_1_pz,
             Material.norma_uni,
@@ -272,7 +268,6 @@ def get_magazzino_list(
             "dimensioni": r.dimensioni,
             "qualita": r.qualita,
             "colata": r.colata,
-            "commessa_ref": r.commessa_ref,
             "peso_kg":   peso_kg,
             "peso_u_kg": float(r.peso_u_kg) if r.peso_u_kg is not None else None,
             "peso_1_pz": peso_1_pz,

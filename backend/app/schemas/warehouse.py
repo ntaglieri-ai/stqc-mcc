@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MovementType(str, Enum):
@@ -40,7 +40,6 @@ class MaterialBase(BaseModel):
     dimensioni: Optional[str] = Field(None, example="6000")
     qualita: Optional[str] = Field(None, example="S275")
     colata: Optional[str] = Field(None, example="C-2026-001")
-    commessa_ref: Optional[str] = Field(None, example="COMM-2026-001")
     peso_u_kg: Optional[float] = Field(None, example=42.3)
     peso_1_pz: Optional[float] = Field(None, example=253.8)
 
@@ -118,13 +117,13 @@ class CertificateRead(CertificateBase):
 
 
 class StockMovementBase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     material_id: int
     batch_id: Optional[int] = None
     quantity: float = Field(..., example=8.0)
     movement_type: MovementType
-    reason: str = Field(..., example="Prelievo commessa")
-    destination_commessa: Optional[str] = None
-    commessa_id: Optional[int] = None
+    reason: str = Field(..., example="Ingresso manuale")
     reference: Optional[str] = None
 
 
@@ -161,15 +160,12 @@ class MagazzinoItemRead(BaseModel):
     dimensioni: Optional[str] = None
     qualita: Optional[str] = None
     colata: Optional[str] = None
-    commessa_ref: Optional[str] = None
     peso_kg: Optional[float] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
     norma_uni: Optional[str] = None
     unita_misura: Optional[str] = "pz"
     dimensione_2: Optional[float] = None
-    quantita_prenotata: Optional[float] = 0
-    quantita_uscita: Optional[float] = 0
     physical_items_count: int = 0
 
     class Config:

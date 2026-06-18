@@ -11,6 +11,7 @@ from backend.app.core.auth import require_auth
 from backend.app.crud.distinta import get_distinta_item
 from backend.app.db.session import get_db
 from backend.app.models.user import User
+from backend.app.models.commessa import Piece
 from backend.app.models.warehouse import DistintaItem, ScanEvento, WarehouseItem
 from backend.app.schemas.distinta import QRScanRequest, QRScanResult
 
@@ -19,8 +20,26 @@ router = APIRouter()
 
 @router.get("/resolve/{item_uuid}")
 def resolve_uuid(item_uuid: str, db: Session = Depends(get_db)):
-    """Risolve un UUID stampato, distinguendo magazzino e pezzo commessa."""
-    value = item_uuid.lower().strip()
+    """Risolve un QR stampato, distinguendo magazzino e pezzo commessa."""
+    raw_value = item_uuid.strip()
+    value = raw_value.lower()
+    piece = db.query(Piece).filter(
+        Piece.qr_code == raw_value,
+        Piece.qr_attivo.is_(True),
+    ).first()
+    if piece:
+        return {
+            "entity": "PIECE",
+            "qr_code": piece.qr_code,
+            "commessa_id": piece.commessa_id,
+            "revisione_id": piece.revisione_id,
+            "part_number": piece.marca_pos,
+            "progressivo": piece.progressivo,
+            "profilo": piece.profilo,
+            "materiale": piece.materiale,
+            "assemblato": piece.assemblato_id,
+            "stato": piece.stato_attuale,
+        }
     warehouse_item = db.query(WarehouseItem).filter(WarehouseItem.uuid == value).first()
     if warehouse_item:
         material = warehouse_item.material
@@ -63,21 +82,25 @@ class ScanEventoRequest(BaseModel):
     fase_id: Optional[int] = None
 
 
-def _extract_uuid(raw: str) -> str:
-    """Estrae l'UUID dal payload QR: URL https://.../p/{uuid}, JSON {"id":"..."}, o UUID grezzo."""
-    m = re.search(r'/p/([0-9a-f-]{36})', raw, re.IGNORECASE)
+def _extract_qr_value(raw: str) -> str:
+    """Estrae UUID legacy o codice pezzo leggibile dal payload QR."""
+    m = re.search(r'/p/([^/?#]+)', raw, re.IGNORECASE)
     if m:
-        return m.group(1).lower()
+        return m.group(1).strip()
     try:
         data = json.loads(raw)
         if "id" in data:
-            return str(data["id"]).lower()
+            return str(data["id"]).strip()
+        if "qr_code" in data:
+            return str(data["qr_code"]).strip()
     except (json.JSONDecodeError, TypeError):
         pass
     raw = raw.strip()
     if re.fullmatch(r'[0-9a-f-]{36}', raw, re.IGNORECASE):
         return raw.lower()
-    raise ValueError(f"UUID non riconoscibile nel payload: {raw!r}")
+    if raw:
+        return raw
+    raise ValueError(f"QR non riconoscibile nel payload: {raw!r}")
 
 
 @router.post("/scan-evento")
@@ -92,17 +115,28 @@ def scan_evento(
     Ultimo=INIZIO_LAVORO → FINE_LAVORO (pezzo completato, non più scannable)
     """
     try:
-        item_uuid = _extract_uuid(req.uuid)
+        qr_value = _extract_qr_value(req.uuid)
     except ValueError as exc:
         raise HTTPException(422, str(exc))
 
-    item = db.query(DistintaItem).filter(
-        DistintaItem.uuid == item_uuid,
-        DistintaItem.qr_attivo.is_(True),
-        DistintaItem.invalidato.is_(False),
-    ).first()
+    piece = db.query(Piece).filter(Piece.qr_code == qr_value, Piece.qr_attivo.is_(True)).first()
+    item_uuid = None
+    item = None
+    if piece and piece.distinta_item_id:
+        item = db.query(DistintaItem).filter(
+            DistintaItem.id == piece.distinta_item_id,
+            DistintaItem.invalidato.is_(False),
+        ).first()
+        item_uuid = item.uuid if item else piece.qr_code
     if item is None:
-        raise HTTPException(404, f"Nessun pezzo trovato per uuid={item_uuid}")
+        item_uuid = qr_value.lower()
+        item = db.query(DistintaItem).filter(
+            DistintaItem.uuid == item_uuid,
+            DistintaItem.qr_attivo.is_(True),
+            DistintaItem.invalidato.is_(False),
+        ).first()
+    if item is None:
+        raise HTTPException(404, f"Nessun pezzo trovato per QR={qr_value}")
 
     ultimo = (
         db.query(ScanEvento)
@@ -130,6 +164,7 @@ def scan_evento(
     return {
         "tipo_evento": tipo_evento,
         "item_uuid":   item_uuid,
+        "qr_code":     piece.qr_code if piece else None,
         "part_number": item.part_number,
         "profilo":     item.description,
         "timestamp":   evento.timestamp.isoformat(),

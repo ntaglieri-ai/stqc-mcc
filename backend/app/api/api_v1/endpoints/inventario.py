@@ -64,7 +64,7 @@ async def import_inventario(
                 dimensioni=row.get("dimensioni"),
                 qualita=row.get("qualita"),
                 colata=row.get("colata"),
-                commessa_ref=row.get("commessa_reference"),
+                commessa_ref=None,
                 peso_u_kg=row.get("peso_u_kg"),
                 peso_1_pz=row.get("peso_1_pz"),
                 norma_uni=row.get("norma_uni"),
@@ -87,7 +87,7 @@ async def import_inventario(
                     material.dimensioni = material.dimensioni or new_dim
             material.qualita = row.get("qualita") or material.qualita
             material.colata = row.get("colata") or material.colata
-            material.commessa_ref = row.get("commessa_reference") or material.commessa_ref
+            material.commessa_ref = None
             material.peso_u_kg  = row.get("peso_u_kg")  or material.peso_u_kg
             material.peso_1_pz  = row.get("peso_1_pz")  or material.peso_1_pz
             material.norma_uni  = row.get("norma_uni")  or material.norma_uni
@@ -103,7 +103,6 @@ async def import_inventario(
                 quantity=delta,
                 movement_type=MovementType.ADJUSTMENT,
                 reason="Riconciliazione inventario",
-                destination_commessa=row.get("commessa_reference"),
                 reference=file.filename,
             )
             db.add(movement)
