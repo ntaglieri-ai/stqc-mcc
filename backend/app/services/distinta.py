@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict, deque
+from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, List
 
@@ -82,40 +84,6 @@ def normalize_profile(value: str | None) -> str:
     return _PROFILE_ALIASES.get(v, v)
 
 
-def classify_profile(profile_norm: str, prefixes: dict[str, str]) -> str:
-    """Classifica un profilo normalizzato cercando il prefisso più lungo che matcha.
-
-    Args:
-        profile_norm: profilo già normalizzato (es. "HEB240", "PL10*140")
-        prefixes:     dict {PREFISSO_UPPER → tipo} caricato da profile_types nel DB
-
-    Returns:
-        tipo (es. "TRAVI", "LAMIERA") oppure "SCONOSCIUTO" se nessun prefisso matcha.
-
-    La ricerca usa il prefisso più lungo per evitare che "L" catturi "LAMIERA" o "PL".
-    """
-    if not profile_norm or not prefixes:
-        return "SCONOSCIUTO"
-    v = profile_norm.upper()
-    best = max(
-        (pref for pref in prefixes if v.startswith(pref)),
-        key=len,
-        default=None,
-    )
-    return prefixes[best] if best else "SCONOSCIUTO"
-
-
-def load_prefixes_from_db(db) -> dict[str, str]:
-    """Carica {PREFISSO → tipo} dalla tabella profile_types nel DB.
-
-    Restituisce dict vuoto se la tabella non è popolata (l'import continua ma
-    tipo_profilo verrà impostato a SCONOSCIUTO per tutti i pezzi).
-    """
-    from backend.app.models.warehouse import ProfileType
-    rows = db.query(ProfileType).all()
-    return {r.prefisso.upper(): r.tipo for r in rows}
-
-
 # ── Alias colonne ─────────────────────────────────────────────────────────────
 
 ALIASES: dict[str, list[str]] = {
@@ -150,8 +118,71 @@ def _is_valid_part_code(value: Any) -> bool:
     return any(c.isdigit() for c in s)
 
 
+class _HtmlTableRowsParser(HTMLParser):
+    """Estrae celle da file Excel esportati come HTML ma salvati con estensione .xls."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.rows: list[list[str]] = []
+        self._current_row: list[str] | None = None
+        self._current_cell: list[str] | None = None
+        self._in_table = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if tag == "table":
+            self._in_table = True
+        elif self._in_table and tag == "tr":
+            self._current_row = []
+        elif self._in_table and tag in {"td", "th"} and self._current_row is not None:
+            self._current_cell = []
+        elif self._in_table and tag == "br" and self._current_cell is not None:
+            self._current_cell.append(" ")
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in {"td", "th"} and self._current_cell is not None and self._current_row is not None:
+            text = unescape("".join(self._current_cell))
+            text = re.sub(r"\s+", " ", text).strip()
+            self._current_row.append(text)
+            self._current_cell = None
+        elif tag == "tr" and self._current_row is not None:
+            if any(cell != "" for cell in self._current_row):
+                self.rows.append(self._current_row)
+            self._current_row = None
+        elif tag == "table":
+            self._in_table = False
+
+    def handle_data(self, data: str) -> None:
+        if self._current_cell is not None:
+            self._current_cell.append(data)
+
+
+def _looks_like_html_excel(raw: bytes) -> bool:
+    sample = raw[:2048].lstrip().lower()
+    return sample.startswith(b"<!doctype html") or sample.startswith(b"<html") or b"<table" in sample
+
+
+def _extract_html_table_rows(file_path: Path) -> list[list[Any]]:
+    raw = file_path.read_bytes()
+    for encoding in ("utf-8-sig", "iso-8859-1", "cp1252"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        text = raw.decode("utf-8", errors="replace")
+    parser = _HtmlTableRowsParser()
+    parser.feed(text)
+    return parser.rows
+
+
 def _extract_rows(file_path: Path) -> list[list[Any]]:
     suffix = file_path.suffix.lower()
+    raw = file_path.read_bytes()
+    if _looks_like_html_excel(raw):
+        return _extract_html_table_rows(file_path)
     if suffix == ".xls":
         wb = xlrd.open_workbook(file_path.as_posix(), formatting_info=False)
         sh = wb.sheet_by_index(0)
@@ -376,7 +407,6 @@ def _parse_assembly_hierarchy(file_path: Path) -> tuple[dict[str, deque[str]], s
 def parse_commessa_files(
     lista_pezzi_path: Path,
     assemblaggi_path: Path | None = None,
-    prefixes: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict]:
     """Legge i file iniziali di una commessa.
 
@@ -420,16 +450,8 @@ def parse_commessa_files(
         if assemblaggi_path is not None and item.get("assembly_parent") is None
     )
 
-    sconosciuti: list[str] = []
     for item in items:
-        prof = item.get("profile") or ""
-        if prefixes is not None:
-            tipo = classify_profile(prof, prefixes)
-            item["tipo_profilo"] = tipo
-            if tipo == "SCONOSCIUTO" and prof:
-                sconosciuti.append(f"Profilo sconosciuto: {item['part_code']} ({prof})")
-        else:
-            item["tipo_profilo"] = None
+        item["tipo_profilo"] = None
 
     report = _validate(items, assembly_headers or None)
     report["detected"] = {
@@ -456,13 +478,11 @@ def parse_commessa_files(
         errors.append(
             f"{missing_hierarchy} pezzi della Lista pezzi non hanno un assemblato associato"
         )
-    errors.extend(sconosciuti)
-
     report["errors"] = errors
     report["warnings"] = warnings
     report["ok"] = not errors
     report["summary"] = (
-        f"Analisi {'OK' if report['ok'] else 'CON ANOMALIE'} — "
+        f"Analisi {'OK' if report['ok'] else 'CON ERRORI'} — "
         f"{len(items)} pezzi fisici · {report['positions']} posizioni · "
         f"{len(assembly_headers)} assemblaggi · "
         f"{len(errors)} errori · {len(warnings)} warning"
@@ -475,16 +495,15 @@ def parse_commessa_files(
 def parse_two_files(
     file_a: Path,
     file_b: Path,
-    prefixes: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict]:
     """Compatibilità per i chiamanti storici; usa il parser commessa corretto."""
     type_a = _detect_file_type(file_a)
     type_b = _detect_file_type(file_b)
 
     if type_a == "lavorazioni" and type_b == "assemblaggi":
-        return parse_commessa_files(file_a, file_b, prefixes)
+        return parse_commessa_files(file_a, file_b)
     if type_b == "lavorazioni" and type_a == "assemblaggi":
-        return parse_commessa_files(file_b, file_a, prefixes)
+        return parse_commessa_files(file_b, file_a)
     raise ValueError("Servono una Lista pezzi e una Lista pezzi e assemblati riconoscibili")
 
 

@@ -7,12 +7,12 @@ from backend.app.services.distinta import normalize_profile
 
 
 def classify_commessa_materials(items: list) -> dict:
-    """Raggruppa i pezzi fisici per tipo, profilo e qualità."""
+    """Raggruppa i pezzi fisici per profilo e materiale, senza validare i profili."""
     groups: dict[tuple[str, str, str], list[Any]] = defaultdict(list)
     for item in items:
         if not item.description:
             continue
-        tipo = (item.tipo_profilo or "SCONOSCIUTO").upper().strip()
+        tipo = "PEZZI"
         profile = normalize_profile(item.description)
         quality = (item.material_code or "").upper().strip()
         groups[(tipo, profile, quality)].append(item)

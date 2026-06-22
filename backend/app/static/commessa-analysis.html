@@ -281,7 +281,6 @@ function renderPage() {
   const c = analysisData.commessa;
   const r = analysisData.revisione;
   const s = analysisData.summary;
-  const report = r.report || {};
   const docs = r.files.documenti || [];
   document.title = `Analisi ${c.codice} · MCC`;
   document.getElementById("nav-code").textContent = `${c.codice} · Analisi`;
@@ -304,8 +303,8 @@ function renderPage() {
     <div class="steps">
       <div class="step"><span class="step-num">1</span><span class="step-label">File acquisiti</span></div>
       <div class="step"><span class="step-num">2</span><span class="step-label">Riepilogo pezzi</span></div>
-      <div class="step"><span class="step-num">3</span><span class="step-label">Controllo anomalie</span></div>
-      <div class="step"><span class="step-num">4</span><span class="step-label">Classificazione materiali</span></div>
+      <div class="step"><span class="step-num">3</span><span class="step-label">Materiali raggruppati</span></div>
+      <div class="step"><span class="step-num">4</span><span class="step-label">QR pezzi</span></div>
     </div>
 
     ${renderRevisionWorkflow(r)}
@@ -344,14 +343,6 @@ function renderPage() {
           <tbody id="positions-body"></tbody>
         </table>
       </div>
-    </section>
-
-    <section class="section">
-      <div class="section-head">
-        <div><div class="section-title">Controllo anomalie</div>
-        <div class="section-sub">${esc(report.summary || "Controllo completato")}</div></div>
-      </div>
-      <div id="anomalies"></div>
     </section>
 
     <section class="section">
@@ -400,7 +391,6 @@ function renderPage() {
     </div>`;
 
   renderPositions("");
-  renderAnomalies();
   renderStock();
   if (r.step51_completato) loadQrItems();
 }
@@ -558,21 +548,6 @@ function renderPositions(query) {
       <td class="right">${fmt(row.quantita)}</td>
       <td>${row.assemblati.length ? esc(row.assemblati.join(", ")) : "—"}</td>
     </tr>`).join("") || '<tr><td colspan="5">Nessun part number trovato</td></tr>';
-}
-
-function renderAnomalies() {
-  const report = analysisData.revisione.report || {};
-  const errors = report.errors || [];
-  const warnings = report.warnings || [];
-  const target = document.getElementById("anomalies");
-  if (!errors.length && !warnings.length) {
-    target.innerHTML = '<div class="notice">✓ File coerenti: codici, quantità e gerarchia risultano allineati.</div>';
-    return;
-  }
-  target.innerHTML = `<div class="anomaly-list">
-    ${errors.map(message => `<div class="anomaly">✕ ${esc(message)}</div>`).join("")}
-    ${warnings.map(message => `<div class="anomaly warning">⚠ ${esc(message)}</div>`).join("")}
-  </div>`;
 }
 
 function setStockFilter(value) {

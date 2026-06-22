@@ -181,10 +181,12 @@
 
     /* ── Toolbar ──────────────────────────────────────────────────────── */
     .toolbar {
-      flex-shrink: 0; height: 52px;
-      display: flex; align-items: center; gap: 7px; padding: 0 16px;
+      flex-shrink: 0; min-height: 66px;
+      display: flex; align-items: center; gap: 10px; padding: 0 20px;
       border-bottom: 1px solid var(--color-border-tertiary);
-      background: var(--color-background-secondary);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,0)),
+        var(--color-background-secondary);
     }
     .search-wrap { position: relative; flex: 1; max-width: 340px; }
     .search-ico {
@@ -192,7 +194,7 @@
       color: var(--color-text-muted); font-size: 14px; pointer-events: none;
     }
     .search-input {
-      width: 100%; padding: 7px 10px 7px 32px; border-radius: 8px;
+      width: 100%; padding: 9px 12px 9px 34px; border-radius: 10px;
       background: var(--color-background-primary);
       border: 1px solid var(--color-border-secondary);
       color: var(--color-text-primary); font-size: 12px; font-family: inherit; outline: none;
@@ -201,19 +203,313 @@
     .search-input::placeholder { color: var(--color-text-muted); }
     .search-input:focus { border-color: var(--color-accent-border); }
     .tb-spacer { flex: 1; }
-    .tb-sep { width: 1px; height: 22px; background: var(--color-border-secondary); margin: 0 2px; }
+    .tb-sep { width: 1px; height: 30px; background: var(--color-border-secondary); margin: 0 4px; }
     .tbtn {
       display: flex; align-items: center; gap: 5px;
-      padding: 6px 13px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      min-height: 38px; padding: 9px 16px; border-radius: 12px; font-size: 12px; font-weight: 800;
       cursor: pointer; border: 1px solid transparent; white-space: nowrap;
-      font-family: inherit; transition: all .16s;
+      font-family: inherit; transition: transform .16s, box-shadow .16s, background .16s, border-color .16s, color .16s;
+      letter-spacing: .01em;
     }
-    .tbtn-n   { background: transparent; border-color: var(--color-border-secondary); color: var(--color-text-secondary); }
-    .tbtn-n:hover  { background: var(--color-border-tertiary); border-color: var(--color-border-primary); color: var(--color-text-primary); }
-    .tbtn-out { background: var(--color-status-orange-bg); border-color: var(--color-status-orange-border); color: var(--color-status-orange-text); }
-    .tbtn-out:hover { background: rgba(249,115,22,0.14); }
-    .tbtn-in  { background: var(--color-status-green-bg);  border-color: var(--color-status-green-border);  color: var(--color-status-green-text); }
-    .tbtn-in:hover  { background: rgba(34,197,94,0.14); }
+    .tbtn:hover { transform: translateY(-1px); }
+    .tbtn-n {
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));
+      border-color: var(--color-border-secondary);
+      color: var(--color-text-secondary);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .tbtn-n:hover  {
+      background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+      border-color: var(--color-border-primary); color: var(--color-text-primary);
+      box-shadow: 0 10px 28px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .tbtn-ddt {
+      background:
+        linear-gradient(135deg, rgba(73,129,255,.95), rgba(112,76,255,.92)),
+        #4263eb;
+      border-color: rgba(139,174,255,.48);
+      color: #F7FAFF;
+      box-shadow: 0 12px 34px rgba(73,129,255,.22), inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    .tbtn-ddt:hover {
+      box-shadow: 0 16px 42px rgba(73,129,255,.30), inset 0 1px 0 rgba(255,255,255,.24);
+      border-color: rgba(184,204,255,.68);
+    }
+    .tbtn-import {
+      background: linear-gradient(180deg, rgba(56,189,248,.16), rgba(56,189,248,.065));
+      border-color: rgba(56,189,248,.24);
+      color: #9BDCF8;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .tbtn-import:hover {
+      background: linear-gradient(180deg, rgba(56,189,248,.22), rgba(56,189,248,.09));
+      border-color: rgba(125,211,252,.42);
+      color: #C8F1FF;
+      box-shadow: 0 12px 30px rgba(56,189,248,.12), inset 0 1px 0 rgba(255,255,255,.08);
+    }
+    .tbtn-new {
+      background: linear-gradient(180deg, rgba(168,85,247,.16), rgba(168,85,247,.065));
+      border-color: rgba(168,85,247,.24);
+      color: #D8B4FE;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .tbtn-new:hover {
+      background: linear-gradient(180deg, rgba(168,85,247,.22), rgba(168,85,247,.09));
+      border-color: rgba(216,180,254,.42);
+      color: #F0DBFF;
+      box-shadow: 0 12px 30px rgba(168,85,247,.12), inset 0 1px 0 rgba(255,255,255,.08);
+    }
+    .tbtn-out {
+      background: linear-gradient(180deg, rgba(249,115,22,.16), rgba(249,115,22,.08));
+      border-color: var(--color-status-orange-border); color: var(--color-status-orange-text);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .tbtn-out:hover { background: rgba(249,115,22,0.16); box-shadow: 0 10px 28px rgba(249,115,22,.10); }
+    .tbtn-in  {
+      background: linear-gradient(180deg, rgba(34,197,94,.16), rgba(34,197,94,.08));
+      border-color: var(--color-status-green-border); color: var(--color-status-green-text);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .tbtn-in:hover  { background: rgba(34,197,94,0.16); box-shadow: 0 10px 28px rgba(34,197,94,.10); }
+
+    /* ── DDT drawer ──────────────────────────────────────────────────── */
+    .drawer-backdrop {
+      position: fixed; inset: 0; z-index: 9000;
+      pointer-events: none; opacity: 0;
+      background: rgba(3,6,14,.46);
+      backdrop-filter: blur(2px);
+      transition: opacity .22s ease;
+    }
+    .drawer-backdrop.open { pointer-events: auto; opacity: 1; }
+    .drawer {
+      position: fixed; top: 0; right: 0; z-index: 9001;
+      width: min(560px, 94vw); height: 100vh;
+      transform: translateX(104%);
+      background:
+        radial-gradient(circle at 25% 0%, rgba(73,129,255,.13), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)),
+        #101620;
+      border-left: 1px solid rgba(139,174,255,.20);
+      box-shadow: -28px 0 80px rgba(0,0,0,.48);
+      transition: transform .24s ease;
+      display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer.reviewing {
+      filter: blur(7px);
+      opacity: .42;
+      transform: translateX(0) scale(.985);
+      pointer-events: none;
+    }
+    .drawer-head {
+      flex-shrink: 0; padding: 28px 28px 20px;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 18px;
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .drawer-eyebrow {
+      font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--color-accent-text); font-weight: 800; margin-bottom: 8px;
+    }
+    .drawer-title { font-size: 24px; line-height: 1.05; font-weight: 850; color: var(--color-text-primary); }
+    .drawer-sub { margin-top: 8px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.45; max-width: 390px; }
+    .drawer-close {
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.03); color: var(--color-text-secondary);
+      cursor: pointer; font-size: 20px; line-height: 1; transition: all .16s;
+    }
+    .drawer-close:hover { color: var(--color-text-primary); border-color: var(--color-border-primary); background: rgba(255,255,255,.06); }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 24px 28px 28px; }
+    .ddt-drop {
+      border: 1px dashed rgba(139,174,255,.36);
+      border-radius: 20px;
+      background: rgba(73,129,255,.055);
+      padding: 26px;
+      min-height: 168px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+    }
+    .ddt-drop-ico { font-size: 34px; margin-bottom: 12px; }
+    .ddt-drop-title { font-size: 16px; font-weight: 800; color: var(--color-text-primary); }
+    .ddt-drop-copy { margin-top: 6px; font-size: 12px; color: var(--color-text-secondary); line-height: 1.45; }
+    .ddt-file {
+      margin-top: 18px; color: var(--color-text-secondary); font: inherit; font-size: 12px;
+      max-width: 310px;
+    }
+    .ddt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+    .ddt-card {
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.025);
+      border-radius: 16px; padding: 16px;
+    }
+    .ddt-card.full { grid-column: 1 / -1; }
+    .ddt-card-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+      color: var(--color-text-muted); font-weight: 800; margin-bottom: 8px;
+    }
+    .ddt-card-value { color: var(--color-text-primary); font-weight: 800; font-size: 15px; }
+    .ddt-card-muted { color: var(--color-text-secondary); font-size: 12px; line-height: 1.45; }
+    .ddt-status {
+      margin-top: 20px; padding: 14px 16px; border-radius: 16px;
+      border: 1px solid rgba(251,191,36,.18);
+      background: rgba(251,191,36,.07);
+      color: #FCD34D; font-size: 12px; line-height: 1.45; font-weight: 700;
+    }
+    .ddt-lines { display: grid; gap: 10px; margin-top: 18px; }
+    .ddt-line {
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.028);
+      border-radius: 15px; padding: 14px;
+    }
+    .ddt-line-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .ddt-line-title { font-size: 13px; font-weight: 850; color: var(--color-text-primary); }
+    .ddt-line-code { margin-top: 4px; font-size: 10px; color: var(--color-text-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .ddt-line-qty {
+      flex-shrink: 0; min-width: 64px; padding: 7px 9px; border-radius: 12px;
+      text-align: center; background: var(--color-status-green-bg);
+      border: 1px solid var(--color-status-green-border);
+      color: var(--color-status-green-text); font-weight: 900;
+    }
+    .ddt-line-meta {
+      margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;
+      color: var(--color-text-secondary); font-size: 11px;
+    }
+    .ddt-pill {
+      padding: 4px 7px; border-radius: 999px;
+      background: rgba(255,255,255,.045); border: 1px solid var(--color-border-secondary);
+    }
+    .ddt-warnings { display: grid; gap: 8px; margin-top: 14px; }
+    .ddt-warning {
+      padding: 10px 12px; border-radius: 12px;
+      border: 1px solid rgba(251,191,36,.16);
+      background: rgba(251,191,36,.06);
+      color: #FCD34D; font-size: 11px; line-height: 1.4;
+    }
+    .drawer-actions {
+      flex-shrink: 0; padding: 18px 28px 24px;
+      border-top: 1px solid var(--color-border-secondary);
+      display: flex; gap: 10px; justify-content: flex-end;
+      background: rgba(15,17,23,.78);
+    }
+    .ddt-primary {
+      min-height: 42px; padding: 10px 18px; border-radius: 12px;
+      border: 1px solid rgba(139,174,255,.35);
+      background: linear-gradient(135deg, rgba(73,129,255,.85), rgba(112,76,255,.82));
+      color: #fff; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer;
+    }
+    .ddt-secondary {
+      min-height: 42px; padding: 10px 16px; border-radius: 12px;
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.025); color: var(--color-text-secondary);
+      font: inherit; font-size: 12px; font-weight: 750; cursor: pointer;
+    }
+    .ddt-primary:disabled { opacity: .45; cursor: not-allowed; }
+    #ddt-review-modal {
+      z-index: 9300;
+      background: rgba(2,5,12,.66);
+      backdrop-filter: blur(8px);
+    }
+    .ddt-review-modal {
+      width: min(1180px, 94vw);
+      max-height: 92vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(73,129,255,.16), transparent 32%),
+        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018)),
+        #111824;
+      border: 1px solid rgba(139,174,255,.22);
+      border-radius: 24px;
+      box-shadow: 0 30px 90px rgba(0,0,0,.62);
+      transform: translateY(10px) scale(.985);
+      opacity: 0;
+      transition: transform .18s ease, opacity .18s ease;
+    }
+    #ddt-review-modal.open .ddt-review-modal { transform: translateY(0) scale(1); opacity: 1; }
+    .ddt-review-head {
+      padding: 26px 28px 20px;
+      border-bottom: 1px solid var(--color-border-secondary);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+    }
+    .ddt-review-title { font-size: 24px; font-weight: 900; color: var(--color-text-primary); line-height: 1.08; }
+    .ddt-review-sub { margin-top: 8px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.45; max-width: 760px; }
+    .ddt-review-body { padding: 22px 28px 24px; overflow: auto; }
+    .ddt-review-section {
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.025);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .ddt-review-section-title {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .14em;
+      color: var(--color-accent-text); font-weight: 900; margin-bottom: 14px;
+    }
+    .ddt-review-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .ddt-review-field label {
+      display: block; margin-bottom: 7px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+      color: var(--color-text-muted); font-weight: 850;
+    }
+    .ddt-review-input {
+      width: 100%;
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(7,10,18,.74);
+      color: var(--color-text-primary);
+      border-radius: 12px;
+      padding: 10px 11px;
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+    .ddt-review-input:focus {
+      border-color: rgba(139,174,255,.52);
+      box-shadow: 0 0 0 3px rgba(73,129,255,.12);
+    }
+    .ddt-review-table-wrap {
+      border: 1px solid var(--color-border-secondary);
+      border-radius: 16px;
+      overflow: auto;
+      max-height: 46vh;
+      background: rgba(6,9,16,.45);
+    }
+    .ddt-review-table { width: 100%; min-width: 1060px; border-collapse: collapse; }
+    .ddt-review-table th {
+      position: sticky; top: 0; z-index: 1;
+      background: #20293a;
+      color: var(--color-text-muted);
+      font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 900;
+      text-align: left; padding: 12px 10px;
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .ddt-review-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,.045);
+      vertical-align: top;
+    }
+    .ddt-review-table td.small { width: 92px; }
+    .ddt-review-table td.medium { width: 138px; }
+    .ddt-review-note {
+      margin-top: 12px; color: var(--color-text-secondary);
+      font-size: 12px; line-height: 1.45;
+    }
+    .ddt-review-error {
+      display: none; margin-top: 12px; padding: 12px 14px; border-radius: 13px;
+      border: 1px solid rgba(248,113,113,.26);
+      background: rgba(248,113,113,.09);
+      color: #FCA5A5; font-size: 12px; font-weight: 750;
+    }
+    .ddt-review-error.show { display: block; }
+    .ddt-review-actions {
+      padding: 18px 28px 24px;
+      border-top: 1px solid var(--color-border-secondary);
+      display: flex; justify-content: flex-end; gap: 10px;
+      background: rgba(15,17,23,.78);
+    }
+    @media (max-width: 980px) {
+      .ddt-review-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
 
     /* ── Chips ────────────────────────────────────────────────────────── */
     .chips-outer { flex-shrink: 0; overflow: visible; position: relative; z-index: 50; }
@@ -532,9 +828,9 @@
           <input id="search-inp" class="search-input" type="text" placeholder="Cerca in tutti i campi…" oninput="onSearch()"/>
         </div>
         <div class="tb-spacer"></div>
-        <button class="tbtn tbtn-n" onclick="openImport()">↑ Importa inventario</button>
-        <button class="tbtn tbtn-n" onclick="openNewMat()">+ Nuovo materiale</button>
-        <button class="tbtn tbtn-n" onclick="openScan()">▣ Cerca tramite QR</button>
+        <button class="tbtn tbtn-ddt" onclick="openDdt()">◇ Analizza DDT</button>
+        <button class="tbtn tbtn-import" onclick="openImport()">↑ Importa inventario</button>
+        <button class="tbtn tbtn-new" onclick="openNewMat()">+ Nuovo materiale</button>
         <div class="tb-sep"></div>
         <button class="tbtn tbtn-out" onclick="openMov(null,'out')">↓ Uscita</button>
         <button class="tbtn tbtn-in"  onclick="openMov(null,'in')">↑ Ingresso</button>
@@ -629,6 +925,124 @@
 
 <!-- GLOBAL DROPDOWN — portato fuori da qualsiasi overflow container -->
 <div id="gdd" role="listbox"></div>
+
+<!-- DDT DRAWER -->
+<div class="drawer-backdrop" id="ddt-backdrop" onclick="closeDdt()"></div>
+<aside class="drawer" id="ddt-drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-eyebrow">Magazzino · Documenti</div>
+      <div class="drawer-title">Analizza DDT</div>
+      <div class="drawer-sub">
+        Carica un documento di trasporto per preparare l'ingresso materiale. La conferma a magazzino resta manuale.
+      </div>
+    </div>
+    <button class="drawer-close" onclick="closeDdt()" aria-label="Chiudi">×</button>
+  </div>
+  <div class="drawer-body">
+    <label class="ddt-drop" for="ddt-file">
+      <div class="ddt-drop-ico">◇</div>
+      <div class="ddt-drop-title">Carica PDF, immagine o scansione</div>
+      <div class="ddt-drop-copy">
+        Il modulo leggerà fornitore, numero DDT, data, materiali, quantità, colate e certificati quando collegheremo il parser.
+      </div>
+      <input class="ddt-file" id="ddt-file" type="file" accept=".pdf,image/*" onchange="onDdtFileSelected(this)"/>
+    </label>
+
+    <div class="ddt-grid">
+      <div class="ddt-card">
+        <div class="ddt-card-label">Fornitore</div>
+        <div class="ddt-card-value" id="ddt-supplier">Da leggere</div>
+      </div>
+      <div class="ddt-card">
+        <div class="ddt-card-label">Documento</div>
+        <div class="ddt-card-value" id="ddt-doc">Da leggere</div>
+      </div>
+      <div class="ddt-card">
+        <div class="ddt-card-label">Materiali</div>
+        <div class="ddt-card-value" id="ddt-materials">0 rilevati</div>
+      </div>
+      <div class="ddt-card">
+        <div class="ddt-card-label">Stato</div>
+        <div class="ddt-card-value" id="ddt-state">In attesa</div>
+      </div>
+      <div class="ddt-card full">
+        <div class="ddt-card-label">Prossimo passaggio</div>
+        <div class="ddt-card-muted" id="ddt-next">
+          Dopo l'analisi il sistema proporrà righe di ingresso magazzino, senza movimentare nulla finché la logistica non conferma.
+        </div>
+      </div>
+    </div>
+
+    <div class="ddt-lines" id="ddt-lines"></div>
+    <div class="ddt-warnings" id="ddt-warnings"></div>
+
+    <div class="ddt-status" id="ddt-status">
+      Funzione predisposta: interfaccia pronta, analisi documento da collegare nel prossimo step.
+    </div>
+  </div>
+  <div class="drawer-actions">
+    <button class="ddt-secondary" onclick="closeDdt()">Chiudi</button>
+    <button class="ddt-primary" id="ddt-confirm" onclick="openDdtReview()" disabled>Review ingresso</button>
+  </div>
+</aside>
+
+<!-- DDT REVIEW MODAL -->
+<div class="backdrop" id="ddt-review-modal" onclick="closeDdtReview()">
+  <div class="ddt-review-modal" onclick="event.stopPropagation()">
+    <div class="ddt-review-head">
+      <div>
+        <div class="drawer-eyebrow">Magazzino · Review DDT</div>
+        <div class="ddt-review-title">Controlla prima dell'ingresso</div>
+        <div class="ddt-review-sub">
+          Il parser propone i dati letti dal documento. Correggi qui fornitore, documento e righe materiale:
+          solo dopo la conferma verranno creati ingresso magazzino e QR dei singoli elementi fisici.
+        </div>
+      </div>
+      <button class="drawer-close" onclick="closeDdtReview()" aria-label="Chiudi">×</button>
+    </div>
+    <div class="ddt-review-body">
+      <div class="ddt-review-section">
+        <div class="ddt-review-section-title">Documento</div>
+        <div class="ddt-review-grid" id="ddt-review-doc"></div>
+        <div class="ddt-review-note" id="ddt-review-filename"></div>
+      </div>
+      <div class="ddt-review-section">
+        <div class="ddt-review-section-title">Materiali proposti per magazzino</div>
+        <div class="ddt-review-table-wrap">
+          <table class="ddt-review-table">
+            <thead>
+              <tr>
+                <th>Codice</th>
+                <th>Descrizione</th>
+                <th>Q.tà</th>
+                <th>UM</th>
+                <th>Tipo</th>
+                <th>Profilo</th>
+                <th>Dimensioni</th>
+                <th>Qualità</th>
+                <th>Colata</th>
+                <th>Peso kg</th>
+                <th>Peso/u</th>
+              </tr>
+            </thead>
+            <tbody id="ddt-review-items"></tbody>
+          </table>
+        </div>
+        <div class="ddt-review-note">
+          Campi magazzino alimentati dal DDT: codice materiale, descrizione, quantità, unità, tipo, profilo,
+          dimensioni, qualità, colata, peso totale e peso unitario. Norma, fornitore e certificati restano da
+          strutturare in uno step dedicato se vogliamo salvarli come campi nativi.
+        </div>
+        <div class="ddt-review-error" id="ddt-review-error"></div>
+      </div>
+    </div>
+    <div class="ddt-review-actions">
+      <button class="ddt-secondary" onclick="closeDdtReview()">Annulla</button>
+      <button class="ddt-primary" id="ddt-review-confirm" onclick="confirmDdt()">Conferma ingresso magazzino</button>
+    </div>
+  </div>
+</div>
 
 <!-- MOVEMENT MODAL -->
 <div class="backdrop" id="mov-modal" onclick="closeMov()">
@@ -766,6 +1180,7 @@ const physicalPages = {};
 let previewItem = null;
 let labelFormat = localStorage.getItem('stqc_label_format') || 'rect';
 let labelText = localStorage.getItem('stqc_label_text') || '';
+let ddtAnalysis = null;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
@@ -777,7 +1192,7 @@ let labelText = localStorage.getItem('stqc_label_text') || '';
     closeGdd(e);
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); }
+    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); closeDdtReview(); closeDdt(); }
     if (e.key === 'Enter' && document.getElementById('mov-modal').classList.contains('open')) confirmMov();
   });
 })();
@@ -1004,7 +1419,7 @@ function fmt(v, d=1) {
   return (+v).toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
 function badgeCls(n) { return n<=0 ? 'b-r' : n<=5 ? 'b-o' : 'b-g'; }
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function urlToken(s) { return encodeURIComponent(String(s)).replace(/'/g,'%27'); }
 
 function renderSkeleton(n) {
@@ -1273,6 +1688,203 @@ async function confirmImport() {
 }
 
 function openNewMat() { showToast('Usa "Importa inventario" per aggiungere materiali in blocco','err'); }
+
+// ── DDT drawer ───────────────────────────────────────────────────────────────
+function openDdt(){
+  document.getElementById('ddt-backdrop').classList.add('open');
+  const drawer = document.getElementById('ddt-drawer');
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden','false');
+}
+function closeDdt(){
+  document.getElementById('ddt-backdrop').classList.remove('open');
+  const drawer = document.getElementById('ddt-drawer');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden','true');
+}
+function resetDdtView(){
+  ddtAnalysis = null;
+  closeDdtReview();
+  document.getElementById('ddt-supplier').textContent = 'Da leggere';
+  document.getElementById('ddt-doc').textContent = 'Da leggere';
+  document.getElementById('ddt-materials').textContent = '0 rilevati';
+  document.getElementById('ddt-state').textContent = 'In attesa';
+  document.getElementById('ddt-lines').innerHTML = '';
+  document.getElementById('ddt-warnings').innerHTML = '';
+  document.getElementById('ddt-status').textContent = 'Carica un DDT per generare una proposta di ingresso magazzino.';
+  document.getElementById('ddt-confirm').disabled = true;
+}
+function renderDdtAnalysis(data){
+  ddtAnalysis = data;
+  const items = data.items || [];
+  const ready = items.length > 0;
+  document.getElementById('ddt-supplier').textContent = data.supplier || 'Da verificare';
+  document.getElementById('ddt-doc').textContent = [data.ddt_number ? `DDT ${data.ddt_number}` : data.filename, data.ddt_date].filter(Boolean).join(' · ') || 'Da verificare';
+  document.getElementById('ddt-materials').textContent = `${items.length} rilevati`;
+  document.getElementById('ddt-state').textContent = ready ? 'Pronto' : (data.status === 'ocr_required' ? 'OCR richiesto' : 'Da verificare');
+  document.getElementById('ddt-lines').innerHTML = items.map(item => `
+    <div class="ddt-line">
+      <div class="ddt-line-top">
+        <div>
+          <div class="ddt-line-title">${esc(item.description || item.profilo || 'Materiale da verificare')}</div>
+          <div class="ddt-line-code">${esc(item.material_code || 'codice da generare')}</div>
+        </div>
+        <div class="ddt-line-qty">${item.quantity ? `${fmt(item.quantity)} PZ` : '—'}</div>
+      </div>
+      <div class="ddt-line-meta">
+        ${[item.tipo, item.profilo, item.dimensioni, item.qualita, item.colata, item.peso_kg ? `${fmt(item.peso_kg)} kg` : null]
+          .filter(Boolean).map(v => `<span class="ddt-pill">${esc(v)}</span>`).join('')}
+      </div>
+      ${item.notes ? `<div class="ddt-card-muted" style="margin-top:9px">${esc(item.notes)}</div>` : ''}
+    </div>`).join('') || '<div class="ddt-card-muted">Nessuna riga materiale proposta.</div>';
+  document.getElementById('ddt-warnings').innerHTML = (data.warnings || []).map(w => `<div class="ddt-warning">${esc(w)}</div>`).join('');
+  document.getElementById('ddt-status').textContent = ready
+    ? 'Proposta pronta: apri la review per controllare e correggere i dati prima dell ingresso.'
+    : 'Nessuna riga materiale rilevata: verifica il documento o riprova con un file più leggibile.';
+  document.getElementById('ddt-confirm').disabled = !ready;
+}
+async function onDdtFileSelected(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  resetDdtView();
+  document.getElementById('ddt-doc').textContent = file.name;
+  document.getElementById('ddt-state').textContent = 'Analisi…';
+  document.getElementById('ddt-status').textContent = 'Analisi del documento in corso…';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/v1/inventario/ddt/analyze', { method:'POST', headers:hdr(), body:fd });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    renderDdtAnalysis(data);
+    showToast(data.status === 'ready' ? 'DDT analizzato' : 'DDT da verificare', data.status === 'ready' ? 'ok' : 'err');
+  } catch(e) {
+    document.getElementById('ddt-state').textContent = 'Errore';
+    document.getElementById('ddt-status').textContent = e.message;
+    showToast('Analisi DDT non riuscita', 'err');
+  }
+}
+function ddtField(label, id, value, placeholder='') {
+  return `
+    <div class="ddt-review-field">
+      <label for="${id}">${esc(label)}</label>
+      <input class="ddt-review-input" id="${id}" type="text" value="${esc(value || '')}" placeholder="${esc(placeholder)}"/>
+    </div>`;
+}
+function ddtCellInput(idx, field, value, type='text', step='any') {
+  return `<input class="ddt-review-input" data-ddt-index="${idx}" data-ddt-field="${field}" type="${type}" ${type === 'number' ? `step="${step}"` : ''} value="${esc(value ?? '')}"/>`;
+}
+function openDdtReview(){
+  if(!ddtAnalysis || !(ddtAnalysis.items || []).length) return;
+  document.getElementById('ddt-review-error').classList.remove('show');
+  document.getElementById('ddt-review-doc').innerHTML = [
+    ddtField('Fornitore', 'ddt-review-supplier', ddtAnalysis.supplier, 'es. TECNOACCIAI'),
+    ddtField('N. DDT', 'ddt-review-number', ddtAnalysis.ddt_number, 'es. 3083'),
+    ddtField('Data DDT', 'ddt-review-date', ddtAnalysis.ddt_date, 'gg/mm/aaaa'),
+    ddtField('Riferimento interno', 'ddt-review-reference', ddtAnalysis.reference, 'opzionale'),
+  ].join('');
+  document.getElementById('ddt-review-filename').textContent = ddtAnalysis.filename ? `File origine: ${ddtAnalysis.filename}` : '';
+  document.getElementById('ddt-review-items').innerHTML = (ddtAnalysis.items || []).map((item, idx) => `
+    <tr>
+      <td class="medium">${ddtCellInput(idx, 'material_code', item.material_code)}</td>
+      <td>${ddtCellInput(idx, 'description', item.description)}</td>
+      <td class="small">${ddtCellInput(idx, 'quantity', item.quantity, 'number', '1')}</td>
+      <td class="small">${ddtCellInput(idx, 'unit', item.unit || 'PZ')}</td>
+      <td class="medium">${ddtCellInput(idx, 'tipo', item.tipo)}</td>
+      <td class="medium">${ddtCellInput(idx, 'profilo', item.profilo)}</td>
+      <td class="medium">${ddtCellInput(idx, 'dimensioni', item.dimensioni)}</td>
+      <td class="medium">${ddtCellInput(idx, 'qualita', item.qualita)}</td>
+      <td class="medium">${ddtCellInput(idx, 'colata', item.colata)}</td>
+      <td class="small">${ddtCellInput(idx, 'peso_kg', item.peso_kg, 'number', '0.001')}</td>
+      <td class="small">${ddtCellInput(idx, 'peso_u_kg', item.peso_u_kg, 'number', '0.001')}</td>
+    </tr>`).join('');
+  document.getElementById('ddt-drawer').classList.add('reviewing');
+  document.getElementById('ddt-review-modal').classList.add('open');
+}
+function closeDdtReview(){
+  const modal = document.getElementById('ddt-review-modal');
+  if(modal) modal.classList.remove('open');
+  const drawer = document.getElementById('ddt-drawer');
+  if(drawer) drawer.classList.remove('reviewing');
+}
+function showDdtReviewError(message){
+  const err = document.getElementById('ddt-review-error');
+  err.textContent = message;
+  err.classList.add('show');
+}
+function numOrNull(value) {
+  if(value === null || value === undefined || String(value).trim() === '') return null;
+  const n = Number(String(value).replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+function collectDdtReviewPayload(){
+  const sourceItems = ddtAnalysis?.items || [];
+  const items = sourceItems.map((item, idx) => {
+    const next = {...item};
+    document.querySelectorAll(`[data-ddt-index="${idx}"]`).forEach(input => {
+      const field = input.dataset.ddtField;
+      if(['quantity'].includes(field)) {
+        next[field] = Math.trunc(numOrNull(input.value) || 0);
+      } else if(['peso_kg','peso_u_kg'].includes(field)) {
+        next[field] = numOrNull(input.value);
+      } else {
+        next[field] = input.value.trim();
+      }
+    });
+    next.unit = next.unit || 'PZ';
+    return next;
+  });
+
+  for(const [idx, item] of items.entries()) {
+    if(!item.material_code) throw new Error(`Riga ${idx + 1}: codice materiale obbligatorio.`);
+    if(!item.description) throw new Error(`Riga ${idx + 1}: descrizione obbligatoria.`);
+    if(!Number.isInteger(item.quantity) || item.quantity <= 0) throw new Error(`Riga ${idx + 1}: quantità obbligatoria e maggiore di zero.`);
+  }
+
+  return {
+    ...ddtAnalysis,
+    supplier: document.getElementById('ddt-review-supplier').value.trim(),
+    ddt_number: document.getElementById('ddt-review-number').value.trim(),
+    ddt_date: document.getElementById('ddt-review-date').value.trim(),
+    reference: document.getElementById('ddt-review-reference').value.trim(),
+    items,
+  };
+}
+async function confirmDdt(){
+  if(!ddtAnalysis || !(ddtAnalysis.items || []).length) return;
+  const btn = document.getElementById('ddt-review-confirm');
+  let payload;
+  try {
+    document.getElementById('ddt-review-error').classList.remove('show');
+    payload = collectDdtReviewPayload();
+  } catch(e) {
+    showDdtReviewError(e.message);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Inserimento…';
+  try {
+    const res = await fetch('/api/v1/inventario/ddt/confirm', {
+      method:'POST',
+      headers:{...hdr(),'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    showToast(`Ingresso DDT registrato — ${data.physical_items_created || 0} QR creati`, 'ok');
+    ddtAnalysis = payload;
+    closeDdtReview();
+    closeDdt();
+    await loadStock();
+  } catch(e) {
+    showDdtReviewError(e.message);
+    document.getElementById('ddt-status').textContent = e.message;
+    showToast('Conferma DDT non riuscita', 'err');
+  } finally {
+    btn.textContent = 'Conferma ingresso magazzino';
+    btn.disabled = false;
+  }
+}
 
 // ── QR scan ───────────────────────────────────────────────────────────────────
 function openScan(){

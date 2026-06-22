@@ -16,3 +16,5 @@ Pillow>=10.0.0
 aiofiles>=23.0.0
 psutil>=5.9.0
 PyJWT>=2.8.0
+pdfplumber>=0.11.0
+pypdf>=4.0.0

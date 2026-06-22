@@ -24,7 +24,6 @@ from backend.app.models.user import ProfiloUtente, User, UserAttributes
 from backend.app.models.warehouse import DistintaImport, DistintaItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
 from backend.app.services.distinta import (
-    load_prefixes_from_db,
     normalized_to_db_bulk,
     parse_commessa_files,
 )
@@ -159,11 +158,9 @@ async def create_analisi_commessa(
             with asm_dest.open("wb") as f:
                 f.write(await assemblaggi.read())
 
-        prefixes = load_prefixes_from_db(db)
         items_normalized, report = parse_commessa_files(
             lista_dest,
             asm_dest,
-            prefixes=prefixes,
         )
     except Exception as exc:
         shutil.rmtree(rev_dir, ignore_errors=True)
@@ -449,7 +446,7 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
     if not revisione.corrente:
         raise HTTPException(409, "La revisione non è più corrente")
     if revisione.stato_analisi != "PRONTA":
-        raise HTTPException(409, "Risolvi le anomalie dello Step 4 prima di generare i QR")
+        raise HTTPException(409, "L'analisi file non è pronta: verifica i dati base prima di generare i QR")
 
     pieces = db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
     total = len(pieces)
