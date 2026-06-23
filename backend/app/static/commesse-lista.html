@@ -165,7 +165,7 @@
   const t = localStorage.getItem('stqc_token');
   const p = localStorage.getItem('stqc_profilo');
   if (!t) { window.location.replace('/login'); return; }
-  if (!['Responsabile','Direttore','Admin'].includes(p)) { window.location.replace('/'); }
+  if (!['Direttore','Progettazione','Admin'].includes(p)) { window.location.replace('/'); }
 })();
 </script>
 

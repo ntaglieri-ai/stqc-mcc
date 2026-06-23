@@ -125,13 +125,17 @@
     .director-mode .right-subtitle { font-size: 13px; max-width: 620px; margin-top: 9px; }
     .director-mode .grid {
       flex: 0; width: 100%;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: clamp(16px, 2vh, 22px);
+      grid-template-columns: 1fr;
+      gap: clamp(18px, 2.2vh, 24px);
     }
     .director-mode .card {
-      height: clamp(220px, 27vh, 270px);
+      height: clamp(210px, 23vh, 255px);
       border-radius: 18px;
       border-color: rgba(255,255,255,.1);
+    }
+    .director-mode #card-grid {
+      max-width: min(860px, 86%);
+      margin: 0 auto;
     }
     .director-mode .card-content { padding: clamp(20px, 2.2vw, 28px); }
     .director-mode .card-icon { font-size: 27px; margin-bottom: 9px; }
@@ -221,9 +225,17 @@
       flex: 0 !important;
       grid-template-columns: 1fr !important;
       width: 100%; max-width: 520px;
-      gap: 14px;
+      gap: 17px;
     }
-    .admin-mode .card { height: 158px; }
+    .admin-mode .card {
+      height: 188px;
+      border-radius: 18px;
+    }
+    .admin-mode .card-content { padding: 22px 24px; }
+    .admin-mode .card-icon { font-size: 25px; margin-bottom: 8px; }
+    .admin-mode .card-title { font-size: 18px; }
+    .admin-mode .card-desc { font-size: 12px; margin-top: 4px; }
+    .admin-mode .card-tag { margin-bottom: 7px; }
 
     /* ── Disabled card ── */
     .card-disabled {
@@ -257,7 +269,8 @@
     @media (max-width: 1180px) {
       .left { width: 34%; }
       .right { padding-left: 28px; padding-right: 28px; }
-      .director-mode .card { height: clamp(205px, 26vh, 245px); }
+      .director-mode .card { height: clamp(205px, 24vh, 245px); }
+      .director-mode #card-grid { max-width: 92%; }
     }
     @media (max-width: 880px) {
       html, body { overflow: auto; }
@@ -277,6 +290,7 @@
       .right, .director-mode .right { padding: 24px 18px 30px; }
       .right-header { gap: 18px; }
       .grid, .director-mode .grid { grid-template-columns: 1fr; }
+      .director-mode #card-grid { max-width: 100%; }
       .director-mode .card { height: 220px; }
     }
 
@@ -605,10 +619,8 @@ const CARD_DEFS = {
 
 // Profile → visible cards
 const PROFILE_CARDS = {
-  Responsabile: ['kpi', 'dashboard', 'commesse', 'magazzino', 'acquisti'],
-  Direttore:    ['kpi', 'dashboard', 'commesse', 'magazzino'],
-  Operaio:      ['magazzino', 'officina'],
-  Operatore:    ['magazzino', 'officina'],
+  Direttore:    ['dashboard', 'commesse', 'magazzino'],
+  Progettazione: ['commesse'],
   Logistica:    ['magazzino'],
   Acquisti:     ['magazzino', 'acquisti'],
   Admin:        ['adm_account', 'adm_maint', 'adm_config'],
@@ -650,10 +662,13 @@ function renderCards() {
   const keys = PROFILE_CARDS[PROFILO] || [];
   const grid = document.getElementById('card-grid');
   grid.innerHTML = keys.map(cardHTML).join('');
-  if (PROFILO === 'Direttore' || PROFILO === 'Responsabile') {
+  if (PROFILO === 'Direttore') {
     document.body.classList.add('director-mode');
     document.getElementById('home-title').textContent = 'Vista Direttore';
     document.getElementById('home-subtitle').textContent = 'Controlla priorità, disponibilità materiali e avanzamento delle commesse.';
+  } else if (PROFILO === 'Progettazione') {
+    document.getElementById('home-title').textContent = 'Progettazione';
+    document.getElementById('home-subtitle').textContent = 'Gestisci le commesse in progettazione e prepara i file definitivi.';
   } else if (PROFILO === 'Admin') {
     document.body.classList.add('admin-mode');
   } else if (keys.length === 1) {
@@ -707,7 +722,7 @@ window.addEventListener('load', () => {
   document.getElementById('hero-bg').classList.add('loaded');
 });
 
-// ── KPI fetch (only for Responsabile) ────────────────────────────────────────
+// ── KPI fetch ────────────────────────────────────────────────────────────────
 async function loadKPI() {
   const dot  = document.getElementById('kpi-dot');
   const text = document.getElementById('kpi-text');
@@ -743,9 +758,6 @@ async function loadKPI() {
   }
 }
 
-if (PROFILO === 'Responsabile' || PROFILO === 'Direttore') {
-  loadKPI();
-}
 </script>
 </body>
 </html>

@@ -147,6 +147,20 @@ class WarehouseItem(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     exited_at = Column(DateTime, nullable=True)
 
+    # Override manuali sul singolo elemento fisico. Se NULL, la UI mostra il valore
+    # del materiale padre, così la vista compatta resta pulita e l'item resta correggibile.
+    tipo = Column(String(100), nullable=True)
+    profilo = Column(String(200), nullable=True)
+    dimensioni = Column(String(200), nullable=True)
+    norma_uni = Column(String(50), nullable=True)
+    qualita = Column(String(100), nullable=True)
+    colata = Column(String(100), nullable=True)
+    commessa_ref = Column(String(200), nullable=True)
+    peso_u_kg = Column(Numeric(12, 4), nullable=True)
+    peso_1_pz = Column(Numeric(12, 4), nullable=True)
+    notes = Column(Text, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+
     material = relationship("Material", back_populates="physical_items")
 
 

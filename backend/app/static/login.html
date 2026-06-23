@@ -77,29 +77,6 @@
       letter-spacing: -.02em;
     }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex; gap: 0; margin-bottom: 28px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 12px; padding: 4px;
-    }
-    .tab-btn {
-      flex: 1; padding: 9px 16px; border-radius: 9px;
-      border: none; background: transparent;
-      color: rgba(255,255,255,0.4); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all .18s;
-    }
-    .tab-btn.active {
-      background: rgba(59,130,246,0.2);
-      color: #93c5fd; border: 1px solid rgba(59,130,246,0.25);
-    }
-    .tab-btn:not(.active):hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.04); }
-
-    /* ── Tab panels ── */
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
     /* ── Form ── */
     .field { margin-bottom: 16px; }
     .field label {
@@ -143,52 +120,6 @@
       color: #fca5a5; font-size: 13px; font-weight: 500;
     }
 
-    /* ── PIN keypad ── */
-    .pin-dots {
-      display: flex; gap: 14px; justify-content: center;
-      margin-bottom: 28px;
-    }
-    .pin-dot {
-      width: 18px; height: 18px; border-radius: 50%;
-      background: rgba(255,255,255,0.1);
-      border: 2px solid rgba(255,255,255,0.2);
-      transition: all .15s;
-    }
-    .pin-dot.filled {
-      background: #3b82f6;
-      border-color: #3b82f6;
-      box-shadow: 0 0 12px rgba(59,130,246,0.6);
-    }
-
-    .keypad {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 10px; margin-bottom: 16px;
-    }
-    .key {
-      aspect-ratio: 1;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.05);
-      color: #fff; font-size: 22px; font-weight: 700;
-      cursor: pointer; transition: all .12s;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .key:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
-    .key:active { transform: scale(0.92); background: rgba(59,130,246,0.25); }
-    .key.key-del {
-      font-size: 16px; color: rgba(255,255,255,0.5);
-    }
-    .key.key-ok {
-      background: rgba(37,99,235,0.2); border-color: rgba(59,130,246,0.4);
-      color: #93c5fd; font-size: 14px; font-weight: 700;
-    }
-    .key.key-ok:hover { background: rgba(37,99,235,0.35); }
-
-    .pin-hint {
-      text-align: center; font-size: 12px;
-      color: rgba(255,255,255,0.25); margin-top: 4px;
-    }
-
     /* ── Scrollbar ── */
     ::-webkit-scrollbar { display: none; }
   </style>
@@ -224,53 +155,18 @@
         <div class="login-title">Benvenuto</div>
       </div>
 
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('standard')">Accesso PC</button>
-        <button class="tab-btn" onclick="switchTab('operaio')">Accesso Tablet</button>
-      </div>
-
-      <!-- Panel Standard -->
-      <div class="tab-panel active" id="panel-standard">
-        <div class="error-msg" id="err-standard"></div>
-        <form onsubmit="doLogin(event)">
-          <div class="field">
-            <label>UserID</label>
-            <input type="text" id="f-username" placeholder="user id" autocomplete="username" autocapitalize="none"/>
-          </div>
-          <div class="field">
-            <label>Password</label>
-            <input type="password" id="f-password" placeholder="••••••••" autocomplete="current-password"/>
-          </div>
-          <button class="btn-login" id="btn-login" type="submit">Accedi</button>
-        </form>
-      </div>
-
-      <!-- Panel Operaio -->
-      <div class="tab-panel" id="panel-operaio">
-        <div class="error-msg" id="err-operaio"></div>
-        <div class="pin-dots">
-          <div class="pin-dot" id="d0"></div>
-          <div class="pin-dot" id="d1"></div>
-          <div class="pin-dot" id="d2"></div>
-          <div class="pin-dot" id="d3"></div>
+      <div class="error-msg" id="err-standard"></div>
+      <form onsubmit="doLogin(event)">
+        <div class="field">
+          <label>UserID</label>
+          <input type="text" id="f-username" placeholder="user id" autocomplete="username" autocapitalize="none"/>
         </div>
-        <div class="keypad">
-          <button class="key" onclick="pinKey('1')">1</button>
-          <button class="key" onclick="pinKey('2')">2</button>
-          <button class="key" onclick="pinKey('3')">3</button>
-          <button class="key" onclick="pinKey('4')">4</button>
-          <button class="key" onclick="pinKey('5')">5</button>
-          <button class="key" onclick="pinKey('6')">6</button>
-          <button class="key" onclick="pinKey('7')">7</button>
-          <button class="key" onclick="pinKey('8')">8</button>
-          <button class="key" onclick="pinKey('9')">9</button>
-          <button class="key key-del" onclick="pinDel()">⌫</button>
-          <button class="key" onclick="pinKey('0')">0</button>
-          <button class="key key-ok" id="key-ok" onclick="doPinLogin()" disabled>OK</button>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="f-password" placeholder="••••••••" autocomplete="current-password"/>
         </div>
-        <div class="pin-hint">Inserisci il PIN a 4 cifre</div>
-      </div>
+        <button class="btn-login" id="btn-login" type="submit">Accedi</button>
+      </form>
 
     </div>
   </div>
@@ -281,18 +177,9 @@ const NEXT_URL = new URLSearchParams(location.search).get('next');
 const LOGIN_DESTINATION = NEXT_URL && NEXT_URL.startsWith('/') && !NEXT_URL.startsWith('//')
   ? NEXT_URL
   : '/';
-// ── Tab switch ────────────────────────────────────────────────────────────────
-function switchTab(t) {
-  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (t === 'standard')));
-  document.getElementById('panel-standard').classList.toggle('active', t === 'standard');
-  document.getElementById('panel-operaio').classList.toggle('active', t === 'operaio');
-  clearErrors();
-  if (t === 'standard') document.getElementById('f-username').focus();
-}
 
 function clearErrors() {
   document.getElementById('err-standard').style.display = 'none';
-  document.getElementById('err-operaio').style.display = 'none';
 }
 
 function showError(id, msg) {
@@ -331,56 +218,6 @@ async function doLogin(e) {
   }
 }
 
-// ── PIN login ─────────────────────────────────────────────────────────────────
-let _pin = '';
-
-function pinKey(digit) {
-  if (_pin.length >= 4) return;
-  _pin += digit;
-  updatePinDots();
-  if (_pin.length === 4) doPinLogin();
-}
-
-function pinDel() {
-  _pin = _pin.slice(0, -1);
-  updatePinDots();
-  clearErrors();
-}
-
-function updatePinDots() {
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('d' + i).classList.toggle('filled', i < _pin.length);
-  }
-  document.getElementById('key-ok').disabled = _pin.length !== 4;
-}
-
-async function doPinLogin() {
-  if (_pin.length !== 4) return;
-  clearErrors();
-  document.getElementById('key-ok').disabled = true;
-
-  try {
-    const res = await fetch('/api/v1/auth/login-pin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin: _pin }),
-    });
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      throw new Error(d.detail || 'PIN non riconosciuto');
-    }
-    const data = await res.json();
-    saveSession(data);
-    window.location.replace(LOGIN_DESTINATION);
-  } catch(err) {
-    showError('err-operaio', err.message);
-    _pin = '';
-    updatePinDots();
-  } finally {
-    document.getElementById('key-ok').disabled = false;
-  }
-}
-
 // ── Session ───────────────────────────────────────────────────────────────────
 function saveSession(data) {
   localStorage.setItem('stqc_token',   data.access_token);
@@ -398,15 +235,6 @@ function saveSession(data) {
 window.addEventListener('load', () => {
   document.getElementById('hero-bg').classList.add('loaded');
   document.getElementById('f-username').focus();
-});
-
-// Keyboard support for PIN
-document.addEventListener('keydown', e => {
-  const panel = document.getElementById('panel-operaio');
-  if (!panel.classList.contains('active')) return;
-  if (e.key >= '0' && e.key <= '9') pinKey(e.key);
-  if (e.key === 'Backspace') pinDel();
-  if (e.key === 'Enter' && _pin.length === 4) doPinLogin();
 });
 </script>
 </body>

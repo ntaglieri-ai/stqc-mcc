@@ -48,6 +48,25 @@ class MaterialCreate(MaterialBase):
     pass
 
 
+class MaterialIncomingCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: Optional[str] = None
+    description: Optional[str] = None
+    unit: str = "PZ"
+    specification: Optional[str] = None
+    tipo: Optional[str] = None
+    profilo: Optional[str] = None
+    dimensioni: Optional[str] = None
+    norma_uni: Optional[str] = None
+    qualita: Optional[str] = None
+    colata: Optional[str] = None
+    peso_u_kg: Optional[float] = None
+    peso_1_pz: Optional[float] = None
+    quantity: float = Field(..., gt=0)
+    reason: str = "Ingresso nuovo materiale"
+
+
 class MaterialRead(MaterialBase):
     id: int
 
@@ -181,6 +200,41 @@ class WarehousePhysicalItemRead(BaseModel):
     created_at: datetime
     exited_at: Optional[datetime] = None
     label: str
+
+
+class WarehouseItemDetailRead(WarehousePhysicalItemRead):
+    material_code: str
+    description: Optional[str] = None
+    tipo: Optional[str] = None
+    profilo: Optional[str] = None
+    dimensioni: Optional[str] = None
+    norma_uni: Optional[str] = None
+    qualita: Optional[str] = None
+    colata: Optional[str] = None
+    commessa_ref: Optional[str] = None
+    peso_u_kg: Optional[float] = None
+    peso_1_pz: Optional[float] = None
+    peso_kg: Optional[float] = None
+    unit: Optional[str] = None
+    source_movement_id: Optional[int] = None
+    exit_movement_id: Optional[int] = None
+    notes: Optional[str] = None
+    manual_overrides: List[str] = Field(default_factory=list)
+
+
+class WarehouseItemUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tipo: Optional[str] = None
+    profilo: Optional[str] = None
+    dimensioni: Optional[str] = None
+    norma_uni: Optional[str] = None
+    qualita: Optional[str] = None
+    colata: Optional[str] = None
+    commessa_ref: Optional[str] = None
+    peso_u_kg: Optional[float] = None
+    peso_1_pz: Optional[float] = None
+    notes: Optional[str] = None
 
 
 class WarehouseScanRequest(BaseModel):

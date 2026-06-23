@@ -3,7 +3,6 @@ import io
 import logging
 import os
 import platform
-import re
 import shutil
 import subprocess
 import sys
@@ -26,16 +25,23 @@ from backend.app.core.config import settings
 from backend.app.core.log_collector import log_collector
 from backend.app.db.session import engine, get_db
 from backend.app.models.user import AuditLog, Group, GroupPermission, ProfiloUtente, User, UserAttributes
+from backend.app.models.commessa import ScannerDevice, Workstation
 from backend.app.schemas.admin import (
     AuditLogRead,
     GroupRead,
     GroupUpdate,
     MaintenanceResult,
+    ScannerDeviceCreate,
+    ScannerDeviceRead,
+    ScannerDeviceUpdate,
     UserAttributesRead,
     UserAttributesUpdate,
     UserCreate,
     UserRead,
     UserUpdate,
+    WorkstationCreate,
+    WorkstationRead,
+    WorkstationUpdate,
 )
 
 INVENTARIO_PATH = Path("/Users/imacnando/Desktop/stqc-mcc/INVENTARIO_8_5_26_REL3XNANDO.xlsm")
@@ -53,19 +59,9 @@ APP_VERSION = "1.0.0"
 DEPLOY_DATE = "2026-05-28"
 
 # Account di sviluppo protetti — non disattivabili tramite API
-_PROTECTED_USERNAMES = {"admin", "direttore", "operatore", "logistica", "acquisti"}
+_PROTECTED_USERNAMES = {"admin", "direttore", "progettazione", "logistica", "acquisti"}
 
 _logger.info("Admin router loaded — log collector active")
-
-
-def _postazione_to_username(postazione: str) -> str:
-    s = re.sub(r"^[Pp]ostazione\s+", "", postazione).strip()
-    s = re.sub(r"\s*[—–\-]+\s*", "_", s)
-    s = re.sub(r"\s+(\d)", r"\1", s)
-    s = s.replace(" ", "_").lower()
-    s = re.sub(r"[^a-z0-9_]", "", s)
-    s = re.sub(r"_+", "_", s).strip("_")
-    return f"operatore_{s}"
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -167,52 +163,6 @@ def unlock_user(user_id: int, db: Session = Depends(get_db)):
     write_audit_log(db, "UNLOCK_USER", target_user_id=user_id)
     db.commit()
     return {"id": user_id, "unlocked": True}
-
-
-@router.post("/users/provision-operatori")
-def provision_operatori(db: Session = Depends(get_db)):
-    """Crea automaticamente un utente Operatore per ogni postazione delle fasi operative."""
-    from sqlalchemy import distinct, select
-    from backend.app.models.commessa import FaseOperativa
-
-    postazioni = db.scalars(
-        select(distinct(FaseOperativa.postazione)).where(FaseOperativa.postazione.isnot(None))
-    ).all()
-
-    DEFAULT_PASSWORD = "Operatore@2026!"
-    pwd_hash = hash_password(DEFAULT_PASSWORD)
-
-    created: list[dict] = []
-    skipped: list[dict] = []
-
-    for postazione in sorted(postazioni):
-        username = _postazione_to_username(postazione)
-        if db.query(User).filter(User.username == username).first():
-            skipped.append({"username": username, "postazione": postazione})
-            continue
-
-        user = User(
-            username=username,
-            password_hash=pwd_hash,
-            profilo=ProfiloUtente.OPERATORE,
-            attivo=True,
-            password_changed_at=datetime.utcnow(),
-        )
-        db.add(user)
-        created.append({"username": username, "postazione": postazione})
-        _logger.info("Provisionato operatore: %s (%s)", username, postazione)
-
-    db.commit()
-    write_audit_log(db, "PROVISION_OPERATORI",
-                    details=f"creati={len(created)}, saltati={len(skipped)}")
-    db.commit()
-    return {
-        "created":       created,
-        "skipped":       skipped,
-        "total_created": len(created),
-        "total_skipped": len(skipped),
-        "default_password": DEFAULT_PASSWORD,
-    }
 
 
 # ── User Attributes ───────────────────────────────────────────────────────────
@@ -377,6 +327,153 @@ def group_users(name: str, db: Session = Depends(get_db)):
     if not db.query(Group).filter(Group.name == name).first():
         raise HTTPException(404, f"Gruppo '{name}' non trovato")
     return db.query(User).filter(User.profilo == name).order_by(User.username).all()
+
+
+# ── Workstations / Scanner devices ───────────────────────────────────────────
+
+def _workstation_qr(code: str) -> tuple[str, str]:
+    clean = code.strip().upper()
+    return f"{clean}_START", f"{clean}_END"
+
+
+@router.get("/workstations", response_model=list[WorkstationRead])
+def list_workstations(include_inactive: bool = True, db: Session = Depends(get_db)):
+    q = db.query(Workstation)
+    if not include_inactive:
+        q = q.filter(Workstation.active == True)
+    return q.order_by(Workstation.active.desc(), Workstation.code).all()
+
+
+@router.post("/workstations", response_model=WorkstationRead, status_code=201)
+def create_workstation(body: WorkstationCreate, db: Session = Depends(get_db)):
+    code = body.code.strip().upper()
+    if not code:
+        raise HTTPException(400, "Codice postazione obbligatorio")
+    if db.query(Workstation).filter(Workstation.code == code).first():
+        raise HTTPException(409, f"Postazione '{code}' già esistente")
+    start_qr_code, end_qr_code = _workstation_qr(code)
+    ws = Workstation(
+        code=code,
+        name=body.name.strip() or code,
+        description=body.description,
+        active=body.active,
+        start_qr_code=start_qr_code,
+        end_qr_code=end_qr_code,
+    )
+    db.add(ws)
+    write_audit_log(db, "CREATE_WORKSTATION", details=f"code={code}")
+    db.commit()
+    db.refresh(ws)
+    return ws
+
+
+@router.patch("/workstations/{workstation_id}", response_model=WorkstationRead)
+def update_workstation(workstation_id: int, body: WorkstationUpdate, db: Session = Depends(get_db)):
+    ws = db.get(Workstation, workstation_id)
+    if not ws:
+        raise HTTPException(404, "Postazione non trovata")
+
+    data = body.model_dump(exclude_unset=True)
+    if "code" in data and data["code"] is not None:
+        new_code = data["code"].strip().upper()
+        if not new_code:
+            raise HTTPException(400, "Codice postazione obbligatorio")
+        duplicate = db.query(Workstation).filter(Workstation.code == new_code, Workstation.id != workstation_id).first()
+        if duplicate:
+            raise HTTPException(409, f"Postazione '{new_code}' già esistente")
+        ws.code = new_code
+        ws.start_qr_code, ws.end_qr_code = _workstation_qr(new_code)
+    if "name" in data and data["name"] is not None:
+        ws.name = data["name"].strip() or ws.code
+    if "description" in data:
+        ws.description = data["description"]
+    if "active" in data and data["active"] is not None:
+        ws.active = data["active"]
+
+    write_audit_log(db, "UPDATE_WORKSTATION", details=f"id={workstation_id}, code={ws.code}")
+    db.commit()
+    db.refresh(ws)
+    return ws
+
+
+@router.get("/scanner-devices", response_model=list[ScannerDeviceRead])
+def list_scanner_devices(include_inactive: bool = True, db: Session = Depends(get_db)):
+    q = db.query(ScannerDevice)
+    if not include_inactive:
+        q = q.filter(ScannerDevice.active == True)
+    return q.order_by(ScannerDevice.active.desc(), ScannerDevice.scanner_code).all()
+
+
+def _ensure_workstation_exists(db: Session, postazione_id: Optional[int]) -> None:
+    if postazione_id is not None and not db.get(Workstation, postazione_id):
+        raise HTTPException(404, "Postazione associata non trovata")
+
+
+@router.post("/scanner-devices", response_model=ScannerDeviceRead, status_code=201)
+def create_scanner_device(body: ScannerDeviceCreate, db: Session = Depends(get_db)):
+    scanner_code = body.scanner_code.strip().upper()
+    if not scanner_code:
+        raise HTTPException(400, "Codice scanner obbligatorio")
+    if db.query(ScannerDevice).filter(ScannerDevice.scanner_code == scanner_code).first():
+        raise HTTPException(409, f"Scanner '{scanner_code}' già esistente")
+    if body.device_token and db.query(ScannerDevice).filter(ScannerDevice.device_token == body.device_token).first():
+        raise HTTPException(409, "Device token già associato a un altro scanner")
+    _ensure_workstation_exists(db, body.postazione_id)
+
+    scanner = ScannerDevice(
+        scanner_code=scanner_code,
+        name=body.name.strip() or scanner_code,
+        description=body.description,
+        postazione_id=body.postazione_id,
+        ip_address=body.ip_address,
+        serial_number=body.serial_number,
+        device_token=body.device_token,
+        active=body.active,
+    )
+    db.add(scanner)
+    write_audit_log(db, "CREATE_SCANNER_DEVICE", details=f"scanner={scanner_code}, postazione_id={body.postazione_id}")
+    db.commit()
+    db.refresh(scanner)
+    return scanner
+
+
+@router.patch("/scanner-devices/{scanner_id}", response_model=ScannerDeviceRead)
+def update_scanner_device(scanner_id: int, body: ScannerDeviceUpdate, db: Session = Depends(get_db)):
+    scanner = db.get(ScannerDevice, scanner_id)
+    if not scanner:
+        raise HTTPException(404, "Scanner non trovato")
+
+    data = body.model_dump(exclude_unset=True)
+    if "scanner_code" in data and data["scanner_code"] is not None:
+        new_code = data["scanner_code"].strip().upper()
+        if not new_code:
+            raise HTTPException(400, "Codice scanner obbligatorio")
+        duplicate = db.query(ScannerDevice).filter(ScannerDevice.scanner_code == new_code, ScannerDevice.id != scanner_id).first()
+        if duplicate:
+            raise HTTPException(409, f"Scanner '{new_code}' già esistente")
+        scanner.scanner_code = new_code
+    if "name" in data and data["name"] is not None:
+        scanner.name = data["name"].strip() or scanner.scanner_code
+    if "postazione_id" in data:
+        _ensure_workstation_exists(db, data["postazione_id"])
+        scanner.postazione_id = data["postazione_id"]
+    if "device_token" in data and data["device_token"]:
+        duplicate = db.query(ScannerDevice).filter(
+            ScannerDevice.device_token == data["device_token"],
+            ScannerDevice.id != scanner_id,
+        ).first()
+        if duplicate:
+            raise HTTPException(409, "Device token già associato a un altro scanner")
+
+    for field in ("description", "ip_address", "serial_number", "device_token", "active"):
+        if field in data:
+            setattr(scanner, field, data[field])
+    scanner.updated_at = datetime.utcnow()
+
+    write_audit_log(db, "UPDATE_SCANNER_DEVICE", details=f"id={scanner_id}, scanner={scanner.scanner_code}, postazione_id={scanner.postazione_id}")
+    db.commit()
+    db.refresh(scanner)
+    return scanner
 
 
 # ── System Status ─────────────────────────────────────────────────────────────

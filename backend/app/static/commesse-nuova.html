@@ -211,7 +211,7 @@
   const token = localStorage.getItem("stqc_token");
   const profile = localStorage.getItem("stqc_profilo");
   if (!token) { location.replace("/login"); return; }
-  if (!["Responsabile", "Direttore", "Admin"].includes(profile)) location.replace("/");
+  if (!["Direttore", "Progettazione", "Admin"].includes(profile)) location.replace("/");
 })();
 </script>
 
@@ -300,9 +300,9 @@
           </div>
 
           <div class="upload-box" id="ub-fasi">
-            <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm"
+            <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm" required
               onchange="ubSelected('ub-fasi','f-fasi',false)"/>
-            <span class="ub-req-badge optional">Opzionale</span>
+            <span class="ub-req-badge required">Obbligatorio</span>
             <div class="ub-icon">🔧</div>
             <div class="ub-label">Lista pezzi e assemblati</div>
             <div class="ub-sub">Collega i pezzi ai relativi assemblati</div>
@@ -313,18 +313,17 @@
             </div>
           </div>
 
-          <div class="upload-box" id="ub-disegni">
-            <input type="file" id="f-disegni" accept=".pdf,.dwg,.jpg,.jpeg,.png" multiple
-              onchange="ubSelected('ub-disegni','f-disegni',true)"/>
-            <span class="ub-req-badge optional">Opzionale</span>
-            <div class="ub-icon">📐</div>
-            <div class="ub-label">Schemi e Disegni</div>
-            <div class="ub-sub">Documentazione tecnica della commessa</div>
-            <div class="ub-hint">.pdf · .dwg · .jpg · .png</div>
+          <div class="upload-box" id="ub-spedizione">
+            <input type="file" id="f-spedizione" accept=".xlsx,.xls,.xlsm" required
+              onchange="ubSelected('ub-spedizione','f-spedizione',false)"/>
+            <span class="ub-req-badge required">Obbligatorio</span>
+            <div class="ub-icon">🚚</div>
+            <div class="ub-label">Lista spedizione</div>
+            <div class="ub-sub">Assemblati finali, quantità e pesi di consegna</div>
+            <div class="ub-hint">.xlsx · .xls · .xlsm</div>
             <div class="ub-cta">Trascina o clicca</div>
-            <div class="ub-selected" id="ub-disegni-sel">
-              <span id="ub-disegni-name"></span>
-              <span class="ub-selected-count" id="ub-disegni-count"></span>
+            <div class="ub-selected" id="ub-spedizione-sel">
+              <span id="ub-spedizione-name"></span>
             </div>
           </div>
         </div>
@@ -376,7 +375,7 @@ function setupDrop(boxId, inputId, multi) {
 
 setupDrop("ub-distinta", "f-distinta", false);
 setupDrop("ub-fasi", "f-fasi", false);
-setupDrop("ub-disegni", "f-disegni", true);
+setupDrop("ub-spedizione", "f-spedizione", false);
 
 function clearFeedback() {
   document.getElementById("feedback").className = "feedback";
@@ -394,8 +393,18 @@ async function handleSubmit(event) {
 
   const button = document.getElementById("btn-submit");
   const listaPezzi = document.getElementById("f-distinta").files[0];
+  const assemblaggi = document.getElementById("f-fasi").files[0];
+  const spedizione = document.getElementById("f-spedizione").files[0];
   if (!listaPezzi) {
     showError("La Lista pezzi è obbligatoria.");
+    return;
+  }
+  if (!assemblaggi) {
+    showError("La Lista pezzi e assemblati è obbligatoria.");
+    return;
+  }
+  if (!spedizione) {
+    showError("La Lista spedizione è obbligatoria.");
     return;
   }
 
@@ -421,11 +430,8 @@ async function handleSubmit(event) {
     button.textContent = "Caricamento e analisi file…";
     const formData = new FormData();
     formData.append("lista_pezzi", listaPezzi);
-    const assemblaggi = document.getElementById("f-fasi").files[0];
-    if (assemblaggi) formData.append("assemblaggi", assemblaggi);
-    for (const file of document.getElementById("f-disegni").files) {
-      formData.append("disegni", file);
-    }
+    formData.append("assemblaggi", assemblaggi);
+    formData.append("spedizione", spedizione);
     formData.append("predistinta", String(document.getElementById("f-predistinta").checked));
 
     const analysisResponse = await fetch(`/api/v1/commesse/${commessa.id}/analisi`, {

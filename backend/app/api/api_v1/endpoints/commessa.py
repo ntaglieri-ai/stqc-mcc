@@ -9,7 +9,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend.app.core.config import settings
 from backend.app.crud import commessa as crud
@@ -20,7 +20,6 @@ _logger = logging.getLogger("stqc.commessa")
 from backend.app.models.commessa import (
     CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
 )
-from backend.app.models.user import ProfiloUtente, User, UserAttributes
 from backend.app.models.warehouse import DistintaImport, DistintaItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
 from backend.app.services.distinta import (
@@ -32,6 +31,32 @@ from backend.app.services.commessa_analysis import classify_commessa_materials
 from backend.app.services.qr import generate_qr_for_payload
 
 router = APIRouter()
+
+
+class PieceManualUpdate(BaseModel):
+    tipo: Optional[str] = None
+    profilo: Optional[str] = None
+    qualita: Optional[str] = None
+    assemblato: Optional[str] = None
+    stato: Optional[str] = None
+
+
+def _piece_qr_read(item: Piece) -> dict:
+    return {
+        "id": item.id,
+        "distinta_item_id": item.distinta_item_id,
+        "qr_code": item.qr_code,
+        "part_number": item.marca_pos,
+        "instance_number": item.progressivo,
+        "tipo": item.tipo_profilo,
+        "profilo": item.profilo,
+        "qualita": item.materiale,
+        "assemblato": item.assemblato_id,
+        "stato": item.stato_attuale,
+        "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
+        "resolve_url": f"/p/{item.qr_code}",
+        "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
+    }
 
 
 def _piece_qr_code(part_number: str | None, instance_number: int | None, fallback_id: int | None = None) -> str:
@@ -123,8 +148,8 @@ def delete_commessa(commessa_id: int, db: Session = Depends(get_db)):
 async def create_analisi_commessa(
     commessa_id: int,
     lista_pezzi: UploadFile = File(..., description="Lista pezzi / Lavorazioni per posizione"),
-    assemblaggi: Optional[UploadFile] = File(None, description="Lista pezzi e assemblati"),
-    disegni: Optional[List[UploadFile]] = File(None),
+    assemblaggi: UploadFile = File(..., description="Lista pezzi e assemblati"),
+    spedizione: UploadFile = File(..., description="Lista spedizione"),
     predistinta: bool = Form(False),
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -151,12 +176,15 @@ async def create_analisi_commessa(
         with lista_dest.open("wb") as f:
             f.write(await lista_pezzi.read())
 
-        asm_dest = None
-        if assemblaggi and assemblaggi.filename:
-            asm_suffix = Path(assemblaggi.filename).suffix.lower() or ".xls"
-            asm_dest = rev_dir / f"assemblaggi{asm_suffix}"
-            with asm_dest.open("wb") as f:
-                f.write(await assemblaggi.read())
+        asm_suffix = Path(assemblaggi.filename or "assemblaggi.xls").suffix.lower() or ".xls"
+        asm_dest = rev_dir / f"assemblaggi{asm_suffix}"
+        with asm_dest.open("wb") as f:
+            f.write(await assemblaggi.read())
+
+        spedizione_suffix = Path(spedizione.filename or "spedizione.xls").suffix.lower() or ".xls"
+        spedizione_dest = rev_dir / f"spedizione{spedizione_suffix}"
+        with spedizione_dest.open("wb") as f:
+            f.write(await spedizione.read())
 
         items_normalized, report = parse_commessa_files(
             lista_dest,
@@ -170,7 +198,7 @@ async def create_analisi_commessa(
     revisione = CommessaRevisione(
         commessa_id=commessa_id,
         codice=codice_rev,
-        file_assemblaggi=str(asm_dest.relative_to(settings.upload_dir.parent)) if asm_dest else None,
+        file_assemblaggi=str(asm_dest.relative_to(settings.upload_dir.parent)),
         file_lavorazioni=str(lista_dest.relative_to(settings.upload_dir.parent)),
         predistinta=predistinta,
         corrente=True,
@@ -208,6 +236,7 @@ async def create_analisi_commessa(
             .update(
                 {
                     Piece.qr_attivo: False,
+                    Piece.qr_status: "ARCHIVED",
                     Piece.stato_attuale: "SUPERATO",
                     Piece.updated_at: datetime.utcnow(),
                 },
@@ -217,6 +246,15 @@ async def create_analisi_commessa(
 
     db.add(revisione)
     db.flush()
+
+    db.add(CommessaDocumento(
+        commessa_id=commessa_id,
+        revisione_id=revisione.id,
+        categoria="SPEDIZIONE",
+        filename=Path(spedizione.filename or spedizione_dest.name).name,
+        storage_path=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
+        mime_type=spedizione.content_type,
+    ))
 
     distinta_import = DistintaImport(
         filename=lista_pezzi.filename or f"{commessa.codice}_{codice_rev}",
@@ -244,24 +282,6 @@ async def create_analisi_commessa(
     db.flush()
     for di in inserted_items:
         _create_piece_from_item(db, di, commessa_id, revisione.id)
-
-    for index, upload in enumerate(disegni or [], start=1):
-        if not upload.filename:
-            continue
-        original_name = Path(upload.filename).name
-        suffix = Path(original_name).suffix.lower()
-        stored_name = f"disegno_{index:03d}{suffix}"
-        destination = rev_dir / stored_name
-        with destination.open("wb") as f:
-            f.write(await upload.read())
-        db.add(CommessaDocumento(
-            commessa_id=commessa_id,
-            revisione_id=revisione.id,
-            categoria="DISEGNO",
-            filename=original_name,
-            storage_path=str(destination.relative_to(settings.upload_dir.parent)),
-            mime_type=upload.content_type,
-        ))
 
     db.commit()
     return {
@@ -292,6 +312,7 @@ def list_revisioni(commessa_id: int, db: Session = Depends(get_db)):
             "codice":          r.codice,
             "file_assemblaggi": r.file_assemblaggi,
             "file_lista_pezzi": r.file_lavorazioni,
+            "file_spedizione":  _spedizione_doc(r).storage_path if _spedizione_doc(r) else None,
             "predistinta":      r.predistinta,
             "corrente":         r.corrente,
             "stato_analisi":    r.stato_analisi,
@@ -333,6 +354,10 @@ def _latest_revision(db: Session, commessa_id: int) -> CommessaRevisione | None:
         .order_by(CommessaRevisione.id.desc())
         .first()
     )
+
+
+def _spedizione_doc(revisione: CommessaRevisione) -> CommessaDocumento | None:
+    return next((doc for doc in revisione.documenti if doc.categoria == "SPEDIZIONE"), None)
 
 
 @router.get("/{commessa_id}/analisi")
@@ -382,6 +407,8 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
         row["assemblati"] = sorted(row["assemblati"])
         position_rows.append(row)
 
+    spedizione_doc = _spedizione_doc(revisione)
+
     return {
         "commessa": {
             "id": commessa.id,
@@ -404,6 +431,7 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
             "files": {
                 "lista_pezzi": revisione.file_lavorazioni,
                 "assemblaggi": revisione.file_assemblaggi,
+                "spedizione": spedizione_doc.storage_path if spedizione_doc else None,
                 "documenti": [
                     {
                         "id": doc.id,
@@ -461,6 +489,7 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
     now = datetime.utcnow()
     for piece in pieces:
         piece.qr_attivo = True
+        piece.qr_status = "ACTIVE"
         piece.stato_attuale = "DA_PRODURRE"
         piece.updated_at = now
         item = items_by_id.get(piece.distinta_item_id)
@@ -505,12 +534,13 @@ def list_commessa_item_qr(
         query = query.filter(or_(
             Piece.qr_code.ilike(pattern),
             Piece.marca_pos.ilike(pattern),
+            Piece.tipo_profilo.ilike(pattern),
             Piece.profilo.ilike(pattern),
             Piece.materiale.ilike(pattern),
             Piece.assemblato_id.ilike(pattern),
         ))
     total = query.count()
-    safe_limit = min(max(limit, 1), 200)
+    safe_limit = min(max(limit, 1), 5000)
     items = (
         query.order_by(Piece.marca_pos, Piece.progressivo, Piece.id)
         .offset(max(skip, 0))
@@ -523,23 +553,151 @@ def list_commessa_item_qr(
         "total": total,
         "skip": max(skip, 0),
         "limit": safe_limit,
-        "items": [
-            {
-                "id": item.id,
-                "distinta_item_id": item.distinta_item_id,
-                "qr_code": item.qr_code,
-                "part_number": item.marca_pos,
-                "instance_number": item.progressivo,
-                "profilo": item.profilo,
-                "qualita": item.materiale,
-                "assemblato": item.assemblato_id,
-                "stato": item.stato_attuale,
-                "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
-                "resolve_url": f"/p/{item.qr_code}",
-                "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
-            }
-            for item in items
-        ],
+        "items": [_piece_qr_read(item) for item in items],
+    }
+
+
+@router.patch("/{commessa_id}/step-5-1/items/{piece_id}")
+def update_commessa_piece_qr(
+    commessa_id: int,
+    piece_id: int,
+    payload: PieceManualUpdate,
+    db: Session = Depends(get_db),
+):
+    piece = db.get(Piece, piece_id)
+    if piece is None or piece.commessa_id != commessa_id:
+        raise HTTPException(404, "Pezzo QR non trovato")
+    field_map = {
+        "tipo": "tipo_profilo",
+        "profilo": "profilo",
+        "qualita": "materiale",
+        "assemblato": "assemblato_id",
+        "stato": "stato_attuale",
+    }
+    data = payload.model_dump(exclude_unset=True)
+    for public_field, model_field in field_map.items():
+        if public_field in data:
+            value = data[public_field]
+            if public_field == "stato" and (value is None or not str(value).strip()):
+                continue
+            setattr(piece, model_field, value.strip() if isinstance(value, str) and value.strip() else None)
+    piece.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(piece)
+    return _piece_qr_read(piece)
+
+
+def _is_assembly_station(value: str | None) -> bool:
+    code = (value or "").strip().upper()
+    return code.startswith("ASSEMBLAGGIO") or code.startswith("ASS")
+
+
+@router.get("/{commessa_id}/analisi/assemblati")
+def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+
+    pieces = (
+        db.query(Piece)
+        .options(joinedload(Piece.work_sessions))
+        .filter(Piece.revisione_id == revisione.id)
+        .order_by(Piece.assemblato_id, Piece.marca_pos, Piece.progressivo, Piece.id)
+        .all()
+    )
+    groups: dict[str, dict] = {}
+    unassigned = 0
+    for piece in pieces:
+        if not piece.assemblato_id:
+            unassigned += 1
+            continue
+        row = groups.setdefault(piece.assemblato_id, {
+            "assemblato": piece.assemblato_id,
+            "pezzi_previsti": 0,
+            "qr_attivi": 0,
+            "pezzi_entrati": 0,
+            "pezzi_completati": 0,
+            "started_at": None,
+            "last_event_at": None,
+            "last_event": None,
+            "last_postazione": None,
+            "pieces": [],
+        })
+        row["pezzi_previsti"] += 1
+        if piece.qr_attivo:
+            row["qr_attivi"] += 1
+
+        assembly_sessions = [
+            session for session in piece.work_sessions
+            if _is_assembly_station(session.postazione_code)
+        ]
+        entered = bool(assembly_sessions) or _is_assembly_station(piece.ultima_postazione)
+        completed = any(session.closed_at for session in assembly_sessions)
+        if entered:
+            row["pezzi_entrati"] += 1
+        if completed:
+            row["pezzi_completati"] += 1
+
+        timestamps = [session.started_at for session in assembly_sessions if session.started_at]
+        if timestamps:
+            first_start = min(timestamps)
+            if row["started_at"] is None or first_start < row["started_at"]:
+                row["started_at"] = first_start
+        if piece.ultimo_evento_at and (row["last_event_at"] is None or piece.ultimo_evento_at > row["last_event_at"]):
+            row["last_event_at"] = piece.ultimo_evento_at
+            row["last_event"] = piece.ultimo_evento
+            row["last_postazione"] = piece.ultima_postazione
+
+        row["pieces"].append({
+            "id": piece.id,
+            "qr_code": piece.qr_code,
+            "marca_pos": piece.marca_pos,
+            "progressivo": piece.progressivo,
+            "profilo": piece.profilo,
+            "qualita": piece.materiale,
+            "stato": piece.stato_attuale,
+            "ultima_postazione": piece.ultima_postazione,
+            "ultimo_evento": piece.ultimo_evento,
+            "ultimo_evento_at": piece.ultimo_evento_at,
+            "entered_assembly": entered,
+            "completed_assembly": completed,
+        })
+
+    assemblati = []
+    for row in groups.values():
+        total = row["pezzi_previsti"] or 0
+        completed = row["pezzi_completati"] or 0
+        entered = row["pezzi_entrati"] or 0
+        if total and completed >= total:
+            stato = "COMPLETO"
+        elif entered > 0:
+            stato = "IN_ASSEMBLAGGIO"
+        else:
+            stato = "DA_PRODURRE"
+        row["stato"] = stato
+        row["progress"] = round((completed / total) * 100, 1) if total else 0
+        assemblati.append(row)
+
+    assemblati.sort(key=lambda row: row["assemblato"])
+    totals = {
+        "totali": len(assemblati),
+        "da_produrre": sum(1 for row in assemblati if row["stato"] == "DA_PRODURRE"),
+        "in_assemblaggio": sum(1 for row in assemblati if row["stato"] == "IN_ASSEMBLAGGIO"),
+        "completi": sum(1 for row in assemblati if row["stato"] == "COMPLETO"),
+        "pezzi_previsti": sum(row["pezzi_previsti"] for row in assemblati),
+        "pezzi_entrati": sum(row["pezzi_entrati"] for row in assemblati),
+        "pezzi_completati": sum(row["pezzi_completati"] for row in assemblati),
+        "pezzi_senza_assemblato": unassigned,
+    }
+    totals["progress"] = round((totals["pezzi_completati"] / totals["pezzi_previsti"]) * 100, 1) if totals["pezzi_previsti"] else 0
+    return {
+        "commessa_id": commessa_id,
+        "revisione_id": revisione.id,
+        "summary": totals,
+        "assemblati": assemblati,
     }
 
 
@@ -789,34 +947,10 @@ def avvia_produzione(commessa_id: int, db: Session = Depends(get_db)):
     _logger.info("[avvia] pezzo_percorso rows da inserire: %d", len(percorso_rows))
     db.add_all(percorso_rows)
 
-    # ── 6. Sblocca commesse_visibili per operatori delle prime fasi ───────────
-    first_postazioni: set = set()
-    for marca_pos, fase_list in by_marca.items():
-        first_fase = min(fase_list, key=lambda f: (f.sequenza if f.sequenza is not None else 9999, f.id))
-        if first_fase.postazione:
-            first_postazioni.add(first_fase.postazione)
-
-    _logger.info("[avvia] prime postazioni: %s", sorted(first_postazioni))
+    # ── 6. Visibilità postazioni ──────────────────────────────────────────────
+    # Il vecchio sblocco automatico per utenti di postazione è stato disattivato:
+    # l'avanzamento produzione sarà guidato dagli eventi QR reali di postazione.
     unlocked_count = 0
-    if first_postazioni:
-        operatori = (
-            db.query(User)
-            .filter(User.profilo == ProfiloUtente.OPERATORE, User.attivo == True)
-            .all()
-        )
-        for op in operatori:
-            attrs = db.query(UserAttributes).filter(UserAttributes.user_id == op.id).first()
-            if not attrs or not attrs.postazioni_assegnate:
-                continue
-            if any(p in first_postazioni for p in attrs.postazioni_assegnate):
-                cv = attrs.commesse_visibili
-                if cv == "all":
-                    continue
-                if not isinstance(cv, list):
-                    cv = []
-                if commessa_id not in cv:
-                    attrs.commesse_visibili = cv + [commessa_id]
-                    unlocked_count += 1
 
     # ── 7. Porta commessa in produzione ───────────────────────────────────────
     commessa.status = CommessaStatus.IN_PRODUZIONE

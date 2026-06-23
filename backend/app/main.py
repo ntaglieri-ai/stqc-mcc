@@ -36,18 +36,26 @@ def create_app() -> FastAPI:
         from backend.app.core.auth import hash_password
         from backend.app.db.session import SessionLocal
         from backend.app.models.user import Group, GroupPermission, ProfiloUtente, User
+        from sqlalchemy import text
 
         # Account di sviluppo: username / password / profilo
         DEV_ACCOUNTS = [
-            ("admin",      "admin",      ProfiloUtente.ADMIN,      "admin@mcc.local"),
-            ("direttore",  "direttore",  ProfiloUtente.DIRETTORE,  None),
-            ("operatore",  "operatore",  ProfiloUtente.OPERATORE,  None),
-            ("logistica",  "logistica",  ProfiloUtente.LOGISTICA,  None),
-            ("acquisti",   "acquisti",   ProfiloUtente.ACQUISTI,   None),
+            ("admin",         "admin",         ProfiloUtente.ADMIN,         "admin@mcc.local"),
+            ("direttore",     "direttore",     ProfiloUtente.DIRETTORE,     None),
+            ("progettazione", "progettazione", ProfiloUtente.PROGETTAZIONE, None),
+            ("logistica",     "logistica",     ProfiloUtente.LOGISTICA,     None),
+            ("acquisti",      "acquisti",      ProfiloUtente.ACQUISTI,      None),
         ]
 
         db = SessionLocal()
         try:
+            # Bonifica profili legacy prima che SQLAlchemy validi l'enum.
+            db.execute(text("UPDATE users SET profilo='Direttore' WHERE profilo='Responsabile'"))
+            db.execute(text("UPDATE users SET profilo='Logistica', attivo=0 WHERE profilo IN ('Operaio', 'Operatore') OR username='operatore'"))
+            db.execute(text("DELETE FROM group_permissions WHERE group_name='Operatore'"))
+            db.execute(text("DELETE FROM groups WHERE name='Operatore'"))
+            db.commit()
+
             # Seed groups se non esistono
             for group_name, perms in GROUP_DEFAULTS.items():
                 if not db.query(Group).filter(Group.name == group_name).first():
@@ -72,7 +80,7 @@ def create_app() -> FastAPI:
                     ))
                     _logger.info("Account dev '%s' creato", username)
                 else:
-                    # aggiorna il profilo se è cambiato (es. Responsabile→Direttore)
+                    # aggiorna il profilo se è cambiato
                     if user.profilo != profilo:
                         user.profilo = profilo
                         _logger.info("Profilo account '%s' aggiornato a %s", username, profilo.value)

@@ -13,7 +13,7 @@ PASSWORD_EXPIRE_DAYS = 90
 class UserCreate(BaseModel):
     username: str
     password: str
-    profilo:  ProfiloUtente = ProfiloUtente.OPERATORE
+    profilo:  ProfiloUtente = ProfiloUtente.PROGETTAZIONE
     nome:     Optional[str] = None
     cognome:  Optional[str] = None
     email:    Optional[str] = None
@@ -127,6 +127,74 @@ class GroupUpdate(BaseModel):
     descrizione: Optional[str] = None
     postazioni:  Optional[list[str]] = None
     permissions: Optional[list[GroupPermissionUpdate]] = None
+
+
+# ── Workstations / Scanner devices ───────────────────────────────────────────
+
+class WorkstationRead(BaseModel):
+    id: int
+    code: str
+    name: str
+    description: Optional[str]
+    active: bool
+    start_qr_code: str
+    end_qr_code: str
+    created_at: Optional[datetime]
+
+    model_config = {"from_attributes": True}
+
+
+class WorkstationCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    active: bool = True
+
+
+class WorkstationUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    active: Optional[bool] = None
+
+
+class ScannerDeviceRead(BaseModel):
+    id: int
+    scanner_code: str
+    name: str
+    description: Optional[str]
+    postazione_id: Optional[int]
+    ip_address: Optional[str]
+    serial_number: Optional[str]
+    device_token: Optional[str]
+    active: bool
+    last_seen_at: Optional[datetime]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+
+    model_config = {"from_attributes": True}
+
+
+class ScannerDeviceCreate(BaseModel):
+    scanner_code: str
+    name: str
+    description: Optional[str] = None
+    postazione_id: Optional[int] = None
+    ip_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    device_token: Optional[str] = None
+    active: bool = True
+
+
+class ScannerDeviceUpdate(BaseModel):
+    scanner_code: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    postazione_id: Optional[int] = None
+    ip_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    device_token: Optional[str] = None
+    active: Optional[bool] = None
 
 
 # ── Maintenance ───────────────────────────────────────────────────────────────

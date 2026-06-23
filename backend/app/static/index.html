@@ -151,7 +151,7 @@
         <button id="d-large"        onclick="MAG.setDensity('large')"         class="den-btn px-2.5 py-1 rounded-md text-xs text-gray-500 transition-all">Large</button>
       </div>
 
-      <!-- Import (Responsabile + Logistica only) -->
+      <!-- Import magazzino -->
       <div class="relative perm-import" id="import-wrap">
         <button onclick="document.getElementById('import-dd').classList.toggle('hidden')"
           class="border border-gray-200 bg-white text-gray-600 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50 flex items-center gap-1.5 font-medium">
@@ -376,7 +376,7 @@ async function api(path, opts = {}) {
     if (profilo !== 'Logistica' && profilo !== 'Direttore') el.style.display = 'none';
   });
 
-  // Import: Responsabile + Logistica (hide for Acquisti)
+  // Import: hide for Acquisti
   document.querySelectorAll('.perm-import').forEach(el => {
     if (profilo === 'Acquisti') el.style.display = 'none';
   });

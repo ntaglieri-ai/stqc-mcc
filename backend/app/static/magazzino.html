@@ -51,7 +51,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--color-background-primary);
       color: var(--color-text-primary);
-      font-size: 13px;
+      font-size: 14px;
     }
 
     /* ── Shell ────────────────────────────────────────────────────────── */
@@ -90,92 +90,6 @@
     /* ── Body wrap ────────────────────────────────────────────────────── */
     .body-wrap { flex: 1; display: flex; overflow: hidden; }
 
-    /* ── Sidebar ──────────────────────────────────────────────────────── */
-    .sidebar {
-      flex-shrink: 0; width: 200px;
-      background: var(--color-background-secondary);
-      border-right: 1px solid var(--color-border-tertiary);
-      display: flex; flex-direction: column; overflow-y: auto; padding: 12px 0;
-    }
-    .sidebar::-webkit-scrollbar { width: 3px; }
-    .sidebar::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 2px; }
-    .sb-section {
-      padding: 0 14px 6px; font-size: 10px; font-weight: 700;
-      color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .12em;
-    }
-    .sb-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 7px 14px; cursor: pointer; font-size: 12px; font-weight: 500;
-      color: var(--color-text-secondary); border-left: 2px solid transparent;
-      transition: background .14s, color .14s;
-    }
-    .sb-item:hover { background: var(--color-border-tertiary); color: var(--color-text-primary); }
-    .sb-item.active {
-      background: var(--color-accent-bg);
-      border-left-color: var(--color-accent-text);
-      color: var(--color-accent-text); font-weight: 600;
-    }
-    .sb-count {
-      font-size: 11px; font-weight: 600; min-width: 22px; text-align: center;
-      background: var(--color-border-tertiary); color: var(--color-text-muted);
-      border-radius: 10px; padding: 1px 7px;
-    }
-    .sb-item.active .sb-count { background: var(--color-accent-bg); color: var(--color-accent-text); }
-    .sb-divider { height: 1px; background: var(--color-border-tertiary); margin: 10px 0; }
-    .sb-comm-wrap { padding: 0 10px; position: relative; }
-    .sb-comm-toggle {
-      width: 100%; display: flex; align-items: center; gap: 8px;
-      padding: 8px 9px; border-radius: 8px;
-      border: 1px solid var(--color-border-secondary);
-      background: var(--color-background-primary);
-      color: var(--color-text-secondary); cursor: pointer; font: inherit;
-      transition: border-color .16s, color .16s, background .16s;
-    }
-    .sb-comm-toggle:hover, .sb-comm-toggle.open {
-      color: var(--color-text-primary); border-color: var(--color-accent-border);
-      background: var(--color-background-tertiary);
-    }
-    .sb-comm-toggle.active { color: var(--color-accent-text); }
-    .sb-comm-toggle-label {
-      flex: 1; min-width: 0; text-align: left; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600;
-    }
-    .sb-comm-chevron { color: var(--color-text-muted); transition: transform .16s; }
-    .sb-comm-toggle.open .sb-comm-chevron { transform: rotate(180deg); }
-    .sb-comm-menu {
-      display: none; margin-top: 5px; overflow: hidden;
-      border: 1px solid var(--color-border-primary); border-radius: 9px;
-      background: var(--color-background-overlay);
-      box-shadow: 0 12px 30px rgba(0,0,0,.38);
-    }
-    .sb-comm-menu.open { display: block; }
-    .sb-comm-search {
-      width: calc(100% - 12px); margin: 6px; padding: 7px 8px;
-      border-radius: 6px; border: 1px solid var(--color-border-secondary);
-      background: var(--color-background-primary); color: var(--color-text-primary);
-      outline: none; font: inherit; font-size: 11px;
-    }
-    .sb-comm-search:focus { border-color: var(--color-accent-border); }
-    .sb-comm-options { max-height: 225px; overflow-y: auto; padding-bottom: 4px; }
-    .sb-comm-options::-webkit-scrollbar { width: 3px; }
-    .sb-comm-options::-webkit-scrollbar-thumb { background: var(--color-border-secondary); }
-    .sb-comm-option {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      padding: 7px 9px; cursor: pointer; color: var(--color-text-secondary);
-      font-size: 11px; transition: background .12s, color .12s;
-    }
-    .sb-comm-option:hover { color: var(--color-text-primary); background: rgba(255,255,255,.045); }
-    .sb-comm-option.active { color: var(--color-accent-text); background: var(--color-accent-bg); }
-    .sb-comm-empty { padding: 10px 9px; color: var(--color-text-muted); font-size: 10px; font-style: italic; }
-    .sb-comm-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; }
-    .sb-comm-label { font-size: 12px; color: var(--color-text-secondary); }
-    .sb-comm-badge {
-      font-size: 11px; font-weight: 700;
-      color: var(--color-status-green-text);
-      background: var(--color-status-green-bg);
-      border-radius: 10px; padding: 1px 8px;
-    }
-
     /* ── Main ─────────────────────────────────────────────────────────── */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
@@ -204,6 +118,25 @@
     .search-input:focus { border-color: var(--color-accent-border); }
     .tb-spacer { flex: 1; }
     .tb-sep { width: 1px; height: 30px; background: var(--color-border-secondary); margin: 0 4px; }
+    .view-toggle {
+      display: inline-flex; gap: 4px; padding: 4px;
+      border: 1px solid var(--color-border-secondary);
+      border-radius: 14px;
+      background: rgba(5,8,15,.45);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+    }
+    .view-btn {
+      min-height: 34px; padding: 7px 13px; border-radius: 10px;
+      border: 1px solid transparent; background: transparent;
+      color: var(--color-text-muted); font: inherit; font-size: 11px; font-weight: 850;
+      cursor: pointer; transition: all .16s;
+    }
+    .view-btn:hover { color: var(--color-text-primary); background: rgba(255,255,255,.04); }
+    .view-btn.active {
+      color: #EAF0FF; border-color: rgba(139,174,255,.32);
+      background: linear-gradient(135deg, rgba(73,129,255,.36), rgba(112,76,255,.24));
+      box-shadow: 0 10px 24px rgba(73,129,255,.12), inset 0 1px 0 rgba(255,255,255,.10);
+    }
     .tbtn {
       display: flex; align-items: center; gap: 5px;
       min-height: 38px; padding: 9px 16px; border-radius: 12px; font-size: 12px; font-weight: 800;
@@ -574,23 +507,24 @@
     .table-wrap::-webkit-scrollbar-track { background: var(--color-background-tertiary); }
     .table-wrap::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 3px; }
 
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 780px; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 780px; }
     thead { position: sticky; top: 0; z-index: 10; }
 
     /* Header row 1 — labels */
     tr.tr-head { background: #20283A; border-bottom: 1px solid var(--color-border-primary); }
     th {
-      padding: 9px 10px; text-align: left;
+      padding: 11px 14px; text-align: center;
       font-size: 10px; font-weight: 700; color: #73869E;
       text-transform: uppercase; letter-spacing: .1em;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    th + th { border-left: 1px solid rgba(139,174,255,.05); }
     th:first-child { padding-left: 16px; }
     .th-r { text-align: right; }
 
     /* Header row 2 — column filters */
     tr.tr-filters { background: #20283A; border-bottom: 1px solid var(--color-border-primary); }
-    tr.tr-filters th { padding: 4px 10px 5px; }
+    tr.tr-filters th { padding: 6px 12px 7px; }
     tr.tr-filters th:first-child { padding-left: 16px; }
     .cf {
       width: 100%; background: var(--color-background-primary);
@@ -608,9 +542,10 @@
     tbody tr:nth-child(even) { background: rgba(255,255,255,0.016); }
     tbody tr:hover { background: var(--color-background-elevated) !important; }
     td {
-      padding: 9px 10px; font-size: 12px; color: var(--color-text-primary);
+      padding: 12px 14px; font-size: 12px; color: var(--color-text-primary);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
     }
+    td + td { border-left: 1px solid rgba(139,174,255,.026); }
     td:first-child { padding-left: 16px; }
 
     .td-tipo    { font-size: 10px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -676,6 +611,65 @@
     .physical-code { font-size:11px;font-weight:750;color:var(--color-text-primary); }
     .physical-uuid { margin-top:4px;font-family:'SF Mono','Menlo',monospace;font-size:8px;color:var(--color-text-muted);word-break:break-all;line-height:1.35; }
     .physical-print { margin-top:6px;background:none;border:0;padding:0;color:var(--color-accent-text);font:inherit;font-size:10px;cursor:pointer; }
+    .item-qr-btn {
+      width: 46px; height: 46px; padding: 4px; border-radius: 10px;
+      border: 1px solid rgba(139,174,255,.22);
+      background: rgba(255,255,255,.96);
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+      transition: transform .16s, border-color .16s, box-shadow .16s;
+    }
+    .item-qr-btn:hover {
+      transform: translateY(-1px) scale(1.02);
+      border-color: rgba(139,174,255,.48);
+      box-shadow: 0 12px 28px rgba(73,129,255,.18);
+    }
+    .item-qr-btn img { width: 100%; height: 100%; display: block; }
+    .item-code { font-weight: 850; color: var(--color-text-primary); }
+    .item-sub { margin-top: 3px; color: var(--color-text-muted); font-size: 10px; font-family: 'SF Mono','Menlo',monospace; }
+    .item-row { cursor: pointer; }
+    .item-row td { padding-top: 14px; padding-bottom: 14px; }
+    .item-row:hover .item-code { color: #EDF4FF; }
+    .item-main {
+      display: grid; grid-template-columns: 52px minmax(0,1fr); align-items: center; gap: 13px;
+      min-width: 0;
+    }
+    .item-main-text { min-width: 0; }
+    .item-material {
+      display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+    }
+    .item-material-primary { font-size: 12px; font-weight: 900; color: var(--color-text-primary); }
+    .item-pill {
+      display: inline-flex; align-items: center; min-height: 22px; padding: 4px 8px;
+      border-radius: 999px; border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.032); color: var(--color-text-secondary);
+      font-size: 10px; font-weight: 750; letter-spacing: .02em;
+    }
+    .item-stack-main { font-size: 12px; font-weight: 820; color: var(--color-text-primary); }
+    .item-stack-sub { margin-top: 5px; font-size: 11px; color: var(--color-text-muted); }
+    .status-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 92px; min-height: 26px; padding: 5px 10px;
+      border-radius: 999px; font-size: 10px; font-weight: 900;
+      text-transform: uppercase; letter-spacing: .08em;
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.035); color: var(--color-text-secondary);
+    }
+    .status-available {
+      color: var(--color-status-green-text);
+      background: var(--color-status-green-bg);
+      border-color: var(--color-status-green-border);
+    }
+    .status-reserved {
+      color: var(--color-accent-text);
+      background: var(--color-accent-bg);
+      border-color: var(--color-accent-border);
+    }
+    .status-closed {
+      color: var(--color-status-orange-text);
+      background: var(--color-status-orange-bg);
+      border-color: var(--color-status-orange-border);
+    }
     .physical-loading { padding:24px;text-align:center;color:var(--color-text-muted);font-size:11px; }
     .scan-result { margin-top:14px;padding:13px;border:1px solid var(--color-border-secondary);border-radius:9px;background:var(--color-background-primary);display:none; }
     .scan-result.show { display:block; }
@@ -688,15 +682,81 @@
       font:inherit;font-size:10px;padding:0 7px;outline:none;
     }
     .label-text { width:170px; }
-    .modal.qr-preview-modal { width:720px;max-width:94vw; }
-    .qr-preview-body { display:grid;grid-template-columns:280px minmax(260px,1fr);gap:24px;align-items:center;margin-top:18px; }
-    .qr-preview-img { width:260px;height:260px;background:#fff;border-radius:10px;padding:8px;display:block; }
-    .qr-preview-code { font-size:17px;font-weight:850;color:var(--color-text-primary); }
-    .qr-preview-uuid { margin-top:8px;font-family:'SF Mono','Menlo',monospace;font-size:10px;color:var(--color-text-muted);word-break:break-all;line-height:1.5; }
-    .qr-preview-help { margin-top:14px;font-size:11px;color:var(--color-text-secondary);line-height:1.5; }
+    .backdrop.item-backdrop { background: rgba(1,4,12,.72); backdrop-filter: blur(9px); }
+    .modal.qr-preview-modal {
+      width:min(1120px,94vw);max-height:92vh;overflow:hidden;padding:0;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(73,129,255,.16), transparent 36%),
+        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018)),
+        #111824;
+      border-color: rgba(139,174,255,.22);
+      border-radius: 24px;
+      box-shadow: 0 34px 100px rgba(0,0,0,.66);
+      display:flex;flex-direction:column;
+    }
+    .item-modal-head {
+      padding:24px 28px 18px;border-bottom:1px solid var(--color-border-secondary);
+      display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+    }
+    .item-modal-eyebrow {
+      font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--color-accent-text);font-weight:900;margin-bottom:7px;
+    }
+    .item-modal-title { font-size:24px;line-height:1.08;font-weight:950;color:var(--color-text-primary); }
+    .item-modal-sub { margin-top:7px;color:var(--color-text-secondary);font-size:12px;line-height:1.45; }
+    .item-lock {
+      min-height:40px;padding:9px 14px;border-radius:13px;border:1px solid var(--color-border-secondary);
+      background:rgba(255,255,255,.035);color:var(--color-text-secondary);font:inherit;font-weight:850;font-size:12px;cursor:pointer;
+    }
+    .item-lock.unlocked {
+      color:#D8B4FE;border-color:rgba(168,85,247,.38);
+      background:linear-gradient(180deg, rgba(168,85,247,.16), rgba(168,85,247,.06));
+    }
+    .qr-preview-body {
+      display:grid;grid-template-columns:310px minmax(0,1fr);gap:26px;align-items:start;
+      padding:24px 28px;overflow:auto;
+    }
+    .qr-preview-img { width:280px;height:280px;background:#fff;border-radius:18px;padding:14px;display:block;box-shadow:0 18px 50px rgba(0,0,0,.35); }
+    .qr-preview-code { font-size:19px;font-weight:950;color:var(--color-text-primary); }
+    .qr-preview-uuid { margin-top:9px;font-family:'SF Mono','Menlo',monospace;font-size:10px;color:var(--color-text-muted);word-break:break-all;line-height:1.5; }
+    .qr-preview-help { margin-top:16px;font-size:12px;color:var(--color-text-secondary);line-height:1.55; }
+    .item-status-card {
+      margin-top:18px;border:1px solid rgba(139,174,255,.18);border-radius:18px;padding:15px;
+      background:rgba(73,129,255,.055);
+    }
+    .item-fields {
+      display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+    }
+    .item-field label {
+      display:block;margin-bottom:7px;font-size:10px;text-transform:uppercase;letter-spacing:.12em;
+      color:var(--color-text-muted);font-weight:900;
+    }
+    .item-field input,.item-field textarea {
+      width:100%;border:1px solid var(--color-border-secondary);border-radius:12px;
+      background:rgba(7,10,18,.72);color:var(--color-text-primary);
+      padding:10px 11px;font:inherit;font-size:12px;outline:none;
+    }
+    .item-field textarea { min-height:76px;resize:vertical; }
+    .item-field input:disabled,.item-field textarea:disabled {
+      color:var(--color-text-secondary);background:rgba(255,255,255,.025);
+    }
+    .item-field input:focus,.item-field textarea:focus {
+      border-color:rgba(139,174,255,.52);box-shadow:0 0 0 3px rgba(73,129,255,.12);
+    }
+    .item-field.full { grid-column:1/-1; }
+    .item-source-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px; }
+    .item-source {
+      border:1px solid var(--color-border-secondary);border-radius:14px;padding:12px;background:rgba(255,255,255,.025);
+    }
+    .item-source-label { font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--color-text-muted);font-weight:900;margin-bottom:6px; }
+    .item-source-value { color:var(--color-text-primary);font-weight:800;font-size:12px;line-height:1.35; }
+    .item-modal-actions {
+      padding:18px 28px 24px;border-top:1px solid var(--color-border-secondary);
+      display:flex;justify-content:flex-end;gap:10px;background:rgba(15,17,23,.78);
+    }
     @media (max-width:700px) {
       .qr-preview-body { grid-template-columns:1fr; }
       .qr-preview-img { margin:0 auto;max-width:100%;height:auto; }
+      .item-fields,.item-source-grid { grid-template-columns:1fr; }
     }
 
     /* ── Pagination ───────────────────────────────────────────────────── */
@@ -747,6 +807,7 @@
       border-radius: 16px; padding: 26px; width: 420px; max-width: 94vw;
       box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     }
+    .modal.mov-modal-card { width: min(820px, 94vw); border-radius: 22px; }
     .modal-title { font-size: 16px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 3px; }
     .modal-sub { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 20px; }
     .mf { margin-bottom: 13px; }
@@ -769,6 +830,27 @@
     .mi-selected.show { display: flex; }
     .mi-sel-clear { cursor: pointer; font-size: 14px; color: var(--color-text-secondary); }
     .mi-sel-clear:hover { color: var(--color-status-red-text); }
+    .mov-mode-tabs { display:flex; gap:8px; margin:18px 0; }
+    .mov-mode-tab {
+      flex:1; min-height:38px; border-radius:12px; border:1px solid var(--color-border-secondary);
+      background:rgba(255,255,255,.025); color:var(--color-text-secondary);
+      font:inherit; font-size:12px; font-weight:850; cursor:pointer;
+    }
+    .mov-mode-tab.active {
+      color:#EAF0FF; border-color:rgba(139,174,255,.36);
+      background:linear-gradient(135deg, rgba(73,129,255,.28), rgba(112,76,255,.20));
+    }
+    .mov-search-panel {
+      border:1px solid var(--color-border-secondary);
+      border-radius:16px; padding:14px; background:rgba(7,10,18,.28);
+    }
+    .mov-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    .mov-form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .mov-form-grid .full { grid-column:1/-1; }
+    .mov-filter-grid .mi, .mov-form-grid .mi { font-size:12px; }
+    .mov-new-panel { display:none; }
+    .mov-new-panel.show { display:block; }
+    .mov-existing-panel.hide { display:none; }
     .merr { font-size: 11px; color: var(--color-status-red-text); margin-top: 8px; display: none; }
     .merr.show { display: block; }
     .mactions { display: flex; gap: 8px; margin-top: 20px; }
@@ -789,8 +871,7 @@
 
     /* ── Responsive ───────────────────────────────────────────────────── */
     @media (max-width: 1100px) { .col-colata, .th-colata { display: none; } }
-    @media (max-width: 960px)  { .col-norma,  .th-norma  { display: none; } .sidebar { width: 170px; } }
-    @media (max-width: 800px)  { .sidebar { display: none; } }
+    @media (max-width: 960px)  { .col-norma,  .th-norma  { display: none; } }
   </style>
 </head>
 <body>
@@ -812,12 +893,6 @@
 
   <div class="body-wrap">
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="sb-section">Tipologie</div>
-      <div id="tipo-list"></div>
-    </aside>
-
     <!-- MAIN -->
     <div class="main">
 
@@ -828,6 +903,10 @@
           <input id="search-inp" class="search-input" type="text" placeholder="Cerca in tutti i campi…" oninput="onSearch()"/>
         </div>
         <div class="tb-spacer"></div>
+        <div class="view-toggle" aria-label="Vista magazzino">
+          <button class="view-btn active" id="view-extended" onclick="setViewMode('extended')">Vista estesa</button>
+          <button class="view-btn" id="view-compact" onclick="setViewMode('compact')">Compatta</button>
+        </div>
         <button class="tbtn tbtn-ddt" onclick="openDdt()">◇ Analizza DDT</button>
         <button class="tbtn tbtn-import" onclick="openImport()">↑ Importa inventario</button>
         <button class="tbtn tbtn-new" onclick="openNewMat()">+ Nuovo materiale</button>
@@ -1046,18 +1125,50 @@
 
 <!-- MOVEMENT MODAL -->
 <div class="backdrop" id="mov-modal" onclick="closeMov()">
-  <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal mov-modal-card" onclick="event.stopPropagation()">
     <div class="modal-title" id="mov-title">Ingresso</div>
     <div class="modal-sub"   id="mov-sub">Registra un movimento di magazzino</div>
-    <div class="mf" id="mov-search-field">
-      <label class="ml">Materiale</label>
-      <input class="mi" id="mov-mat-search" type="text" placeholder="Cerca profilo o codice…" oninput="searchMat()" autocomplete="off"/>
-      <div class="mi-results" id="mov-mat-results"></div>
-      <div class="mi-selected" id="mov-mat-selected">
-        <span id="mov-mat-name">—</span>
-        <span class="mi-sel-clear" onclick="clearMatSel()">✕</span>
+
+    <div class="mov-mode-tabs" id="mov-mode-tabs">
+      <button class="mov-mode-tab active" id="mov-tab-existing" onclick="setMovMode('existing')">Materiale esistente</button>
+      <button class="mov-mode-tab" id="mov-tab-new" onclick="setMovMode('new')">Nuovo materiale + ingresso</button>
+    </div>
+
+    <div class="mov-existing-panel" id="mov-existing-panel">
+      <div class="mf" id="mov-search-field">
+        <label class="ml">Materiale</label>
+        <div class="mov-search-panel">
+          <input class="mi" id="mov-mat-search" type="text" placeholder="Cerca in codice, tipo, profilo, dimensioni, qualità, colata…" oninput="searchMat()" autocomplete="off"/>
+          <div class="mov-filter-grid">
+            <input class="mi" id="mov-f-tipo" placeholder="tipo…" oninput="searchMat()"/>
+            <input class="mi" id="mov-f-profilo" placeholder="profilo…" oninput="searchMat()"/>
+            <input class="mi" id="mov-f-dimensioni" placeholder="dimensioni…" oninput="searchMat()"/>
+            <input class="mi" id="mov-f-qualita" placeholder="qualità…" oninput="searchMat()"/>
+          </div>
+          <div class="mi-results" id="mov-mat-results"></div>
+          <div class="mi-selected" id="mov-mat-selected">
+            <span id="mov-mat-name">—</span>
+            <span class="mi-sel-clear" onclick="clearMatSel()">✕</span>
+          </div>
+        </div>
       </div>
     </div>
+
+    <div class="mov-new-panel" id="mov-new-panel">
+      <div class="mov-form-grid">
+        <div class="mf"><label class="ml">Tipo</label><input class="mi" id="new-tipo" placeholder="es. LAMIERA"/></div>
+        <div class="mf"><label class="ml">Profilo</label><input class="mi" id="new-profilo" placeholder="es. 100/10"/></div>
+        <div class="mf"><label class="ml">Dimensioni</label><input class="mi" id="new-dimensioni" placeholder="es. 3000*1500"/></div>
+        <div class="mf"><label class="ml">Norma</label><input class="mi" id="new-norma" placeholder="es. EN 10029"/></div>
+        <div class="mf"><label class="ml">Qualità</label><input class="mi" id="new-qualita" placeholder="es. S355"/></div>
+        <div class="mf"><label class="ml">Colata</label><input class="mi" id="new-colata" placeholder="opzionale"/></div>
+        <div class="mf"><label class="ml">Peso/u kg</label><input class="mi" id="new-peso-u" type="number" step="0.001" placeholder="opzionale"/></div>
+        <div class="mf"><label class="ml">Peso pezzo kg</label><input class="mi" id="new-peso-pz" type="number" step="0.001" placeholder="opzionale"/></div>
+        <div class="mf"><label class="ml">Codice manuale</label><input class="mi" id="new-code" placeholder="vuoto = generato"/></div>
+        <div class="mf full"><label class="ml">Descrizione</label><input class="mi" id="new-description" placeholder="vuoto = generata dai campi"/></div>
+      </div>
+    </div>
+
     <div class="mf">
       <label class="ml">Quantità (pezzi)</label>
       <input class="mi" id="mov-qty" type="number" min="1" step="1" value="1"/>
@@ -1109,17 +1220,26 @@
   </div>
 </div>
 
-<!-- QR PREVIEW MODAL -->
-<div class="backdrop" id="qr-preview-modal" onclick="closeQrPreview()">
+<!-- ITEM / QR DETAIL MODAL -->
+<div class="backdrop item-backdrop" id="qr-preview-modal" onclick="closeQrPreview()">
   <div class="modal qr-preview-modal" onclick="event.stopPropagation()">
-    <div class="modal-title">QR elemento fisico</div>
-    <div class="modal-sub">Anteprima ingrandita e configurazione etichetta.</div>
-    <div class="qr-preview-body">
-      <img class="qr-preview-img" id="qr-preview-img" alt="QR ingrandito"/>
+    <div class="item-modal-head">
       <div>
-        <div class="qr-preview-code" id="qr-preview-code"></div>
+        <div class="item-modal-eyebrow">Magazzino · Elemento fisico</div>
+        <div class="item-modal-title" id="qr-preview-code">QR elemento</div>
+        <div class="item-modal-sub">Scheda del singolo record di magazzino: QR, dati tecnici, origine DDT e correzioni manuali.</div>
+      </div>
+      <button class="item-lock" id="item-edit-lock" onclick="toggleItemEdit()">🔒 Modifica</button>
+    </div>
+    <div class="qr-preview-body">
+      <div>
+        <img class="qr-preview-img" id="qr-preview-img" alt="QR ingrandito"/>
         <div class="qr-preview-uuid" id="qr-preview-uuid"></div>
-        <div class="qr-preview-help">Il QR resta quadrato per garantire la lettura. Il foglio stampato può essere verticale, rettangolare o compatto.</div>
+        <div class="item-status-card">
+          <div class="item-source-label">Stato attuale</div>
+          <div class="item-source-value" id="item-current-status">—</div>
+        </div>
+        <div class="qr-preview-help">Il QR a schermo è scannerizzabile. L'etichetta può essere stampata in formato verticale, rettangolare o compatto.</div>
         <div class="mf" style="margin-top:16px">
           <label class="ml">Formato etichetta</label>
           <select class="mi" id="preview-label-format" onchange="saveLabelConfig(this.value,null)">
@@ -1133,10 +1253,15 @@
           <input class="mi" id="preview-label-text" maxlength="80" placeholder="es. AREA TAGLIO A" oninput="saveLabelConfig(null,this.value)"/>
         </div>
       </div>
+      <div>
+        <div class="item-fields" id="item-fields"></div>
+        <div class="item-source-grid" id="item-source-grid"></div>
+      </div>
     </div>
-    <div class="mactions">
-      <button class="mbt mbt-cancel" onclick="closeQrPreview()">Chiudi</button>
-      <button class="mbt mbt-in" onclick="printPreviewItem()">Stampa etichetta</button>
+    <div class="item-modal-actions">
+      <button class="ddt-secondary" onclick="closeQrPreview()">Chiudi</button>
+      <button class="ddt-secondary" onclick="printPreviewItem()">Stampa etichetta</button>
+      <button class="ddt-primary" id="item-save-btn" onclick="saveItemDetail()" disabled>Salva modifiche</button>
     </div>
   </div>
 </div>
@@ -1157,10 +1282,11 @@ function logout() {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let allRows  = [];
+let allItems = [];
 let filtered = [];
 let page     = 1;
 let rpp      = 50;
-let activeTipo      = 'tutti';
+let viewMode = 'extended';
 let searchQ         = '';
 
 // Chip filters (exact match)
@@ -1171,13 +1297,15 @@ const CHIP_MAP = { profilo:'profilo', dimensioni:'dimensioni', qualita:'qualita'
 const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'' };
 const CF_KEY = { tipo:'tipo', profilo:'profilo', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata' };
 
-// Dropdown and sidebar state
+// Dropdown state
 let openChip = null;
 let dropdownCtx = null;
 let expandedMaterial = null;
 const physicalCache = {};
 const physicalPages = {};
 let previewItem = null;
+let previewItemDetail = null;
+let itemEditEnabled = false;
 let labelFormat = localStorage.getItem('stqc_label_format') || 'rect';
 let labelText = localStorage.getItem('stqc_label_text') || '';
 let ddtAnalysis = null;
@@ -1203,33 +1331,32 @@ async function loadStock() {
     expandedMaterial = null;
     Object.keys(physicalCache).forEach(key => delete physicalCache[key]);
     Object.keys(physicalPages).forEach(key => delete physicalPages[key]);
-    const r = await fetch('/api/v1/warehouse/magazzino?limit=5000', { headers: hdr() });
+    const [r, i] = await Promise.all([
+      fetch('/api/v1/warehouse/magazzino?limit=5000', { headers: hdr() }),
+      fetch('/api/v1/warehouse/items?limit=20000', { headers: hdr() }),
+    ]);
     if (!r.ok) throw new Error(r.status);
+    if (!i.ok) throw new Error(i.status);
     allRows = await r.json();
+    allItems = await i.json();
+    updateViewButtons();
     applyFilters();
-    renderSidebar();
   } catch { showToast('Errore caricamento magazzino', 'err'); }
 }
 
-// ── Sidebar ────────────────────────────────────────────────────────────────────
-const TIPO_ORDER = ['tutti','LAMIERA','TRAVI','SCATOLATI/ANGOLARI','PIATTI','TONDO','QUADRI'];
-
-function renderSidebar() {
-  // ── Tipologie ──────────────────────────────────────────────────────────────
-  const cnt = { tutti: allRows.length };
-  for (const r of allRows) { const t = (r.tipo||'ALTRO').toUpperCase(); cnt[t] = (cnt[t]||0)+1; }
-  const extras = Object.keys(cnt).filter(t => t !== 'tutti' && !TIPO_ORDER.includes(t));
-  document.getElementById('tipo-list').innerHTML = [...TIPO_ORDER, ...extras].map(t => {
-    const n = cnt[t]||0;
-    if (t !== 'tutti' && n === 0) return '';
-    return `<div class="sb-item${activeTipo===t?' active':''}" onclick="selTipo('${esc(t)}')">
-      <span>${t==='tutti'?'Tutti':t}</span><span class="sb-count">${n}</span>
-    </div>`;
-  }).join('');
-
+function setViewMode(mode) {
+  viewMode = mode === 'compact' ? 'compact' : 'extended';
+  localStorage.setItem('stqc_magazzino_view', viewMode);
+  page = 1;
+  expandedMaterial = null;
+  updateViewButtons();
+  applyFilters();
 }
 
-function selTipo(t) { activeTipo = t; page = 1; renderSidebar(); applyFilters(); }
+function updateViewButtons() {
+  document.getElementById('view-extended').classList.toggle('active', viewMode === 'extended');
+  document.getElementById('view-compact').classList.toggle('active', viewMode === 'compact');
+}
 
 // ── Filter logic ───────────────────────────────────────────────────────────────
 function onSearch() { searchQ = document.getElementById('search-inp').value.toLowerCase(); page = 1; applyFilters(); }
@@ -1245,12 +1372,11 @@ function onCf(col, inp) {
 }
 
 function applyFilters() {
-  filtered = allRows.filter(r => {
-    // sidebar tipo
-    if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
+  const source = viewMode === 'extended' ? allItems : allRows;
+  filtered = source.filter(r => {
     // global search
     if (searchQ) {
-      const hay = [r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code]
+      const hay = [r.tipo,r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code,r.uuid,r.label]
         .map(v=>(v||'').toLowerCase()).join(' ');
       if (!hay.includes(searchQ)) return false;
     }
@@ -1307,9 +1433,9 @@ function openDropdown(anchor, withSearch, initialQuery='') {
 }
 
 function dropdownSourceRows() {
-  return allRows.filter(r => {
+  const source = viewMode === 'extended' ? allItems : allRows;
+  return source.filter(r => {
     if (dropdownCtx?.type === 'column') return true;
-    if (activeTipo !== 'tutti' && (r.tipo||'').toUpperCase() !== activeTipo) return false;
     return true;
   });
 }
@@ -1394,13 +1520,13 @@ function refreshChipLabels() {
 function clearAll() {
   Object.keys(AF).forEach(k => AF[k] = null);
   Object.keys(CF).forEach(k => { CF[k]=''; const el=document.getElementById('cf-'+k); if(el){el.value='';el.classList.remove('has-val');} });
-  searchQ = ''; activeTipo = 'tutti'; page = 1;
+  searchQ = ''; page = 1;
   document.getElementById('search-inp').value = '';
-  renderSidebar(); applyFilters();
+  applyFilters();
 }
 
 function updateResetBtn() {
-  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ || activeTipo !== 'tutti';
+  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ;
   document.getElementById('btn-reset').style.display = any ? 'inline-flex' : 'none';
 }
 
@@ -1421,6 +1547,19 @@ function fmt(v, d=1) {
 function badgeCls(n) { return n<=0 ? 'b-r' : n<=5 ? 'b-o' : 'b-g'; }
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function urlToken(s) { return encodeURIComponent(String(s)).replace(/'/g,'%27'); }
+function statusBadge(status) {
+  const raw = String(status || '').toUpperCase();
+  const map = {
+    AVAILABLE: ['Disponibile', 'status-available'],
+    RESERVED: ['Prenotato', 'status-reserved'],
+    BOOKED: ['Prenotato', 'status-reserved'],
+    OUT: ['Uscito', 'status-closed'],
+    EXITED: ['Uscito', 'status-closed'],
+    CLOSED: ['Chiuso', 'status-closed'],
+  };
+  const [label, cls] = map[raw] || [status || '—', ''];
+  return `<span class="status-badge ${cls}">${esc(label)}</span>`;
+}
 
 function renderSkeleton(n) {
   document.getElementById('tbody').innerHTML = Array.from({length:n},()=>
@@ -1433,6 +1572,8 @@ function renderSkeleton(n) {
 }
 
 function renderTable() {
+  if (viewMode === 'extended') return renderExtendedTable();
+  renderCompactHead();
   const tbody = document.getElementById('tbody');
   const empty = document.getElementById('empty');
   const total = filtered.length;
@@ -1467,6 +1608,113 @@ function renderTable() {
       ? `<tr class="physical-detail"><td colspan="10">${renderPhysicalPanel(r)}</td></tr>`
       : '';
     return mainRow + detailRow;
+  }).join('');
+  renderPag(total);
+}
+
+function renderCompactHead() {
+  document.getElementById('tbl').innerHTML = `
+    <colgroup>
+      <col style="width:8%"/><col style="width:15%"/><col style="width:8%"/><col style="width:12%"/>
+      <col class="col-norma" style="width:8%"/><col style="width:8%"/><col class="col-colata" style="width:8%"/>
+      <col style="width:7%"/><col style="width:7%"/><col style="width:19%"/>
+    </colgroup>
+    <thead>
+      <tr class="tr-head">
+        <th>Tipo</th><th>Profilo</th><th class="th-r">N° pezzi</th><th>Dimensioni</th>
+        <th class="th-norma col-norma">Norma</th><th>Qualità</th><th class="th-colata col-colata">Colata</th>
+        <th class="th-r">Peso kg</th><th class="th-r">Peso/u</th><th></th>
+      </tr>
+      <tr class="tr-filters" id="col-filter-row">
+        <th><input class="cf" id="cf-tipo" placeholder="tipo…" value="${esc(CF.tipo)}" onclick="openCfDropdown(event,'tipo')" oninput="onCf('tipo',this)"/></th>
+        <th><input class="cf" id="cf-profilo" placeholder="profilo…" value="${esc(CF.profilo)}" onclick="openCfDropdown(event,'profilo')" oninput="onCf('profilo',this)"/></th>
+        <th></th>
+        <th><input class="cf" id="cf-dimensioni" placeholder="dimensioni…" value="${esc(CF.dimensioni)}" onclick="openCfDropdown(event,'dimensioni')" oninput="onCf('dimensioni',this)"/></th>
+        <th class="col-norma"><input class="cf" id="cf-norma" placeholder="norma…" value="${esc(CF.norma)}" onclick="openCfDropdown(event,'norma')" oninput="onCf('norma',this)"/></th>
+        <th><input class="cf" id="cf-qualita" placeholder="qualità…" value="${esc(CF.qualita)}" onclick="openCfDropdown(event,'qualita')" oninput="onCf('qualita',this)"/></th>
+        <th class="col-colata"><input class="cf" id="cf-colata" placeholder="colata…" value="${esc(CF.colata)}" onclick="openCfDropdown(event,'colata')" oninput="onCf('colata',this)"/></th>
+        <th></th><th></th><th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>`;
+  Object.keys(CF).forEach(k => {
+    const el = document.getElementById('cf-' + k);
+    if (el) el.classList.toggle('has-val', !!CF[k]);
+  });
+}
+
+function renderExtendedHead() {
+  document.getElementById('tbl').innerHTML = `
+    <colgroup>
+      <col style="width:28%"/>
+      <col style="width:14%"/>
+      <col style="width:20%"/>
+      <col style="width:16%"/>
+      <col style="width:10%"/>
+      <col style="width:12%"/>
+    </colgroup>
+    <thead>
+      <tr class="tr-head">
+        <th>Elemento fisico</th>
+        <th>Tipo</th>
+        <th>Profilo / dimensioni</th>
+        <th>Norma / qualità</th>
+        <th>Colata</th>
+        <th>Stato</th>
+      </tr>
+      <tr class="tr-filters" id="col-filter-row">
+        <th></th>
+        <th><input class="cf" id="cf-tipo" placeholder="tipo…" value="${esc(CF.tipo)}" onclick="openCfDropdown(event,'tipo')" oninput="onCf('tipo',this)"/></th>
+        <th><input class="cf" id="cf-profilo" placeholder="profilo…" value="${esc(CF.profilo)}" onclick="openCfDropdown(event,'profilo')" oninput="onCf('profilo',this)"/></th>
+        <th><input class="cf" id="cf-qualita" placeholder="qualità…" value="${esc(CF.qualita)}" onclick="openCfDropdown(event,'qualita')" oninput="onCf('qualita',this)"/></th>
+        <th><input class="cf" id="cf-colata" placeholder="colata…" value="${esc(CF.colata)}" onclick="openCfDropdown(event,'colata')" oninput="onCf('colata',this)"/></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>`;
+  Object.keys(CF).forEach(k => {
+    const el = document.getElementById('cf-' + k);
+    if (el) el.classList.toggle('has-val', !!CF[k]);
+  });
+}
+
+function renderExtendedTable() {
+  renderExtendedHead();
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty');
+  const total = filtered.length;
+  if (!total) { tbody.innerHTML=''; empty.style.display='flex'; renderPag(0); return; }
+  empty.style.display = 'none';
+
+  const s = (page-1)*rpp, e = Math.min(s+rpp, total);
+  tbody.innerHTML = filtered.slice(s,e).map(item => {
+    const profileLine = [item.profilo, item.dimensioni].filter(Boolean).join(' · ');
+    const normLine = [item.norma_uni, item.qualita].filter(Boolean).join(' · ');
+    const weightLine = item.peso_1_pz || item.peso_u_kg ? `${fmt(item.peso_1_pz ?? item.peso_u_kg,3)} kg/u` : 'Peso non indicato';
+    return `<tr class="item-row" onclick="openQrPreview('${item.uuid}',event)">
+      <td>
+        <div class="item-main">
+          <button class="item-qr-btn" onclick="openQrPreview('${item.uuid}',event)" title="Apri scheda QR">
+            <img src="/qr-image/${item.uuid}.png" loading="lazy" alt="QR ${esc(item.label)}"/>
+          </button>
+          <div class="item-main-text">
+            <div class="item-code">${esc(item.label || item.material_code)}</div>
+            <div class="item-sub">${esc(item.uuid)}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="item-pill">${esc(item.tipo)||'—'}</span></td>
+      <td>
+        <div class="item-stack-main">${esc(profileLine)||'—'}</div>
+        <div class="item-stack-sub">${esc(weightLine)}</div>
+      </td>
+      <td>
+        <div class="item-stack-main">${esc(normLine)||'—'}</div>
+        <div class="item-stack-sub">${esc(item.material_code || '')}</div>
+      </td>
+      <td class="td-muted" title="${esc(item.colata)}">${esc(item.colata)||'—'}</td>
+      <td>${statusBadge(item.status)}</td>
+    </tr>`;
   }).join('');
   renderPag(total);
 }
@@ -1515,20 +1763,149 @@ function saveLabelConfig(format,text) {
   if(text!==null){labelText=text;localStorage.setItem('stqc_label_text',text);}
 }
 
-function openQrPreview(uuid,e) {
-  if(e)e.stopPropagation();
-  const items=Object.values(physicalCache).flat();
-  previewItem=items.find(item=>item.uuid===uuid);
-  if(!previewItem)return;
-  document.getElementById('qr-preview-img').src=`/qr-image/${uuid}.png`;
-  document.getElementById('qr-preview-code').textContent=previewItem.label;
-  document.getElementById('qr-preview-uuid').textContent=previewItem.uuid;
+const ITEM_EDIT_FIELDS = [
+  ['tipo','Tipo'],
+  ['profilo','Profilo'],
+  ['dimensioni','Dimensioni'],
+  ['norma_uni','Norma'],
+  ['qualita','Qualità'],
+  ['colata','Colata'],
+  ['commessa_ref','Commessa / riserva'],
+  ['peso_u_kg','Peso/u kg','number'],
+  ['peso_1_pz','Peso pezzo kg','number'],
+  ['notes','Note','textarea'],
+];
+
+function itemFieldHtml(detail, field, label, type='text') {
+  const value = detail?.[field] ?? '';
+  const disabled = itemEditEnabled ? '' : 'disabled';
+  if (type === 'textarea') {
+    return `<div class="item-field full">
+      <label>${esc(label)}</label>
+      <textarea data-item-field="${field}" ${disabled}>${esc(value)}</textarea>
+    </div>`;
+  }
+  return `<div class="item-field">
+    <label>${esc(label)}</label>
+    <input data-item-field="${field}" type="${type}" ${type === 'number' ? 'step="0.001"' : ''} value="${esc(value)}" ${disabled}/>
+  </div>`;
+}
+
+function renderItemFields() {
+  document.getElementById('item-fields').innerHTML = ITEM_EDIT_FIELDS
+    .map(([field,label,type]) => itemFieldHtml(previewItemDetail, field, label, type || 'text'))
+    .join('');
+}
+
+function renderItemSources() {
+  const d = previewItemDetail || {};
+  const values = [
+    ['Materiale madre', d.material_code],
+    ['Descrizione', d.description],
+    ['Creato il', d.created_at ? new Date(d.created_at).toLocaleString('it-IT') : null],
+    ['Campi manuali', (d.manual_overrides || []).length ? d.manual_overrides.join(', ') : 'Nessuno'],
+  ];
+  document.getElementById('item-source-grid').innerHTML = values.map(([label,value]) => `
+    <div class="item-source">
+      <div class="item-source-label">${esc(label)}</div>
+      <div class="item-source-value">${esc(value || '—')}</div>
+    </div>`).join('');
+}
+
+function setItemEdit(enabled) {
+  itemEditEnabled = enabled;
+  const lock = document.getElementById('item-edit-lock');
+  lock.classList.toggle('unlocked', enabled);
+  lock.textContent = enabled ? '🔓 Modifica attiva' : '🔒 Modifica';
+  document.getElementById('item-save-btn').disabled = !enabled;
+  document.querySelectorAll('[data-item-field]').forEach(el => { el.disabled = !enabled; });
+}
+
+function renderItemDetail(detail) {
+  previewItemDetail = detail;
+  previewItem = detail;
+  itemEditEnabled = false;
+  document.getElementById('qr-preview-img').src=`/qr-image/${detail.uuid}.png`;
+  document.getElementById('qr-preview-code').textContent=detail.label || detail.material_code || 'Elemento magazzino';
+  document.getElementById('qr-preview-uuid').textContent=detail.uuid;
+  document.getElementById('item-current-status').textContent = `${detail.status || '—'} · ${detail.material_code || '—'}`;
   document.getElementById('preview-label-format').value=labelFormat;
   document.getElementById('preview-label-text').value=labelText;
-  document.getElementById('qr-preview-modal').classList.add('open');
+  renderItemFields();
+  renderItemSources();
+  setItemEdit(false);
 }
-function closeQrPreview(){document.getElementById('qr-preview-modal').classList.remove('open');previewItem=null;}
+
+function toggleItemEdit() { setItemEdit(!itemEditEnabled); }
+
+async function openQrPreview(uuid,e) {
+  if(e)e.stopPropagation();
+  previewItem = allItems.find(item=>item.uuid===uuid) || Object.values(physicalCache).flat().find(item=>item.uuid===uuid) || {uuid};
+  document.getElementById('qr-preview-modal').classList.add('open');
+  document.getElementById('qr-preview-img').src=`/qr-image/${uuid}.png`;
+  document.getElementById('qr-preview-code').textContent='Caricamento elemento…';
+  document.getElementById('qr-preview-uuid').textContent=uuid;
+  document.getElementById('item-current-status').textContent='—';
+  document.getElementById('item-fields').innerHTML='<div class="physical-loading">Caricamento scheda…</div>';
+  document.getElementById('item-source-grid').innerHTML='';
+  setItemEdit(false);
+  try {
+    const res = await fetch(`/api/v1/warehouse/items/${uuid}`, { headers: hdr() });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    renderItemDetail(data);
+  } catch(err) {
+    document.getElementById('item-fields').innerHTML=`<div class="ddt-review-error show">${esc(err.message)}</div>`;
+  }
+}
+function closeQrPreview(){
+  document.getElementById('qr-preview-modal').classList.remove('open');
+  previewItem=null;
+  previewItemDetail=null;
+  itemEditEnabled=false;
+}
 function printPreviewItem(){if(previewItem)printItemLabel(previewItem.uuid);}
+
+function collectItemPayload() {
+  const payload = {};
+  document.querySelectorAll('[data-item-field]').forEach(el => {
+    const field = el.dataset.itemField;
+    let value = el.value;
+    if (['peso_u_kg','peso_1_pz'].includes(field)) {
+      value = numOrNull(value);
+    } else {
+      value = value.trim() || null;
+    }
+    payload[field] = value;
+  });
+  return payload;
+}
+
+async function saveItemDetail() {
+  if(!previewItemDetail?.uuid) return;
+  const btn = document.getElementById('item-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Salvataggio…';
+  try {
+    const res = await fetch(`/api/v1/warehouse/items/${previewItemDetail.uuid}`, {
+      method:'PATCH',
+      headers:{...hdr(),'Content-Type':'application/json'},
+      body:JSON.stringify(collectItemPayload()),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    showToast('Elemento aggiornato', 'ok');
+    renderItemDetail(data);
+    const idx = allItems.findIndex(i => i.uuid === data.uuid);
+    if(idx >= 0) allItems[idx] = data;
+    applyFilters();
+  } catch(err) {
+    showToast(err.message, 'err');
+  } finally {
+    btn.textContent = 'Salva modifiche';
+    btn.disabled = !itemEditEnabled;
+  }
+}
 
 function changePhysicalPage(materialId,newPage,e) {
   if(e)e.stopPropagation();
@@ -1596,6 +1973,7 @@ function goPage(n) {
 
 // ── Movement modal ─────────────────────────────────────────────────────────────
 let movCtx = null;
+let movMode = 'existing';
 
 function openMov(matId, tipo, e) {
   if (e) e.stopPropagation();
@@ -1605,11 +1983,15 @@ function openMov(matId, tipo, e) {
   const row = matId ? allRows.find(r=>r.material_id===matId) : null;
   document.getElementById('mov-sub').textContent = row
     ? [row.tipo, row.profilo, row.dimensioni].filter(Boolean).join(' · ')
-    : 'Seleziona il materiale';
+    : (isIn ? 'Seleziona un materiale esistente oppure creane uno nuovo' : 'Seleziona il materiale in magazzino');
+  document.getElementById('mov-mode-tabs').style.display = isIn && !matId ? 'flex' : 'none';
   document.getElementById('mov-search-field').style.display = matId ? 'none' : 'block';
+  setMovMode('existing');
   document.getElementById('mov-mat-selected').classList.remove('show');
   document.getElementById('mov-mat-search').value = '';
   document.getElementById('mov-mat-results').classList.remove('show');
+  ['tipo','profilo','dimensioni','qualita'].forEach(k => { const el=document.getElementById('mov-f-'+k); if(el) el.value=''; });
+  clearNewMaterialFields();
   const ok = document.getElementById('mov-ok');
   ok.className = 'mbt ' + (isIn ? 'mbt-in' : 'mbt-out');
   ok.textContent = isIn ? '↑ Conferma ingresso' : '↓ Conferma uscita';
@@ -1621,15 +2003,44 @@ function openMov(matId, tipo, e) {
 }
 function closeMov() { document.getElementById('mov-modal').classList.remove('open'); movCtx=null; }
 
+function setMovMode(mode) {
+  movMode = mode === 'new' && movCtx?.tipo === 'in' ? 'new' : 'existing';
+  document.getElementById('mov-tab-existing').classList.toggle('active', movMode === 'existing');
+  document.getElementById('mov-tab-new').classList.toggle('active', movMode === 'new');
+  document.getElementById('mov-existing-panel').classList.toggle('hide', movMode === 'new');
+  document.getElementById('mov-new-panel').classList.toggle('show', movMode === 'new');
+  const ok = document.getElementById('mov-ok');
+  if (ok && movCtx?.tipo === 'in') ok.textContent = movMode === 'new' ? '+ Crea e registra ingresso' : '↑ Conferma ingresso';
+}
+
+function clearNewMaterialFields() {
+  ['new-tipo','new-profilo','new-dimensioni','new-norma','new-qualita','new-colata','new-peso-u','new-peso-pz','new-code','new-description']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+}
+
 function searchMat() {
   const q = document.getElementById('mov-mat-search').value.toLowerCase();
   const res = document.getElementById('mov-mat-results');
-  if (!q) { res.classList.remove('show'); return; }
-  const hits = allRows.filter(r=>[r.profilo,r.material_code,r.tipo,r.qualita].some(v=>(v||'').toLowerCase().includes(q))).slice(0,20);
+  const filters = {
+    tipo: document.getElementById('mov-f-tipo').value.trim().toLowerCase(),
+    profilo: document.getElementById('mov-f-profilo').value.trim().toLowerCase(),
+    dimensioni: document.getElementById('mov-f-dimensioni').value.trim().toLowerCase(),
+    qualita: document.getElementById('mov-f-qualita').value.trim().toLowerCase(),
+  };
+  if (!q && !Object.values(filters).some(Boolean)) { res.classList.remove('show'); return; }
+  const hits = allRows.filter(r=>{
+    const hay = [r.material_code,r.tipo,r.profilo,r.dimensioni,r.norma_uni,r.qualita,r.colata]
+      .map(v=>(v||'').toLowerCase()).join(' ');
+    if (q && !hay.includes(q)) return false;
+    for (const [key,val] of Object.entries(filters)) {
+      if (val && !(r[key]||'').toLowerCase().includes(val)) return false;
+    }
+    return true;
+  }).slice(0,30);
   res.innerHTML = hits.length
     ? hits.map(r=>`<div class="mi-result" onclick="selectMat(${r.material_id})">
         <div class="mi-result-name">${esc(r.profilo||r.material_code)}</div>
-        <div class="mi-result-sub">${[r.tipo,r.dimensioni,r.qualita].filter(Boolean).join(' · ')}</div>
+        <div class="mi-result-sub">${[r.tipo,r.dimensioni,r.norma_uni,r.qualita,r.colata].filter(Boolean).join(' · ')}</div>
       </div>`).join('')
     : '<div class="mi-result" style="opacity:.35;cursor:default">Nessun risultato</div>';
   res.classList.add('show');
@@ -1643,30 +2054,63 @@ function selectMat(id) {
   document.getElementById('mov-mat-search').value = '';
 }
 function clearMatSel() {
-  movCtx.material_id = null;
+  if (movCtx) movCtx.material_id = null;
   document.getElementById('mov-mat-selected').classList.remove('show');
 }
 async function confirmMov() {
   const err = document.getElementById('mov-err'); err.classList.remove('show');
-  if (!movCtx?.material_id) { err.textContent='Seleziona un materiale.'; err.classList.add('show'); return; }
   const qty = parseFloat(document.getElementById('mov-qty').value);
   if (!qty||qty<=0) { err.textContent='Quantità non valida.'; err.classList.add('show'); return; }
-  const reason  = document.getElementById('mov-reason').value.trim() || (movCtx.tipo==='in' ? 'Ingresso manuale' : 'Uscita manuale');
+  const opTipo = movCtx?.tipo || 'in';
+  const opMode = movMode;
+  const isIn = opTipo === 'in';
+  const reason  = document.getElementById('mov-reason').value.trim() || (isIn ? 'Ingresso manuale' : 'Uscita manuale');
   const ok = document.getElementById('mov-ok'); ok.disabled=true; ok.textContent='Salvataggio…';
   try {
-    const res = await fetch('/api/v1/warehouse/movements',{
-      method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
-      body:JSON.stringify({material_id:movCtx.material_id,quantity:qty,
-        movement_type:movCtx.tipo==='in'?'INCOMING':'OUTGOING',reason}),
-    });
+    let res;
+    if (opMode === 'new') {
+      if (!isIn) throw new Error('Nuovo materiale disponibile solo in ingresso.');
+      const payload = collectNewMaterialPayload(qty, reason);
+      res = await fetch('/api/v1/warehouse/materials/with-incoming',{
+        method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
+        body:JSON.stringify(payload),
+      });
+    } else {
+      if (!movCtx?.material_id) throw new Error('Seleziona un materiale.');
+      res = await fetch('/api/v1/warehouse/movements',{
+        method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
+        body:JSON.stringify({material_id:movCtx.material_id,quantity:qty,
+          movement_type:isIn?'INCOMING':'OUTGOING',reason}),
+      });
+    }
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
     closeMov();
-    showToast(movCtx.tipo==='in'?'Ingresso registrato':'Uscita registrata','ok');
+    showToast(opMode==='new'?'Nuovo materiale creato':(isIn?'Ingresso registrato':'Uscita registrata'),'ok');
     await loadStock();
   } catch(e) {
     err.textContent=e.message; err.classList.add('show');
-    ok.disabled=false; ok.textContent=movCtx.tipo==='in'?'↑ Conferma ingresso':'↓ Conferma uscita';
+    ok.disabled=false;
+    ok.textContent = opMode === 'new' ? '+ Crea e registra ingresso' : (isIn ? '↑ Conferma ingresso' : '↓ Conferma uscita');
   }
+}
+
+function collectNewMaterialPayload(quantity, reason) {
+  const payload = {
+    code: document.getElementById('new-code').value.trim() || null,
+    description: document.getElementById('new-description').value.trim() || null,
+    tipo: document.getElementById('new-tipo').value.trim() || null,
+    profilo: document.getElementById('new-profilo').value.trim() || null,
+    dimensioni: document.getElementById('new-dimensioni').value.trim() || null,
+    norma_uni: document.getElementById('new-norma').value.trim() || null,
+    qualita: document.getElementById('new-qualita').value.trim() || null,
+    colata: document.getElementById('new-colata').value.trim() || null,
+    peso_u_kg: numOrNull(document.getElementById('new-peso-u').value),
+    peso_1_pz: numOrNull(document.getElementById('new-peso-pz').value),
+    quantity,
+    reason,
+  };
+  if (!payload.code && !payload.tipo && !payload.profilo) throw new Error('Inserisci almeno codice, tipo o profilo.');
+  return payload;
 }
 
 // ── Import modal ───────────────────────────────────────────────────────────────
@@ -1687,7 +2131,11 @@ async function confirmImport() {
   finally{btn.disabled=false; btn.textContent='↑ Importa';}
 }
 
-function openNewMat() { showToast('Usa "Importa inventario" per aggiungere materiali in blocco','err'); }
+function openNewMat() {
+  openMov(null, 'in');
+  setMovMode('new');
+  setTimeout(()=>document.getElementById('new-tipo').focus(),50);
+}
 
 // ── DDT drawer ───────────────────────────────────────────────────────────────
 function openDdt(){

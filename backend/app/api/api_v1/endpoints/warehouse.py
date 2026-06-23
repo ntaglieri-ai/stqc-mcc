@@ -1,3 +1,5 @@
+from datetime import datetime
+from decimal import Decimal
 from typing import List, Literal
 
 import base64
@@ -9,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from fpdf import FPDF
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend.app.crud import warehouse as crud
 from backend.app.db.session import get_db
@@ -17,6 +19,7 @@ from backend.app.models.warehouse import (
     Batch,
     Certificate,
     Material,
+    MovementType,
     Receipt,
     StockMovement,
     WarehouseItem,
@@ -58,6 +61,71 @@ def create_material(
     db: Session = Depends(get_db),
 ):
     return crud.create_material(db=db, obj_in=material_in)
+
+
+def _material_code_from_input(material_in: warehouse_schemas.MaterialIncomingCreate) -> str:
+    if material_in.code and material_in.code.strip():
+        return material_in.code.strip().upper()
+    parts = [
+        material_in.tipo,
+        material_in.profilo,
+        material_in.dimensioni,
+        material_in.qualita,
+        material_in.colata,
+    ]
+    code = "-".join(str(part).strip().upper().replace(" ", "") for part in parts if part)
+    if not code:
+        raise HTTPException(status_code=422, detail="Codice o almeno tipo/profilo obbligatori")
+    return code
+
+
+@router.post("/materials/with-incoming", response_model=warehouse_schemas.MagazzinoItemRead)
+def create_material_with_incoming(
+    material_in: warehouse_schemas.MaterialIncomingCreate,
+    db: Session = Depends(get_db),
+):
+    code = _material_code_from_input(material_in)
+    existing = db.scalar(select(Material).where(Material.code == code))
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Codice materiale già presente: usa Ingresso su materiale esistente")
+
+    description = material_in.description or " · ".join(
+        part for part in [material_in.tipo, material_in.profilo, material_in.dimensioni, material_in.qualita] if part
+    ) or code
+    material = Material(
+        code=code,
+        description=description,
+        unit=material_in.unit or "PZ",
+        specification=material_in.specification,
+        tipo=material_in.tipo,
+        profilo=material_in.profilo,
+        dimensioni=material_in.dimensioni,
+        norma_uni=material_in.norma_uni,
+        qualita=material_in.qualita,
+        colata=material_in.colata,
+        peso_u_kg=material_in.peso_u_kg,
+        peso_1_pz=material_in.peso_1_pz,
+    )
+    db.add(material)
+    db.flush()
+    movement = StockMovement(
+        material_id=material.id,
+        quantity=material_in.quantity,
+        movement_type=MovementType.INCOMING,
+        reason=material_in.reason or "Ingresso nuovo materiale",
+    )
+    db.add(movement)
+    db.flush()
+    try:
+        create_items_for_incoming(db, material.id, material_in.quantity, movement.id)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc))
+    db.commit()
+    row = next((r for r in crud.get_magazzino_list(db=db, limit=1, q=code) if r["material_id"] == material.id), None)
+    if row is None:
+        raise HTTPException(status_code=500, detail="Materiale creato ma non riletto")
+    return row
 
 
 @router.get("/materials", response_model=List[warehouse_schemas.MaterialRead])
@@ -214,6 +282,58 @@ def _physical_item_read(item: WarehouseItem) -> dict:
     }
 
 
+def _decimal_or_none(value: object) -> float | None:
+    return float(value) if value is not None else None
+
+
+def _item_value(item: WarehouseItem, material: Material, field: str):
+    value = getattr(item, field, None)
+    if value is not None:
+        return value
+    return getattr(material, field, None)
+
+
+def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
+    material = item.material
+    peso_1_pz = _item_value(item, material, "peso_1_pz")
+    manual_fields = [
+        field
+        for field in (
+            "tipo",
+            "profilo",
+            "dimensioni",
+            "norma_uni",
+            "qualita",
+            "colata",
+            "commessa_ref",
+            "peso_u_kg",
+            "peso_1_pz",
+            "notes",
+        )
+        if getattr(item, field, None) is not None
+    ]
+    return {
+        **_physical_item_read(item),
+        "material_code": material.code,
+        "description": material.description,
+        "tipo": _item_value(item, material, "tipo"),
+        "profilo": _item_value(item, material, "profilo"),
+        "dimensioni": _item_value(item, material, "dimensioni"),
+        "norma_uni": _item_value(item, material, "norma_uni"),
+        "qualita": _item_value(item, material, "qualita"),
+        "colata": _item_value(item, material, "colata"),
+        "commessa_ref": _item_value(item, material, "commessa_ref"),
+        "peso_u_kg": _decimal_or_none(_item_value(item, material, "peso_u_kg")),
+        "peso_1_pz": _decimal_or_none(peso_1_pz),
+        "peso_kg": _decimal_or_none(peso_1_pz),
+        "unit": material.unit,
+        "source_movement_id": item.source_movement_id,
+        "exit_movement_id": item.exit_movement_id,
+        "notes": item.notes,
+        "manual_overrides": manual_fields,
+    }
+
+
 @router.get(
     "/materials/{material_id}/items",
     response_model=List[warehouse_schemas.WarehousePhysicalItemRead],
@@ -230,6 +350,83 @@ def list_material_items(
         stmt = stmt.where(WarehouseItem.status == "AVAILABLE")
     items = db.scalars(stmt.order_by(WarehouseItem.ordinal)).all()
     return [_physical_item_read(item) for item in items]
+
+
+@router.get(
+    "/items",
+    response_model=List[warehouse_schemas.WarehouseItemDetailRead],
+)
+def list_warehouse_items(
+    skip: int = 0,
+    limit: int = 5000,
+    include_closed: bool = False,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+):
+    stmt = (
+        select(WarehouseItem)
+        .join(WarehouseItem.material)
+        .options(joinedload(WarehouseItem.material))
+        .order_by(Material.tipo, Material.profilo, Material.code, WarehouseItem.ordinal)
+    )
+    if not include_closed:
+        stmt = stmt.where(WarehouseItem.status == "AVAILABLE")
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            Material.code.ilike(like)
+            | Material.tipo.ilike(like)
+            | Material.profilo.ilike(like)
+            | Material.qualita.ilike(like)
+            | WarehouseItem.uuid.ilike(like)
+        )
+    items = db.scalars(stmt.offset(skip).limit(limit)).all()
+    return [_item_detail_read(item, db) for item in items]
+
+
+@router.get(
+    "/items/{item_uuid}",
+    response_model=warehouse_schemas.WarehouseItemDetailRead,
+)
+def get_warehouse_item(item_uuid: str, db: Session = Depends(get_db)):
+    item = db.scalar(
+        select(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .where(WarehouseItem.uuid == item_uuid.lower())
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
+    return _item_detail_read(item, db)
+
+
+@router.patch(
+    "/items/{item_uuid}",
+    response_model=warehouse_schemas.WarehouseItemDetailRead,
+)
+def update_warehouse_item(
+    item_uuid: str,
+    item_in: warehouse_schemas.WarehouseItemUpdate,
+    db: Session = Depends(get_db),
+):
+    item = db.scalar(
+        select(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .where(WarehouseItem.uuid == item_uuid.lower())
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
+    data = item_in.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        if isinstance(value, str):
+            value = value.strip() or None
+        if field in {"peso_u_kg", "peso_1_pz"} and value is not None:
+            value = Decimal(str(value))
+        setattr(item, field, value)
+    item.updated_at = datetime.utcnow()
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return _item_detail_read(item, db)
 
 
 @router.get("/items/{item_uuid}/qr.png")

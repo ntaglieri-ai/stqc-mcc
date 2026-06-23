@@ -120,6 +120,7 @@
     .badge-admin    { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
     .badge-dir      { background: rgba(139,92,246,0.18); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
     .badge-oper     { background: rgba(249,115,22,0.18); color: #fdba74; border: 1px solid rgba(249,115,22,0.3); }
+    .badge-prog     { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
     .badge-log      { background: rgba(34,197,94,0.18); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
     .badge-acq      { background: rgba(251,191,36,0.18); color: #fde68a; border: 1px solid rgba(251,191,36,0.3); }
     .badge-on       { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
@@ -380,6 +381,9 @@
     <button class="nav-item" onclick="showSection('groups')" id="tab-groups">
       <span class="ni-icon">🏷️</span> Gruppi
     </button>
+    <button class="nav-item" onclick="showSection('workstations')" id="tab-workstations">
+      <span class="ni-icon">📍</span> Postazioni & Scanner
+    </button>
     <button class="nav-item" onclick="showSection('auditlog')" id="tab-auditlog">
       <span class="ni-icon">🔐</span> Log Accessi
     </button>
@@ -426,10 +430,9 @@
         <select id="users-filter-gruppo" onchange="filterUsers()"
           style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#fff;font-size:13px;outline:none">
           <option value="">Tutti i gruppi</option>
-          <option>Admin</option><option>Direttore</option><option>Operatore</option>
+          <option>Admin</option><option>Direttore</option><option>Progettazione</option>
           <option>Logistica</option><option>Acquisti</option>
         </select>
-        <button class="btn btn-ghost" onclick="provisionOperatori()">⚡ Provisiona</button>
         <button class="btn btn-primary" onclick="openCreateModal()">+ Nuovo</button>
       </div>
 
@@ -468,6 +471,80 @@
             Seleziona un gruppo dalla lista
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION — Postazioni & Scanner ══ -->
+    <div class="section" id="section-workstations">
+      <div class="section-header">
+        <div class="section-eyebrow">Configurazione officina</div>
+        <div class="section-title">Postazioni &amp; Scanner</div>
+        <div class="section-sub">Configura le postazioni operative e associa ogni scanner fisico alla postazione corretta</div>
+      </div>
+
+      <div class="table-wrap" style="padding:22px 24px;margin-bottom:22px">
+        <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
+          <div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Postazioni operative</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Sono configurabili: codice, nome, descrizione e stato attivo.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input id="ws-new-code" placeholder="CODICE"
+              style="width:170px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:700;outline:none;text-transform:uppercase"
+              oninput="this.value=this.value.toUpperCase()" />
+            <input id="ws-new-name" placeholder="Nome postazione"
+              style="width:220px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none" />
+            <button class="btn btn-primary" onclick="createWorkstation()">+ Postazione</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Codice</th>
+              <th>Nome</th>
+              <th>Descrizione</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="workstations-tbody">
+            <tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap" style="padding:22px 24px">
+        <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
+          <div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Scanner fisici</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Lo scanner determina la postazione: ogni scan pezzo diventa START/END sulla postazione associata.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input id="sc-new-code" placeholder="SCN-TAGLIO-01"
+              style="width:180px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:700;outline:none;text-transform:uppercase"
+              oninput="this.value=this.value.toUpperCase()" />
+            <input id="sc-new-name" placeholder="Nome scanner"
+              style="width:190px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none" />
+            <select id="sc-new-workstation"
+              style="width:190px;padding:8px 11px;border-radius:9px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none"></select>
+            <button class="btn btn-primary" onclick="createScannerDevice()">+ Scanner</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Scanner</th>
+              <th>Nome</th>
+              <th>Postazione</th>
+              <th>IP</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="scanner-tbody">
+            <tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -762,7 +839,7 @@
       <label>Gruppo *</label>
       <select id="f-profilo">
         <option value="Direttore">Direttore</option>
-        <option value="Operatore">Operatore</option>
+        <option value="Progettazione">Progettazione</option>
         <option value="Logistica">Logistica</option>
         <option value="Acquisti">Acquisti</option>
         <option value="Admin">Admin</option>
@@ -835,6 +912,7 @@ function showSection(id) {
 
   if (id === 'users')          loadUsers();
   if (id === 'groups')         loadGroups();
+  if (id === 'workstations')   loadWorkstationsConfig();
   if (id === 'auditlog')       loadAuditLog();
   if (id === 'status')         loadStatus();
   if (id === 'logs')           startLogPolling();
@@ -950,7 +1028,7 @@ function pwdBadge(changed_at, status) {
 }
 
 function grupBadge(p) {
-  return { Admin:'badge-admin', Direttore:'badge-dir', Operatore:'badge-oper',
+  return { Admin:'badge-admin', Direttore:'badge-dir', Progettazione:'badge-prog',
            Logistica:'badge-log', Acquisti:'badge-acq' }[p] || 'badge-oper';
 }
 
@@ -961,16 +1039,6 @@ async function resetPassword(id, username) {
     const d = await res.json();
     const msg = `Password temporanea per ${username}:\n\n${d.temporary_password}\n\nComunicarla all'utente e chiedergli di cambiarla al primo accesso.`;
     alert(msg);
-    loadUsers();
-  } catch(e) { toast(e.message, 'err'); }
-}
-
-async function provisionOperatori() {
-  if (!confirm('Creare automaticamente gli utenti Operatore per ogni postazione attiva?\nPassword default: Operatore@2026!\nGli utenti già esistenti verranno saltati.')) return;
-  try {
-    const res = await api('POST', '/users/provision-operatori');
-    const data = await res.json();
-    toast(`✅ ${data.total_created} creati, ${data.total_skipped} già esistenti — pwd: ${data.default_password}`, 'ok');
     loadUsers();
   } catch(e) { toast(e.message, 'err'); }
 }
@@ -991,7 +1059,7 @@ function openCreateModal() {
   document.getElementById('modal-title').textContent = 'Nuovo Utente';
   document.getElementById('f-username').value = '';
   document.getElementById('f-email').value = '';
-  document.getElementById('f-profilo').value = 'Operatore';
+  document.getElementById('f-profilo').value = 'Progettazione';
   document.getElementById('f-password').value = '';
   document.getElementById('f-password-label').textContent = 'Password *';
   document.getElementById('attr-section').style.display = 'none';
@@ -1284,6 +1352,172 @@ async function saveGroup(name) {
     toast(`Gruppo ${name} aggiornato`, 'ok');
     renderGroupList();
     renderGroupDetail(updated);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION — WORKSTATIONS / SCANNERS
+// ═══════════════════════════════════════════════════════════════
+
+let _workstations = [];
+let _scannerDevices = [];
+
+async function loadWorkstationsConfig() {
+  const wsBody = document.getElementById('workstations-tbody');
+  const scBody = document.getElementById('scanner-tbody');
+  wsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
+  scBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
+  try {
+    const [wsRes, scRes] = await Promise.all([
+      api('GET', '/workstations?include_inactive=true'),
+      api('GET', '/scanner-devices?include_inactive=true'),
+    ]);
+    _workstations = await wsRes.json();
+    _scannerDevices = await scRes.json();
+    renderWorkstations();
+    renderScannerDevices();
+    renderScannerWorkstationSelect();
+  } catch(e) {
+    wsBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
+    scBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
+  }
+}
+
+function renderScannerWorkstationSelect() {
+  const active = _workstations.filter(w => w.active);
+  const html = '<option value="">— Postazione —</option>' + active.map(w => `<option value="${w.id}">${esc(w.code)}</option>`).join('');
+  const el = document.getElementById('sc-new-workstation');
+  if (el) el.innerHTML = html;
+}
+
+function workstationName(id) {
+  const ws = _workstations.find(w => w.id === id);
+  return ws ? ws.code : '—';
+}
+
+function renderWorkstations() {
+  const tbody = document.getElementById('workstations-tbody');
+  if (!_workstations.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuna postazione configurata</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _workstations.map(w => `
+    <tr style="${w.active ? '' : 'opacity:.42'}">
+      <td style="font-weight:800;color:#dbeafe">${esc(w.code)}</td>
+      <td>${esc(w.name || '—')}</td>
+      <td style="color:rgba(255,255,255,.48)">${esc(w.description || '—')}</td>
+      <td><span class="badge ${w.active ? 'badge-on' : 'badge-off'}">${w.active ? 'Attiva' : 'Disattiva'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editWorkstation(${w.id})">Modifica</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleWorkstation(${w.id}, ${!w.active})">${w.active ? 'Disattiva' : 'Attiva'}</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderScannerDevices() {
+  const tbody = document.getElementById('scanner-tbody');
+  if (!_scannerDevices.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuno scanner configurato</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _scannerDevices.map(s => {
+    const options = '<option value="">— Nessuna —</option>' + _workstations.filter(w => w.active).map(w =>
+      `<option value="${w.id}" ${s.postazione_id === w.id ? 'selected' : ''}>${esc(w.code)}</option>`
+    ).join('');
+    return `
+    <tr style="${s.active ? '' : 'opacity:.42'}">
+      <td style="font-weight:800;color:#dbeafe">${esc(s.scanner_code)}</td>
+      <td>${esc(s.name || '—')}</td>
+      <td><select onchange="assignScannerWorkstation(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px">${options}</select></td>
+      <td style="color:rgba(255,255,255,.48)">${esc(s.ip_address || '—')}</td>
+      <td><span class="badge ${s.active ? 'badge-on' : 'badge-off'}">${s.active ? 'Attivo' : 'Disattivo'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editScannerDevice(${s.id})">Modifica</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleScannerDevice(${s.id}, ${!s.active})">${s.active ? 'Disattiva' : 'Attiva'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function createWorkstation() {
+  const code = document.getElementById('ws-new-code').value.trim().toUpperCase();
+  const name = document.getElementById('ws-new-name').value.trim();
+  if (!code || !name) return toast('Codice e nome postazione obbligatori', 'err');
+  try {
+    await api('POST', '/workstations', { code, name, active: true });
+    document.getElementById('ws-new-code').value = '';
+    document.getElementById('ws-new-name').value = '';
+    toast('Postazione creata', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function editWorkstation(id) {
+  const w = _workstations.find(x => x.id === id);
+  if (!w) return;
+  const name = prompt('Nome postazione', w.name || '');
+  if (name === null) return;
+  const description = prompt('Descrizione', w.description || '');
+  if (description === null) return;
+  try {
+    await api('PATCH', `/workstations/${id}`, { name, description });
+    toast('Postazione aggiornata', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function toggleWorkstation(id, active) {
+  try {
+    await api('PATCH', `/workstations/${id}`, { active });
+    toast(active ? 'Postazione attivata' : 'Postazione disattivata', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function createScannerDevice() {
+  const scanner_code = document.getElementById('sc-new-code').value.trim().toUpperCase();
+  const name = document.getElementById('sc-new-name').value.trim();
+  const postazione_id = Number(document.getElementById('sc-new-workstation').value) || null;
+  if (!scanner_code || !name) return toast('Codice e nome scanner obbligatori', 'err');
+  try {
+    await api('POST', '/scanner-devices', { scanner_code, name, postazione_id, active: true });
+    document.getElementById('sc-new-code').value = '';
+    document.getElementById('sc-new-name').value = '';
+    document.getElementById('sc-new-workstation').value = '';
+    toast('Scanner creato', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function editScannerDevice(id) {
+  const s = _scannerDevices.find(x => x.id === id);
+  if (!s) return;
+  const name = prompt('Nome scanner', s.name || '');
+  if (name === null) return;
+  const ip_address = prompt('IP scanner (opzionale)', s.ip_address || '');
+  if (ip_address === null) return;
+  const serial_number = prompt('Seriale scanner (opzionale)', s.serial_number || '');
+  if (serial_number === null) return;
+  try {
+    await api('PATCH', `/scanner-devices/${id}`, { name, ip_address: ip_address || null, serial_number: serial_number || null });
+    toast('Scanner aggiornato', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function assignScannerWorkstation(id, value) {
+  try {
+    await api('PATCH', `/scanner-devices/${id}`, { postazione_id: Number(value) || null });
+    toast('Associazione scanner aggiornata', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function toggleScannerDevice(id, active) {
+  try {
+    await api('PATCH', `/scanner-devices/${id}`, { active });
+    toast(active ? 'Scanner attivato' : 'Scanner disattivato', 'ok');
+    await loadWorkstationsConfig();
   } catch(e) { toast(e.message, 'err'); }
 }
 

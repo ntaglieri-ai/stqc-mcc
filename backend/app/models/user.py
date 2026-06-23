@@ -10,7 +10,7 @@ from backend.app.db.base import Base
 class ProfiloUtente(str, Enum):
     ADMIN      = "Admin"
     DIRETTORE  = "Direttore"
-    OPERATORE  = "Operatore"
+    PROGETTAZIONE = "Progettazione"
     LOGISTICA  = "Logistica"
     ACQUISTI   = "Acquisti"
 
@@ -20,19 +20,19 @@ _LIVELLI = ("none", "read", "write")
 
 # Default permissions per group — used to seed the groups table
 GROUP_DEFAULTS: dict[str, dict] = {
-    "Admin":     {"commesse": "write", "magazzino": "write",  "admin": "write"},
-    "Direttore": {"commesse": "write", "magazzino": "read",   "admin": "none"},
-    "Operatore": {"commesse": "read",  "magazzino": "write",  "admin": "none"},
-    "Logistica": {"commesse": "read",  "magazzino": "write",  "admin": "none"},
-    "Acquisti":  {"commesse": "read",  "magazzino": "read",   "admin": "none"},
+    "Admin":         {"commesse": "write", "magazzino": "write", "admin": "write"},
+    "Direttore":     {"commesse": "write", "magazzino": "read",  "admin": "none"},
+    "Progettazione": {"commesse": "write", "magazzino": "read",  "admin": "none"},
+    "Logistica":     {"commesse": "read",  "magazzino": "write", "admin": "none"},
+    "Acquisti":      {"commesse": "read",  "magazzino": "read",  "admin": "none"},
 }
 
 GROUP_POSTAZIONI_DEFAULTS: dict[str, list[str]] = {
-    "Admin":     [],
-    "Direttore": [],
-    "Operatore": ["Taglio", "Saldatura", "Montaggio", "Collaudo", "Verniciatura"],
-    "Logistica": ["Magazzino"],
-    "Acquisti":  [],
+    "Admin":         [],
+    "Direttore":     [],
+    "Progettazione": [],
+    "Logistica":     ["Magazzino"],
+    "Acquisti":      [],
 }
 
 
@@ -46,7 +46,7 @@ class User(Base):
     profilo         = Column(
         SQLEnum(ProfiloUtente, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
-        default=ProfiloUtente.OPERATORE,
+        default=ProfiloUtente.PROGETTAZIONE,
     )
     username        = Column(String(100), unique=True, index=True, nullable=True)
     password_hash   = Column(String(255), nullable=True)

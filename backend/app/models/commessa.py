@@ -1,3 +1,4 @@
+import uuid as _uuid
 from datetime import datetime
 from enum import Enum
 
@@ -5,6 +6,10 @@ from sqlalchemy import Boolean, Column, Date, DateTime, Enum as SQLEnum, Foreign
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
+
+
+def _gen_uuid() -> str:
+    return str(_uuid.uuid4())
 
 
 class CommessaStatus(str, Enum):
@@ -81,8 +86,10 @@ class Piece(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), nullable=False, default=_gen_uuid, unique=True, index=True)
     qr_code = Column(String(220), nullable=False, index=True)
     qr_payload = Column(String(220), nullable=False)
+    qr_status = Column(String(20), nullable=False, default="DRAFT", index=True)
 
     commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
     revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -97,22 +104,136 @@ class Piece(Base):
     materiale_descrizione = Column(String(400), nullable=True)
     lunghezza_mm = Column(Numeric(12, 2), nullable=True)
     larghezza_mm = Column(Numeric(12, 2), nullable=True)
+    spessore_mm = Column(Numeric(12, 2), nullable=True)
     peso_kg = Column(Numeric(12, 4), nullable=True)
     tipo_profilo = Column(String(100), nullable=True)
 
+    materiale_origine_status = Column(String(20), nullable=False, default="VUOTO", index=True)
     colata = Column(String(100), nullable=True)
     lotto = Column(String(100), nullable=True)
     certificato_31 = Column(String(255), nullable=True)
     materiale_origine_id = Column(Integer, nullable=True)
     fornitore = Column(String(200), nullable=True)
+    note_materiale = Column(Text, nullable=True)
 
     stato_attuale = Column(String(30), nullable=False, default="NON_GENERATO", index=True)
     ultima_postazione = Column(String(100), nullable=True)
+    ultimo_lavoro = Column(String(100), nullable=True)
+    ultimo_evento = Column(String(30), nullable=True)
+    ultimo_evento_at = Column(DateTime, nullable=True, index=True)
+    lavorazione_aperta_id = Column(Integer, nullable=True, index=True)
     qr_attivo = Column(Boolean, nullable=False, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
     revisione = relationship("CommessaRevisione", back_populates="pieces")
+    scan_events = relationship("PieceScanEvent", back_populates="piece", cascade="all, delete-orphan", passive_deletes=True, order_by="PieceScanEvent.timestamp")
+    work_sessions = relationship("PieceWorkSession", back_populates="piece", cascade="all, delete-orphan", passive_deletes=True, order_by="PieceWorkSession.started_at")
+
+
+class Workstation(Base):
+    """Postazione fisica o logica scansionabile in officina."""
+    __tablename__ = "workstations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(80), nullable=False, unique=True, index=True)
+    name = Column(String(160), nullable=False)
+    description = Column(Text, nullable=True)
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    start_qr_code = Column(String(120), nullable=False, unique=True, index=True)
+    end_qr_code = Column(String(120), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    scanner_devices = relationship("ScannerDevice", back_populates="postazione")
+
+
+class ScannerDevice(Base):
+    """Scanner fisico associabile a una postazione configurabile."""
+    __tablename__ = "scanner_devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scanner_code = Column(String(80), nullable=False, unique=True, index=True)
+    name = Column(String(160), nullable=False)
+    description = Column(Text, nullable=True)
+    postazione_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    ip_address = Column(String(80), nullable=True, index=True)
+    serial_number = Column(String(120), nullable=True, index=True)
+    device_token = Column(String(160), nullable=True, unique=True, index=True)
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    last_seen_at = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    postazione = relationship("Workstation", back_populates="scanner_devices")
+
+
+class WorkType(Base):
+    """Tipo lavoro registrabile su una postazione, senza imporre percorsi teorici."""
+    __tablename__ = "work_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(80), nullable=False, unique=True, index=True)
+    name = Column(String(160), nullable=False)
+    category = Column(String(100), nullable=True, index=True)
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PieceScanEvent(Base):
+    """Log append-only degli scan e degli eventi operativi del singolo pezzo."""
+    __tablename__ = "piece_scan_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    piece_id = Column(Integer, ForeignKey("pieces.id", ondelete="CASCADE"), nullable=False, index=True)
+    qr_code = Column(String(220), nullable=False, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
+    assemblato_id = Column(String(200), nullable=True, index=True)
+
+    postazione_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    postazione_code = Column(String(80), nullable=True, index=True)
+    lavoro_id = Column(Integer, ForeignKey("work_types.id", ondelete="SET NULL"), nullable=True, index=True)
+    lavoro_code = Column(String(80), nullable=True, index=True)
+
+    event_type = Column(String(40), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    operatore_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    session_id = Column(Integer, ForeignKey("piece_work_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    metadata_json = Column(JSON, nullable=True)
+    note = Column(Text, nullable=True)
+
+    piece = relationship("Piece", back_populates="scan_events")
+
+
+class PieceWorkSession(Base):
+    """Sessione lavoro aperta/chiusa su un pezzo, con timer operativo a 24h."""
+    __tablename__ = "piece_work_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    piece_id = Column(Integer, ForeignKey("pieces.id", ondelete="CASCADE"), nullable=False, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
+    assemblato_id = Column(String(200), nullable=True, index=True)
+
+    postazione_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    postazione_code = Column(String(80), nullable=False, index=True)
+    lavoro_id = Column(Integer, ForeignKey("work_types.id", ondelete="SET NULL"), nullable=True, index=True)
+    lavoro_code = Column(String(80), nullable=True, index=True)
+
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    expected_close_at = Column(DateTime, nullable=False, index=True)
+    closed_at = Column(DateTime, nullable=True, index=True)
+    duration_seconds = Column(Integer, nullable=True)
+    status = Column(String(30), nullable=False, default="OPEN", index=True)
+    opened_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    closed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    open_event_id = Column(Integer, nullable=True, index=True)
+    close_event_id = Column(Integer, nullable=True, index=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    piece = relationship("Piece", back_populates="work_sessions")
 
 
 class FaseStatus(str, Enum):
