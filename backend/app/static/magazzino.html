@@ -88,7 +88,241 @@
     }
 
     /* ── Body wrap ────────────────────────────────────────────────────── */
-    .body-wrap { flex: 1; display: flex; overflow: hidden; }
+    .body-wrap { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+    /* ── Inventory sidebar ───────────────────────────────────────────── */
+    .inventory-sidebar {
+      width: 296px;
+      flex: 0 0 296px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(73,129,255,.18), transparent 31%),
+        radial-gradient(circle at 100% 16%, rgba(34,197,94,.08), transparent 29%),
+        linear-gradient(180deg, rgba(255,255,255,.040), rgba(255,255,255,.010)),
+        #0F151F;
+      border-right: 1px solid rgba(139,174,255,.18);
+      box-shadow: inset -1px 0 0 rgba(255,255,255,.035), 22px 0 55px rgba(0,0,0,.18);
+      transition: width .22s ease, flex-basis .22s ease, opacity .16s ease, transform .22s ease;
+    }
+    .body-wrap.sidebar-collapsed .inventory-sidebar {
+      width: 0;
+      flex-basis: 0;
+      opacity: 0;
+      transform: translateX(-10px);
+      pointer-events: none;
+      border-right: 0;
+    }
+    .side-head {
+      flex-shrink: 0;
+      padding: 18px 16px 15px;
+      border-bottom: 1px solid rgba(139,174,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.006));
+    }
+    .side-kicker {
+      color: var(--color-text-muted);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .side-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .side-title { font-size: 17px; font-weight: 950; color: var(--color-text-primary); letter-spacing: -.02em; }
+    .side-actions { display: flex; align-items: center; gap: 6px; }
+    .side-reset,
+    .side-hide {
+      border: 1px solid var(--color-border-secondary);
+      background: rgba(255,255,255,.03);
+      color: var(--color-text-secondary);
+      border-radius: 999px;
+      padding: 6px 9px;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all .16s;
+    }
+    .side-hide {
+      color: var(--color-accent-text);
+      border-color: rgba(139,174,255,.28);
+      background: rgba(73,129,255,.09);
+    }
+    .side-reset:hover,
+    .side-hide:hover { color: var(--color-text-primary); border-color: var(--color-border-primary); transform: translateY(-1px); }
+    .side-body { flex: 1; overflow-y: auto; padding: 14px 12px 18px; }
+    .side-body::-webkit-scrollbar { width: 4px; }
+    .side-body::-webkit-scrollbar-thumb { background: rgba(139,174,255,.16); border-radius: 999px; }
+    .side-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    .side-stat {
+      min-height: 72px;
+      border: 1px solid rgba(139,174,255,.12);
+      border-radius: 16px;
+      padding: 12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.050), rgba(255,255,255,.016)),
+        rgba(16,23,35,.86);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.055), 0 10px 26px rgba(0,0,0,.12);
+    }
+    .side-stat-label {
+      color: var(--color-text-muted);
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+    }
+    .side-stat-value {
+      margin-top: 8px;
+      color: var(--color-text-primary);
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 950;
+      font-family: 'SF Mono','Menlo','Consolas',monospace;
+    }
+    .side-section { margin-top: 15px; }
+    .side-section + .side-section {
+      padding-top: 15px;
+      border-top: 1px solid rgba(139,174,255,.14);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.028);
+    }
+    .side-section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--color-text-muted);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      margin-bottom: 9px;
+    }
+    .side-section-title span:last-child {
+      color: var(--color-accent-text);
+      font-family: 'SF Mono','Menlo','Consolas',monospace;
+      letter-spacing: 0;
+    }
+    .side-list { display: grid; gap: 7px; }
+    .side-filter {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 10px;
+      border: 1px solid rgba(139,174,255,.105);
+      border-radius: 13px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.030), rgba(255,255,255,.010)),
+        rgba(14,20,31,.70);
+      color: var(--color-text-secondary);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background .14s, border-color .14s, transform .14s;
+    }
+    .side-filter:hover {
+      background: linear-gradient(180deg, rgba(255,255,255,.060), rgba(255,255,255,.018));
+      border-color: rgba(139,174,255,.22);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(0,0,0,.16);
+    }
+    .side-filter.active {
+      background:
+        linear-gradient(135deg, rgba(73,129,255,.28), rgba(112,76,255,.13)),
+        rgba(16,24,39,.92);
+      border-color: rgba(139,174,255,.44);
+      color: var(--color-text-primary);
+      box-shadow: 0 14px 32px rgba(73,129,255,.11), inset 3px 0 0 rgba(139,174,255,.70), inset 0 1px 0 rgba(255,255,255,.09);
+    }
+    .side-filter-main { min-width: 0; }
+    .side-filter-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: inherit;
+    }
+    .side-filter-sub {
+      margin-top: 5px;
+      font-size: 10px;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .side-filter-counts {
+      display: grid;
+      gap: 4px;
+      justify-items: end;
+      font-family: 'SF Mono','Menlo','Consolas',monospace;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .side-count-free { color: var(--color-status-green-text); }
+    .side-count-res { color: var(--color-accent-text); }
+    .side-count-total { color: var(--color-text-muted); }
+    .side-empty {
+      border: 1px dashed var(--color-border-secondary);
+      border-radius: 13px;
+      padding: 14px;
+      color: var(--color-text-muted);
+      font-size: 11px;
+      line-height: 1.45;
+      text-align: center;
+      background: rgba(255,255,255,.012);
+    }
+    .sidebar-toggle {
+      min-width: 110px;
+      justify-content: center;
+      padding-left: 12px;
+      padding-right: 12px;
+      border-color: rgba(139,174,255,.22);
+    }
+    .sidebar-toggle.active {
+      color: var(--color-accent-text);
+      border-color: rgba(139,174,255,.30);
+      background: var(--color-accent-bg);
+    }
+    .side-restore {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 9px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(139,174,255,.34);
+      background:
+        linear-gradient(135deg, rgba(73,129,255,.30), rgba(112,76,255,.17)),
+        rgba(16,24,39,.92);
+      color: #DDE8FF;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 18px 44px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.12);
+      backdrop-filter: blur(10px);
+    }
+    .side-restore:hover { transform: translateY(-1px); border-color: rgba(184,204,255,.55); }
+    .body-wrap.sidebar-collapsed .side-restore { display: inline-flex; }
 
     /* ── Main ─────────────────────────────────────────────────────────── */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
@@ -99,7 +333,8 @@
       display: flex; align-items: center; gap: 10px; padding: 0 20px;
       border-bottom: 1px solid var(--color-border-tertiary);
       background:
-        linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,0)),
+        radial-gradient(circle at 0% 0%, rgba(73,129,255,.055), transparent 25%),
+        linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,0)),
         var(--color-background-secondary);
     }
     .search-wrap { position: relative; flex: 1; max-width: 340px; }
@@ -502,7 +737,12 @@
     .gdd-item.sel { color: var(--color-accent-text); font-weight: 600; background: var(--color-accent-bg); }
 
     /* ── Table ────────────────────────────────────────────────────────── */
-    .table-wrap { flex: 1; overflow-y: auto; overflow-x: auto; background: var(--color-background-tertiary); }
+    .table-wrap {
+      flex: 1; overflow-y: auto; overflow-x: auto;
+      background:
+        linear-gradient(90deg, rgba(139,174,255,.018), transparent 18%),
+        var(--color-background-tertiary);
+    }
     .table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
     .table-wrap::-webkit-scrollbar-track { background: var(--color-background-tertiary); }
     .table-wrap::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 3px; }
@@ -647,6 +887,23 @@
     }
     .item-stack-main { font-size: 12px; font-weight: 820; color: var(--color-text-primary); }
     .item-stack-sub { margin-top: 5px; font-size: 11px; color: var(--color-text-muted); }
+    .reserved-note {
+      margin-top: 7px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--color-accent-border);
+      background: var(--color-accent-bg);
+      color: var(--color-accent-text);
+      font-size: 10px;
+      font-weight: 850;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .status-badge {
       display: inline-flex; align-items: center; justify-content: center;
       min-width: 92px; min-height: 26px; padding: 5px 10px;
@@ -871,12 +1128,15 @@
 
     /* ── Responsive ───────────────────────────────────────────────────── */
     @media (max-width: 1100px) { .col-colata, .th-colata { display: none; } }
-    @media (max-width: 960px)  { .col-norma,  .th-norma  { display: none; } }
+    @media (max-width: 960px)  {
+      .col-norma,  .th-norma  { display: none; }
+      .inventory-sidebar { width: 238px; flex-basis: 238px; }
+    }
   </style>
 </head>
 <body>
 
-<script>(function(){ if(!localStorage.getItem('stqc_token')) window.location.replace('/login'); })();</script>
+<script>(function(){ if(!sessionStorage.getItem('stqc_token')) window.location.replace('/login'); })();</script>
 
 <div class="shell">
 
@@ -893,11 +1153,46 @@
 
   <div class="body-wrap">
 
+    <!-- SIDEBAR -->
+    <aside class="inventory-sidebar" id="inventory-sidebar" aria-label="Filtri e statistiche magazzino">
+      <div class="side-head">
+        <div class="side-kicker">Magazzino</div>
+        <div class="side-title-row">
+          <div class="side-title">Filtri rapidi</div>
+          <div class="side-actions">
+            <button class="side-reset" onclick="clearSidebarFilters()">Reset</button>
+            <button class="side-hide" onclick="toggleSidebar()">Nascondi</button>
+          </div>
+        </div>
+      </div>
+      <div class="side-body">
+        <div class="side-summary" id="side-summary"></div>
+
+        <div class="side-section">
+          <div class="side-section-title">
+            <span>Tipologie</span>
+            <span id="side-type-selected">Tutte</span>
+          </div>
+          <div class="side-list" id="side-types"></div>
+        </div>
+
+        <div class="side-section">
+          <div class="side-section-title">
+            <span>Prenotati per commessa</span>
+            <span id="side-res-count">0</span>
+          </div>
+          <div class="side-list" id="side-reservations"></div>
+        </div>
+      </div>
+    </aside>
+    <button class="side-restore" id="side-restore" onclick="toggleSidebar()">☰ Mostra filtri</button>
+
     <!-- MAIN -->
     <div class="main">
 
       <!-- TOOLBAR -->
       <div class="toolbar">
+        <button class="tbtn tbtn-n sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Mostra/nascondi filtri laterali">☰ Filtri</button>
         <div class="search-wrap">
           <span class="search-ico">⌕</span>
           <input id="search-inp" class="search-input" type="text" placeholder="Cerca in tutti i campi…" oninput="onSearch()"/>
@@ -1270,13 +1565,16 @@
 
 <script>
 // ── Auth ───────────────────────────────────────────────────────────────────────
-const TOKEN   = localStorage.getItem('stqc_token') || '';
-const NOME    = localStorage.getItem('stqc_nome')  || '—';
-const PROFILO = localStorage.getItem('stqc_profilo') || '';
+const TOKEN   = sessionStorage.getItem('stqc_token') || '';
+const NOME    = sessionStorage.getItem('stqc_nome')  || '—';
+const PROFILO = sessionStorage.getItem('stqc_profilo') || '';
 document.getElementById('topbar-user').textContent = NOME + (PROFILO ? ' · ' + PROFILO : '');
 function hdr() { return { Authorization: 'Bearer ' + TOKEN }; }
 function logout() {
-  ['stqc_token','stqc_profilo','stqc_nome'].forEach(k => localStorage.removeItem(k));
+  ['stqc_token','stqc_profilo','stqc_nome'].forEach(k => {
+    sessionStorage.removeItem(k);
+    localStorage.removeItem(k);
+  });
   window.location.replace('/login');
 }
 
@@ -1286,8 +1584,11 @@ let allItems = [];
 let filtered = [];
 let page     = 1;
 let rpp      = 50;
-let viewMode = 'extended';
+let viewMode = localStorage.getItem('stqc_magazzino_view') || 'compact';
 let searchQ         = '';
+let sidebarCollapsed = localStorage.getItem('stqc_magazzino_sidebar') === 'collapsed';
+const selectedTypes = new Set();
+let selectedReservation = null;
 
 // Chip filters (exact match)
 const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
@@ -1312,6 +1613,7 @@ let ddtAnalysis = null;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
+  applySidebarState();
   renderSkeleton(12);
   await loadStock();
   calcRpp();
@@ -1340,6 +1642,7 @@ async function loadStock() {
     allRows = await r.json();
     allItems = await i.json();
     updateViewButtons();
+    renderSidebar();
     applyFilters();
   } catch { showToast('Errore caricamento magazzino', 'err'); }
 }
@@ -1358,6 +1661,156 @@ function updateViewButtons() {
   document.getElementById('view-compact').classList.toggle('active', viewMode === 'compact');
 }
 
+function typeLabel(value) {
+  const v = String(value || '').trim();
+  return v || 'Senza tipo';
+}
+
+function num0(value) { return Math.round(Number(value || 0)); }
+
+function aggregateInventoryStats() {
+  const totals = { available: 0, physical: 0, reserved: 0, types: 0, rows: allRows.length };
+  const typeMap = new Map();
+  const reservationMap = new Map();
+
+  for (const row of allRows) {
+    const tipo = typeLabel(row.tipo);
+    const available = Number(row.n_pezzi || 0);
+    const physical = Number(row.physical_items_count || 0);
+    const reserved = Number(row.reserved_items_count || 0);
+    const profileKey = [row.profilo, row.qualita].filter(Boolean).join(' · ') || row.material_code || '—';
+
+    totals.available += available;
+    totals.physical += physical;
+    totals.reserved += reserved;
+
+    if (!typeMap.has(tipo)) {
+      typeMap.set(tipo, { tipo, available: 0, physical: 0, reserved: 0, rows: 0, profiles: new Set() });
+    }
+    const t = typeMap.get(tipo);
+    t.available += available;
+    t.physical += physical;
+    t.reserved += reserved;
+    t.rows += 1;
+    t.profiles.add(profileKey);
+
+    for (const commessa of (row.reserved_commesse || [])) {
+      if (!reservationMap.has(commessa)) {
+        reservationMap.set(commessa, { commessa, count: 0, types: new Set() });
+      }
+      const r = reservationMap.get(commessa);
+      r.types.add(tipo);
+    }
+  }
+
+  for (const item of allItems) {
+    if (!item.reserved_for_commessa) continue;
+    const commessa = item.reserved_for_commessa;
+    if (!reservationMap.has(commessa)) {
+      reservationMap.set(commessa, { commessa, count: 0, types: new Set() });
+    }
+    const r = reservationMap.get(commessa);
+    r.count += 1;
+    r.types.add(typeLabel(item.tipo));
+  }
+
+  totals.types = typeMap.size;
+  return {
+    totals,
+    types: [...typeMap.values()].sort((a,b) => b.physical - a.physical || a.tipo.localeCompare(b.tipo, 'it')),
+    reservations: [...reservationMap.values()].sort((a,b) => b.count - a.count || a.commessa.localeCompare(b.commessa, 'it')),
+  };
+}
+
+function renderSidebar() {
+  const stats = aggregateInventoryStats();
+  document.getElementById('side-summary').innerHTML = [
+    ['Disponibili', stats.totals.available],
+    ['Fisici totali', stats.totals.physical],
+    ['Prenotati', stats.totals.reserved],
+    ['Tipologie', stats.totals.types],
+  ].map(([label,value]) => `
+    <div class="side-stat">
+      <div class="side-stat-label">${esc(label)}</div>
+      <div class="side-stat-value">${num0(value)}</div>
+    </div>`).join('');
+
+  document.getElementById('side-type-selected').textContent = selectedTypes.size ? `${selectedTypes.size} sel.` : 'Tutte';
+  document.getElementById('side-types').innerHTML = stats.types.length
+    ? stats.types.map(t => {
+        const active = selectedTypes.has(t.tipo);
+        const sub = `${t.rows} record · ${t.profiles.size} profili/qualità`;
+        return `<button class="side-filter${active ? ' active' : ''}" onclick="toggleSidebarType('${urlToken(t.tipo)}')">
+          <span class="side-filter-main">
+            <span class="side-filter-name">${esc(t.tipo)}</span>
+            <span class="side-filter-sub">${esc(sub)}</span>
+          </span>
+          <span class="side-filter-counts">
+            <span class="side-count-free">${num0(t.available)} disp.</span>
+            <span class="side-count-total">${num0(t.physical)} tot.</span>
+            ${t.reserved ? `<span class="side-count-res">${num0(t.reserved)} pren.</span>` : ''}
+          </span>
+        </button>`;
+      }).join('')
+    : '<div class="side-empty">Nessuna tipologia disponibile.</div>';
+
+  document.getElementById('side-res-count').textContent = stats.reservations.reduce((sum, r) => sum + r.count, 0);
+  document.getElementById('side-reservations').innerHTML = stats.reservations.length
+    ? stats.reservations.map(r => {
+        const active = selectedReservation === r.commessa;
+        const typeCopy = [...r.types].slice(0, 3).join(', ') + (r.types.size > 3 ? '…' : '');
+        return `<button class="side-filter${active ? ' active' : ''}" onclick="toggleReservationFilter('${urlToken(r.commessa)}')">
+          <span class="side-filter-main">
+            <span class="side-filter-name">${esc(r.commessa)}</span>
+            <span class="side-filter-sub">${esc(typeCopy || 'Prenotazione attiva')}</span>
+          </span>
+          <span class="side-filter-counts">
+            <span class="side-count-res">${num0(r.count)} pz</span>
+            <span class="side-count-total">${r.types.size} tipi</span>
+          </span>
+        </button>`;
+      }).join('')
+    : '<div class="side-empty">Nessun pezzo prenotato su commessa.</div>';
+}
+
+function applySidebarState() {
+  const wrap = document.querySelector('.body-wrap');
+  if (wrap) wrap.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+  const btn = document.getElementById('sidebar-toggle');
+  if (btn) {
+    btn.classList.toggle('active', !sidebarCollapsed);
+    btn.textContent = sidebarCollapsed ? '☰ Mostra filtri' : '☰ Nascondi filtri';
+  }
+}
+
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  localStorage.setItem('stqc_magazzino_sidebar', sidebarCollapsed ? 'collapsed' : 'open');
+  applySidebarState();
+}
+
+function toggleSidebarType(encodedTipo) {
+  const tipo = decodeURIComponent(encodedTipo);
+  if (selectedTypes.has(tipo)) selectedTypes.delete(tipo);
+  else selectedTypes.add(tipo);
+  page = 1;
+  applyFilters();
+}
+
+function toggleReservationFilter(encodedCommessa) {
+  const commessa = decodeURIComponent(encodedCommessa);
+  selectedReservation = selectedReservation === commessa ? null : commessa;
+  page = 1;
+  applyFilters();
+}
+
+function clearSidebarFilters() {
+  selectedTypes.clear();
+  selectedReservation = null;
+  page = 1;
+  applyFilters();
+}
+
 // ── Filter logic ───────────────────────────────────────────────────────────────
 function onSearch() { searchQ = document.getElementById('search-inp').value.toLowerCase(); page = 1; applyFilters(); }
 
@@ -1374,9 +1827,20 @@ function onCf(col, inp) {
 function applyFilters() {
   const source = viewMode === 'extended' ? allItems : allRows;
   filtered = source.filter(r => {
+    if (selectedTypes.size && !selectedTypes.has(typeLabel(r.tipo))) return false;
+    if (selectedReservation) {
+      if (viewMode === 'extended') {
+        if (r.reserved_for_commessa !== selectedReservation) return false;
+      } else if (!(r.reserved_commesse || []).includes(selectedReservation)) {
+        return false;
+      }
+    }
     // global search
     if (searchQ) {
-      const hay = [r.tipo,r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code,r.uuid,r.label]
+      const hay = [
+        r.tipo,r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code,r.uuid,r.label,
+        r.reserved_for_commessa,(r.reserved_commesse||[]).join(' ')
+      ]
         .map(v=>(v||'').toLowerCase()).join(' ');
       if (!hay.includes(searchQ)) return false;
     }
@@ -1392,6 +1856,7 @@ function applyFilters() {
     return true;
   });
   refreshChipLabels();
+  renderSidebar();
   renderTable();
   updateResetBtn();
 }
@@ -1520,13 +1985,15 @@ function refreshChipLabels() {
 function clearAll() {
   Object.keys(AF).forEach(k => AF[k] = null);
   Object.keys(CF).forEach(k => { CF[k]=''; const el=document.getElementById('cf-'+k); if(el){el.value='';el.classList.remove('has-val');} });
+  selectedTypes.clear();
+  selectedReservation = null;
   searchQ = ''; page = 1;
   document.getElementById('search-inp').value = '';
   applyFilters();
 }
 
 function updateResetBtn() {
-  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ;
+  const any = Object.values(AF).some(v=>v) || Object.values(CF).some(v=>v) || searchQ || selectedTypes.size || selectedReservation;
   document.getElementById('btn-reset').style.display = any ? 'inline-flex' : 'none';
 }
 
@@ -1585,11 +2052,17 @@ function renderTable() {
     const n   = r.n_pezzi ?? 0;
     const mid = r.material_id;
     const expanded = expandedMaterial === mid;
+    const reservedCount = r.reserved_items_count || 0;
+    const reservedList = (r.reserved_commesse || []).join(', ');
+    const reservedNote = reservedCount
+      ? `<div class="reserved-note" title="${esc(reservedList)}">${reservedCount} prenotati${reservedList ? ' · ' + esc(reservedList) : ''}</div>`
+      : '';
     const mainRow = `<tr class="stock-row${expanded?' expanded':''}" onclick="togglePhysicalItems(${mid},event)">
       <td class="td-tipo">${esc(r.tipo)||'—'}</td>
       <td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>
       <td class="td-r">
         <span class="badge ${badgeCls(n)} row-badge">${Math.round(n)}</span>
+        ${reservedNote}
         <div class="row-act">
           <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
           <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
@@ -1691,6 +2164,7 @@ function renderExtendedTable() {
     const profileLine = [item.profilo, item.dimensioni].filter(Boolean).join(' · ');
     const normLine = [item.norma_uni, item.qualita].filter(Boolean).join(' · ');
     const weightLine = item.peso_1_pz || item.peso_u_kg ? `${fmt(item.peso_1_pz ?? item.peso_u_kg,3)} kg/u` : 'Peso non indicato';
+    const reservedLine = item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : '';
     return `<tr class="item-row" onclick="openQrPreview('${item.uuid}',event)">
       <td>
         <div class="item-main">
@@ -1713,7 +2187,7 @@ function renderExtendedTable() {
         <div class="item-stack-sub">${esc(item.material_code || '')}</div>
       </td>
       <td class="td-muted" title="${esc(item.colata)}">${esc(item.colata)||'—'}</td>
-      <td>${statusBadge(item.status)}</td>
+      <td>${statusBadge(item.status)}${reservedLine}</td>
     </tr>`;
   }).join('');
   renderPag(total);
@@ -1752,6 +2226,7 @@ function renderPhysicalPanel(row) {
         <img class="physical-qr" src="/qr-image/${item.uuid}.png" loading="lazy" alt="QR ${esc(item.label)}"/>
         <div><div class="physical-code">${esc(item.label)}</div>
         <div class="physical-uuid">${esc(item.uuid)}</div>
+        ${item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : ''}
         <button class="physical-print" onclick="printItemLabel('${item.uuid}',event)">Stampa etichetta</button></div>
       </div>`).join('')}
     </div>
@@ -1770,7 +2245,8 @@ const ITEM_EDIT_FIELDS = [
   ['norma_uni','Norma'],
   ['qualita','Qualità'],
   ['colata','Colata'],
-  ['commessa_ref','Commessa / riserva'],
+  ['reserved_for_commessa','Prenotato per commessa'],
+  ['commessa_ref','Riferimento libero'],
   ['peso_u_kg','Peso/u kg','number'],
   ['peso_1_pz','Peso pezzo kg','number'],
   ['notes','Note','textarea'],
@@ -1802,6 +2278,7 @@ function renderItemSources() {
   const values = [
     ['Materiale madre', d.material_code],
     ['Descrizione', d.description],
+    ['Prenotato per commessa', d.reserved_for_commessa],
     ['Creato il', d.created_at ? new Date(d.created_at).toLocaleString('it-IT') : null],
     ['Campi manuali', (d.manual_overrides || []).length ? d.manual_overrides.join(', ') : 'Nessuno'],
   ];
@@ -1898,7 +2375,7 @@ async function saveItemDetail() {
     renderItemDetail(data);
     const idx = allItems.findIndex(i => i.uuid === data.uuid);
     if(idx >= 0) allItems[idx] = data;
-    applyFilters();
+    await loadStock();
   } catch(err) {
     showToast(err.message, 'err');
   } finally {

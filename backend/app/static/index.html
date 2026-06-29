@@ -342,14 +342,14 @@
 <script>
 // ── Auth ──────────────────────────────────────────────────────────────────────
 (function() {
-  const tok = localStorage.getItem('stqc_token');
+  const tok = sessionStorage.getItem('stqc_token');
   if (!tok) { location.replace('/login'); }
 })();
 
-function getAuth() { return 'Bearer ' + (localStorage.getItem('stqc_token') || ''); }
-function getProfilo() { return localStorage.getItem('stqc_profilo') || ''; }
-function getNome() { return localStorage.getItem('stqc_nome') || ''; }
-function logout() { localStorage.removeItem('stqc_token'); localStorage.removeItem('stqc_profilo'); localStorage.removeItem('stqc_nome'); location.replace('/login'); }
+function getAuth() { return 'Bearer ' + (sessionStorage.getItem('stqc_token') || ''); }
+function getProfilo() { return sessionStorage.getItem('stqc_profilo') || ''; }
+function getNome() { return sessionStorage.getItem('stqc_nome') || ''; }
+function logout() { sessionStorage.removeItem('stqc_token'); sessionStorage.removeItem('stqc_profilo'); sessionStorage.removeItem('stqc_nome'); location.replace('/login'); }
 
 async function api(path, opts = {}) {
   const headers = { Authorization: getAuth(), ...(opts.headers || {}) };

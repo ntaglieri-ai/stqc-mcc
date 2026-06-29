@@ -204,8 +204,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 'use strict';
 
 /* ── Auth ──────────────────────────────────────────────────────────────────── */
-const TOKEN = localStorage.getItem('stqc_token');
-const NOME  = localStorage.getItem('stqc_nome') || localStorage.getItem('stqc_profilo') || 'Utente';
+const TOKEN = sessionStorage.getItem('stqc_token');
+const NOME  = sessionStorage.getItem('stqc_nome') || sessionStorage.getItem('stqc_profilo') || 'Utente';
 function auth(){ return {'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'} }
 
 if (!TOKEN) { /* s-auth già attivo */ }

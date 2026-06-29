@@ -499,8 +499,8 @@
 <!-- Auth guard -->
 <script>
 (function() {
-  const t = localStorage.getItem('stqc_token');
-  const p = localStorage.getItem('stqc_profilo');
+  const t = sessionStorage.getItem('stqc_token');
+  const p = sessionStorage.getItem('stqc_profilo');
   if (!t) { window.location.replace('/login'); return; }
   if (!['Direttore','Progettazione','Admin'].includes(p)) { window.location.replace('/'); }
 })();
@@ -524,12 +524,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const PROFILO = localStorage.getItem('stqc_profilo') || '';
-function getAuth() { return 'Bearer ' + localStorage.getItem('stqc_token'); }
+const PROFILO = sessionStorage.getItem('stqc_profilo') || '';
+function getAuth() { return 'Bearer ' + sessionStorage.getItem('stqc_token'); }
 function logout() {
-  localStorage.removeItem('stqc_token');
-  localStorage.removeItem('stqc_profilo');
-  localStorage.removeItem('stqc_nome');
+  sessionStorage.removeItem('stqc_token');
+  sessionStorage.removeItem('stqc_profilo');
+  sessionStorage.removeItem('stqc_nome');
   window.location.replace('/login');
 }
 const commessaId = parseInt(location.pathname.split('/').pop(), 10);

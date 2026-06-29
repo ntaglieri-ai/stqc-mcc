@@ -361,8 +361,8 @@
 <body>
 <script>
 (function() {
-  const token = localStorage.getItem("stqc_token");
-  const profile = localStorage.getItem("stqc_profilo");
+  const token = sessionStorage.getItem("stqc_token");
+  const profile = sessionStorage.getItem("stqc_profilo");
   if (!token) { location.replace("/login"); return; }
   if (!["Direttore", "Progettazione", "Admin"].includes(profile)) location.replace("/");
 })();
@@ -429,7 +429,7 @@
 
 <script>
 const commessaId = Number(location.pathname.split("/").filter(Boolean).at(-2));
-const auth = () => ({ Authorization: "Bearer " + localStorage.getItem("stqc_token") });
+const auth = () => ({ Authorization: "Bearer " + sessionStorage.getItem("stqc_token") });
 let analysisData = null;
 let stockData = null;
 let assemblyData = null;
@@ -443,7 +443,7 @@ let currentQrDetail = null;
 let qrEditUnlocked = false;
 
 document.getElementById("nav-user").textContent =
-  `${localStorage.getItem("stqc_nome") || ""} · ${localStorage.getItem("stqc_profilo") || ""}`;
+  `${sessionStorage.getItem("stqc_nome") || ""} · ${sessionStorage.getItem("stqc_profilo") || ""}`;
 
 function esc(value) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")

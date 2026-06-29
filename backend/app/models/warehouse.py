@@ -156,6 +156,7 @@ class WarehouseItem(Base):
     qualita = Column(String(100), nullable=True)
     colata = Column(String(100), nullable=True)
     commessa_ref = Column(String(200), nullable=True)
+    reserved_for_commessa = Column(String(200), nullable=True, index=True)
     peso_u_kg = Column(Numeric(12, 4), nullable=True)
     peso_1_pz = Column(Numeric(12, 4), nullable=True)
     notes = Column(Text, nullable=True)

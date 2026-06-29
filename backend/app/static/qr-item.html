@@ -15,7 +15,7 @@
 <main class="card" id="root">Lettura QR…</main>
 <script>
 const uuid=location.pathname.split('/').filter(Boolean).pop();
-const token=localStorage.getItem('stqc_token');
+const token=sessionStorage.getItem('stqc_token');
 if(!token){location.replace('/login?next='+encodeURIComponent(location.pathname));}
 const esc=v=>String(v??'—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 fetch('/api/v1/qr/resolve/'+encodeURIComponent(uuid),{headers:{Authorization:'Bearer '+token}})

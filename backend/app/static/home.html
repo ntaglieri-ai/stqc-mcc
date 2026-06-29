@@ -328,7 +328,7 @@
 <!-- Auth guard — redirect to login if no token -->
 <script>
 (function() {
-  if (!localStorage.getItem('stqc_token')) window.location.replace('/login');
+  if (!sessionStorage.getItem('stqc_token')) window.location.replace('/login');
 })();
 </script>
 
@@ -539,18 +539,18 @@
 </div>
 
 <script>
-const TOKEN   = localStorage.getItem('stqc_token');
-const PROFILO = localStorage.getItem('stqc_profilo') || '';
-const NOME    = localStorage.getItem('stqc_nome') || '';
+const TOKEN   = sessionStorage.getItem('stqc_token');
+const PROFILO = sessionStorage.getItem('stqc_profilo') || '';
+const NOME    = sessionStorage.getItem('stqc_nome') || '';
 
 function getAuth() { return 'Bearer ' + TOKEN; }
 function go(url) { window.location.href = url; }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 function logout() {
-  localStorage.removeItem('stqc_token');
-  localStorage.removeItem('stqc_profilo');
-  localStorage.removeItem('stqc_nome');
+  sessionStorage.removeItem('stqc_token');
+  sessionStorage.removeItem('stqc_profilo');
+  sessionStorage.removeItem('stqc_nome');
   window.location.replace('/login');
 }
 

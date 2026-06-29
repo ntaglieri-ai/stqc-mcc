@@ -219,15 +219,21 @@ async function doLogin(e) {
 }
 
 // ── Session ───────────────────────────────────────────────────────────────────
+function clearLegacyPersistentSession() {
+  ['stqc_token','stqc_profilo','stqc_nome'].forEach(k => localStorage.removeItem(k));
+}
+
 function saveSession(data) {
-  localStorage.setItem('stqc_token',   data.access_token);
-  localStorage.setItem('stqc_profilo', data.profilo);
-  localStorage.setItem('stqc_nome',    data.username);
+  clearLegacyPersistentSession();
+  sessionStorage.setItem('stqc_token',   data.access_token);
+  sessionStorage.setItem('stqc_profilo', data.profilo);
+  sessionStorage.setItem('stqc_nome',    data.username);
 }
 
 // Redirect if already logged in
 (function() {
-  const t = localStorage.getItem('stqc_token');
+  clearLegacyPersistentSession();
+  const t = sessionStorage.getItem('stqc_token');
   if (t) window.location.replace(LOGIN_DESTINATION);
 })();
 

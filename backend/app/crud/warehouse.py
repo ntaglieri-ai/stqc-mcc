@@ -190,6 +190,36 @@ def get_magazzino_list(
     limit: int = 200,
     q: str | None = None,
 ) -> list[dict]:
+    active_statuses = ("AVAILABLE", "RESERVED")
+    available_items = (
+        select(func.count(WarehouseItem.id))
+        .where(
+            WarehouseItem.material_id == Material.id,
+            WarehouseItem.status == "AVAILABLE",
+            WarehouseItem.reserved_for_commessa.is_(None),
+        )
+        .correlate(Material)
+        .scalar_subquery()
+    )
+    reserved_items = (
+        select(func.count(WarehouseItem.id))
+        .where(
+            WarehouseItem.material_id == Material.id,
+            WarehouseItem.status.in_(active_statuses),
+            WarehouseItem.reserved_for_commessa.is_not(None),
+        )
+        .correlate(Material)
+        .scalar_subquery()
+    )
+    active_items = (
+        select(func.count(WarehouseItem.id))
+        .where(
+            WarehouseItem.material_id == Material.id,
+            WarehouseItem.status.in_(active_statuses),
+        )
+        .correlate(Material)
+        .scalar_subquery()
+    )
     stmt = (
         select(
             Material.id,
@@ -202,15 +232,9 @@ def get_magazzino_list(
             Material.peso_u_kg,
             Material.peso_1_pz,
             Material.norma_uni,
-            (
-                select(func.count(WarehouseItem.id))
-                .where(
-                    WarehouseItem.material_id == Material.id,
-                    WarehouseItem.status == "AVAILABLE",
-                )
-                .correlate(Material)
-                .scalar_subquery()
-            ).label("physical_items_count"),
+            available_items.label("available_items_count"),
+            reserved_items.label("reserved_items_count"),
+            active_items.label("physical_items_count"),
             # INCOMING aumenta la giacenza
             func.coalesce(
                 func.sum(
@@ -256,9 +280,19 @@ def get_magazzino_list(
     rows = db.execute(stmt.offset(skip).limit(limit)).all()
     result = []
     for r in rows:
-        n_pezzi   = float(r.total_incoming - r.total_outgoing + r.total_adjustment)
+        n_pezzi   = float(r.available_items_count or 0)
         peso_1_pz = float(r.peso_1_pz) if r.peso_1_pz is not None else None
         peso_kg   = round(n_pezzi * peso_1_pz, 3) if peso_1_pz is not None else None
+        reserved_commesse = db.scalars(
+            select(WarehouseItem.reserved_for_commessa)
+            .where(
+                WarehouseItem.material_id == r.id,
+                WarehouseItem.status.in_(active_statuses),
+                WarehouseItem.reserved_for_commessa.is_not(None),
+            )
+            .distinct()
+            .order_by(WarehouseItem.reserved_for_commessa)
+        ).all()
         result.append({
             "material_id": r.id,
             "material_code": r.code,
@@ -273,5 +307,7 @@ def get_magazzino_list(
             "peso_1_pz": peso_1_pz,
             "norma_uni": r.norma_uni,
             "physical_items_count": int(r.physical_items_count or 0),
+            "reserved_items_count": int(r.reserved_items_count or 0),
+            "reserved_commesse": [str(value) for value in reserved_commesse if value],
         })
     return result

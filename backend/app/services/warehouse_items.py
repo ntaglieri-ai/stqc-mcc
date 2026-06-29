@@ -53,6 +53,7 @@ def close_items_for_outgoing(
         .where(
             WarehouseItem.material_id == material_id,
             WarehouseItem.status == "AVAILABLE",
+            WarehouseItem.reserved_for_commessa.is_(None),
         )
         .order_by(WarehouseItem.ordinal)
         .limit(count)
@@ -80,6 +81,7 @@ def reconcile_available_items(
         .where(
             WarehouseItem.material_id == material.id,
             WarehouseItem.status == "AVAILABLE",
+            WarehouseItem.reserved_for_commessa.is_(None),
         )
         .order_by(WarehouseItem.ordinal)
     ).all()

@@ -270,15 +270,17 @@ def list_magazzino(
 
 def _physical_item_read(item: WarehouseItem) -> dict:
     material = item.material
+    effective_status = "RESERVED" if item.reserved_for_commessa and item.status == "AVAILABLE" else item.status
     return {
         "id": item.id,
         "uuid": item.uuid,
         "material_id": item.material_id,
         "ordinal": item.ordinal,
-        "status": item.status,
+        "status": effective_status,
         "created_at": item.created_at,
         "exited_at": item.exited_at,
         "label": f"{material.code} · #{item.ordinal:04d}",
+        "reserved_for_commessa": item.reserved_for_commessa,
     }
 
 
@@ -306,6 +308,7 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
             "qualita",
             "colata",
             "commessa_ref",
+            "reserved_for_commessa",
             "peso_u_kg",
             "peso_1_pz",
             "notes",
@@ -323,6 +326,7 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
         "qualita": _item_value(item, material, "qualita"),
         "colata": _item_value(item, material, "colata"),
         "commessa_ref": _item_value(item, material, "commessa_ref"),
+        "reserved_for_commessa": item.reserved_for_commessa,
         "peso_u_kg": _decimal_or_none(_item_value(item, material, "peso_u_kg")),
         "peso_1_pz": _decimal_or_none(peso_1_pz),
         "peso_kg": _decimal_or_none(peso_1_pz),
@@ -347,7 +351,7 @@ def list_material_items(
         raise HTTPException(status_code=404, detail="Materiale non trovato")
     stmt = select(WarehouseItem).where(WarehouseItem.material_id == material_id)
     if not include_closed:
-        stmt = stmt.where(WarehouseItem.status == "AVAILABLE")
+        stmt = stmt.where(WarehouseItem.status.in_(["AVAILABLE", "RESERVED"]))
     items = db.scalars(stmt.order_by(WarehouseItem.ordinal)).all()
     return [_physical_item_read(item) for item in items]
 
@@ -370,7 +374,7 @@ def list_warehouse_items(
         .order_by(Material.tipo, Material.profilo, Material.code, WarehouseItem.ordinal)
     )
     if not include_closed:
-        stmt = stmt.where(WarehouseItem.status == "AVAILABLE")
+        stmt = stmt.where(WarehouseItem.status.in_(["AVAILABLE", "RESERVED"]))
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
@@ -379,6 +383,7 @@ def list_warehouse_items(
             | Material.profilo.ilike(like)
             | Material.qualita.ilike(like)
             | WarehouseItem.uuid.ilike(like)
+            | WarehouseItem.reserved_for_commessa.ilike(like)
         )
     items = db.scalars(stmt.offset(skip).limit(limit)).all()
     return [_item_detail_read(item, db) for item in items]
@@ -422,6 +427,11 @@ def update_warehouse_item(
         if field in {"peso_u_kg", "peso_1_pz"} and value is not None:
             value = Decimal(str(value))
         setattr(item, field, value)
+    if "reserved_for_commessa" in data:
+        if item.reserved_for_commessa and item.status == "AVAILABLE":
+            item.status = "RESERVED"
+        elif not item.reserved_for_commessa and item.status == "RESERVED":
+            item.status = "AVAILABLE"
     item.updated_at = datetime.utcnow()
     db.add(item)
     db.commit()

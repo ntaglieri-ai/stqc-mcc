@@ -449,6 +449,12 @@ macOS:
 brew install tesseract tesseract-lang
 ```
 
+Docker:
+
+```text
+Il Dockerfile installa gia tesseract-ocr, tesseract-ocr-ita e tesseract-ocr-eng.
+```
+
 Il parser prova prima l'estrazione testo PDF, poi OCR quando necessario.
 
 ## Avvio Docker

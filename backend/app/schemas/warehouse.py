@@ -186,6 +186,8 @@ class MagazzinoItemRead(BaseModel):
     unita_misura: Optional[str] = "pz"
     dimensione_2: Optional[float] = None
     physical_items_count: int = 0
+    reserved_items_count: int = 0
+    reserved_commesse: List[str] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -200,6 +202,7 @@ class WarehousePhysicalItemRead(BaseModel):
     created_at: datetime
     exited_at: Optional[datetime] = None
     label: str
+    reserved_for_commessa: Optional[str] = None
 
 
 class WarehouseItemDetailRead(WarehousePhysicalItemRead):
@@ -212,6 +215,7 @@ class WarehouseItemDetailRead(WarehousePhysicalItemRead):
     qualita: Optional[str] = None
     colata: Optional[str] = None
     commessa_ref: Optional[str] = None
+    reserved_for_commessa: Optional[str] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
     peso_kg: Optional[float] = None
@@ -232,6 +236,7 @@ class WarehouseItemUpdate(BaseModel):
     qualita: Optional[str] = None
     colata: Optional[str] = None
     commessa_ref: Optional[str] = None
+    reserved_for_commessa: Optional[str] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
     notes: Optional[str] = None

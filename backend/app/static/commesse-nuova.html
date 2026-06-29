@@ -208,8 +208,8 @@
 <body>
 <script>
 (function() {
-  const token = localStorage.getItem("stqc_token");
-  const profile = localStorage.getItem("stqc_profilo");
+  const token = sessionStorage.getItem("stqc_token");
+  const profile = sessionStorage.getItem("stqc_profilo");
   if (!token) { location.replace("/login"); return; }
   if (!["Direttore", "Progettazione", "Admin"].includes(profile)) location.replace("/");
 })();
@@ -336,7 +336,7 @@
 </div>
 
 <script>
-const authHeader = () => "Bearer " + localStorage.getItem("stqc_token");
+const authHeader = () => "Bearer " + sessionStorage.getItem("stqc_token");
 
 window.addEventListener("load", () => document.getElementById("hero-bg").classList.add("loaded"));
 

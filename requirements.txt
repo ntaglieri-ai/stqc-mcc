@@ -18,3 +18,4 @@ psutil>=5.9.0
 PyJWT>=2.8.0
 pdfplumber>=0.11.0
 pypdf>=4.0.0
+pypdfium2>=4.30.0
