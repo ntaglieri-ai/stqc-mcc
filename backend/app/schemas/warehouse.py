@@ -242,6 +242,26 @@ class WarehouseItemUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class WarehouseItemBulkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    uuids: List[str] = Field(..., min_length=1, max_length=500)
+
+
+class WarehouseItemBulkDeleteResult(BaseModel):
+    deleted: int
+    requested: int
+    missing: List[str] = Field(default_factory=list)
+
+
+class WarehouseLabelPrintRequest(WarehouseItemBulkRequest):
+    label_format: str = Field("rect", pattern="^(a6|rect|compact|badge)$")
+    text: Optional[str] = Field(None, max_length=80)
+    qr_encoding: str = Field("link", pattern="^(link|uuid|json)$")
+    qr_size_mm: Optional[float] = Field(None, ge=18, le=90)
+    content_fields: List[str] = Field(default_factory=lambda: ["tipo", "profilo", "dimensioni", "qualita"])
+
+
 class WarehouseScanRequest(BaseModel):
     payload: str
 

@@ -25,7 +25,7 @@ from backend.app.models.warehouse import (
     WarehouseItem,
 )
 from backend.app.schemas import warehouse as warehouse_schemas
-from backend.app.services.qr import generate_qr_for_uuid
+from backend.app.services.qr import generate_qr_for_payload, generate_qr_for_uuid
 from backend.app.services.warehouse_items import (
     close_items_for_outgoing,
     create_items_for_incoming,
@@ -439,12 +439,69 @@ def update_warehouse_item(
     return _item_detail_read(item, db)
 
 
-@router.get("/items/{item_uuid}/qr.png")
-def warehouse_item_qr(item_uuid: str, db: Session = Depends(get_db)):
+@router.delete("/items/{item_uuid}", status_code=204)
+def delete_warehouse_item(item_uuid: str, db: Session = Depends(get_db)):
     item = db.scalar(select(WarehouseItem).where(WarehouseItem.uuid == item_uuid.lower()))
     if item is None:
         raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
-    png = base64.b64decode(generate_qr_for_uuid(item.uuid))
+    db.delete(item)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/items/bulk-delete", response_model=warehouse_schemas.WarehouseItemBulkDeleteResult)
+def delete_warehouse_items(
+    request: warehouse_schemas.WarehouseItemBulkRequest,
+    db: Session = Depends(get_db),
+):
+    requested = [str(uuid).strip().lower() for uuid in request.uuids if str(uuid).strip()]
+    requested = list(dict.fromkeys(requested))
+    if not requested:
+        raise HTTPException(status_code=422, detail="Nessun elemento selezionato")
+    items = db.scalars(select(WarehouseItem).where(WarehouseItem.uuid.in_(requested))).all()
+    found = {item.uuid for item in items}
+    for item in items:
+        db.delete(item)
+    db.commit()
+    return {
+        "deleted": len(items),
+        "requested": len(requested),
+        "missing": [uuid for uuid in requested if uuid not in found],
+    }
+
+
+def _warehouse_qr_payload(item: WarehouseItem, material: Material, qr_encoding: str) -> str:
+    if qr_encoding == "uuid":
+        return item.uuid
+    if qr_encoding == "json":
+        return json.dumps(
+            {
+                "domain": "warehouse",
+                "uuid": item.uuid,
+                "material_code": material.code,
+                "ordinal": item.ordinal,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+    return f"https://stqc.mcc.eu/p/{item.uuid}"
+
+
+@router.get("/items/{item_uuid}/qr.png")
+def warehouse_item_qr(
+    item_uuid: str,
+    qr_encoding: Literal["link", "uuid", "json"] = Query("link", alias="encoding"),
+    db: Session = Depends(get_db),
+):
+    item = db.scalar(
+        select(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .where(WarehouseItem.uuid == item_uuid.lower())
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
+    payload = _warehouse_qr_payload(item, item.material, qr_encoding)
+    png = base64.b64decode(generate_qr_for_payload(payload))
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000"})
 
 
@@ -495,39 +552,75 @@ def _warehouse_labels_pdf(
     items: list[WarehouseItem],
     label_format: str = "a6",
     custom_text: str | None = None,
+    qr_encoding: str = "link",
+    qr_size_mm: float | None = None,
+    content_fields: list[str] | None = None,
 ) -> bytes:
     formats = {
         "a6": ("P", (105, 148)),
         "rect": ("L", (50, 100)),
         "compact": ("L", (35, 70)),
+        "badge": ("L", (60, 90)),
     }
     if label_format not in formats:
         raise ValueError("Formato etichetta non valido")
+    allowed_field_names = {
+        "tipo",
+        "profilo",
+        "dimensioni",
+        "norma_uni",
+        "qualita",
+        "colata",
+        "commessa_ref",
+        "reserved_for_commessa",
+        "uuid",
+    }
+    selected_fields = [
+        field for field in (content_fields or ["tipo", "profilo", "dimensioni", "qualita"])
+        if field in allowed_field_names
+    ][:7]
     orientation, page_format = formats[label_format]
     pdf = FPDF(orientation=orientation, unit="mm", format=page_format)
     pdf.set_margins(5, 5, 5)
     pdf.set_auto_page_break(False)
     for item in items:
+        item_material = item.material or material
+        allowed_fields = {
+            "tipo": ("Tipo", item_material.tipo),
+            "profilo": ("Profilo", item_material.profilo),
+            "dimensioni": ("Dimensioni", item_material.dimensioni),
+            "norma_uni": ("Norma", item_material.norma_uni),
+            "qualita": ("Qualita", item_material.qualita),
+            "colata": ("Colata", item_material.colata),
+            "commessa_ref": ("Commessa", None),
+            "reserved_for_commessa": ("Riservato", None),
+            "uuid": ("UUID", None),
+        }
         pdf.add_page()
-        qr_bytes = base64.b64decode(generate_qr_for_uuid(item.uuid))
-        item_code = _pdf_text(f"{material.code} - #{item.ordinal:04d}")
+        qr_payload = _warehouse_qr_payload(item, item_material, qr_encoding)
+        qr_bytes = base64.b64decode(generate_qr_for_payload(qr_payload))
+        item_code = _pdf_text(f"{item_material.code} - #{item.ordinal:04d}")
         note = _pdf_text((custom_text or "").strip()[:80])
+        field_values = []
+        for field in selected_fields:
+            label, material_value = allowed_fields[field]
+            value = getattr(item, field, None) if material_value is None else material_value
+            if field == "uuid":
+                value = item.uuid
+            if value:
+                field_values.append((label, value))
 
         if label_format == "a6":
-            pdf.image(io.BytesIO(qr_bytes), x=29, y=8, w=48, h=48)
-            pdf.set_y(60)
+            qr_size = qr_size_mm or 54
+            qr_x = (105 - qr_size) / 2
+            pdf.image(io.BytesIO(qr_bytes), x=qr_x, y=8, w=qr_size, h=qr_size)
+            pdf.set_y(8 + qr_size + 5)
             pdf.set_font("Helvetica", "B", 14)
             pdf.cell(0, 8, "STQC - MAGAZZINO", align="C", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "B", 12)
             pdf.cell(0, 8, item_code, align="C", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9)
-            for label, value in (
-                ("Tipo", material.tipo),
-                ("Profilo", material.profilo),
-                ("Dimensioni", material.dimensioni),
-                ("Qualita", material.qualita),
-                ("Colata", material.colata),
-            ):
+            for label, value in field_values:
                 pdf.set_font("Helvetica", "B", 9)
                 pdf.cell(28, 6, f"{label}:", new_x="END", new_y="LAST")
                 pdf.set_font("Helvetica", "", 9)
@@ -541,7 +634,8 @@ def _warehouse_labels_pdf(
             pdf.cell(0, 4, item.uuid, align="C")
         else:
             is_compact = label_format == "compact"
-            qr_size = 27 if is_compact else 40
+            is_badge = label_format == "badge"
+            qr_size = qr_size_mm or (27 if is_compact else 36 if is_badge else 40)
             qr_x = 4
             qr_y = 4 if is_compact else 5
             text_x = qr_x + qr_size + 4
@@ -554,12 +648,7 @@ def _warehouse_labels_pdf(
             pdf.multi_cell(0, 4 if is_compact else 5, item_code)
             pdf.set_x(text_x)
             pdf.set_font("Helvetica", "", 6 if is_compact else 8)
-            details = " | ".join(filter(None, [
-                _pdf_text(material.tipo),
-                _pdf_text(material.profilo),
-                _pdf_text(material.dimensioni),
-                _pdf_text(material.qualita),
-            ]))
+            details = " | ".join(_pdf_text(value) for _, value in field_values[:5])
             pdf.multi_cell(0, 3.5 if is_compact else 4, details)
             if note:
                 pdf.set_x(text_x)
@@ -572,8 +661,11 @@ def _warehouse_labels_pdf(
 @router.get("/materials/{material_id}/labels.pdf")
 def warehouse_item_labels(
     material_id: int,
-    label_format: Literal["a6", "rect", "compact"] = Query("a6", alias="format"),
+    label_format: Literal["a6", "rect", "compact", "badge"] = Query("a6", alias="format"),
     text: str | None = Query(None, max_length=80),
+    qr_encoding: Literal["link", "uuid", "json"] = Query("link", alias="encoding"),
+    qr_size_mm: float | None = Query(None, ge=18, le=90, alias="qr_size"),
+    fields: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     material = db.get(Material, material_id)
@@ -587,7 +679,15 @@ def warehouse_item_labels(
     if not items:
         raise HTTPException(status_code=404, detail="Nessun elemento fisico disponibile")
     return Response(
-        content=_warehouse_labels_pdf(material, items, label_format, text),
+        content=_warehouse_labels_pdf(
+            material,
+            items,
+            label_format,
+            text,
+            qr_encoding,
+            qr_size_mm,
+            fields.split(",") if fields else None,
+        ),
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="etichette_{material.code}.pdf"'},
     )
@@ -596,17 +696,60 @@ def warehouse_item_labels(
 @router.get("/items/{item_uuid}/label.pdf")
 def warehouse_single_item_label(
     item_uuid: str,
-    label_format: Literal["a6", "rect", "compact"] = Query("a6", alias="format"),
+    label_format: Literal["a6", "rect", "compact", "badge"] = Query("a6", alias="format"),
     text: str | None = Query(None, max_length=80),
+    qr_encoding: Literal["link", "uuid", "json"] = Query("link", alias="encoding"),
+    qr_size_mm: float | None = Query(None, ge=18, le=90, alias="qr_size"),
+    fields: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     item = db.scalar(select(WarehouseItem).where(WarehouseItem.uuid == item_uuid.lower()))
     if item is None:
         raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
     return Response(
-        content=_warehouse_labels_pdf(item.material, [item], label_format, text),
+        content=_warehouse_labels_pdf(
+            item.material,
+            [item],
+            label_format,
+            text,
+            qr_encoding,
+            qr_size_mm,
+            fields.split(",") if fields else None,
+        ),
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="etichetta_{item.material.code}_{item.ordinal:04d}.pdf"'},
+    )
+
+
+@router.post("/items/labels.pdf")
+def warehouse_selected_item_labels(
+    request: warehouse_schemas.WarehouseLabelPrintRequest,
+    db: Session = Depends(get_db),
+):
+    requested = [str(uuid).strip().lower() for uuid in request.uuids if str(uuid).strip()]
+    requested = list(dict.fromkeys(requested))
+    if not requested:
+        raise HTTPException(status_code=422, detail="Nessun elemento selezionato")
+    items = db.scalars(
+        select(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .where(WarehouseItem.uuid.in_(requested))
+        .order_by(WarehouseItem.material_id, WarehouseItem.ordinal)
+    ).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="Nessun elemento fisico trovato")
+    return Response(
+        content=_warehouse_labels_pdf(
+            items[0].material,
+            items,
+            request.label_format,
+            request.text,
+            request.qr_encoding,
+            request.qr_size_mm,
+            request.content_fields,
+        ),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="etichette_selezione_magazzino.pdf"'},
     )
 
 

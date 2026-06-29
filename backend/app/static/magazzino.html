@@ -841,7 +841,7 @@
       gap:9px;max-height:315px;overflow:auto;padding-right:4px;
     }
     .physical-card {
-      display:grid;grid-template-columns:58px 1fr;gap:10px;align-items:center;
+      display:grid;grid-template-columns:20px 58px 1fr;gap:10px;align-items:center;
       padding:9px;border-radius:9px;border:1px solid var(--color-border-secondary);
       background:var(--color-background-tertiary);
       cursor:pointer;
@@ -851,6 +851,17 @@
     .physical-code { font-size:11px;font-weight:750;color:var(--color-text-primary); }
     .physical-uuid { margin-top:4px;font-family:'SF Mono','Menlo',monospace;font-size:8px;color:var(--color-text-muted);word-break:break-all;line-height:1.35; }
     .physical-print { margin-top:6px;background:none;border:0;padding:0;color:var(--color-accent-text);font:inherit;font-size:10px;cursor:pointer; }
+    .item-select {
+      width:18px;height:18px;accent-color:#8BAEFF;cursor:pointer;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,.22));
+    }
+    .physical-card.selected,
+    .item-row.selected {
+      outline: 1px solid rgba(139,174,255,.72);
+      box-shadow: inset 0 0 0 1px rgba(139,174,255,.28), 0 16px 34px rgba(73,129,255,.13);
+      background: linear-gradient(180deg, rgba(73,129,255,.12), rgba(255,255,255,.022));
+    }
+    .item-row.selected td { background: rgba(73,129,255,.055); }
     .item-qr-btn {
       width: 46px; height: 46px; padding: 4px; border-radius: 10px;
       border: 1px solid rgba(139,174,255,.22);
@@ -939,6 +950,26 @@
       font:inherit;font-size:10px;padding:0 7px;outline:none;
     }
     .label-text { width:170px; }
+    .selection-bar {
+      display:none;align-items:center;gap:10px;padding:10px 16px;
+      border-top:1px solid rgba(139,174,255,.16);
+      border-bottom:1px solid rgba(139,174,255,.16);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(73,129,255,.18), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.014)),
+        #101827;
+    }
+    .selection-bar.show { display:flex; }
+    .selection-count { color:var(--color-text-primary);font-size:12px;font-weight:900; }
+    .selection-hint { color:var(--color-text-muted);font-size:11px; }
+    .selection-spacer { flex:1; }
+    .qr-config-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px; }
+    .qr-fields {
+      margin-top:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+      padding:10px;border:1px solid var(--color-border-secondary);border-radius:12px;background:rgba(255,255,255,.022);
+    }
+    .qr-field-check { display:flex;align-items:center;gap:7px;color:var(--color-text-secondary);font-size:11px;font-weight:750; }
+    .qr-field-check input { accent-color:#8BAEFF; }
     .backdrop.item-backdrop { background: rgba(1,4,12,.72); backdrop-filter: blur(9px); }
     .modal.qr-preview-modal {
       width:min(1120px,94vw);max-height:92vh;overflow:hidden;padding:0;
@@ -1221,6 +1252,18 @@
           <button class="chip" id="ch-colata"     data-chip="colata"     onclick="toggleChip(event,'colata')">Colata<span class="chip-val" id="cv-colata"></span></button>
           <button class="chip chip-reset" id="btn-reset" style="display:none" onclick="clearAll()">✕ Reset filtri</button>
         </div>
+      </div>
+
+      <div class="selection-bar" id="selection-bar">
+        <div>
+          <div class="selection-count" id="selection-count">0 elementi selezionati</div>
+          <div class="selection-hint">Azioni sui singoli record fisici/QR di magazzino.</div>
+        </div>
+        <div class="selection-spacer"></div>
+        <button class="tbtn tbtn-ddt" onclick="openQrConfigFromSelection()">⚙ Configura QR</button>
+        <button class="tbtn tbtn-import" onclick="printSelectedLabels()">▣ Stampa selezionati</button>
+        <button class="tbtn tbtn-out" onclick="deleteSelectedItems()">Elimina selezionati</button>
+        <button class="tbtn" onclick="clearItemSelection()">Annulla</button>
       </div>
 
       <!-- TABLE -->
@@ -1541,12 +1584,28 @@
             <option value="a6">A6 verticale · 105×148 mm</option>
             <option value="rect">Rettangolare · 100×50 mm</option>
             <option value="compact">Compatta · 70×35 mm</option>
+            <option value="badge">Premium · 90×60 mm</option>
           </select>
         </div>
         <div class="mf">
           <label class="ml">Scritta aggiuntiva</label>
           <input class="mi" id="preview-label-text" maxlength="80" placeholder="es. AREA TAGLIO A" oninput="saveLabelConfig(null,this.value)"/>
         </div>
+        <div class="qr-config-grid">
+          <div class="mf">
+            <label class="ml">Codifica QR</label>
+            <select class="mi" id="preview-qr-encoding" onchange="saveQrConfig({encoding:this.value});refreshQrPreviewImage()">
+              <option value="link">Link operativo</option>
+              <option value="uuid">UUID puro</option>
+              <option value="json">JSON tecnico</option>
+            </select>
+          </div>
+          <div class="mf">
+            <label class="ml">Dimensione QR mm</label>
+            <input class="mi" id="preview-qr-size" type="number" min="18" max="90" step="1" oninput="saveQrConfig({size:this.value})"/>
+          </div>
+        </div>
+        <div class="qr-fields" id="preview-qr-fields"></div>
       </div>
       <div>
         <div class="item-fields" id="item-fields"></div>
@@ -1555,6 +1614,8 @@
     </div>
     <div class="item-modal-actions">
       <button class="ddt-secondary" onclick="closeQrPreview()">Chiudi</button>
+      <button class="ddt-secondary" onclick="toggleCurrentItemSelection()">Seleziona QR</button>
+      <button class="ddt-secondary" onclick="deletePreviewItem()">Elimina record</button>
       <button class="ddt-secondary" onclick="printPreviewItem()">Stampa etichetta</button>
       <button class="ddt-primary" id="item-save-btn" onclick="saveItemDetail()" disabled>Salva modifiche</button>
     </div>
@@ -1589,6 +1650,7 @@ let searchQ         = '';
 let sidebarCollapsed = localStorage.getItem('stqc_magazzino_sidebar') === 'collapsed';
 const selectedTypes = new Set();
 let selectedReservation = null;
+const selectedItems = new Set();
 
 // Chip filters (exact match)
 const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
@@ -1609,6 +1671,9 @@ let previewItemDetail = null;
 let itemEditEnabled = false;
 let labelFormat = localStorage.getItem('stqc_label_format') || 'rect';
 let labelText = localStorage.getItem('stqc_label_text') || '';
+let qrEncoding = localStorage.getItem('stqc_qr_encoding') || 'link';
+let qrSize = localStorage.getItem('stqc_qr_size') || '';
+let labelFields = new Set((localStorage.getItem('stqc_label_fields') || 'tipo,profilo,dimensioni,qualita').split(',').filter(Boolean));
 let ddtAnalysis = null;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
@@ -1641,6 +1706,8 @@ async function loadStock() {
     if (!i.ok) throw new Error(i.status);
     allRows = await r.json();
     allItems = await i.json();
+    const validUuids = new Set(allItems.map(item => item.uuid));
+    [...selectedItems].forEach(uuid => { if (!validUuids.has(uuid)) selectedItems.delete(uuid); });
     updateViewButtons();
     renderSidebar();
     applyFilters();
@@ -2014,6 +2081,15 @@ function fmt(v, d=1) {
 function badgeCls(n) { return n<=0 ? 'b-r' : n<=5 ? 'b-o' : 'b-g'; }
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function urlToken(s) { return encodeURIComponent(String(s)).replace(/'/g,'%27'); }
+function qrImageUrl(uuid) {
+  const params = new URLSearchParams({ encoding: qrEncoding });
+  return `/api/v1/warehouse/items/${encodeURIComponent(uuid)}/qr.png?${params}`;
+}
+function isItemSelected(uuid) { return selectedItems.has(uuid); }
+function itemCheckbox(uuid) {
+  return `<input class="item-select" type="checkbox" ${isItemSelected(uuid) ? 'checked' : ''}
+    onclick="toggleItemSelection('${uuid}',event)" title="Seleziona record QR"/>`;
+}
 function statusBadge(status) {
   const raw = String(status || '').toUpperCase();
   const map = {
@@ -2044,7 +2120,7 @@ function renderTable() {
   const tbody = document.getElementById('tbody');
   const empty = document.getElementById('empty');
   const total = filtered.length;
-  if (!total) { tbody.innerHTML=''; empty.style.display='flex'; renderPag(0); return; }
+  if (!total) { tbody.innerHTML=''; empty.style.display='flex'; renderPag(0); updateSelectionBar(); return; }
   empty.style.display = 'none';
 
   const s = (page-1)*rpp, e = Math.min(s+rpp, total);
@@ -2083,6 +2159,7 @@ function renderTable() {
     return mainRow + detailRow;
   }).join('');
   renderPag(total);
+  updateSelectionBar();
 }
 
 function renderCompactHead() {
@@ -2119,15 +2196,17 @@ function renderCompactHead() {
 function renderExtendedHead() {
   document.getElementById('tbl').innerHTML = `
     <colgroup>
-      <col style="width:28%"/>
+      <col style="width:4%"/>
+      <col style="width:26%"/>
       <col style="width:14%"/>
       <col style="width:20%"/>
       <col style="width:16%"/>
       <col style="width:10%"/>
-      <col style="width:12%"/>
+      <col style="width:10%"/>
     </colgroup>
     <thead>
       <tr class="tr-head">
+        <th></th>
         <th>Elemento fisico</th>
         <th>Tipo</th>
         <th>Profilo / dimensioni</th>
@@ -2136,6 +2215,7 @@ function renderExtendedHead() {
         <th>Stato</th>
       </tr>
       <tr class="tr-filters" id="col-filter-row">
+        <th></th>
         <th></th>
         <th><input class="cf" id="cf-tipo" placeholder="tipo…" value="${esc(CF.tipo)}" onclick="openCfDropdown(event,'tipo')" oninput="onCf('tipo',this)"/></th>
         <th><input class="cf" id="cf-profilo" placeholder="profilo…" value="${esc(CF.profilo)}" onclick="openCfDropdown(event,'profilo')" oninput="onCf('profilo',this)"/></th>
@@ -2156,7 +2236,7 @@ function renderExtendedTable() {
   const tbody = document.getElementById('tbody');
   const empty = document.getElementById('empty');
   const total = filtered.length;
-  if (!total) { tbody.innerHTML=''; empty.style.display='flex'; renderPag(0); return; }
+  if (!total) { tbody.innerHTML=''; empty.style.display='flex'; renderPag(0); updateSelectionBar(); return; }
   empty.style.display = 'none';
 
   const s = (page-1)*rpp, e = Math.min(s+rpp, total);
@@ -2165,11 +2245,12 @@ function renderExtendedTable() {
     const normLine = [item.norma_uni, item.qualita].filter(Boolean).join(' · ');
     const weightLine = item.peso_1_pz || item.peso_u_kg ? `${fmt(item.peso_1_pz ?? item.peso_u_kg,3)} kg/u` : 'Peso non indicato';
     const reservedLine = item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : '';
-    return `<tr class="item-row" onclick="openQrPreview('${item.uuid}',event)">
+    return `<tr class="item-row${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openQrPreview('${item.uuid}',event)">
+      <td onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</td>
       <td>
         <div class="item-main">
           <button class="item-qr-btn" onclick="openQrPreview('${item.uuid}',event)" title="Apri scheda QR">
-            <img src="/qr-image/${item.uuid}.png" loading="lazy" alt="QR ${esc(item.label)}"/>
+            <img src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/>
           </button>
           <div class="item-main-text">
             <div class="item-code">${esc(item.label || item.material_code)}</div>
@@ -2191,6 +2272,7 @@ function renderExtendedTable() {
     </tr>`;
   }).join('');
   renderPag(total);
+  updateSelectionBar();
 }
 
 function renderPhysicalPanel(row) {
@@ -2215,15 +2297,23 @@ function renderPhysicalPanel(row) {
           <option value="a6" ${labelFormat==='a6'?'selected':''}>A6</option>
           <option value="rect" ${labelFormat==='rect'?'selected':''}>100×50</option>
           <option value="compact" ${labelFormat==='compact'?'selected':''}>70×35</option>
+          <option value="badge" ${labelFormat==='badge'?'selected':''}>90×60 premium</option>
+        </select>
+        <select class="label-select" onchange="saveQrConfig({encoding:this.value});renderTable()" onclick="event.stopPropagation()">
+          <option value="link" ${qrEncoding==='link'?'selected':''}>Link</option>
+          <option value="uuid" ${qrEncoding==='uuid'?'selected':''}>UUID</option>
+          <option value="json" ${qrEncoding==='json'?'selected':''}>JSON</option>
         </select>
         <input class="label-text" value="${esc(labelText)}" maxlength="80" placeholder="Scritta etichetta"
           oninput="saveLabelConfig(null,this.value)" onclick="event.stopPropagation()"/>
       </div>
       <button class="ra ra-qr" onclick="printAllLabels(${row.material_id},event)">▣ Stampa tutte</button>
+      <button class="ra ra-del" onclick="deleteMaterialVisibleSelection(${row.material_id},event)">Elimina selezionati</button>
     </div>
     <div class="physical-grid">
-      ${visibleItems.map(item=>`<div class="physical-card" onclick="openQrPreview('${item.uuid}',event)">
-        <img class="physical-qr" src="/qr-image/${item.uuid}.png" loading="lazy" alt="QR ${esc(item.label)}"/>
+      ${visibleItems.map(item=>`<div class="physical-card${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openQrPreview('${item.uuid}',event)">
+        <div onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</div>
+        <img class="physical-qr" src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/>
         <div><div class="physical-code">${esc(item.label)}</div>
         <div class="physical-uuid">${esc(item.uuid)}</div>
         ${item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : ''}
@@ -2236,6 +2326,91 @@ function renderPhysicalPanel(row) {
 function saveLabelConfig(format,text) {
   if(format!==null){labelFormat=format;localStorage.setItem('stqc_label_format',format);}
   if(text!==null){labelText=text;localStorage.setItem('stqc_label_text',text);}
+}
+
+const QR_FIELD_OPTIONS = [
+  ['tipo','Tipo'],
+  ['profilo','Profilo'],
+  ['dimensioni','Dimensioni'],
+  ['norma_uni','Norma'],
+  ['qualita','Qualità'],
+  ['colata','Colata'],
+  ['reserved_for_commessa','Prenotazione'],
+  ['uuid','UUID'],
+];
+
+function saveQrConfig(next={}) {
+  if (next.encoding !== undefined) {
+    qrEncoding = ['link','uuid','json'].includes(next.encoding) ? next.encoding : 'link';
+    localStorage.setItem('stqc_qr_encoding', qrEncoding);
+  }
+  if (next.size !== undefined) {
+    qrSize = String(next.size || '').trim();
+    localStorage.setItem('stqc_qr_size', qrSize);
+  }
+  if (next.fields) {
+    labelFields = new Set(next.fields);
+    localStorage.setItem('stqc_label_fields', [...labelFields].join(','));
+  }
+}
+
+function renderQrFieldConfig() {
+  const root = document.getElementById('preview-qr-fields');
+  if (!root) return;
+  root.innerHTML = QR_FIELD_OPTIONS.map(([field,label]) => `
+    <label class="qr-field-check">
+      <input type="checkbox" ${labelFields.has(field) ? 'checked' : ''}
+        onchange="toggleLabelField('${field}',this.checked)"/>
+      <span>${esc(label)}</span>
+    </label>`).join('');
+}
+
+function toggleLabelField(field, checked) {
+  if (checked) labelFields.add(field);
+  else labelFields.delete(field);
+  if (!labelFields.size) labelFields.add('tipo');
+  saveQrConfig({ fields:[...labelFields] });
+}
+
+function refreshQrPreviewImage() {
+  if (previewItemDetail?.uuid) {
+    document.getElementById('qr-preview-img').src = qrImageUrl(previewItemDetail.uuid);
+  }
+}
+
+function updateSelectionBar() {
+  const bar = document.getElementById('selection-bar');
+  const count = document.getElementById('selection-count');
+  if (!bar || !count) return;
+  const n = selectedItems.size;
+  bar.classList.toggle('show', n > 0);
+  count.textContent = n === 1 ? '1 elemento selezionato' : `${n} elementi selezionati`;
+}
+
+function toggleItemSelection(uuid,e) {
+  if(e)e.stopPropagation();
+  if (selectedItems.has(uuid)) selectedItems.delete(uuid);
+  else selectedItems.add(uuid);
+  renderTable();
+}
+
+function toggleCurrentItemSelection() {
+  if (!previewItemDetail?.uuid) return;
+  toggleItemSelection(previewItemDetail.uuid);
+}
+
+function clearItemSelection() {
+  selectedItems.clear();
+  renderTable();
+}
+
+function openQrConfigFromSelection() {
+  if (selectedItems.size && !previewItemDetail) {
+    const uuid = [...selectedItems][0];
+    openQrPreview(uuid);
+  } else {
+    showToast('Apri un QR per modificare formato, codifica e contenuto.', 'ok');
+  }
 }
 
 const ITEM_EDIT_FIELDS = [
@@ -2302,12 +2477,15 @@ function renderItemDetail(detail) {
   previewItemDetail = detail;
   previewItem = detail;
   itemEditEnabled = false;
-  document.getElementById('qr-preview-img').src=`/qr-image/${detail.uuid}.png`;
+  document.getElementById('qr-preview-img').src=qrImageUrl(detail.uuid);
   document.getElementById('qr-preview-code').textContent=detail.label || detail.material_code || 'Elemento magazzino';
   document.getElementById('qr-preview-uuid').textContent=detail.uuid;
   document.getElementById('item-current-status').textContent = `${detail.status || '—'} · ${detail.material_code || '—'}`;
   document.getElementById('preview-label-format').value=labelFormat;
   document.getElementById('preview-label-text').value=labelText;
+  document.getElementById('preview-qr-encoding').value=qrEncoding;
+  document.getElementById('preview-qr-size').value=qrSize;
+  renderQrFieldConfig();
   renderItemFields();
   renderItemSources();
   setItemEdit(false);
@@ -2319,7 +2497,7 @@ async function openQrPreview(uuid,e) {
   if(e)e.stopPropagation();
   previewItem = allItems.find(item=>item.uuid===uuid) || Object.values(physicalCache).flat().find(item=>item.uuid===uuid) || {uuid};
   document.getElementById('qr-preview-modal').classList.add('open');
-  document.getElementById('qr-preview-img').src=`/qr-image/${uuid}.png`;
+  document.getElementById('qr-preview-img').src=qrImageUrl(uuid);
   document.getElementById('qr-preview-code').textContent='Caricamento elemento…';
   document.getElementById('qr-preview-uuid').textContent=uuid;
   document.getElementById('item-current-status').textContent='—';
@@ -2417,6 +2595,9 @@ async function openPdf(url) {
 function labelQuery() {
   const params=new URLSearchParams({format:labelFormat});
   if(labelText.trim())params.set('text',labelText.trim());
+  params.set('encoding', qrEncoding);
+  if(qrSize)params.set('qr_size', qrSize);
+  params.set('fields', [...labelFields].join(','));
   return params.toString();
 }
 async function printAllLabels(materialId,e) {
@@ -2426,6 +2607,71 @@ async function printAllLabels(materialId,e) {
 async function printItemLabel(uuid,e) {
   if(e)e.stopPropagation();
   try{await openPdf(`/api/v1/warehouse/items/${uuid}/label.pdf?${labelQuery()}`);}catch(err){showToast(err.message,'err');}
+}
+
+async function printSelectedLabels(e) {
+  if(e)e.stopPropagation();
+  const uuids = [...selectedItems];
+  if(!uuids.length) return showToast('Seleziona almeno un QR da stampare', 'err');
+  try {
+    const res = await fetch('/api/v1/warehouse/items/labels.pdf', {
+      method:'POST',
+      headers:{...hdr(),'Content-Type':'application/json'},
+      body:JSON.stringify({
+        uuids,
+        label_format: labelFormat,
+        text: labelText.trim() || null,
+        qr_encoding: qrEncoding,
+        qr_size_mm: qrSize ? Number(qrSize) : null,
+        content_fields: [...labelFields],
+      }),
+    });
+    if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.detail||`Errore ${res.status}`);}
+    const blob=await res.blob();
+    window.open(URL.createObjectURL(blob),'_blank','noopener');
+  } catch(err) {
+    showToast(err.message,'err');
+  }
+}
+
+async function deleteItemsByUuid(uuids) {
+  const clean = [...new Set(uuids.filter(Boolean))];
+  if(!clean.length) return;
+  const ok = confirm(`Eliminare definitivamente ${clean.length} record fisici di magazzino?\\n\\nL'anagrafica materiale resta, ma questi UUID/QR saranno rimossi.`);
+  if(!ok) return;
+  try {
+    const res = await fetch('/api/v1/warehouse/items/bulk-delete', {
+      method:'POST',
+      headers:{...hdr(),'Content-Type':'application/json'},
+      body:JSON.stringify({uuids:clean}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail||`Errore ${res.status}`);
+    clean.forEach(uuid => selectedItems.delete(uuid));
+    closeQrPreview();
+    showToast(`${data.deleted || 0} record eliminati`, 'ok');
+    await loadStock();
+  } catch(err) {
+    showToast(err.message,'err');
+  }
+}
+
+function deleteSelectedItems(e) {
+  if(e)e.stopPropagation();
+  deleteItemsByUuid([...selectedItems]);
+}
+
+function deletePreviewItem() {
+  if(!previewItemDetail?.uuid) return;
+  deleteItemsByUuid([previewItemDetail.uuid]);
+}
+
+function deleteMaterialVisibleSelection(materialId,e) {
+  if(e)e.stopPropagation();
+  const items = physicalCache[materialId] || [];
+  const uuids = items.map(item => item.uuid).filter(uuid => selectedItems.has(uuid));
+  if(!uuids.length) return showToast('Seleziona almeno un QR di questo materiale', 'err');
+  deleteItemsByUuid(uuids);
 }
 
 function renderPag(total) {
