@@ -9,6 +9,7 @@ from backend.app.models.warehouse import (
     Receipt,
     StockMovement,
     Supplier,
+    WarehouseCustomValue,
     WarehouseItem,
 )
 from backend.app.schemas import warehouse as warehouse_schemas
@@ -229,6 +230,8 @@ def get_magazzino_list(
             Material.dimensioni,
             Material.qualita,
             Material.colata,
+            Material.uso_materiale,
+            Material.posizione,
             Material.peso_u_kg,
             Material.peso_1_pz,
             Material.norma_uni,
@@ -271,13 +274,49 @@ def get_magazzino_list(
         .order_by(Material.tipo, Material.profilo, Material.code)
     )
     if q:
+        like = f"%{q}%"
+        custom_material_ids = (
+            select(WarehouseCustomValue.material_id)
+            .where(WarehouseCustomValue.value.ilike(like))
+            .distinct()
+        )
         stmt = stmt.where(
-            Material.code.ilike(f"%{q}%")
-            | Material.tipo.ilike(f"%{q}%")
-            | Material.profilo.ilike(f"%{q}%")
-            | Material.qualita.ilike(f"%{q}%")
+            Material.code.ilike(like)
+            | Material.tipo.ilike(like)
+            | Material.profilo.ilike(like)
+            | Material.qualita.ilike(like)
+            | Material.colata.ilike(like)
+            | Material.uso_materiale.ilike(like)
+            | Material.posizione.ilike(like)
+            | Material.id.in_(custom_material_ids)
         )
     rows = db.execute(stmt.offset(skip).limit(limit)).all()
+    material_ids = [r.id for r in rows]
+    custom_by_material: dict[int, dict[str, str]] = {int(material_id): {} for material_id in material_ids}
+    if material_ids:
+        custom_rows = db.execute(
+            select(
+                WarehouseCustomValue.material_id,
+                WarehouseCustomValue.value,
+                WarehouseCustomValue.field_id,
+            )
+            .where(WarehouseCustomValue.material_id.in_(material_ids))
+        ).all()
+        field_ids = sorted({int(r.field_id) for r in custom_rows})
+        field_keys = {}
+        if field_ids:
+            from backend.app.models.warehouse import WarehouseCustomField
+
+            field_keys = {
+                field.id: field.key
+                for field in db.scalars(
+                    select(WarehouseCustomField).where(WarehouseCustomField.id.in_(field_ids))
+                ).all()
+            }
+        for custom_row in custom_rows:
+            key = field_keys.get(custom_row.field_id)
+            if key and custom_row.value not in (None, ""):
+                custom_by_material.setdefault(int(custom_row.material_id), {})[key] = str(custom_row.value)
     result = []
     for r in rows:
         n_pezzi   = float(r.available_items_count or 0)
@@ -302,6 +341,8 @@ def get_magazzino_list(
             "dimensioni": r.dimensioni,
             "qualita": r.qualita,
             "colata": r.colata,
+            "uso_materiale": r.uso_materiale,
+            "posizione": r.posizione,
             "peso_kg":   peso_kg,
             "peso_u_kg": float(r.peso_u_kg) if r.peso_u_kg is not None else None,
             "peso_1_pz": peso_1_pz,
@@ -309,5 +350,6 @@ def get_magazzino_list(
             "physical_items_count": int(r.physical_items_count or 0),
             "reserved_items_count": int(r.reserved_items_count or 0),
             "reserved_commesse": [str(value) for value in reserved_commesse if value],
+            "custom_fields": custom_by_material.get(int(r.id), {}),
         })
     return result

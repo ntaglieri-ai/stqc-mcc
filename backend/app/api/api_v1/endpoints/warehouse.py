@@ -3,11 +3,15 @@ from decimal import Decimal
 from typing import List, Literal
 
 import base64
+import csv
 import io
 import json
+import os
 import re
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from fpdf import FPDF
 from sqlalchemy import select
@@ -22,6 +26,8 @@ from backend.app.models.warehouse import (
     MovementType,
     Receipt,
     StockMovement,
+    WarehouseCustomField,
+    WarehouseCustomValue,
     WarehouseItem,
 )
 from backend.app.schemas import warehouse as warehouse_schemas
@@ -84,30 +90,61 @@ def create_material_with_incoming(
     material_in: warehouse_schemas.MaterialIncomingCreate,
     db: Session = Depends(get_db),
 ):
+    row = _upsert_material_with_incoming(db, material_in, allow_existing=False)
+    db.commit()
+    row.pop("_created", None)
+    row.pop("_physical_items_created", None)
+    return row
+
+
+def _upsert_material_with_incoming(
+    db: Session,
+    material_in: warehouse_schemas.MaterialIncomingCreate,
+    allow_existing: bool = True,
+) -> dict:
     code = _material_code_from_input(material_in)
     existing = db.scalar(select(Material).where(Material.code == code))
-    if existing is not None:
+    if existing is not None and not allow_existing:
         raise HTTPException(status_code=409, detail="Codice materiale già presente: usa Ingresso su materiale esistente")
 
     description = material_in.description or " · ".join(
         part for part in [material_in.tipo, material_in.profilo, material_in.dimensioni, material_in.qualita] if part
     ) or code
-    material = Material(
-        code=code,
-        description=description,
-        unit=material_in.unit or "PZ",
-        specification=material_in.specification,
-        tipo=material_in.tipo,
-        profilo=material_in.profilo,
-        dimensioni=material_in.dimensioni,
-        norma_uni=material_in.norma_uni,
-        qualita=material_in.qualita,
-        colata=material_in.colata,
-        peso_u_kg=material_in.peso_u_kg,
-        peso_1_pz=material_in.peso_1_pz,
-    )
-    db.add(material)
-    db.flush()
+    created = existing is None
+    if existing is None:
+        material = Material(
+            code=code,
+            description=description,
+            unit=material_in.unit or "PZ",
+            specification=material_in.specification,
+            tipo=material_in.tipo,
+            profilo=material_in.profilo,
+            dimensioni=material_in.dimensioni,
+            norma_uni=material_in.norma_uni,
+            qualita=material_in.qualita,
+            colata=material_in.colata,
+            uso_materiale=material_in.uso_materiale,
+            posizione=material_in.posizione,
+            peso_u_kg=material_in.peso_u_kg,
+            peso_1_pz=material_in.peso_1_pz,
+        )
+        db.add(material)
+        db.flush()
+    else:
+        material = existing
+        material.description = material_in.description or material.description
+        material.unit = material_in.unit or material.unit
+        material.specification = material_in.specification or material.specification
+        material.tipo = material_in.tipo or material.tipo
+        material.profilo = material_in.profilo or material.profilo
+        material.dimensioni = material_in.dimensioni or material.dimensioni
+        material.norma_uni = material_in.norma_uni or material.norma_uni
+        material.qualita = material_in.qualita or material.qualita
+        material.colata = material_in.colata or material.colata
+        material.uso_materiale = material_in.uso_materiale or material.uso_materiale
+        material.posizione = material_in.posizione or material.posizione
+        material.peso_u_kg = material_in.peso_u_kg or material.peso_u_kg
+        material.peso_1_pz = material_in.peso_1_pz or material.peso_1_pz
     movement = StockMovement(
         material_id=material.id,
         quantity=material_in.quantity,
@@ -121,11 +158,297 @@ def create_material_with_incoming(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc))
-    db.commit()
     row = next((r for r in crud.get_magazzino_list(db=db, limit=1, q=code) if r["material_id"] == material.id), None)
     if row is None:
         raise HTTPException(status_code=500, detail="Materiale creato ma non riletto")
+    row["_created"] = created
+    row["_physical_items_created"] = int(material_in.quantity)
+    row["_material_id"] = material.id
     return row
+
+
+@router.post("/materials/bulk-incoming", response_model=warehouse_schemas.MaterialIncomingBulkResult)
+def create_materials_bulk_incoming(
+    request: warehouse_schemas.MaterialIncomingBulkCreate,
+    db: Session = Depends(get_db),
+):
+    created = 0
+    existing = 0
+    physical = 0
+    for item in request.items:
+        row = _upsert_material_with_incoming(db, item, allow_existing=True)
+        if row.get("_created"):
+            created += 1
+        else:
+            existing += 1
+        physical += int(row.get("_physical_items_created") or item.quantity or 0)
+    db.commit()
+    return {
+        "rows": len(request.items),
+        "materials_created": created,
+        "materials_existing": existing,
+        "movements_created": len(request.items),
+        "physical_items_created": physical,
+    }
+
+
+def _normalize_import_key(value: object) -> str:
+    key = str(value or "").strip().lower()
+    key = key.replace("à", "a").replace("è", "e").replace("é", "e").replace("ì", "i").replace("ò", "o").replace("ù", "u")
+    key = re.sub(r"[^a-z0-9]+", "_", key).strip("_")
+    aliases = {
+        "codice": "code",
+        "material_code": "code",
+        "descrizione": "description",
+        "description": "description",
+        "qta": "quantity",
+        "qty": "quantity",
+        "quantita": "quantity",
+        "n_pezzi": "quantity",
+        "pezzi": "quantity",
+        "unita": "unit",
+        "um": "unit",
+        "norma": "norma_uni",
+        "qualita": "qualita",
+        "qualita_": "qualita",
+        "peso_u": "peso_u_kg",
+        "peso_u_kg": "peso_u_kg",
+        "peso_pezzo": "peso_1_pz",
+        "peso_1_pz": "peso_1_pz",
+        "uso": "uso_materiale",
+        "uso_materiale": "uso_materiale",
+        "tipologia": "uso_materiale",
+        "posizione": "posizione",
+        "ubicazione": "posizione",
+        "location": "posizione",
+        "causale": "reason",
+    }
+    return aliases.get(key, key)
+
+
+KNOWN_IMPORT_KEYS = {
+    "code",
+    "description",
+    "quantity",
+    "unit",
+    "tipo",
+    "profilo",
+    "dimensioni",
+    "norma_uni",
+    "qualita",
+    "colata",
+    "uso_materiale",
+    "posizione",
+    "peso_u_kg",
+    "peso_1_pz",
+    "reason",
+}
+
+
+def _value(row: dict, *keys: str):
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _float_or_none(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
+def _clean_import_value(value: object) -> str | None:
+    if value in (None, ""):
+        return None
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
+def _custom_label_from_key(key: str) -> str:
+    return " ".join(part.capitalize() for part in key.split("_") if part) or key
+
+
+def _upsert_custom_values(
+    db: Session,
+    material_id: int,
+    custom_values: dict[str, str],
+    custom_labels: dict[str, str],
+) -> None:
+    for key, raw_value in custom_values.items():
+        value = _clean_import_value(raw_value)
+        if value is None:
+            continue
+        field = db.scalar(select(WarehouseCustomField).where(WarehouseCustomField.key == key))
+        if field is None:
+            field = WarehouseCustomField(
+                key=key,
+                label=(custom_labels.get(key) or _custom_label_from_key(key))[:200],
+                value_type="text",
+                created_at=datetime.utcnow(),
+            )
+            db.add(field)
+            db.flush()
+        elif custom_labels.get(key) and field.label == _custom_label_from_key(field.key):
+            field.label = custom_labels[key][:200]
+        current = db.scalar(
+            select(WarehouseCustomValue).where(
+                WarehouseCustomValue.material_id == material_id,
+                WarehouseCustomValue.field_id == field.id,
+            )
+        )
+        if current is None:
+            current = WarehouseCustomValue(material_id=material_id, field_id=field.id)
+            db.add(current)
+        current.value = value
+
+
+def _custom_fields_for_material_ids(db: Session, material_ids: list[int]) -> dict[int, dict[str, str]]:
+    if not material_ids:
+        return {}
+    result: dict[int, dict[str, str]] = {int(material_id): {} for material_id in material_ids}
+    rows = db.execute(
+        select(WarehouseCustomValue.material_id, WarehouseCustomField.key, WarehouseCustomValue.value)
+        .join(WarehouseCustomField, WarehouseCustomField.id == WarehouseCustomValue.field_id)
+        .where(WarehouseCustomValue.material_id.in_(material_ids))
+        .order_by(WarehouseCustomField.label)
+    ).all()
+    for material_id, key, value in rows:
+        if value not in (None, ""):
+            result.setdefault(int(material_id), {})[str(key)] = str(value)
+    return result
+
+
+def _rows_to_incoming_with_custom(
+    rows: list[dict],
+    reason: str,
+) -> list[tuple[warehouse_schemas.MaterialIncomingCreate, dict[str, str], dict[str, str]]]:
+    parsed: list[tuple[warehouse_schemas.MaterialIncomingCreate, dict[str, str], dict[str, str]]] = []
+    for raw in rows:
+        row: dict[str, object] = {}
+        custom_values: dict[str, str] = {}
+        custom_labels: dict[str, str] = {}
+        for raw_key, value in raw.items():
+            normalized = _normalize_import_key(raw_key)
+            if not normalized:
+                continue
+            if normalized in KNOWN_IMPORT_KEYS:
+                row[normalized] = value
+            else:
+                cleaned = _clean_import_value(value)
+                if cleaned is not None:
+                    row[normalized] = value
+                    custom_values[normalized] = cleaned
+                    custom_labels[normalized] = str(raw_key or normalized).strip() or _custom_label_from_key(normalized)
+        quantity = _float_or_none(_value(row, "quantity"))
+        if not quantity or quantity <= 0:
+            continue
+        payload = {
+            "code": _value(row, "code"),
+            "description": _value(row, "description"),
+            "unit": _value(row, "unit") or "PZ",
+            "tipo": _value(row, "tipo"),
+            "profilo": _value(row, "profilo"),
+            "dimensioni": _value(row, "dimensioni"),
+            "norma_uni": _value(row, "norma_uni"),
+            "qualita": _value(row, "qualita"),
+            "colata": _value(row, "colata"),
+            "uso_materiale": _value(row, "uso_materiale", "uso", "tipologia"),
+            "posizione": _value(row, "posizione", "ubicazione", "location"),
+            "peso_u_kg": _float_or_none(_value(row, "peso_u_kg")),
+            "peso_1_pz": _float_or_none(_value(row, "peso_1_pz")),
+            "quantity": quantity,
+            "reason": _value(row, "reason") or reason,
+        }
+        parsed.append((warehouse_schemas.MaterialIncomingCreate.model_validate(payload), custom_values, custom_labels))
+    return parsed
+
+
+def _rows_to_incoming(rows: list[dict], reason: str) -> list[warehouse_schemas.MaterialIncomingCreate]:
+    return [item for item, _, _ in _rows_to_incoming_with_custom(rows, reason)]
+
+
+def _parse_append_file(path: Path) -> list[dict]:
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        with path.open("r", encoding="utf-8-sig", newline="") as fh:
+            sample = fh.read(4096)
+            fh.seek(0)
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;\\t")
+            return list(csv.DictReader(fh, dialect=dialect))
+    if suffix in {".xlsx", ".xlsm"}:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(path, data_only=True, read_only=True)
+        ws = wb[wb.sheetnames[0]]
+        rows = ws.iter_rows(values_only=True)
+        headers = [str(value or "").strip() for value in next(rows, [])]
+        return [dict(zip(headers, row)) for row in rows if any(v not in (None, "") for v in row)]
+    if suffix == ".pdf":
+        import pdfplumber
+
+        parsed: list[dict] = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                for table in page.extract_tables() or []:
+                    if not table or len(table) < 2:
+                        continue
+                    headers = [str(value or "").strip() for value in table[0]]
+                    for row in table[1:]:
+                        if any(v not in (None, "") for v in row):
+                            parsed.append(dict(zip(headers, row)))
+        return parsed
+    raise HTTPException(status_code=422, detail="Formato non supportato. Usa CSV, XLSX/XLSM o PDF tabellare.")
+
+
+@router.post("/materials/import-append", response_model=warehouse_schemas.MaterialIncomingBulkResult)
+async def import_append_materials(
+    file: UploadFile = File(...),
+    reason: str = Query("Import append magazzino"),
+    db: Session = Depends(get_db),
+):
+    suffix = Path(file.filename or "").suffix.lower() or ".xlsx"
+    with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = Path(tmp.name)
+    try:
+        rows = _parse_append_file(tmp_path)
+        parsed_items = _rows_to_incoming_with_custom(rows, reason)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Impossibile leggere il file: {exc}")
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+    if not parsed_items:
+        raise HTTPException(status_code=422, detail="Nessuna riga valida trovata. Servono almeno quantità e codice oppure tipo/profilo.")
+    created = 0
+    existing = 0
+    physical = 0
+    for item, custom_values, custom_labels in parsed_items:
+        row = _upsert_material_with_incoming(db, item, allow_existing=True)
+        if row.get("_created"):
+            created += 1
+        else:
+            existing += 1
+        physical += int(row.get("_physical_items_created") or item.quantity or 0)
+        material_id = int(row.get("_material_id") or row["material_id"])
+        _upsert_custom_values(db, material_id, custom_values, custom_labels)
+    db.commit()
+    return {
+        "rows": len(parsed_items),
+        "materials_created": created,
+        "materials_existing": existing,
+        "movements_created": len(parsed_items),
+        "physical_items_created": physical,
+    }
 
 
 @router.get("/materials", response_model=List[warehouse_schemas.MaterialRead])
@@ -268,6 +591,51 @@ def list_magazzino(
     return crud.get_magazzino_list(db=db, skip=skip, limit=limit, q=q)
 
 
+@router.get("/custom-fields", response_model=List[warehouse_schemas.WarehouseCustomFieldRead])
+def list_warehouse_custom_fields(db: Session = Depends(get_db)):
+    return db.scalars(select(WarehouseCustomField).order_by(WarehouseCustomField.label)).all()
+
+
+@router.get("/export.csv")
+def export_warehouse_csv(db: Session = Depends(get_db)):
+    custom_fields = db.scalars(select(WarehouseCustomField).order_by(WarehouseCustomField.label)).all()
+    rows = crud.get_magazzino_list(db=db, limit=100000)
+    output = io.StringIO()
+    base_headers = [
+        "material_id",
+        "material_code",
+        "tipo",
+        "uso_materiale",
+        "posizione",
+        "profilo",
+        "dimensioni",
+        "norma_uni",
+        "qualita",
+        "colata",
+        "n_pezzi",
+        "commessa",
+        "peso_kg",
+        "peso_u_kg",
+        "peso_1_pz",
+        "physical_items_count",
+        "reserved_items_count",
+    ]
+    custom_headers = [f"custom:{field.key}" for field in custom_fields]
+    writer = csv.DictWriter(output, fieldnames=base_headers + custom_headers, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        csv_row = {key: row.get(key) for key in base_headers}
+        csv_row["commessa"] = ", ".join(row.get("reserved_commesse") or [])
+        for field in custom_fields:
+            csv_row[f"custom:{field.key}"] = (row.get("custom_fields") or {}).get(field.key, "")
+        writer.writerow(csv_row)
+    return Response(
+        content=output.getvalue().encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="inventario_magazzino.csv"'},
+    )
+
+
 def _physical_item_read(item: WarehouseItem) -> dict:
     material = item.material
     effective_status = "RESERVED" if item.reserved_for_commessa and item.status == "AVAILABLE" else item.status
@@ -281,6 +649,8 @@ def _physical_item_read(item: WarehouseItem) -> dict:
         "exited_at": item.exited_at,
         "label": f"{material.code} · #{item.ordinal:04d}",
         "reserved_for_commessa": item.reserved_for_commessa,
+        "uso_materiale": item.uso_materiale or material.uso_materiale,
+        "posizione": item.posizione or material.posizione,
     }
 
 
@@ -307,6 +677,8 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
             "norma_uni",
             "qualita",
             "colata",
+            "uso_materiale",
+            "posizione",
             "commessa_ref",
             "reserved_for_commessa",
             "peso_u_kg",
@@ -319,12 +691,15 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
         **_physical_item_read(item),
         "material_code": material.code,
         "description": material.description,
+        "n_pezzi": 1,
         "tipo": _item_value(item, material, "tipo"),
         "profilo": _item_value(item, material, "profilo"),
         "dimensioni": _item_value(item, material, "dimensioni"),
         "norma_uni": _item_value(item, material, "norma_uni"),
         "qualita": _item_value(item, material, "qualita"),
         "colata": _item_value(item, material, "colata"),
+        "uso_materiale": _item_value(item, material, "uso_materiale"),
+        "posizione": _item_value(item, material, "posizione"),
         "commessa_ref": _item_value(item, material, "commessa_ref"),
         "reserved_for_commessa": item.reserved_for_commessa,
         "peso_u_kg": _decimal_or_none(_item_value(item, material, "peso_u_kg")),
@@ -335,6 +710,7 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
         "exit_movement_id": item.exit_movement_id,
         "notes": item.notes,
         "manual_overrides": manual_fields,
+        "custom_fields": _custom_fields_for_material_ids(db, [material.id]).get(material.id, {}),
     }
 
 
@@ -377,12 +753,23 @@ def list_warehouse_items(
         stmt = stmt.where(WarehouseItem.status.in_(["AVAILABLE", "RESERVED"]))
     if q:
         like = f"%{q}%"
+        custom_material_ids = (
+            select(WarehouseCustomValue.material_id)
+            .where(WarehouseCustomValue.value.ilike(like))
+            .distinct()
+        )
         stmt = stmt.where(
             Material.code.ilike(like)
             | Material.tipo.ilike(like)
             | Material.profilo.ilike(like)
             | Material.qualita.ilike(like)
+            | Material.colata.ilike(like)
+            | Material.uso_materiale.ilike(like)
+            | Material.posizione.ilike(like)
+            | Material.id.in_(custom_material_ids)
             | WarehouseItem.uuid.ilike(like)
+            | WarehouseItem.uso_materiale.ilike(like)
+            | WarehouseItem.posizione.ilike(like)
             | WarehouseItem.reserved_for_commessa.ilike(like)
         )
     items = db.scalars(stmt.offset(skip).limit(limit)).all()
@@ -480,6 +867,8 @@ def _warehouse_qr_payload(item: WarehouseItem, material: Material, qr_encoding: 
                 "uuid": item.uuid,
                 "material_code": material.code,
                 "ordinal": item.ordinal,
+                "uso_materiale": item.uso_materiale or material.uso_materiale,
+                "posizione": item.posizione or material.posizione,
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -554,7 +943,6 @@ def _warehouse_labels_pdf(
     custom_text: str | None = None,
     qr_encoding: str = "link",
     qr_size_mm: float | None = None,
-    content_fields: list[str] | None = None,
 ) -> bytes:
     formats = {
         "a6": ("P", (105, 148)),
@@ -563,97 +951,43 @@ def _warehouse_labels_pdf(
         "badge": ("L", (60, 90)),
     }
     if label_format not in formats:
-        raise ValueError("Formato etichetta non valido")
-    allowed_field_names = {
-        "tipo",
-        "profilo",
-        "dimensioni",
-        "norma_uni",
-        "qualita",
-        "colata",
-        "commessa_ref",
-        "reserved_for_commessa",
-        "uuid",
-    }
-    selected_fields = [
-        field for field in (content_fields or ["tipo", "profilo", "dimensioni", "qualita"])
-        if field in allowed_field_names
-    ][:7]
+        raise ValueError("Formato stampa QR non valido")
     orientation, page_format = formats[label_format]
     pdf = FPDF(orientation=orientation, unit="mm", format=page_format)
     pdf.set_margins(5, 5, 5)
     pdf.set_auto_page_break(False)
     for item in items:
         item_material = item.material or material
-        allowed_fields = {
-            "tipo": ("Tipo", item_material.tipo),
-            "profilo": ("Profilo", item_material.profilo),
-            "dimensioni": ("Dimensioni", item_material.dimensioni),
-            "norma_uni": ("Norma", item_material.norma_uni),
-            "qualita": ("Qualita", item_material.qualita),
-            "colata": ("Colata", item_material.colata),
-            "commessa_ref": ("Commessa", None),
-            "reserved_for_commessa": ("Riservato", None),
-            "uuid": ("UUID", None),
-        }
         pdf.add_page()
         qr_payload = _warehouse_qr_payload(item, item_material, qr_encoding)
         qr_bytes = base64.b64decode(generate_qr_for_payload(qr_payload))
-        item_code = _pdf_text(f"{item_material.code} - #{item.ordinal:04d}")
-        note = _pdf_text((custom_text or "").strip()[:80])
-        field_values = []
-        for field in selected_fields:
-            label, material_value = allowed_fields[field]
-            value = getattr(item, field, None) if material_value is None else material_value
-            if field == "uuid":
-                value = item.uuid
-            if value:
-                field_values.append((label, value))
+        identifier = _pdf_text((custom_text or "").strip() or f"{item_material.code} - #{item.ordinal:04d}")
 
         if label_format == "a6":
-            qr_size = qr_size_mm or 54
+            qr_size = qr_size_mm or 78
             qr_x = (105 - qr_size) / 2
-            pdf.image(io.BytesIO(qr_bytes), x=qr_x, y=8, w=qr_size, h=qr_size)
+            pdf.image(io.BytesIO(qr_bytes), x=qr_x, y=10, w=qr_size, h=qr_size)
             pdf.set_y(8 + qr_size + 5)
-            pdf.set_font("Helvetica", "B", 14)
-            pdf.cell(0, 8, "STQC - MAGAZZINO", align="C", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.cell(0, 8, identifier, align="C", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "B", 12)
-            pdf.cell(0, 8, item_code, align="C", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 9)
-            for label, value in field_values:
-                pdf.set_font("Helvetica", "B", 9)
-                pdf.cell(28, 6, f"{label}:", new_x="END", new_y="LAST")
-                pdf.set_font("Helvetica", "", 9)
-                pdf.cell(0, 6, _pdf_text(value), new_x="LMARGIN", new_y="NEXT")
-            if note:
-                pdf.ln(2)
-                pdf.set_font("Helvetica", "B", 9)
-                pdf.multi_cell(0, 5, note, align="C")
             pdf.set_y(-12)
             pdf.set_font("Helvetica", "", 6)
             pdf.cell(0, 4, item.uuid, align="C")
         else:
             is_compact = label_format == "compact"
             is_badge = label_format == "badge"
-            qr_size = qr_size_mm or (27 if is_compact else 36 if is_badge else 40)
+            qr_size = qr_size_mm or (29 if is_compact else 46 if is_badge else 44)
             qr_x = 4
-            qr_y = 4 if is_compact else 5
+            qr_y = 3 if is_compact else 3
             text_x = qr_x + qr_size + 4
             pdf.image(io.BytesIO(qr_bytes), x=qr_x, y=qr_y, w=qr_size, h=qr_size)
             pdf.set_xy(text_x, qr_y)
-            pdf.set_font("Helvetica", "B", 8 if is_compact else 10)
-            pdf.cell(0, 5, "STQC - MAGAZZINO", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_x(text_x)
             pdf.set_font("Helvetica", "B", 8 if is_compact else 11)
-            pdf.multi_cell(0, 4 if is_compact else 5, item_code)
-            pdf.set_x(text_x)
-            pdf.set_font("Helvetica", "", 6 if is_compact else 8)
-            details = " | ".join(_pdf_text(value) for _, value in field_values[:5])
-            pdf.multi_cell(0, 3.5 if is_compact else 4, details)
-            if note:
-                pdf.set_x(text_x)
-                pdf.set_font("Helvetica", "B", 6 if is_compact else 8)
-                pdf.multi_cell(0, 3.5 if is_compact else 4, note)
+            pdf.multi_cell(0, 4 if is_compact else 5, identifier)
+            pdf.set_xy(text_x, qr_y + (14 if is_compact else 20))
+            pdf.set_font("Helvetica", "", 5 if is_compact else 6)
+            pdf.multi_cell(0, 3, item.uuid)
 
     return bytes(pdf.output())
 
@@ -665,7 +999,6 @@ def warehouse_item_labels(
     text: str | None = Query(None, max_length=80),
     qr_encoding: Literal["link", "uuid", "json"] = Query("link", alias="encoding"),
     qr_size_mm: float | None = Query(None, ge=18, le=90, alias="qr_size"),
-    fields: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     material = db.get(Material, material_id)
@@ -686,10 +1019,9 @@ def warehouse_item_labels(
             text,
             qr_encoding,
             qr_size_mm,
-            fields.split(",") if fields else None,
         ),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="etichette_{material.code}.pdf"'},
+        headers={"Content-Disposition": f'inline; filename="qr_{material.code}.pdf"'},
     )
 
 
@@ -700,7 +1032,6 @@ def warehouse_single_item_label(
     text: str | None = Query(None, max_length=80),
     qr_encoding: Literal["link", "uuid", "json"] = Query("link", alias="encoding"),
     qr_size_mm: float | None = Query(None, ge=18, le=90, alias="qr_size"),
-    fields: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     item = db.scalar(select(WarehouseItem).where(WarehouseItem.uuid == item_uuid.lower()))
@@ -714,10 +1045,9 @@ def warehouse_single_item_label(
             text,
             qr_encoding,
             qr_size_mm,
-            fields.split(",") if fields else None,
         ),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="etichetta_{item.material.code}_{item.ordinal:04d}.pdf"'},
+        headers={"Content-Disposition": f'inline; filename="qr_{item.material.code}_{item.ordinal:04d}.pdf"'},
     )
 
 
@@ -746,10 +1076,9 @@ def warehouse_selected_item_labels(
             request.text,
             request.qr_encoding,
             request.qr_size_mm,
-            request.content_fields,
         ),
         media_type="application/pdf",
-        headers={"Content-Disposition": 'inline; filename="etichette_selezione_magazzino.pdf"'},
+        headers={"Content-Disposition": 'inline; filename="qr_selezione_magazzino.pdf"'},
     )
 
 
@@ -765,6 +1094,7 @@ def delete_material(material_id: int, db: Session = Depends(get_db)):
     if receipt_ids:
         db.query(Certificate).filter(Certificate.receipt_id.in_(receipt_ids)).delete(synchronize_session=False)
 
+    db.query(WarehouseCustomValue).filter(WarehouseCustomValue.material_id == material_id).delete(synchronize_session=False)
     db.query(WarehouseItem).filter(WarehouseItem.material_id == material_id).delete(synchronize_session=False)
     db.query(StockMovement).filter(StockMovement.material_id == material_id).delete(synchronize_session=False)
     db.query(Receipt).filter(Receipt.material_id == material_id).delete(synchronize_session=False)

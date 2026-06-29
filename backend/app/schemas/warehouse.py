@@ -40,6 +40,8 @@ class MaterialBase(BaseModel):
     dimensioni: Optional[str] = Field(None, example="6000")
     qualita: Optional[str] = Field(None, example="S275")
     colata: Optional[str] = Field(None, example="C-2026-001")
+    uso_materiale: Optional[str] = Field(None, example="Scorte")
+    posizione: Optional[str] = Field(None, example="A1-03")
     peso_u_kg: Optional[float] = Field(None, example=42.3)
     peso_1_pz: Optional[float] = Field(None, example=253.8)
 
@@ -61,10 +63,26 @@ class MaterialIncomingCreate(BaseModel):
     norma_uni: Optional[str] = None
     qualita: Optional[str] = None
     colata: Optional[str] = None
+    uso_materiale: Optional[str] = None
+    posizione: Optional[str] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
     quantity: float = Field(..., gt=0)
     reason: str = "Ingresso nuovo materiale"
+
+
+class MaterialIncomingBulkCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: List[MaterialIncomingCreate] = Field(..., min_length=1, max_length=500)
+
+
+class MaterialIncomingBulkResult(BaseModel):
+    rows: int
+    materials_created: int
+    materials_existing: int
+    movements_created: int
+    physical_items_created: int
 
 
 class MaterialRead(MaterialBase):
@@ -179,6 +197,8 @@ class MagazzinoItemRead(BaseModel):
     dimensioni: Optional[str] = None
     qualita: Optional[str] = None
     colata: Optional[str] = None
+    uso_materiale: Optional[str] = None
+    posizione: Optional[str] = None
     peso_kg: Optional[float] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
@@ -188,6 +208,7 @@ class MagazzinoItemRead(BaseModel):
     physical_items_count: int = 0
     reserved_items_count: int = 0
     reserved_commesse: List[str] = Field(default_factory=list)
+    custom_fields: dict[str, str] = Field(default_factory=dict)
 
     class Config:
         from_attributes = True
@@ -203,17 +224,22 @@ class WarehousePhysicalItemRead(BaseModel):
     exited_at: Optional[datetime] = None
     label: str
     reserved_for_commessa: Optional[str] = None
+    uso_materiale: Optional[str] = None
+    posizione: Optional[str] = None
 
 
 class WarehouseItemDetailRead(WarehousePhysicalItemRead):
     material_code: str
     description: Optional[str] = None
+    n_pezzi: float = 1
     tipo: Optional[str] = None
     profilo: Optional[str] = None
     dimensioni: Optional[str] = None
     norma_uni: Optional[str] = None
     qualita: Optional[str] = None
     colata: Optional[str] = None
+    uso_materiale: Optional[str] = None
+    posizione: Optional[str] = None
     commessa_ref: Optional[str] = None
     reserved_for_commessa: Optional[str] = None
     peso_u_kg: Optional[float] = None
@@ -224,6 +250,16 @@ class WarehouseItemDetailRead(WarehousePhysicalItemRead):
     exit_movement_id: Optional[int] = None
     notes: Optional[str] = None
     manual_overrides: List[str] = Field(default_factory=list)
+    custom_fields: dict[str, str] = Field(default_factory=dict)
+
+
+class WarehouseCustomFieldRead(BaseModel):
+    key: str
+    label: str
+    value_type: str = "text"
+
+    class Config:
+        from_attributes = True
 
 
 class WarehouseItemUpdate(BaseModel):
@@ -235,6 +271,8 @@ class WarehouseItemUpdate(BaseModel):
     norma_uni: Optional[str] = None
     qualita: Optional[str] = None
     colata: Optional[str] = None
+    uso_materiale: Optional[str] = None
+    posizione: Optional[str] = None
     commessa_ref: Optional[str] = None
     reserved_for_commessa: Optional[str] = None
     peso_u_kg: Optional[float] = None
@@ -259,7 +297,6 @@ class WarehouseLabelPrintRequest(WarehouseItemBulkRequest):
     text: Optional[str] = Field(None, max_length=80)
     qr_encoding: str = Field("link", pattern="^(link|uuid|json)$")
     qr_size_mm: Optional[float] = Field(None, ge=18, le=90)
-    content_fields: List[str] = Field(default_factory=lambda: ["tipo", "profilo", "dimensioni", "qualita"])
 
 
 class WarehouseScanRequest(BaseModel):

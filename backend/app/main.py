@@ -27,9 +27,26 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Modulo F1 Magazzino e importazione distinta per STQC",
     )
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @app.get("/api/v1/warehouse/items/{item_uuid}/qr.png", include_in_schema=False)
+    def legacy_public_warehouse_qr_image(item_uuid: str):
+        """Compatibilità per immagini QR già referenziate dal frontend.
+
+        Le pagine HTML non possono inviare l'header Authorization dentro <img>,
+        quindi questa immagine deve restare pubblica come /qr-image.
+        """
+        if not re.fullmatch(r"[0-9a-f-]{36}", item_uuid, re.IGNORECASE):
+            return Response(status_code=404)
+        png = base64.b64decode(generate_qr_for_uuid(item_uuid.lower()))
+        return Response(
+            content=png,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
     app.include_router(public_router, prefix="/api/v1")
     app.include_router(api_router, prefix="/api/v1")
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.on_event("startup")
     async def seed_default_users() -> None:

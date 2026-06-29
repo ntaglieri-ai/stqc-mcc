@@ -372,6 +372,89 @@
       background: linear-gradient(135deg, rgba(73,129,255,.36), rgba(112,76,255,.24));
       box-shadow: 0 10px 24px rgba(73,129,255,.12), inset 0 1px 0 rgba(255,255,255,.10);
     }
+    .menu-wrap { position: relative; display: inline-flex; }
+    .toolbar-menu {
+      position: absolute;
+      top: calc(100% + 9px);
+      right: 0;
+      z-index: 5200;
+      min-width: 260px;
+      max-height: min(620px, calc(100vh - 150px));
+      overflow: auto;
+      display: none;
+      padding: 9px;
+      border: 1px solid rgba(139,174,255,.18);
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+        #101725;
+      box-shadow: 0 24px 64px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.07);
+      backdrop-filter: blur(16px);
+    }
+    .toolbar-menu.open { display: grid; gap: 5px; }
+    .menu-section-title {
+      margin: 8px 7px 5px;
+      color: var(--color-text-muted);
+      font-size: 9px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+    }
+    .menu-item,
+    .menu-check {
+      width: 100%;
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 780;
+      text-align: left;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .menu-item:hover,
+    .menu-check:hover {
+      background: rgba(139,174,255,.075);
+      border-color: rgba(139,174,255,.16);
+      color: var(--color-text-primary);
+    }
+    .menu-item.active {
+      color: #EAF0FF;
+      background: linear-gradient(135deg, rgba(73,129,255,.30), rgba(112,76,255,.18));
+      border-color: rgba(139,174,255,.30);
+    }
+    .menu-check input { accent-color: #8BAEFF; }
+    .menu-divider { height: 1px; background: var(--color-border-secondary); margin: 6px 3px; }
+    .menu-actions {
+      display: flex;
+      gap: 6px;
+      padding: 6px 3px 2px;
+    }
+    .menu-mini {
+      flex: 1;
+      min-height: 30px;
+      border: 1px solid var(--color-border-secondary);
+      border-radius: 9px;
+      background: rgba(255,255,255,.035);
+      color: var(--color-text-secondary);
+      font: inherit;
+      font-size: 10px;
+      font-weight: 850;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .menu-mini:hover {
+      color: var(--color-text-primary);
+      border-color: var(--color-border-primary);
+      background: rgba(139,174,255,.08);
+    }
     .tbtn {
       display: flex; align-items: center; gap: 5px;
       min-height: 38px; padding: 9px 16px; border-radius: 12px; font-size: 12px; font-weight: 800;
@@ -743,9 +826,10 @@
         linear-gradient(90deg, rgba(139,174,255,.018), transparent 18%),
         var(--color-background-tertiary);
     }
-    .table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+    .table-wrap::-webkit-scrollbar { width: 5px; height: 10px; }
     .table-wrap::-webkit-scrollbar-track { background: var(--color-background-tertiary); }
-    .table-wrap::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 3px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: rgba(139,174,255,.34); border-radius: 999px; }
+    .table-wrap::-webkit-scrollbar-thumb:hover { background: rgba(139,174,255,.52); }
 
     table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 780px; }
     thead { position: sticky; top: 0; z-index: 10; }
@@ -753,6 +837,7 @@
     /* Header row 1 — labels */
     tr.tr-head { background: #20283A; border-bottom: 1px solid var(--color-border-primary); }
     th {
+      position: relative;
       padding: 11px 14px; text-align: center;
       font-size: 10px; font-weight: 700; color: #73869E;
       text-transform: uppercase; letter-spacing: .1em;
@@ -761,6 +846,43 @@
     th + th { border-left: 1px solid rgba(139,174,255,.05); }
     th:first-child { padding-left: 16px; }
     .th-r { text-align: right; }
+    .th-inner {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      max-width: 100%;
+      cursor: grab;
+      user-select: none;
+    }
+    th.dragging .th-inner { opacity: .48; }
+    th.drop-target { box-shadow: inset 2px 0 0 rgba(139,174,255,.70); }
+    .col-resizer {
+      position: absolute;
+      top: 0;
+      right: -3px;
+      width: 8px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 4;
+    }
+    .col-resizer::after {
+      content: "";
+      position: absolute;
+      top: 9px;
+      bottom: 9px;
+      left: 3px;
+      width: 2px;
+      border-radius: 999px;
+      background: rgba(139,174,255,.16);
+      opacity: 0;
+      transition: opacity .14s, background .14s;
+    }
+    th:hover .col-resizer::after,
+    .col-resizer:hover::after {
+      opacity: 1;
+      background: rgba(139,174,255,.48);
+    }
 
     /* Header row 2 — column filters */
     tr.tr-filters { background: #20283A; border-bottom: 1px solid var(--color-border-primary); }
@@ -855,6 +977,7 @@
       width:18px;height:18px;accent-color:#8BAEFF;cursor:pointer;
       filter: drop-shadow(0 4px 10px rgba(0,0,0,.22));
     }
+    .stock-row.selected,
     .physical-card.selected,
     .item-row.selected {
       outline: 1px solid rgba(139,174,255,.72);
@@ -964,12 +1087,24 @@
     .selection-hint { color:var(--color-text-muted);font-size:11px; }
     .selection-spacer { flex:1; }
     .qr-config-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px; }
-    .qr-fields {
-      margin-top:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
-      padding:10px;border:1px solid var(--color-border-secondary);border-radius:12px;background:rgba(255,255,255,.022);
+    .bulk-queue {
+      margin-top:12px;border:1px solid var(--color-border-secondary);border-radius:14px;
+      background:rgba(255,255,255,.022);overflow:hidden;
     }
-    .qr-field-check { display:flex;align-items:center;gap:7px;color:var(--color-text-secondary);font-size:11px;font-weight:750; }
-    .qr-field-check input { accent-color:#8BAEFF; }
+    .bulk-queue-head {
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px 12px;border-bottom:1px solid var(--color-border-tertiary);
+      color:var(--color-text-secondary);font-size:11px;font-weight:850;
+    }
+    .bulk-queue-list { max-height:145px;overflow:auto; }
+    .bulk-queue-row {
+      display:grid;grid-template-columns:minmax(0,1fr) 54px 28px;gap:8px;align-items:center;
+      padding:9px 12px;border-top:1px solid rgba(139,174,255,.055);font-size:11px;
+    }
+    .bulk-queue-row:first-child { border-top:0; }
+    .bulk-queue-title { color:var(--color-text-primary);font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .bulk-queue-sub { margin-top:3px;color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .bulk-queue-qty { color:var(--color-accent-text);font-family:'SF Mono','Menlo',monospace;font-weight:900;text-align:right; }
     .backdrop.item-backdrop { background: rgba(1,4,12,.72); backdrop-filter: blur(9px); }
     .modal.qr-preview-modal {
       width:min(1120px,94vw);max-height:92vh;overflow:hidden;padding:0;
@@ -1228,17 +1363,43 @@
           <span class="search-ico">⌕</span>
           <input id="search-inp" class="search-input" type="text" placeholder="Cerca in tutti i campi…" oninput="onSearch()"/>
         </div>
+        <div class="view-toggle status-toggle" aria-label="Filtro stato inventario">
+          <button class="view-btn" id="stock-filter-available" onclick="setStockFilter('available')">Disponibili</button>
+          <button class="view-btn" id="stock-filter-reserved" onclick="setStockFilter('reserved')">Prenotati</button>
+          <button class="view-btn" id="stock-filter-all" onclick="setStockFilter('all')">Tutti</button>
+        </div>
         <div class="tb-spacer"></div>
-        <div class="view-toggle" aria-label="Vista magazzino">
-          <button class="view-btn active" id="view-extended" onclick="setViewMode('extended')">Vista estesa</button>
-          <button class="view-btn" id="view-compact" onclick="setViewMode('compact')">Compatta</button>
+        <div class="menu-wrap">
+          <button class="tbtn tbtn-n" id="view-menu-btn" onclick="toggleToolbarMenu('view-menu',event)">☷ Vista</button>
+          <div class="toolbar-menu" id="view-menu" onclick="event.stopPropagation()">
+            <div class="menu-section-title">Modalità</div>
+            <button class="menu-item" id="view-menu-compact" onclick="setViewMode('compact');closeToolbarMenus()">Compatta</button>
+            <button class="menu-item" id="view-menu-extended" onclick="setViewMode('extended');closeToolbarMenus()">Vista estesa</button>
+            <div class="menu-divider"></div>
+            <div class="menu-section-title">Colonne visibili</div>
+            <div class="menu-actions">
+              <button class="menu-mini" onclick="setAllColumnsVisible(true)">Mostra tutte</button>
+              <button class="menu-mini" onclick="autoFitColumns(true)">Ottimizza</button>
+              <button class="menu-mini" onclick="resetColumnPrefs()">Reset</button>
+            </div>
+            <div id="column-menu-list"></div>
+          </div>
         </div>
         <button class="tbtn tbtn-ddt" onclick="openDdt()">◇ Analizza DDT</button>
-        <button class="tbtn tbtn-import" onclick="openImport()">↑ Importa inventario</button>
-        <button class="tbtn tbtn-new" onclick="openNewMat()">+ Nuovo materiale</button>
-        <div class="tb-sep"></div>
-        <button class="tbtn tbtn-out" onclick="openMov(null,'out')">↓ Uscita</button>
-        <button class="tbtn tbtn-in"  onclick="openMov(null,'in')">↑ Ingresso</button>
+        <div class="menu-wrap">
+          <button class="tbtn tbtn-new" id="material-menu-btn" onclick="toggleToolbarMenu('material-menu',event)">▦ Gestione materiale</button>
+          <div class="toolbar-menu" id="material-menu" onclick="event.stopPropagation()">
+            <div class="menu-section-title">Movimenti</div>
+            <button class="menu-item" onclick="openMov(null,'in');closeToolbarMenus()">↑ Ingresso materiale</button>
+            <button class="menu-item" onclick="openMov(null,'out');closeToolbarMenus()">↓ Uscita materiale</button>
+            <div class="menu-divider"></div>
+            <div class="menu-section-title">Inventario</div>
+            <button class="menu-item" onclick="openNewMat();closeToolbarMenus()">+ Nuovo materiale manuale</button>
+            <button class="menu-item" onclick="openImport();closeToolbarMenus()">↑ Import inventario</button>
+            <button class="menu-item" onclick="exportInventory();closeToolbarMenus()">↓ Export inventario</button>
+            <button class="menu-item" onclick="deleteInventorySelection();closeToolbarMenus()">✕ Delete inventario selezionato</button>
+          </div>
+        </div>
       </div>
 
       <!-- CHIPS (wrapper con overflow:visible per non clippiare il dropdown) -->
@@ -1261,8 +1422,8 @@
         </div>
         <div class="selection-spacer"></div>
         <button class="tbtn tbtn-ddt" onclick="openQrConfigFromSelection()">⚙ Configura QR</button>
-        <button class="tbtn tbtn-import" onclick="printSelectedLabels()">▣ Stampa selezionati</button>
-        <button class="tbtn tbtn-out" onclick="deleteSelectedItems()">Elimina selezionati</button>
+        <button class="tbtn tbtn-import" onclick="printSelectedLabels()">▣ Stampa QR selezionati</button>
+        <button class="tbtn tbtn-out" onclick="deleteSelectedRows()">Elimina selezionati</button>
         <button class="tbtn" onclick="clearItemSelection()">Annulla</button>
       </div>
 
@@ -1435,6 +1596,8 @@
                 <th>Q.tà</th>
                 <th>UM</th>
                 <th>Tipo</th>
+                <th>Uso</th>
+                <th>Posizione</th>
                 <th>Profilo</th>
                 <th>Dimensioni</th>
                 <th>Qualità</th>
@@ -1447,8 +1610,8 @@
           </table>
         </div>
         <div class="ddt-review-note">
-          Campi magazzino alimentati dal DDT: codice materiale, descrizione, quantità, unità, tipo, profilo,
-          dimensioni, qualità, colata, peso totale e peso unitario. Norma, fornitore e certificati restano da
+          Campi magazzino alimentati dal DDT: codice materiale, descrizione, quantità, unità, tipo, uso, posizione,
+          profilo, dimensioni, qualità, colata, peso totale e peso unitario. Norma, fornitore e certificati restano da
           strutturare in uno step dedicato se vogliamo salvarli come campi nativi.
         </div>
         <div class="ddt-review-error" id="ddt-review-error"></div>
@@ -1476,9 +1639,11 @@
       <div class="mf" id="mov-search-field">
         <label class="ml">Materiale</label>
         <div class="mov-search-panel">
-          <input class="mi" id="mov-mat-search" type="text" placeholder="Cerca in codice, tipo, profilo, dimensioni, qualità, colata…" oninput="searchMat()" autocomplete="off"/>
+          <input class="mi" id="mov-mat-search" type="text" placeholder="Cerca in codice, uso, posizione, tipo, profilo, dimensioni, qualità, colata…" oninput="searchMat()" autocomplete="off"/>
           <div class="mov-filter-grid">
             <input class="mi" id="mov-f-tipo" placeholder="tipo…" oninput="searchMat()"/>
+            <input class="mi" id="mov-f-uso_materiale" placeholder="uso…" oninput="searchMat()"/>
+            <input class="mi" id="mov-f-posizione" placeholder="posizione…" oninput="searchMat()"/>
             <input class="mi" id="mov-f-profilo" placeholder="profilo…" oninput="searchMat()"/>
             <input class="mi" id="mov-f-dimensioni" placeholder="dimensioni…" oninput="searchMat()"/>
             <input class="mi" id="mov-f-qualita" placeholder="qualità…" oninput="searchMat()"/>
@@ -1500,10 +1665,21 @@
         <div class="mf"><label class="ml">Norma</label><input class="mi" id="new-norma" placeholder="es. EN 10029"/></div>
         <div class="mf"><label class="ml">Qualità</label><input class="mi" id="new-qualita" placeholder="es. S355"/></div>
         <div class="mf"><label class="ml">Colata</label><input class="mi" id="new-colata" placeholder="opzionale"/></div>
+        <div class="mf"><label class="ml">Uso</label><input class="mi" id="new-uso-materiale" placeholder="Scorte / Consumo / Maintenance"/></div>
+        <div class="mf"><label class="ml">Posizione</label><input class="mi" id="new-posizione" placeholder="es. A1-03"/></div>
         <div class="mf"><label class="ml">Peso/u kg</label><input class="mi" id="new-peso-u" type="number" step="0.001" placeholder="opzionale"/></div>
         <div class="mf"><label class="ml">Peso pezzo kg</label><input class="mi" id="new-peso-pz" type="number" step="0.001" placeholder="opzionale"/></div>
         <div class="mf"><label class="ml">Codice manuale</label><input class="mi" id="new-code" placeholder="vuoto = generato"/></div>
         <div class="mf full"><label class="ml">Descrizione</label><input class="mi" id="new-description" placeholder="vuoto = generata dai campi"/></div>
+      </div>
+      <div class="bulk-queue">
+        <div class="bulk-queue-head">
+          <span id="bulk-queue-title">Ingresso multiplo: nessuna riga in coda</span>
+          <button class="ra ra-in" onclick="addCurrentNewMaterialToBulk(event)">+ Aggiungi riga</button>
+        </div>
+        <div class="bulk-queue-list" id="bulk-queue-list">
+          <div class="physical-loading">Compila i campi, quantità e causale, poi aggiungi la riga. Puoi confermare una o più tipologie insieme.</div>
+        </div>
       </div>
     </div>
 
@@ -1527,10 +1703,14 @@
 <div class="backdrop" id="imp-modal" onclick="closeImport()">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">Importa inventario</div>
-    <div class="modal-sub">File .xlsm — i materiali esistenti vengono aggiornati, non duplicati.</div>
+    <div class="modal-sub">Append al DB in uso da CSV, XLSX/XLSM o PDF tabellare. I materiali esistenti ricevono un nuovo ingresso.</div>
     <div class="mf">
-      <label class="ml">File inventario (.xlsm)</label>
-      <input class="mi" id="imp-file" type="file" accept=".xlsm,.xlsx" style="padding:5px 10px"/>
+      <label class="ml">File righe magazzino</label>
+      <input class="mi" id="imp-file" type="file" accept=".csv,.xlsm,.xlsx,.pdf" style="padding:5px 10px"/>
+    </div>
+    <div class="mf">
+      <label class="ml">Causale import</label>
+      <input class="mi" id="imp-reason" value="Import append magazzino"/>
     </div>
     <div class="merr" id="imp-err"></div>
     <div class="mactions">
@@ -1577,9 +1757,9 @@
           <div class="item-source-label">Stato attuale</div>
           <div class="item-source-value" id="item-current-status">—</div>
         </div>
-        <div class="qr-preview-help">Il QR a schermo è scannerizzabile. L'etichetta può essere stampata in formato verticale, rettangolare o compatto.</div>
+        <div class="qr-preview-help">Il QR a schermo è scannerizzabile. Il QR a schermo è scannerizzabile. La stampa produce solo il QR code con un identificativo leggibile.</div>
         <div class="mf" style="margin-top:16px">
-          <label class="ml">Formato etichetta</label>
+          <label class="ml">Formato stampa QR</label>
           <select class="mi" id="preview-label-format" onchange="saveLabelConfig(this.value,null)">
             <option value="a6">A6 verticale · 105×148 mm</option>
             <option value="rect">Rettangolare · 100×50 mm</option>
@@ -1588,8 +1768,8 @@
           </select>
         </div>
         <div class="mf">
-          <label class="ml">Scritta aggiuntiva</label>
-          <input class="mi" id="preview-label-text" maxlength="80" placeholder="es. AREA TAGLIO A" oninput="saveLabelConfig(null,this.value)"/>
+          <label class="ml">Identificativo aggiuntivo</label>
+          <input class="mi" id="preview-label-text" maxlength="80" placeholder="vuoto = codice materiale + numero progressivo" oninput="saveLabelConfig(null,this.value)"/>
         </div>
         <div class="qr-config-grid">
           <div class="mf">
@@ -1605,7 +1785,6 @@
             <input class="mi" id="preview-qr-size" type="number" min="18" max="90" step="1" oninput="saveQrConfig({size:this.value})"/>
           </div>
         </div>
-        <div class="qr-fields" id="preview-qr-fields"></div>
       </div>
       <div>
         <div class="item-fields" id="item-fields"></div>
@@ -1616,7 +1795,7 @@
       <button class="ddt-secondary" onclick="closeQrPreview()">Chiudi</button>
       <button class="ddt-secondary" onclick="toggleCurrentItemSelection()">Seleziona QR</button>
       <button class="ddt-secondary" onclick="deletePreviewItem()">Elimina record</button>
-      <button class="ddt-secondary" onclick="printPreviewItem()">Stampa etichetta</button>
+      <button class="ddt-secondary" onclick="printPreviewItem()">Stampa QR</button>
       <button class="ddt-primary" id="item-save-btn" onclick="saveItemDetail()" disabled>Salva modifiche</button>
     </div>
   </div>
@@ -1642,23 +1821,52 @@ function logout() {
 // ── State ──────────────────────────────────────────────────────────────────────
 let allRows  = [];
 let allItems = [];
+let allCustomFields = [];
 let filtered = [];
 let page     = 1;
 let rpp      = 50;
 let viewMode = localStorage.getItem('stqc_magazzino_view') || 'compact';
+let stockFilter = localStorage.getItem('stqc_magazzino_stock_filter') || 'available';
 let searchQ         = '';
 let sidebarCollapsed = localStorage.getItem('stqc_magazzino_sidebar') === 'collapsed';
 const selectedTypes = new Set();
 let selectedReservation = null;
 const selectedItems = new Set();
+const selectedMaterials = new Set();
 
 // Chip filters (exact match)
 const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
 const CHIP_MAP = { profilo:'profilo', dimensioni:'dimensioni', qualita:'qualita', norma:'norma_uni', colata:'colata' };
 
 // Column filters (startsWith)
-const CF = { tipo:'', profilo:'', dimensioni:'', norma:'', qualita:'', colata:'' };
-const CF_KEY = { tipo:'tipo', profilo:'profilo', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata' };
+const CF = { tipo:'', profilo:'', uso_materiale:'', posizione:'', dimensioni:'', norma:'', qualita:'', colata:'' };
+const CF_KEY = { tipo:'tipo', profilo:'profilo', uso_materiale:'uso_materiale', posizione:'posizione', dimensioni:'dimensioni', norma:'norma_uni', qualita:'qualita', colata:'colata' };
+const BASE_COLUMNS = [
+  { key:'select', label:'Selezione', locked:true },
+  { key:'item', label:'Elemento fisico' },
+  { key:'tipo', label:'Tipo' },
+  { key:'profilo', label:'Profilo' },
+  { key:'uso_materiale', label:'Uso' },
+  { key:'posizione', label:'Posizione' },
+  { key:'n_pezzi', label:'N° pezzi' },
+  { key:'dimensioni', label:'Dimensioni' },
+  { key:'norma_uni', label:'Norma' },
+  { key:'qualita', label:'Qualità' },
+  { key:'colata', label:'Colata' },
+  { key:'commessa', label:'Commessa' },
+  { key:'peso_kg', label:'Peso kg' },
+  { key:'peso_u_kg', label:'Peso/u' },
+  { key:'peso_1_pz', label:'Peso 1 pz' },
+  { key:'qr', label:'QR' },
+  { key:'status', label:'Stato' },
+];
+const COLUMN_PREF_VERSION = 'warehouse-columns-v3';
+let visibleColumns = new Set();
+let columnOrder = [];
+let columnWidths = {};
+let columnAutoFit = localStorage.getItem('stqc_magazzino_column_autofit') !== 'manual';
+let resizeState = null;
+let draggedColumn = null;
 
 // Dropdown state
 let openChip = null;
@@ -1673,18 +1881,25 @@ let labelFormat = localStorage.getItem('stqc_label_format') || 'rect';
 let labelText = localStorage.getItem('stqc_label_text') || '';
 let qrEncoding = localStorage.getItem('stqc_qr_encoding') || 'link';
 let qrSize = localStorage.getItem('stqc_qr_size') || '';
-let labelFields = new Set((localStorage.getItem('stqc_label_fields') || 'tipo,profilo,dimensioni,qualita').split(',').filter(Boolean));
 let ddtAnalysis = null;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
   applySidebarState();
+  loadColumnPrefs();
   renderSkeleton(12);
   await loadStock();
   calcRpp();
-  window.addEventListener('resize', () => { calcRpp(); renderTable(); });
+  window.addEventListener('resize', () => {
+    calcRpp();
+    if (columnAutoFit) autoFitColumns(false);
+    else renderTable();
+  });
+  document.addEventListener('mousemove', onColumnResizeMove);
+  document.addEventListener('mouseup', onColumnResizeEnd);
   document.addEventListener('click', e => {
     closeGdd(e);
+    closeToolbarMenus(e);
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); closeDdtReview(); closeDdt(); }
@@ -1698,16 +1913,22 @@ async function loadStock() {
     expandedMaterial = null;
     Object.keys(physicalCache).forEach(key => delete physicalCache[key]);
     Object.keys(physicalPages).forEach(key => delete physicalPages[key]);
-    const [r, i] = await Promise.all([
+    const [r, i, c] = await Promise.all([
       fetch('/api/v1/warehouse/magazzino?limit=5000', { headers: hdr() }),
       fetch('/api/v1/warehouse/items?limit=20000', { headers: hdr() }),
+      fetch('/api/v1/warehouse/custom-fields', { headers: hdr() }),
     ]);
     if (!r.ok) throw new Error(r.status);
     if (!i.ok) throw new Error(i.status);
+    if (!c.ok) throw new Error(c.status);
     allRows = await r.json();
     allItems = await i.json();
+    allCustomFields = await c.json();
+    syncNewColumnsVisible();
     const validUuids = new Set(allItems.map(item => item.uuid));
+    const validMaterials = new Set(allRows.map(row => Number(row.material_id)));
     [...selectedItems].forEach(uuid => { if (!validUuids.has(uuid)) selectedItems.delete(uuid); });
+    [...selectedMaterials].forEach(id => { if (!validMaterials.has(id)) selectedMaterials.delete(id); });
     updateViewButtons();
     renderSidebar();
     applyFilters();
@@ -1723,9 +1944,438 @@ function setViewMode(mode) {
   applyFilters();
 }
 
+function setStockFilter(mode) {
+  stockFilter = ['available','reserved','all'].includes(mode) ? mode : 'available';
+  localStorage.setItem('stqc_magazzino_stock_filter', stockFilter);
+  page = 1;
+  updateStockFilterButtons();
+  applyFilters();
+}
+
+function updateStockFilterButtons() {
+  ['available','reserved','all'].forEach(mode => {
+    const btn = document.getElementById('stock-filter-' + mode);
+    if (btn) btn.classList.toggle('active', stockFilter === mode);
+  });
+}
+
 function updateViewButtons() {
-  document.getElementById('view-extended').classList.toggle('active', viewMode === 'extended');
-  document.getElementById('view-compact').classList.toggle('active', viewMode === 'compact');
+  const ext = document.getElementById('view-menu-extended');
+  const cmp = document.getElementById('view-menu-compact');
+  if (ext) ext.classList.toggle('active', viewMode === 'extended');
+  if (cmp) cmp.classList.toggle('active', viewMode === 'compact');
+  renderViewMenu();
+  updateStockFilterButtons();
+}
+
+function toggleToolbarMenu(id, e) {
+  if (e) e.stopPropagation();
+  const target = document.getElementById(id);
+  const willOpen = target && !target.classList.contains('open');
+  document.querySelectorAll('.toolbar-menu.open').forEach(menu => menu.classList.remove('open'));
+  if (target && willOpen) {
+    renderViewMenu();
+    target.classList.add('open');
+  }
+}
+
+function closeToolbarMenus(e) {
+  if (e && e.target && e.target.closest('.menu-wrap')) return;
+  document.querySelectorAll('.toolbar-menu.open').forEach(menu => menu.classList.remove('open'));
+}
+
+function defaultColumnKeys() {
+  return BASE_COLUMNS.map(col => col.key);
+}
+
+function loadColumnPrefs() {
+  const savedVersion = localStorage.getItem('stqc_magazzino_columns_version');
+  if (savedVersion !== COLUMN_PREF_VERSION) {
+    visibleColumns = new Set(defaultColumnKeys());
+    columnOrder = defaultColumnKeys();
+    columnWidths = {};
+    columnAutoFit = true;
+    localStorage.setItem('stqc_magazzino_columns_version', COLUMN_PREF_VERSION);
+    saveColumnPrefs();
+    return;
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem('stqc_magazzino_columns') || '[]');
+    visibleColumns = new Set(Array.isArray(saved) && saved.length ? saved : defaultColumnKeys());
+  } catch {
+    visibleColumns = new Set(defaultColumnKeys());
+  }
+  try {
+    const savedOrder = JSON.parse(localStorage.getItem('stqc_magazzino_column_order') || '[]');
+    columnOrder = Array.isArray(savedOrder) && savedOrder.length ? savedOrder : defaultColumnKeys();
+  } catch {
+    columnOrder = defaultColumnKeys();
+  }
+  try {
+    const savedWidths = JSON.parse(localStorage.getItem('stqc_magazzino_column_widths') || '{}');
+    columnWidths = savedWidths && typeof savedWidths === 'object' ? savedWidths : {};
+  } catch {
+    columnWidths = {};
+  }
+  BASE_COLUMNS.filter(col => col.locked).forEach(col => visibleColumns.add(col.key));
+}
+
+function saveColumnPrefs() {
+  BASE_COLUMNS.filter(col => col.locked).forEach(col => visibleColumns.add(col.key));
+  localStorage.setItem('stqc_magazzino_columns', JSON.stringify([...visibleColumns]));
+  localStorage.setItem('stqc_magazzino_column_order', JSON.stringify(columnOrder));
+  localStorage.setItem('stqc_magazzino_column_widths', JSON.stringify(columnWidths));
+  localStorage.setItem('stqc_magazzino_column_autofit', columnAutoFit ? 'auto' : 'manual');
+  localStorage.setItem('stqc_magazzino_columns_version', COLUMN_PREF_VERSION);
+}
+
+function resetColumnPrefs() {
+  visibleColumns = new Set(defaultColumnKeys());
+  columnOrder = defaultColumnKeys();
+  columnWidths = {};
+  columnAutoFit = true;
+  saveColumnPrefs();
+  renderViewMenu();
+  renderTable();
+}
+
+function setAllColumnsVisible(visible) {
+  if (visible) {
+    allColumnDefs().forEach(col => visibleColumns.add(col.key));
+  } else {
+    BASE_COLUMNS.filter(col => col.locked).forEach(col => visibleColumns.add(col.key));
+  }
+  columnOrder = mergeColumnOrder();
+  saveColumnPrefs();
+  renderViewMenu();
+  renderTable();
+}
+
+function syncNewColumnsVisible() {
+  let known = [];
+  try {
+    known = JSON.parse(localStorage.getItem('stqc_magazzino_known_columns') || '[]');
+  } catch {
+    known = [];
+  }
+  const knownSet = new Set(Array.isArray(known) ? known : []);
+  let changed = false;
+  for (const col of allColumnDefs()) {
+    if (!knownSet.has(col.key)) {
+      visibleColumns.add(col.key);
+      if (!columnOrder.includes(col.key)) columnOrder.push(col.key);
+      knownSet.add(col.key);
+      changed = true;
+    }
+  }
+  if (changed) {
+    localStorage.setItem('stqc_magazzino_known_columns', JSON.stringify([...knownSet]));
+    saveColumnPrefs();
+  }
+}
+
+function customColumnKeys() {
+  const keys = new Set();
+  [...allRows, ...allItems].forEach(row => {
+    Object.keys(row.custom_fields || {}).forEach(key => keys.add(key));
+  });
+  return [...keys].sort((a,b) => customColumnLabel(a).localeCompare(customColumnLabel(b), 'it', {numeric:true}));
+}
+
+function customColumnLabel(key) {
+  const field = allCustomFields.find(field => field.key === key);
+  if (field?.label) return field.label;
+  return String(key || '').split('_').filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || key;
+}
+
+function allColumnDefs() {
+  return [
+    ...BASE_COLUMNS,
+    ...customColumnKeys().map(key => ({ key:'custom:' + key, label: customColumnLabel(key) })),
+  ];
+}
+
+function mergeColumnOrder() {
+  const keys = allColumnDefs().map(col => col.key);
+  const seen = new Set();
+  const ordered = [];
+  for (const key of columnOrder) {
+    if (keys.includes(key) && !seen.has(key)) {
+      ordered.push(key);
+      seen.add(key);
+    }
+  }
+  for (const key of keys) {
+    if (!seen.has(key)) ordered.push(key);
+  }
+  return ordered;
+}
+
+function isColumnVisible(key) {
+  const def = BASE_COLUMNS.find(col => col.key === key);
+  if (def?.locked) return true;
+  return visibleColumns.has(key);
+}
+
+function colStyle(key) {
+  return isColumnVisible(key) ? '' : 'display:none';
+}
+
+function columnWidth(key) {
+  if (columnWidths[key]) return Number(columnWidths[key]);
+  const widths = {
+    select: 42,
+    item: viewMode === 'extended' ? 250 : 155,
+    tipo: 110,
+    profilo: 170,
+    uso_materiale: 130,
+    posizione: 135,
+    n_pezzi: 95,
+    dimensioni: 130,
+    norma_uni: 115,
+    qualita: 115,
+    colata: 120,
+    commessa: 145,
+    peso_kg: 115,
+    peso_u_kg: 115,
+    peso_1_pz: 120,
+    qr: viewMode === 'extended' ? 72 : 92,
+    status: 115,
+  };
+  if (key.startsWith('custom:')) return 140;
+  return widths[key] || 120;
+}
+
+function minColumnWidth(key) {
+  if (key === 'select') return 42;
+  if (key === 'qr') return 64;
+  if (['n_pezzi','peso_kg','peso_u_kg','peso_1_pz'].includes(key)) return 78;
+  if (key === 'item') return viewMode === 'extended' ? 180 : 120;
+  return key.startsWith('custom:') ? 95 : 88;
+}
+
+function visibleColumnDefs() {
+  const order = mergeColumnOrder();
+  return allColumnDefs()
+    .filter(col => columnAppliesToCurrentView(col.key))
+    .filter(col => isColumnVisible(col.key))
+    .sort((a,b) => order.indexOf(a.key) - order.indexOf(b.key));
+}
+
+function renderColGroup() {
+  return `<colgroup>${visibleColumnDefs()
+    .map(col => `<col style="width:${columnWidth(col.key)}px;min-width:${columnWidth(col.key)}px"/>`)
+    .join('')}</colgroup>`;
+}
+
+function tableMinWidth() {
+  return Math.max(920, visibleColumnDefs().reduce((sum, col) => sum + columnWidth(col.key), 0));
+}
+
+function autoFitColumns(userTriggered=false) {
+  const wrap = document.getElementById('table-wrap');
+  const defs = visibleColumnDefs();
+  if (!wrap || !defs.length) return;
+  const available = Math.max(920, wrap.clientWidth - 16);
+  const natural = defs.reduce((sum, col) => sum + defaultColumnWidth(col.key), 0);
+  const minTotal = defs.reduce((sum, col) => sum + minColumnWidth(col.key), 0);
+  const next = {};
+  for (const col of defs) {
+    const naturalWidth = defaultColumnWidth(col.key);
+    const minWidth = minColumnWidth(col.key);
+    if (natural <= available) {
+      next[col.key] = naturalWidth;
+    } else {
+      const ratio = Math.max(0, (available - minTotal) / Math.max(1, natural - minTotal));
+      next[col.key] = Math.round(minWidth + (naturalWidth - minWidth) * Math.min(1, ratio));
+    }
+  }
+  columnWidths = {...columnWidths, ...next};
+  columnAutoFit = true;
+  saveColumnPrefs();
+  renderViewMenu();
+  renderTable();
+  if (userTriggered) showToast('Larghezze colonne ottimizzate per lo schermo', 'ok');
+}
+
+function defaultColumnWidth(key) {
+  const saved = columnWidths[key];
+  delete columnWidths[key];
+  const width = columnWidth(key);
+  if (saved) columnWidths[key] = saved;
+  return width;
+}
+
+function toggleColumnVisibility(key, checked) {
+  if (checked) visibleColumns.add(key);
+  else visibleColumns.delete(key);
+  saveColumnPrefs();
+  page = 1;
+  renderViewMenu();
+  renderTable();
+}
+
+function columnAppliesToCurrentView(key) {
+  if (key.startsWith('custom:')) return true;
+  const compactKeys = new Set(['select','item','tipo','profilo','uso_materiale','posizione','n_pezzi','dimensioni','norma_uni','qualita','colata','commessa','peso_kg','peso_u_kg','peso_1_pz','qr','status']);
+  const extendedKeys = new Set(['select','item','tipo','profilo','uso_materiale','posizione','n_pezzi','dimensioni','norma_uni','qualita','colata','commessa','peso_kg','peso_u_kg','peso_1_pz','qr','status']);
+  return (viewMode === 'compact' ? compactKeys : extendedKeys).has(key);
+}
+
+function renderViewMenu() {
+  const list = document.getElementById('column-menu-list');
+  if (!list) return;
+  list.innerHTML = allColumnDefs()
+    .filter(col => !col.locked && columnAppliesToCurrentView(col.key))
+    .map(col => `
+      <label class="menu-check">
+        <input type="checkbox" ${isColumnVisible(col.key) ? 'checked' : ''}
+          onchange="toggleColumnVisibility('${esc(col.key)}',this.checked)"/>
+        <span>${esc(col.label)}</span>
+      </label>`).join('');
+}
+
+function headerLabel(col) {
+  if (col.key === 'item') return viewMode === 'extended' ? 'Codice / UUID' : 'Codice';
+  return col.label;
+}
+
+function headerClass(key) {
+  return ['n_pezzi','peso_kg','peso_u_kg','peso_1_pz'].includes(key) ? ' class="th-r"' : '';
+}
+
+function renderHeaderCell(col) {
+  return `<th${headerClass(col.key)} data-col="${esc(col.key)}" draggable="${col.locked ? 'false' : 'true'}"
+    ondragstart="startColumnDrag(event,'${esc(col.key)}')"
+    ondragover="overColumnDrag(event,'${esc(col.key)}')"
+    ondragleave="leaveColumnDrag(event)"
+    ondrop="dropColumnDrag(event,'${esc(col.key)}')"
+    ondragend="endColumnDrag(event)">
+      <span class="th-inner" title="Trascina per riordinare">${esc(headerLabel(col))}</span>
+      <span class="col-resizer" title="Ridimensiona colonna" onmousedown="startColumnResize(event,'${esc(col.key)}')"></span>
+    </th>`;
+}
+
+function filterCell(col) {
+  const filterMap = {
+    tipo: ['tipo','tipo…'],
+    profilo: ['profilo','profilo…'],
+    uso_materiale: ['uso_materiale','uso…'],
+    posizione: ['posizione','posizione…'],
+    dimensioni: ['dimensioni','dimensioni…'],
+    norma_uni: ['norma','norma…'],
+    qualita: ['qualita','qualità…'],
+    colata: ['colata','colata…'],
+  };
+  const data = filterMap[col.key];
+  if (!data) return '<th></th>';
+  const [name, placeholder] = data;
+  return `<th><input class="cf" id="cf-${name}" placeholder="${placeholder}" value="${esc(CF[name])}" onclick="openCfDropdown(event,'${name}')" oninput="onCf('${name}',this)"/></th>`;
+}
+
+function renderHeaderRows() {
+  const defs = visibleColumnDefs();
+  return `<thead>
+    <tr class="tr-head">${defs.map(renderHeaderCell).join('')}</tr>
+    <tr class="tr-filters" id="col-filter-row">${defs.map(filterCell).join('')}</tr>
+  </thead>`;
+}
+
+function startColumnDrag(e, key) {
+  if (key === 'select') return e.preventDefault();
+  draggedColumn = key;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', key);
+}
+
+function overColumnDrag(e, key) {
+  if (!draggedColumn || draggedColumn === key || key === 'select') return;
+  e.preventDefault();
+  e.currentTarget.classList.add('drop-target');
+}
+
+function leaveColumnDrag(e) {
+  e.currentTarget.classList.remove('drop-target');
+}
+
+function dropColumnDrag(e, key) {
+  e.preventDefault();
+  document.querySelectorAll('th.drop-target').forEach(th => th.classList.remove('drop-target'));
+  if (!draggedColumn || draggedColumn === key || key === 'select') return;
+  const order = mergeColumnOrder().filter(col => col !== draggedColumn);
+  const idx = order.indexOf(key);
+  order.splice(idx < 0 ? order.length : idx, 0, draggedColumn);
+  columnOrder = order;
+  saveColumnPrefs();
+  renderViewMenu();
+  renderTable();
+}
+
+function endColumnDrag(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('th.drop-target').forEach(th => th.classList.remove('drop-target'));
+  draggedColumn = null;
+}
+
+function startColumnResize(e, key) {
+  e.preventDefault();
+  e.stopPropagation();
+  resizeState = {
+    key,
+    startX: e.clientX,
+    startWidth: columnWidth(key),
+  };
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
+
+function onColumnResizeMove(e) {
+  if (!resizeState) return;
+  const nextWidth = Math.max(minColumnWidth(resizeState.key), resizeState.startWidth + e.clientX - resizeState.startX);
+  columnWidths[resizeState.key] = Math.round(nextWidth);
+  columnAutoFit = false;
+  saveColumnPrefs();
+  renderTable();
+}
+
+function onColumnResizeEnd() {
+  if (!resizeState) return;
+  resizeState = null;
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+}
+
+function renderCustomHeaders() {
+  return customColumnKeys()
+    .filter(key => isColumnVisible('custom:' + key))
+    .map(key => `<th>${esc(customColumnLabel(key))}</th>`)
+    .join('');
+}
+
+function renderCustomFilterCells() {
+  return customColumnKeys()
+    .filter(key => isColumnVisible('custom:' + key))
+    .map(() => '<th></th>')
+    .join('');
+}
+
+function renderCustomCells(row) {
+  return customColumnKeys()
+    .filter(key => isColumnVisible('custom:' + key))
+    .map(key => `<td class="td-muted" title="${esc((row.custom_fields || {})[key])}">${esc((row.custom_fields || {})[key]) || '—'}</td>`)
+    .join('');
+}
+
+function customSearchText(row) {
+  return Object.values(row.custom_fields || {}).join(' ');
+}
+
+function visibleColumnCount(includeCustom=false) {
+  const keys = ['select','item','tipo','profilo','uso_materiale','posizione','n_pezzi','dimensioni','norma_uni','qualita','colata','commessa','peso_kg','peso_u_kg','peso_1_pz','qr','status'];
+  let count = keys.filter(isColumnVisible).length;
+  if (includeCustom) count += customColumnKeys().filter(key => isColumnVisible('custom:' + key)).length;
+  return Math.max(count, 1);
 }
 
 function typeLabel(value) {
@@ -1894,6 +2544,25 @@ function onCf(col, inp) {
 function applyFilters() {
   const source = viewMode === 'extended' ? allItems : allRows;
   filtered = source.filter(r => {
+    if (stockFilter === 'available') {
+      if (viewMode === 'extended') {
+        if (r.reserved_for_commessa || String(r.status || '').toUpperCase() !== 'AVAILABLE') return false;
+      } else if (Number(r.n_pezzi || 0) <= 0) {
+        return false;
+      }
+    } else if (stockFilter === 'reserved') {
+      if (viewMode === 'extended') {
+        if (!r.reserved_for_commessa) return false;
+      } else if (Number(r.reserved_items_count || 0) <= 0) {
+        return false;
+      }
+    } else if (stockFilter === 'all') {
+      if (viewMode === 'extended') {
+        if (!['AVAILABLE','RESERVED'].includes(String(r.status || '').toUpperCase())) return false;
+      } else if (Number(r.physical_items_count || 0) <= 0) {
+        return false;
+      }
+    }
     if (selectedTypes.size && !selectedTypes.has(typeLabel(r.tipo))) return false;
     if (selectedReservation) {
       if (viewMode === 'extended') {
@@ -1905,8 +2574,8 @@ function applyFilters() {
     // global search
     if (searchQ) {
       const hay = [
-        r.tipo,r.profilo,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code,r.uuid,r.label,
-        r.reserved_for_commessa,(r.reserved_commesse||[]).join(' ')
+        r.tipo,r.profilo,r.uso_materiale,r.posizione,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code,r.uuid,r.label,
+        r.commessa_ref,r.reserved_for_commessa,(r.reserved_commesse||[]).join(' '),customSearchText(r)
       ]
         .map(v=>(v||'').toLowerCase()).join(' ');
       if (!hay.includes(searchQ)) return false;
@@ -1923,6 +2592,7 @@ function applyFilters() {
     return true;
   });
   refreshChipLabels();
+  updateStockFilterButtons();
   renderSidebar();
   renderTable();
   updateResetBtn();
@@ -2082,13 +2752,17 @@ function badgeCls(n) { return n<=0 ? 'b-r' : n<=5 ? 'b-o' : 'b-g'; }
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function urlToken(s) { return encodeURIComponent(String(s)).replace(/'/g,'%27'); }
 function qrImageUrl(uuid) {
-  const params = new URLSearchParams({ encoding: qrEncoding });
-  return `/api/v1/warehouse/items/${encodeURIComponent(uuid)}/qr.png?${params}`;
+  return `/qr-image/${encodeURIComponent(uuid)}.png`;
 }
 function isItemSelected(uuid) { return selectedItems.has(uuid); }
+function isMaterialSelected(materialId) { return selectedMaterials.has(Number(materialId)); }
 function itemCheckbox(uuid) {
   return `<input class="item-select" type="checkbox" ${isItemSelected(uuid) ? 'checked' : ''}
     onclick="toggleItemSelection('${uuid}',event)" title="Seleziona record QR"/>`;
+}
+function materialCheckbox(materialId) {
+  return `<input class="item-select" type="checkbox" ${isMaterialSelected(materialId) ? 'checked' : ''}
+    onclick="toggleMaterialSelection(${Number(materialId)},event)" title="Seleziona riga materiale"/>`;
 }
 function statusBadge(status) {
   const raw = String(status || '').toUpperCase();
@@ -2104,6 +2778,34 @@ function statusBadge(status) {
   return `<span class="status-badge ${cls}">${esc(label)}</span>`;
 }
 
+function compactDisplayQty(row) {
+  if (stockFilter === 'reserved') return Number(row.reserved_items_count || 0);
+  if (stockFilter === 'all') return Number(row.physical_items_count || 0);
+  return Number(row.n_pezzi || 0);
+}
+
+function compactDisplayStatus(row) {
+  if (stockFilter === 'reserved') return 'Prenotato';
+  if (stockFilter === 'all' && Number(row.reserved_items_count || 0) > 0) {
+    return Number(row.n_pezzi || 0) > 0 ? 'Misto' : 'Prenotato';
+  }
+  return 'Disponibile';
+}
+
+function compactDisplayCommessa(row) {
+  return (row.reserved_commesse || []).join(', ');
+}
+
+function compactDisplayPeso(row) {
+  const qty = compactDisplayQty(row);
+  const peso1 = Number(row.peso_1_pz || 0);
+  return row.peso_1_pz == null ? null : Math.round(qty * peso1 * 1000) / 1000;
+}
+
+function itemCommessa(item) {
+  return item.reserved_for_commessa || item.commessa_ref || '';
+}
+
 function renderSkeleton(n) {
   document.getElementById('tbody').innerHTML = Array.from({length:n},()=>
     `<tr class="sk"><td></td><td><div class="skb" style="width:65%"></div></td>
@@ -2112,6 +2814,76 @@ function renderSkeleton(n) {
     <td><div class="skb" style="width:45%"></div></td>
     <td class="col-colata"><div class="skb" style="width:40%"></div></td>
     <td></td><td></td><td></td></tr>`).join('');
+}
+
+function renderCompactCell(r, col) {
+  const n = compactDisplayQty(r);
+  const mid = r.material_id;
+  const reservedCount = r.reserved_items_count || 0;
+  const reservedList = (r.reserved_commesse || []).join(', ');
+  const reservedNote = reservedCount
+    ? `<div class="reserved-note" title="${esc(reservedList)}">${reservedCount} prenotati${reservedList ? ' · ' + esc(reservedList) : ''}</div>`
+    : '';
+  if (col.key.startsWith('custom:')) {
+    const key = col.key.slice(7);
+    return `<td class="td-muted" title="${esc((r.custom_fields || {})[key])}">${esc((r.custom_fields || {})[key]) || '—'}</td>`;
+  }
+  const cells = {
+    select: `<td onclick="event.stopPropagation()">${materialCheckbox(mid)}</td>`,
+    item: `<td><span class="td-mono td-muted">${esc(r.material_code)}</span></td>`,
+    tipo: `<td class="td-tipo">${esc(r.tipo)||'—'}</td>`,
+    profilo: `<td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>`,
+    uso_materiale: `<td class="td-muted" style="font-size:11px" title="${esc(r.uso_materiale)}">${esc(r.uso_materiale)||'—'}</td>`,
+    posizione: `<td class="td-muted" style="font-size:11px" title="${esc(r.posizione)}">${esc(r.posizione)||'—'}</td>`,
+    n_pezzi: `<td class="td-r">
+      <span class="badge ${badgeCls(n)} row-badge">${Math.round(n)}</span>
+      ${reservedNote}
+      <div class="row-act">
+        <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
+        <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
+      </div>
+    </td>`,
+    dimensioni: `<td class="td-mono td-muted" title="${esc(r.dimensioni)}">${esc(r.dimensioni)||'—'}</td>`,
+    norma_uni: `<td class="col-norma td-muted" style="font-size:11px" title="${esc(r.norma_uni)}">${esc(r.norma_uni)||'—'}</td>`,
+    qualita: `<td class="td-muted" style="font-size:11px" title="${esc(r.qualita)}">${esc(r.qualita)||'<span class="td-null">—</span>'}</td>`,
+    colata: `<td class="col-colata td-muted" style="font-size:11px" title="${esc(r.colata)}">${esc(r.colata)||'—'}</td>`,
+    commessa: `<td class="td-muted" style="font-size:11px" title="${esc(compactDisplayCommessa(r))}">${esc(compactDisplayCommessa(r))||'—'}</td>`,
+    peso_kg: `<td class="td-r td-mono td-muted">${fmt(compactDisplayPeso(r),1)}</td>`,
+    peso_u_kg: `<td class="td-r td-mono td-muted">${fmt(r.peso_u_kg,3)}</td>`,
+    peso_1_pz: `<td class="td-r td-mono td-muted">${fmt(r.peso_1_pz,3)}</td>`,
+    qr: `<td><span style="color:var(--color-accent-text);font-size:10px">${r.physical_items_count||0} QR ${expandedMaterial === mid?'▴':'▾'}</span></td>`,
+    status: `<td>${statusBadge(compactDisplayStatus(r))}</td>`,
+  };
+  return cells[col.key] || '<td></td>';
+}
+
+function renderExtendedCell(item, col) {
+  const commessa = itemCommessa(item);
+  const reservedLine = item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : '';
+  if (col.key.startsWith('custom:')) {
+    const key = col.key.slice(7);
+    return `<td class="td-muted" title="${esc((item.custom_fields || {})[key])}">${esc((item.custom_fields || {})[key]) || '—'}</td>`;
+  }
+  const cells = {
+    select: `<td onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</td>`,
+    item: `<td><div class="item-main-text"><div class="item-code">${esc(item.label || item.material_code)}</div><div class="item-sub">${esc(item.uuid)}</div></div></td>`,
+    tipo: `<td><span class="item-pill">${esc(item.tipo)||'—'}</span></td>`,
+    profilo: `<td title="${esc(item.profilo)}">${esc(item.profilo)||'—'}</td>`,
+    uso_materiale: `<td><span class="item-pill">${esc(item.uso_materiale)||'—'}</span></td>`,
+    posizione: `<td class="td-muted" title="${esc(item.posizione)}">${esc(item.posizione)||'—'}</td>`,
+    n_pezzi: `<td class="td-r"><span class="badge ${badgeCls(1)}">1</span></td>`,
+    dimensioni: `<td class="td-muted" title="${esc(item.dimensioni)}">${esc(item.dimensioni)||'—'}</td>`,
+    norma_uni: `<td class="td-muted" title="${esc(item.norma_uni)}">${esc(item.norma_uni)||'—'}</td>`,
+    qualita: `<td class="td-muted" title="${esc(item.qualita)}">${esc(item.qualita)||'—'}</td>`,
+    colata: `<td class="td-muted" title="${esc(item.colata)}">${esc(item.colata)||'—'}</td>`,
+    commessa: `<td class="td-muted" title="${esc(commessa)}">${esc(commessa)||'—'}</td>`,
+    peso_kg: `<td class="td-r td-mono td-muted">${fmt(item.peso_kg,3)}</td>`,
+    peso_u_kg: `<td class="td-r td-mono td-muted">${fmt(item.peso_u_kg,3)}</td>`,
+    peso_1_pz: `<td class="td-r td-mono td-muted">${fmt(item.peso_1_pz,3)}</td>`,
+    qr: `<td><button class="item-qr-btn" onclick="openQrPreview('${item.uuid}',event)" title="Apri scheda QR"><img src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/></button></td>`,
+    status: `<td>${statusBadge(item.status)}${reservedLine}</td>`,
+  };
+  return cells[col.key] || '<td></td>';
 }
 
 function renderTable() {
@@ -2124,37 +2896,15 @@ function renderTable() {
   empty.style.display = 'none';
 
   const s = (page-1)*rpp, e = Math.min(s+rpp, total);
+  const cols = visibleColumnDefs();
   tbody.innerHTML = filtered.slice(s,e).map(r => {
-    const n   = r.n_pezzi ?? 0;
     const mid = r.material_id;
     const expanded = expandedMaterial === mid;
-    const reservedCount = r.reserved_items_count || 0;
-    const reservedList = (r.reserved_commesse || []).join(', ');
-    const reservedNote = reservedCount
-      ? `<div class="reserved-note" title="${esc(reservedList)}">${reservedCount} prenotati${reservedList ? ' · ' + esc(reservedList) : ''}</div>`
-      : '';
-    const mainRow = `<tr class="stock-row${expanded?' expanded':''}" onclick="togglePhysicalItems(${mid},event)">
-      <td class="td-tipo">${esc(r.tipo)||'—'}</td>
-      <td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>
-      <td class="td-r">
-        <span class="badge ${badgeCls(n)} row-badge">${Math.round(n)}</span>
-        ${reservedNote}
-        <div class="row-act">
-          <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
-          <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
-          <button class="ra ra-qr" onclick="togglePhysicalItems(${mid},event)">▣ QR</button>
-        </div>
-      </td>
-      <td class="td-mono td-muted" title="${esc(r.dimensioni)}">${esc(r.dimensioni)||'—'}</td>
-      <td class="col-norma td-muted" style="font-size:11px" title="${esc(r.norma_uni)}">${esc(r.norma_uni)||'—'}</td>
-      <td class="td-muted" style="font-size:11px" title="${esc(r.qualita)}">${esc(r.qualita)||'<span class="td-null">—</span>'}</td>
-      <td class="col-colata td-muted" style="font-size:11px" title="${esc(r.colata)}">${esc(r.colata)||'—'}</td>
-      <td class="td-r td-mono td-muted">${fmt(r.peso_kg,1)}</td>
-      <td class="td-r td-mono td-muted">${fmt(r.peso_u_kg,3)}</td>
-      <td><span style="color:var(--color-accent-text);font-size:10px">${r.physical_items_count||0} QR ${expanded?'▴':'▾'}</span></td>
+    const mainRow = `<tr class="stock-row${expanded?' expanded':''}${isMaterialSelected(mid)?' selected':''}" onclick="togglePhysicalItems(${mid},event)">
+      ${cols.map(col => renderCompactCell(r, col)).join('')}
     </tr>`;
     const detailRow = expanded
-      ? `<tr class="physical-detail"><td colspan="10">${renderPhysicalPanel(r)}</td></tr>`
+      ? `<tr class="physical-detail"><td colspan="${visibleColumnCount(true)}">${renderPhysicalPanel(r)}</td></tr>`
       : '';
     return mainRow + detailRow;
   }).join('');
@@ -2163,29 +2913,11 @@ function renderTable() {
 }
 
 function renderCompactHead() {
-  document.getElementById('tbl').innerHTML = `
-    <colgroup>
-      <col style="width:8%"/><col style="width:15%"/><col style="width:8%"/><col style="width:12%"/>
-      <col class="col-norma" style="width:8%"/><col style="width:8%"/><col class="col-colata" style="width:8%"/>
-      <col style="width:7%"/><col style="width:7%"/><col style="width:19%"/>
-    </colgroup>
-    <thead>
-      <tr class="tr-head">
-        <th>Tipo</th><th>Profilo</th><th class="th-r">N° pezzi</th><th>Dimensioni</th>
-        <th class="th-norma col-norma">Norma</th><th>Qualità</th><th class="th-colata col-colata">Colata</th>
-        <th class="th-r">Peso kg</th><th class="th-r">Peso/u</th><th></th>
-      </tr>
-      <tr class="tr-filters" id="col-filter-row">
-        <th><input class="cf" id="cf-tipo" placeholder="tipo…" value="${esc(CF.tipo)}" onclick="openCfDropdown(event,'tipo')" oninput="onCf('tipo',this)"/></th>
-        <th><input class="cf" id="cf-profilo" placeholder="profilo…" value="${esc(CF.profilo)}" onclick="openCfDropdown(event,'profilo')" oninput="onCf('profilo',this)"/></th>
-        <th></th>
-        <th><input class="cf" id="cf-dimensioni" placeholder="dimensioni…" value="${esc(CF.dimensioni)}" onclick="openCfDropdown(event,'dimensioni')" oninput="onCf('dimensioni',this)"/></th>
-        <th class="col-norma"><input class="cf" id="cf-norma" placeholder="norma…" value="${esc(CF.norma)}" onclick="openCfDropdown(event,'norma')" oninput="onCf('norma',this)"/></th>
-        <th><input class="cf" id="cf-qualita" placeholder="qualità…" value="${esc(CF.qualita)}" onclick="openCfDropdown(event,'qualita')" oninput="onCf('qualita',this)"/></th>
-        <th class="col-colata"><input class="cf" id="cf-colata" placeholder="colata…" value="${esc(CF.colata)}" onclick="openCfDropdown(event,'colata')" oninput="onCf('colata',this)"/></th>
-        <th></th><th></th><th></th>
-      </tr>
-    </thead>
+  const tbl = document.getElementById('tbl');
+  tbl.style.minWidth = tableMinWidth() + 'px';
+  tbl.innerHTML = `
+    ${renderColGroup()}
+    ${renderHeaderRows()}
     <tbody id="tbody"></tbody>`;
   Object.keys(CF).forEach(k => {
     const el = document.getElementById('cf-' + k);
@@ -2194,36 +2926,11 @@ function renderCompactHead() {
 }
 
 function renderExtendedHead() {
-  document.getElementById('tbl').innerHTML = `
-    <colgroup>
-      <col style="width:4%"/>
-      <col style="width:26%"/>
-      <col style="width:14%"/>
-      <col style="width:20%"/>
-      <col style="width:16%"/>
-      <col style="width:10%"/>
-      <col style="width:10%"/>
-    </colgroup>
-    <thead>
-      <tr class="tr-head">
-        <th></th>
-        <th>Elemento fisico</th>
-        <th>Tipo</th>
-        <th>Profilo / dimensioni</th>
-        <th>Norma / qualità</th>
-        <th>Colata</th>
-        <th>Stato</th>
-      </tr>
-      <tr class="tr-filters" id="col-filter-row">
-        <th></th>
-        <th></th>
-        <th><input class="cf" id="cf-tipo" placeholder="tipo…" value="${esc(CF.tipo)}" onclick="openCfDropdown(event,'tipo')" oninput="onCf('tipo',this)"/></th>
-        <th><input class="cf" id="cf-profilo" placeholder="profilo…" value="${esc(CF.profilo)}" onclick="openCfDropdown(event,'profilo')" oninput="onCf('profilo',this)"/></th>
-        <th><input class="cf" id="cf-qualita" placeholder="qualità…" value="${esc(CF.qualita)}" onclick="openCfDropdown(event,'qualita')" oninput="onCf('qualita',this)"/></th>
-        <th><input class="cf" id="cf-colata" placeholder="colata…" value="${esc(CF.colata)}" onclick="openCfDropdown(event,'colata')" oninput="onCf('colata',this)"/></th>
-        <th></th>
-      </tr>
-    </thead>
+  const tbl = document.getElementById('tbl');
+  tbl.style.minWidth = tableMinWidth() + 'px';
+  tbl.innerHTML = `
+    ${renderColGroup()}
+    ${renderHeaderRows()}
     <tbody id="tbody"></tbody>`;
   Object.keys(CF).forEach(k => {
     const el = document.getElementById('cf-' + k);
@@ -2240,35 +2947,10 @@ function renderExtendedTable() {
   empty.style.display = 'none';
 
   const s = (page-1)*rpp, e = Math.min(s+rpp, total);
+  const cols = visibleColumnDefs();
   tbody.innerHTML = filtered.slice(s,e).map(item => {
-    const profileLine = [item.profilo, item.dimensioni].filter(Boolean).join(' · ');
-    const normLine = [item.norma_uni, item.qualita].filter(Boolean).join(' · ');
-    const weightLine = item.peso_1_pz || item.peso_u_kg ? `${fmt(item.peso_1_pz ?? item.peso_u_kg,3)} kg/u` : 'Peso non indicato';
-    const reservedLine = item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : '';
     return `<tr class="item-row${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openQrPreview('${item.uuid}',event)">
-      <td onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</td>
-      <td>
-        <div class="item-main">
-          <button class="item-qr-btn" onclick="openQrPreview('${item.uuid}',event)" title="Apri scheda QR">
-            <img src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/>
-          </button>
-          <div class="item-main-text">
-            <div class="item-code">${esc(item.label || item.material_code)}</div>
-            <div class="item-sub">${esc(item.uuid)}</div>
-          </div>
-        </div>
-      </td>
-      <td><span class="item-pill">${esc(item.tipo)||'—'}</span></td>
-      <td>
-        <div class="item-stack-main">${esc(profileLine)||'—'}</div>
-        <div class="item-stack-sub">${esc(weightLine)}</div>
-      </td>
-      <td>
-        <div class="item-stack-main">${esc(normLine)||'—'}</div>
-        <div class="item-stack-sub">${esc(item.material_code || '')}</div>
-      </td>
-      <td class="td-muted" title="${esc(item.colata)}">${esc(item.colata)||'—'}</td>
-      <td>${statusBadge(item.status)}${reservedLine}</td>
+      ${cols.map(col => renderExtendedCell(item, col)).join('')}
     </tr>`;
   }).join('');
   renderPag(total);
@@ -2304,10 +2986,10 @@ function renderPhysicalPanel(row) {
           <option value="uuid" ${qrEncoding==='uuid'?'selected':''}>UUID</option>
           <option value="json" ${qrEncoding==='json'?'selected':''}>JSON</option>
         </select>
-        <input class="label-text" value="${esc(labelText)}" maxlength="80" placeholder="Scritta etichetta"
+        <input class="label-text" value="${esc(labelText)}" maxlength="80" placeholder="Identificativo QR"
           oninput="saveLabelConfig(null,this.value)" onclick="event.stopPropagation()"/>
       </div>
-      <button class="ra ra-qr" onclick="printAllLabels(${row.material_id},event)">▣ Stampa tutte</button>
+      <button class="ra ra-qr" onclick="printAllLabels(${row.material_id},event)">▣ Stampa QR tutti</button>
       <button class="ra ra-del" onclick="deleteMaterialVisibleSelection(${row.material_id},event)">Elimina selezionati</button>
     </div>
     <div class="physical-grid">
@@ -2316,8 +2998,9 @@ function renderPhysicalPanel(row) {
         <img class="physical-qr" src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/>
         <div><div class="physical-code">${esc(item.label)}</div>
         <div class="physical-uuid">${esc(item.uuid)}</div>
+        ${(item.uso_materiale || item.posizione) ? `<div class="item-stack-sub">${esc([item.uso_materiale,item.posizione].filter(Boolean).join(' · '))}</div>` : ''}
         ${item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : ''}
-        <button class="physical-print" onclick="printItemLabel('${item.uuid}',event)">Stampa etichetta</button></div>
+        <button class="physical-print" onclick="printItemLabel('${item.uuid}',event)">Stampa QR</button></div>
       </div>`).join('')}
     </div>
   </div>`;
@@ -2328,17 +3011,6 @@ function saveLabelConfig(format,text) {
   if(text!==null){labelText=text;localStorage.setItem('stqc_label_text',text);}
 }
 
-const QR_FIELD_OPTIONS = [
-  ['tipo','Tipo'],
-  ['profilo','Profilo'],
-  ['dimensioni','Dimensioni'],
-  ['norma_uni','Norma'],
-  ['qualita','Qualità'],
-  ['colata','Colata'],
-  ['reserved_for_commessa','Prenotazione'],
-  ['uuid','UUID'],
-];
-
 function saveQrConfig(next={}) {
   if (next.encoding !== undefined) {
     qrEncoding = ['link','uuid','json'].includes(next.encoding) ? next.encoding : 'link';
@@ -2348,28 +3020,6 @@ function saveQrConfig(next={}) {
     qrSize = String(next.size || '').trim();
     localStorage.setItem('stqc_qr_size', qrSize);
   }
-  if (next.fields) {
-    labelFields = new Set(next.fields);
-    localStorage.setItem('stqc_label_fields', [...labelFields].join(','));
-  }
-}
-
-function renderQrFieldConfig() {
-  const root = document.getElementById('preview-qr-fields');
-  if (!root) return;
-  root.innerHTML = QR_FIELD_OPTIONS.map(([field,label]) => `
-    <label class="qr-field-check">
-      <input type="checkbox" ${labelFields.has(field) ? 'checked' : ''}
-        onchange="toggleLabelField('${field}',this.checked)"/>
-      <span>${esc(label)}</span>
-    </label>`).join('');
-}
-
-function toggleLabelField(field, checked) {
-  if (checked) labelFields.add(field);
-  else labelFields.delete(field);
-  if (!labelFields.size) labelFields.add('tipo');
-  saveQrConfig({ fields:[...labelFields] });
 }
 
 function refreshQrPreviewImage() {
@@ -2382,15 +3032,26 @@ function updateSelectionBar() {
   const bar = document.getElementById('selection-bar');
   const count = document.getElementById('selection-count');
   if (!bar || !count) return;
-  const n = selectedItems.size;
+  const n = selectedItems.size + selectedMaterials.size;
   bar.classList.toggle('show', n > 0);
-  count.textContent = n === 1 ? '1 elemento selezionato' : `${n} elementi selezionati`;
+  const parts = [];
+  if (selectedMaterials.size) parts.push(`${selectedMaterials.size} righe materiale`);
+  if (selectedItems.size) parts.push(`${selectedItems.size} QR fisici`);
+  count.textContent = parts.length ? parts.join(' · ') : '0 elementi selezionati';
 }
 
 function toggleItemSelection(uuid,e) {
   if(e)e.stopPropagation();
   if (selectedItems.has(uuid)) selectedItems.delete(uuid);
   else selectedItems.add(uuid);
+  renderTable();
+}
+
+function toggleMaterialSelection(materialId,e) {
+  if(e)e.stopPropagation();
+  materialId = Number(materialId);
+  if (selectedMaterials.has(materialId)) selectedMaterials.delete(materialId);
+  else selectedMaterials.add(materialId);
   renderTable();
 }
 
@@ -2401,6 +3062,7 @@ function toggleCurrentItemSelection() {
 
 function clearItemSelection() {
   selectedItems.clear();
+  selectedMaterials.clear();
   renderTable();
 }
 
@@ -2420,6 +3082,8 @@ const ITEM_EDIT_FIELDS = [
   ['norma_uni','Norma'],
   ['qualita','Qualità'],
   ['colata','Colata'],
+  ['uso_materiale','Uso'],
+  ['posizione','Posizione'],
   ['reserved_for_commessa','Prenotato per commessa'],
   ['commessa_ref','Riferimento libero'],
   ['peso_u_kg','Peso/u kg','number'],
@@ -2453,6 +3117,8 @@ function renderItemSources() {
   const values = [
     ['Materiale madre', d.material_code],
     ['Descrizione', d.description],
+    ['Uso', d.uso_materiale],
+    ['Posizione', d.posizione],
     ['Prenotato per commessa', d.reserved_for_commessa],
     ['Creato il', d.created_at ? new Date(d.created_at).toLocaleString('it-IT') : null],
     ['Campi manuali', (d.manual_overrides || []).length ? d.manual_overrides.join(', ') : 'Nessuno'],
@@ -2485,7 +3151,6 @@ function renderItemDetail(detail) {
   document.getElementById('preview-label-text').value=labelText;
   document.getElementById('preview-qr-encoding').value=qrEncoding;
   document.getElementById('preview-qr-size').value=qrSize;
-  renderQrFieldConfig();
   renderItemFields();
   renderItemSources();
   setItemEdit(false);
@@ -2597,7 +3262,6 @@ function labelQuery() {
   if(labelText.trim())params.set('text',labelText.trim());
   params.set('encoding', qrEncoding);
   if(qrSize)params.set('qr_size', qrSize);
-  params.set('fields', [...labelFields].join(','));
   return params.toString();
 }
 async function printAllLabels(materialId,e) {
@@ -2623,7 +3287,6 @@ async function printSelectedLabels(e) {
         text: labelText.trim() || null,
         qr_encoding: qrEncoding,
         qr_size_mm: qrSize ? Number(qrSize) : null,
-        content_fields: [...labelFields],
       }),
     });
     if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.detail||`Errore ${res.status}`);}
@@ -2659,6 +3322,39 @@ async function deleteItemsByUuid(uuids) {
 function deleteSelectedItems(e) {
   if(e)e.stopPropagation();
   deleteItemsByUuid([...selectedItems]);
+}
+
+async function deleteMaterialsById(materialIds) {
+  const ids = [...new Set(materialIds.map(Number).filter(Boolean))];
+  if(!ids.length) return;
+  const ok = confirm(`Eliminare definitivamente ${ids.length} righe materiale selezionate?\\n\\nVerranno rimossi anche movimenti, lotti, ricevute e QR fisici collegati.`);
+  if(!ok) return;
+  let deleted = 0;
+  try {
+    for (const id of ids) {
+      const res = await fetch(`/api/v1/warehouse/materials/${id}`, { method:'DELETE', headers:hdr() });
+      if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.detail||`Errore ${res.status}`);}
+      deleted += 1;
+      selectedMaterials.delete(id);
+    }
+    showToast(`${deleted} righe materiale eliminate`, 'ok');
+    await loadStock();
+  } catch(err) {
+    showToast(err.message,'err');
+  }
+}
+
+function deleteSelectedRows(e) {
+  if(e)e.stopPropagation();
+  if (selectedMaterials.size) return deleteMaterialsById([...selectedMaterials]);
+  if (selectedItems.size) return deleteItemsByUuid([...selectedItems]);
+  showToast('Seleziona almeno una riga da eliminare', 'err');
+}
+
+function deleteInventorySelection() {
+  if (selectedMaterials.size) return deleteMaterialsById([...selectedMaterials]);
+  if (selectedItems.size) return deleteItemsByUuid([...selectedItems]);
+  showToast('Seleziona una o più righe inventario prima di eliminare', 'err');
 }
 
 function deletePreviewItem() {
@@ -2697,6 +3393,7 @@ function goPage(n) {
 // ── Movement modal ─────────────────────────────────────────────────────────────
 let movCtx = null;
 let movMode = 'existing';
+let bulkIncomingRows = [];
 
 function openMov(matId, tipo, e) {
   if (e) e.stopPropagation();
@@ -2713,7 +3410,7 @@ function openMov(matId, tipo, e) {
   document.getElementById('mov-mat-selected').classList.remove('show');
   document.getElementById('mov-mat-search').value = '';
   document.getElementById('mov-mat-results').classList.remove('show');
-  ['tipo','profilo','dimensioni','qualita'].forEach(k => { const el=document.getElementById('mov-f-'+k); if(el) el.value=''; });
+  ['tipo','uso_materiale','posizione','profilo','dimensioni','qualita'].forEach(k => { const el=document.getElementById('mov-f-'+k); if(el) el.value=''; });
   clearNewMaterialFields();
   const ok = document.getElementById('mov-ok');
   ok.className = 'mbt ' + (isIn ? 'mbt-in' : 'mbt-out');
@@ -2721,6 +3418,8 @@ function openMov(matId, tipo, e) {
   document.getElementById('mov-qty').value = '1';
   document.getElementById('mov-reason').value = '';
   document.getElementById('mov-err').classList.remove('show');
+  bulkIncomingRows = [];
+  renderBulkIncomingRows();
   document.getElementById('mov-modal').classList.add('open');
   setTimeout(()=>document.getElementById('mov-qty').focus(),50);
 }
@@ -2737,7 +3436,7 @@ function setMovMode(mode) {
 }
 
 function clearNewMaterialFields() {
-  ['new-tipo','new-profilo','new-dimensioni','new-norma','new-qualita','new-colata','new-peso-u','new-peso-pz','new-code','new-description']
+  ['new-tipo','new-profilo','new-dimensioni','new-norma','new-qualita','new-colata','new-uso-materiale','new-posizione','new-peso-u','new-peso-pz','new-code','new-description']
     .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
 }
 
@@ -2746,13 +3445,15 @@ function searchMat() {
   const res = document.getElementById('mov-mat-results');
   const filters = {
     tipo: document.getElementById('mov-f-tipo').value.trim().toLowerCase(),
+    uso_materiale: document.getElementById('mov-f-uso_materiale').value.trim().toLowerCase(),
+    posizione: document.getElementById('mov-f-posizione').value.trim().toLowerCase(),
     profilo: document.getElementById('mov-f-profilo').value.trim().toLowerCase(),
     dimensioni: document.getElementById('mov-f-dimensioni').value.trim().toLowerCase(),
     qualita: document.getElementById('mov-f-qualita').value.trim().toLowerCase(),
   };
   if (!q && !Object.values(filters).some(Boolean)) { res.classList.remove('show'); return; }
   const hits = allRows.filter(r=>{
-    const hay = [r.material_code,r.tipo,r.profilo,r.dimensioni,r.norma_uni,r.qualita,r.colata]
+    const hay = [r.material_code,r.tipo,r.uso_materiale,r.posizione,r.profilo,r.dimensioni,r.norma_uni,r.qualita,r.colata]
       .map(v=>(v||'').toLowerCase()).join(' ');
     if (q && !hay.includes(q)) return false;
     for (const [key,val] of Object.entries(filters)) {
@@ -2763,7 +3464,7 @@ function searchMat() {
   res.innerHTML = hits.length
     ? hits.map(r=>`<div class="mi-result" onclick="selectMat(${r.material_id})">
         <div class="mi-result-name">${esc(r.profilo||r.material_code)}</div>
-        <div class="mi-result-sub">${[r.tipo,r.dimensioni,r.norma_uni,r.qualita,r.colata].filter(Boolean).join(' · ')}</div>
+        <div class="mi-result-sub">${[r.uso_materiale,r.posizione,r.tipo,r.dimensioni,r.norma_uni,r.qualita,r.colata].filter(Boolean).join(' · ')}</div>
       </div>`).join('')
     : '<div class="mi-result" style="opacity:.35;cursor:default">Nessun risultato</div>';
   res.classList.add('show');
@@ -2793,10 +3494,10 @@ async function confirmMov() {
     let res;
     if (opMode === 'new') {
       if (!isIn) throw new Error('Nuovo materiale disponibile solo in ingresso.');
-      const payload = collectNewMaterialPayload(qty, reason);
-      res = await fetch('/api/v1/warehouse/materials/with-incoming',{
+      const items = bulkIncomingRows.length ? bulkIncomingRows : [collectNewMaterialPayload(qty, reason)];
+      res = await fetch('/api/v1/warehouse/materials/bulk-incoming',{
         method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
-        body:JSON.stringify(payload),
+        body:JSON.stringify({items}),
       });
     } else {
       if (!movCtx?.material_id) throw new Error('Seleziona un materiale.');
@@ -2808,7 +3509,9 @@ async function confirmMov() {
     }
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
     closeMov();
-    showToast(opMode==='new'?'Nuovo materiale creato':(isIn?'Ingresso registrato':'Uscita registrata'),'ok');
+    bulkIncomingRows = [];
+    renderBulkIncomingRows();
+    showToast(opMode==='new'?'Ingresso multiplo registrato':(isIn?'Ingresso registrato':'Uscita registrata'),'ok');
     await loadStock();
   } catch(e) {
     err.textContent=e.message; err.classList.add('show');
@@ -2827,6 +3530,8 @@ function collectNewMaterialPayload(quantity, reason) {
     norma_uni: document.getElementById('new-norma').value.trim() || null,
     qualita: document.getElementById('new-qualita').value.trim() || null,
     colata: document.getElementById('new-colata').value.trim() || null,
+    uso_materiale: document.getElementById('new-uso-materiale').value.trim() || null,
+    posizione: document.getElementById('new-posizione').value.trim() || null,
     peso_u_kg: numOrNull(document.getElementById('new-peso-u').value),
     peso_1_pz: numOrNull(document.getElementById('new-peso-pz').value),
     quantity,
@@ -2836,22 +3541,100 @@ function collectNewMaterialPayload(quantity, reason) {
   return payload;
 }
 
+function addCurrentNewMaterialToBulk(e) {
+  if(e)e.stopPropagation();
+  const err = document.getElementById('mov-err'); err.classList.remove('show');
+  try {
+    const qty = parseFloat(document.getElementById('mov-qty').value);
+    const reason = document.getElementById('mov-reason').value.trim() || 'Ingresso manuale multiplo';
+    if (!qty||qty<=0) throw new Error('Quantità non valida.');
+    const payload = collectNewMaterialPayload(qty, reason);
+    bulkIncomingRows.push(payload);
+    clearNewMaterialFields();
+    document.getElementById('mov-qty').value = 1;
+    renderBulkIncomingRows();
+    showToast('Riga aggiunta alla coda ingresso', 'ok');
+  } catch(ex) {
+    err.textContent = ex.message;
+    err.classList.add('show');
+  }
+}
+
+function removeBulkIncomingRow(index) {
+  bulkIncomingRows.splice(index,1);
+  renderBulkIncomingRows();
+}
+
+function clearNewMaterialFields() {
+  ['new-tipo','new-profilo','new-dimensioni','new-norma','new-qualita','new-colata','new-uso-materiale','new-posizione','new-peso-u','new-peso-pz','new-code','new-description']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+}
+
+function renderBulkIncomingRows() {
+  const title = document.getElementById('bulk-queue-title');
+  const list = document.getElementById('bulk-queue-list');
+  if (!title || !list) return;
+  title.textContent = bulkIncomingRows.length
+    ? `Ingresso multiplo: ${bulkIncomingRows.length} righe in coda`
+    : 'Ingresso multiplo: nessuna riga in coda';
+  list.innerHTML = bulkIncomingRows.length
+    ? bulkIncomingRows.map((r,idx) => `
+      <div class="bulk-queue-row">
+        <div>
+          <div class="bulk-queue-title">${esc(r.code || [r.uso_materiale,r.tipo,r.profilo,r.dimensioni].filter(Boolean).join(' · ') || 'Materiale')}</div>
+          <div class="bulk-queue-sub">${esc([r.posizione,r.qualita,r.colata,r.norma_uni].filter(Boolean).join(' · ') || r.description || '—')}</div>
+        </div>
+        <div class="bulk-queue-qty">${esc(r.quantity)} pz</div>
+        <button class="pb" onclick="removeBulkIncomingRow(${idx})">×</button>
+      </div>`).join('')
+    : '<div class="physical-loading">Compila i campi, quantità e causale, poi aggiungi la riga. Puoi confermare una o più tipologie insieme.</div>';
+}
+
 // ── Import modal ───────────────────────────────────────────────────────────────
-function openImport() { document.getElementById('imp-file').value=''; document.getElementById('imp-err').classList.remove('show'); document.getElementById('imp-modal').classList.add('open'); }
+function openImport() {
+  document.getElementById('imp-file').value='';
+  document.getElementById('imp-reason').value='Import append magazzino';
+  document.getElementById('imp-err').classList.remove('show');
+  document.getElementById('imp-modal').classList.add('open');
+}
 function closeImport() { document.getElementById('imp-modal').classList.remove('open'); }
 async function confirmImport() {
   const fi=document.getElementById('imp-file'); const err=document.getElementById('imp-err'); err.classList.remove('show');
   if(!fi.files.length){err.textContent='Seleziona un file.'; err.classList.add('show'); return;}
   const btn=document.getElementById('imp-ok'); btn.disabled=true; btn.textContent='Importazione…';
   const fd=new FormData(); fd.append('file',fi.files[0]);
+  const reason = encodeURIComponent(document.getElementById('imp-reason').value.trim() || 'Import append magazzino');
   try {
-    const res=await fetch('/api/v1/inventario/import',{method:'POST',headers:hdr(),body:fd});
+    const res=await fetch(`/api/v1/warehouse/materials/import-append?reason=${reason}`,{method:'POST',headers:hdr(),body:fd});
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
     const data=await res.json(); closeImport();
-    showToast(`Importazione completata — ${data.created_materials??''} nuovi materiali`,'ok');
+    showToast(`Import append completato — ${data.materials_created||0} nuovi, ${data.materials_existing||0} aggiornati`,'ok');
     await loadStock();
   } catch(e){err.textContent=e.message; err.classList.add('show');}
   finally{btn.disabled=false; btn.textContent='↑ Importa';}
+}
+
+async function exportInventory() {
+  try {
+    const res = await fetch('/api/v1/warehouse/export.csv', { headers: hdr() });
+    if (!res.ok) {
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data?.detail || `Errore export ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `inventario_magazzino_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Export inventario pronto', 'ok');
+  } catch (e) {
+    showToast(e.message || 'Export inventario non riuscito', 'err');
+  }
 }
 
 function openNewMat() {
@@ -2962,6 +3745,8 @@ function openDdtReview(){
       <td class="small">${ddtCellInput(idx, 'quantity', item.quantity, 'number', '1')}</td>
       <td class="small">${ddtCellInput(idx, 'unit', item.unit || 'PZ')}</td>
       <td class="medium">${ddtCellInput(idx, 'tipo', item.tipo)}</td>
+      <td class="medium">${ddtCellInput(idx, 'uso_materiale', item.uso_materiale)}</td>
+      <td class="medium">${ddtCellInput(idx, 'posizione', item.posizione)}</td>
       <td class="medium">${ddtCellInput(idx, 'profilo', item.profilo)}</td>
       <td class="medium">${ddtCellInput(idx, 'dimensioni', item.dimensioni)}</td>
       <td class="medium">${ddtCellInput(idx, 'qualita', item.qualita)}</td>

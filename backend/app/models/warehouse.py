@@ -83,6 +83,8 @@ class Material(Base):
     qualita = Column(String(100), nullable=True)
     colata = Column(String(100), nullable=True)
     commessa_ref = Column(String(200), nullable=True)
+    uso_materiale = Column(String(100), nullable=True, index=True)
+    posizione = Column(String(200), nullable=True, index=True)
     peso_u_kg = Column(Numeric(12, 4), nullable=True)
     peso_1_pz = Column(Numeric(12, 4), nullable=True)
 
@@ -106,6 +108,12 @@ class Material(Base):
     movements = relationship("StockMovement", back_populates="material")
     cutting_plans = relationship("CuttingPlan", back_populates="material")
     stock_reservations = relationship("StockReservation", back_populates="material")
+    custom_values = relationship(
+        "WarehouseCustomValue",
+        back_populates="material",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     physical_items = relationship(
         "WarehouseItem",
         back_populates="material",
@@ -156,6 +164,8 @@ class WarehouseItem(Base):
     qualita = Column(String(100), nullable=True)
     colata = Column(String(100), nullable=True)
     commessa_ref = Column(String(200), nullable=True)
+    uso_materiale = Column(String(100), nullable=True, index=True)
+    posizione = Column(String(200), nullable=True, index=True)
     reserved_for_commessa = Column(String(200), nullable=True, index=True)
     peso_u_kg = Column(Numeric(12, 4), nullable=True)
     peso_1_pz = Column(Numeric(12, 4), nullable=True)
@@ -163,6 +173,49 @@ class WarehouseItem(Base):
     updated_at = Column(DateTime, nullable=True)
 
     material = relationship("Material", back_populates="physical_items")
+
+
+class WarehouseCustomField(Base):
+    """Colonna custom creata da import inventario e visibile nelle viste magazzino."""
+    __tablename__ = "warehouse_custom_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), nullable=False, unique=True, index=True)
+    label = Column(String(200), nullable=False)
+    value_type = Column(String(30), nullable=False, default="text")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    values = relationship(
+        "WarehouseCustomValue",
+        back_populates="field",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class WarehouseCustomValue(Base):
+    __tablename__ = "warehouse_custom_values"
+    __table_args__ = (
+        UniqueConstraint("material_id", "field_id", name="uq_warehouse_custom_value"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    material_id = Column(
+        Integer,
+        ForeignKey("materials.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    field_id = Column(
+        Integer,
+        ForeignKey("warehouse_custom_fields.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    value = Column(Text, nullable=True)
+
+    material = relationship("Material", back_populates="custom_values")
+    field = relationship("WarehouseCustomField", back_populates="values")
 
 
 class Batch(Base):

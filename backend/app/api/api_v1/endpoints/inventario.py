@@ -24,6 +24,8 @@ class DdtConfirmItem(BaseModel):
     quantity: int = Field(..., gt=0)
     unit: str = "PZ"
     tipo: Optional[str] = None
+    uso_materiale: Optional[str] = None
+    posizione: Optional[str] = None
     profilo: Optional[str] = None
     dimensioni: Optional[str] = None
     qualita: Optional[str] = None
@@ -52,6 +54,8 @@ def _upsert_material_from_ddt(db: Session, item: DdtConfirmItem) -> Material:
             unit=item.unit or "PZ",
             specification=item.qualita,
             tipo=item.tipo,
+            uso_materiale=item.uso_materiale,
+            posizione=item.posizione,
             profilo=item.profilo,
             dimensioni=item.dimensioni,
             qualita=item.qualita,
@@ -68,6 +72,8 @@ def _upsert_material_from_ddt(db: Session, item: DdtConfirmItem) -> Material:
     material.unit = item.unit or material.unit
     material.specification = item.qualita or material.specification
     material.tipo = item.tipo or material.tipo
+    material.uso_materiale = item.uso_materiale or material.uso_materiale
+    material.posizione = item.posizione or material.posizione
     material.profilo = item.profilo or material.profilo
     material.dimensioni = item.dimensioni or material.dimensioni
     material.qualita = item.qualita or material.qualita
