@@ -277,7 +277,7 @@ class PezzoStato(str, Enum):
 class PezzoPercorso(Base):
     """Tracking per-item × per-fase: uno row per ogni (pezzo, fase) della commessa."""
     __tablename__ = "pezzo_percorso"
-    __table_args__ = (UniqueConstraint("commessa_id", "marca_pos", "fase_id", name="uq_pezzo_percorso"),)
+    __table_args__ = (UniqueConstraint("commessa_id", "marca_pos", "instance_number", "fase_id", name="uq_pezzo_percorso"),)
 
     id              = Column(Integer, primary_key=True, index=True)
     commessa_id     = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)

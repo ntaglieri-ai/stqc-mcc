@@ -951,6 +951,11 @@ def avvia_produzione(commessa_id: int, db: Session = Depends(get_db)):
     # Il vecchio sblocco automatico per utenti di postazione è stato disattivato:
     # l'avanzamento produzione sarà guidato dagli eventi QR reali di postazione.
     unlocked_count = 0
+    first_postazioni = {
+        row.postazione
+        for row in percorso_rows
+        if row.stato == PezzoStato.SBLOCCATA and row.postazione
+    }
 
     # ── 7. Porta commessa in produzione ───────────────────────────────────────
     commessa.status = CommessaStatus.IN_PRODUZIONE
