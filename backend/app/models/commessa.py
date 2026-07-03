@@ -112,7 +112,19 @@ class Piece(Base):
     colata = Column(String(100), nullable=True)
     lotto = Column(String(100), nullable=True)
     certificato_31 = Column(String(255), nullable=True)
-    materiale_origine_id = Column(Integer, nullable=True)
+    materiale_origine_id = Column(
+        Integer,
+        ForeignKey("warehouse_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    materiale_origine_assigned_at = Column(DateTime, nullable=True, index=True)
+    materiale_origine_scanner_id = Column(
+        Integer,
+        ForeignKey("scanner_devices.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     fornitore = Column(String(200), nullable=True)
     note_materiale = Column(Text, nullable=True)
 
@@ -161,6 +173,13 @@ class ScannerDevice(Base):
     device_token = Column(String(160), nullable=True, unique=True, index=True)
     active = Column(Boolean, nullable=False, default=True, index=True)
     last_seen_at = Column(DateTime, nullable=True, index=True)
+    current_warehouse_item_id = Column(
+        Integer,
+        ForeignKey("warehouse_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    current_warehouse_item_set_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 

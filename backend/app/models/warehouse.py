@@ -167,6 +167,13 @@ class WarehouseItem(Base):
     uso_materiale = Column(String(100), nullable=True, index=True)
     posizione = Column(String(200), nullable=True, index=True)
     reserved_for_commessa = Column(String(200), nullable=True, index=True)
+    reserved_at = Column(DateTime, nullable=True, index=True)
+    reserved_by_scanner_id = Column(
+        Integer,
+        ForeignKey("scanner_devices.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     peso_u_kg = Column(Numeric(12, 4), nullable=True)
     peso_1_pz = Column(Numeric(12, 4), nullable=True)
     notes = Column(Text, nullable=True)
