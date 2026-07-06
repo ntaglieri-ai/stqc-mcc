@@ -218,6 +218,8 @@ class PieceScanEvent(Base):
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     operatore_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     session_id = Column(Integer, ForeignKey("piece_work_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    scan_block_id = Column(Integer, ForeignKey("workshop_scan_blocks.id", ondelete="SET NULL"), nullable=True, index=True)
     metadata_json = Column(JSON, nullable=True)
     note = Column(Text, nullable=True)
 
@@ -248,11 +250,64 @@ class PieceWorkSession(Base):
     closed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     open_event_id = Column(Integer, nullable=True, index=True)
     close_event_id = Column(Integer, nullable=True, index=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    scan_block_id = Column(Integer, ForeignKey("workshop_scan_blocks.id", ondelete="SET NULL"), nullable=True, index=True)
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
     piece = relationship("Piece", back_populates="work_sessions")
+
+
+class WorkshopScanBlock(Base):
+    """Blocco aperto dal QR postazione INIZIO e chiuso dal relativo FINE."""
+    __tablename__ = "workshop_scan_blocks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    workstation_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    workstation_code = Column(String(80), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="OPEN", index=True)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    closed_at = Column(DateTime, nullable=True, index=True)
+    start_payload = Column(String(220), nullable=False)
+    end_payload = Column(String(220), nullable=True)
+    piece_count = Column(Integer, nullable=False, default=0)
+
+
+class WorkshopScanAttempt(Base):
+    """Registro append-only di tutte le letture, incluse quelle rifiutate."""
+    __tablename__ = "workshop_scan_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    scanner_external_id = Column(String(120), nullable=True, index=True)
+    workstation_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    scan_block_id = Column(Integer, ForeignKey("workshop_scan_blocks.id", ondelete="SET NULL"), nullable=True, index=True)
+    piece_id = Column(Integer, ForeignKey("pieces.id", ondelete="SET NULL"), nullable=True, index=True)
+    raw_payload = Column(Text, nullable=False)
+    scan_kind = Column(String(30), nullable=False, index=True)
+    outcome = Column(String(20), nullable=False, index=True)
+    error_code = Column(String(60), nullable=True, index=True)
+    message = Column(String(500), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class ScannerReadState(Base):
+    """Ultimo QR richiesto in sola lettura da una pistola."""
+    __tablename__ = "scanner_read_states"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scanner_device_id = Column(
+        Integer,
+        ForeignKey("scanner_devices.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    qr_value = Column(String(220), nullable=False)
+    entity_type = Column(String(30), nullable=False, index=True)
+    read_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
 class FaseStatus(str, Enum):

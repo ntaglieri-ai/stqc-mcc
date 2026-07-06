@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import platform
+import secrets
 import shutil
 import subprocess
 import sys
@@ -427,7 +428,7 @@ def create_scanner_device(body: ScannerDeviceCreate, db: Session = Depends(get_d
         postazione_id=body.postazione_id,
         ip_address=body.ip_address,
         serial_number=body.serial_number,
-        device_token=body.device_token,
+        device_token=body.device_token or secrets.token_urlsafe(24),
         active=body.active,
     )
     db.add(scanner)

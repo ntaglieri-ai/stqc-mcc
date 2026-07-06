@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <link rel="stylesheet" href="/static/qr-drawer.css">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Magazzino · MCC</title>
@@ -1421,6 +1422,7 @@
           <div class="selection-hint">Azioni sui singoli record fisici/QR di magazzino.</div>
         </div>
         <div class="selection-spacer"></div>
+        <button class="tbtn" onclick="openSelectedQrDetails()">◎ Dettagli QR</button>
         <button class="tbtn tbtn-ddt" onclick="openQrConfigFromSelection()">⚙ Configura QR</button>
         <button class="tbtn tbtn-import" onclick="printSelectedLabels()">▣ Stampa QR selezionati</button>
         <button class="tbtn tbtn-out" onclick="deleteSelectedRows()">Elimina selezionati</button>
@@ -1803,6 +1805,7 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<script src="/static/qr-drawer.js"></script>
 <script>
 // ── Auth ───────────────────────────────────────────────────────────────────────
 const TOKEN   = sessionStorage.getItem('stqc_token') || '';
@@ -2949,7 +2952,7 @@ function renderExtendedTable() {
   const s = (page-1)*rpp, e = Math.min(s+rpp, total);
   const cols = visibleColumnDefs();
   tbody.innerHTML = filtered.slice(s,e).map(item => {
-    return `<tr class="item-row${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openQrPreview('${item.uuid}',event)">
+    return `<tr class="item-row${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="QrDrawer.open('${item.uuid}')">
       ${cols.map(col => renderExtendedCell(item, col)).join('')}
     </tr>`;
   }).join('');
@@ -2993,7 +2996,7 @@ function renderPhysicalPanel(row) {
       <button class="ra ra-del" onclick="deleteMaterialVisibleSelection(${row.material_id},event)">Elimina selezionati</button>
     </div>
     <div class="physical-grid">
-      ${visibleItems.map(item=>`<div class="physical-card${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openQrPreview('${item.uuid}',event)">
+      ${visibleItems.map(item=>`<div class="physical-card${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="QrDrawer.open('${item.uuid}')">
         <div onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</div>
         <img class="physical-qr" src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/>
         <div><div class="physical-code">${esc(item.label)}</div>
@@ -3064,6 +3067,13 @@ function clearItemSelection() {
   selectedItems.clear();
   selectedMaterials.clear();
   renderTable();
+}
+
+function openSelectedQrDetails() {
+  const values = [...selectedItems];
+  if (!values.length) return showToast('Seleziona almeno un QR fisico.', 'err');
+  if (values.length === 1) QrDrawer.open(values[0]);
+  else QrDrawer.openMany(values);
 }
 
 function openQrConfigFromSelection() {

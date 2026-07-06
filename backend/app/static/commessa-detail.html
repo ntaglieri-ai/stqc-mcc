@@ -502,7 +502,7 @@
   const t = sessionStorage.getItem('stqc_token');
   const p = sessionStorage.getItem('stqc_profilo');
   if (!t) { window.location.replace('/login'); return; }
-  if (!['Direttore','Progettazione','Admin'].includes(p)) { window.location.replace('/'); }
+  if (!['Direttore','Capo Officina','Progettazione','Admin'].includes(p)) { window.location.replace('/'); }
 })();
 </script>
 

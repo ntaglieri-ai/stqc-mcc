@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends
 
-from backend.app.api.api_v1.endpoints import admin, auth, certificates, commessa, distinta, inventario, officina, qr, stock, warehouse
+from backend.app.api.api_v1.endpoints import admin, auth, certificates, commessa, distinta, inventario, officina, qr, scanner, stock, warehouse
 from backend.app.core.auth import require_auth
 
 # Public routes — no auth required
 public_router = APIRouter()
 public_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+public_router.include_router(scanner.router, prefix="/scanner", tags=["scanner"])
 
 # Protected routes — JWT required
 api_router = APIRouter(dependencies=[Depends(require_auth)])

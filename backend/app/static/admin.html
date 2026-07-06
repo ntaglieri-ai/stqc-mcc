@@ -430,7 +430,7 @@
         <select id="users-filter-gruppo" onchange="filterUsers()"
           style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#fff;font-size:13px;outline:none">
           <option value="">Tutti i gruppi</option>
-          <option>Admin</option><option>Direttore</option><option>Progettazione</option>
+          <option>Admin</option><option>Direttore</option><option>Capo Officina</option><option>Progettazione</option>
           <option>Logistica</option><option>Acquisti</option>
         </select>
         <button class="btn btn-primary" onclick="openCreateModal()">+ Nuovo</button>
@@ -839,6 +839,7 @@
       <label>Gruppo *</label>
       <select id="f-profilo">
         <option value="Direttore">Direttore</option>
+        <option value="Capo Officina">Capo Officina</option>
         <option value="Progettazione">Progettazione</option>
         <option value="Logistica">Logistica</option>
         <option value="Acquisti">Acquisti</option>
@@ -1028,7 +1029,7 @@ function pwdBadge(changed_at, status) {
 }
 
 function grupBadge(p) {
-  return { Admin:'badge-admin', Direttore:'badge-dir', Progettazione:'badge-prog',
+  return { Admin:'badge-admin', Direttore:'badge-dir', 'Capo Officina':'badge-dir', Progettazione:'badge-prog',
            Logistica:'badge-log', Acquisti:'badge-acq' }[p] || 'badge-oper';
 }
 

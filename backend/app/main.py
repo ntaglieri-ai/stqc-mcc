@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
         DEV_ACCOUNTS = [
             ("admin",         "admin",         ProfiloUtente.ADMIN,         "admin@mcc.local"),
             ("direttore",     "direttore",     ProfiloUtente.DIRETTORE,     None),
+            ("capoofficina",  "capoofficina",  ProfiloUtente.CAPO_OFFICINA, None),
             ("progettazione", "progettazione", ProfiloUtente.PROGETTAZIONE, None),
             ("logistica",     "logistica",     ProfiloUtente.LOGISTICA,     None),
             ("acquisti",      "acquisti",      ProfiloUtente.ACQUISTI,      None),
@@ -132,6 +133,10 @@ def create_app() -> FastAPI:
     def commessa_analysis_page(commessa_id: int):
         return FileResponse(STATIC_DIR / "commessa-analysis.html", headers=_NO_CACHE)
 
+    @app.get("/commesse/{commessa_id}/qr-registry", include_in_schema=False)
+    def commessa_qr_registry_page(commessa_id: int):
+        return FileResponse(STATIC_DIR / "qr-registry.html", headers=_NO_CACHE)
+
     @app.get("/commesse/{commessa_id}", include_in_schema=False)
     def commessa_detail_page(commessa_id: int):
         return FileResponse(STATIC_DIR / "commessa-detail.html", headers=_NO_CACHE)
@@ -158,6 +163,10 @@ def create_app() -> FastAPI:
     @app.get("/officina", include_in_schema=False)
     def officina_page():
         return FileResponse(STATIC_DIR / "officina.html", headers=_NO_CACHE)
+
+    @app.get("/scanner-view/{device_token}", include_in_schema=False)
+    def scanner_read_page(device_token: str):
+        return FileResponse(STATIC_DIR / "scanner-read.html", headers=_NO_CACHE)
 
     @app.get("/admin", include_in_schema=False)
     def admin_page():

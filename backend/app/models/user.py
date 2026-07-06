@@ -10,6 +10,7 @@ from backend.app.db.base import Base
 class ProfiloUtente(str, Enum):
     ADMIN      = "Admin"
     DIRETTORE  = "Direttore"
+    CAPO_OFFICINA = "Capo Officina"
     PROGETTAZIONE = "Progettazione"
     LOGISTICA  = "Logistica"
     ACQUISTI   = "Acquisti"
@@ -22,6 +23,7 @@ _LIVELLI = ("none", "read", "write")
 GROUP_DEFAULTS: dict[str, dict] = {
     "Admin":         {"commesse": "write", "magazzino": "write", "admin": "write"},
     "Direttore":     {"commesse": "write", "magazzino": "read",  "admin": "none"},
+    "Capo Officina": {"commesse": "write", "magazzino": "read",  "admin": "none"},
     "Progettazione": {"commesse": "write", "magazzino": "read",  "admin": "none"},
     "Logistica":     {"commesse": "read",  "magazzino": "write", "admin": "none"},
     "Acquisti":      {"commesse": "read",  "magazzino": "read",  "admin": "none"},
@@ -30,6 +32,7 @@ GROUP_DEFAULTS: dict[str, dict] = {
 GROUP_POSTAZIONI_DEFAULTS: dict[str, list[str]] = {
     "Admin":         [],
     "Direttore":     [],
+    "Capo Officina": [],
     "Progettazione": [],
     "Logistica":     ["Magazzino"],
     "Acquisti":      [],

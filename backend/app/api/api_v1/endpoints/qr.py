@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.core.auth import require_auth
@@ -14,8 +14,34 @@ from backend.app.models.user import User
 from backend.app.models.commessa import Piece
 from backend.app.models.warehouse import DistintaItem, ScanEvento, WarehouseItem
 from backend.app.schemas.distinta import QRScanRequest, QRScanResult
+from backend.app.services.qr_detail import build_qr_detail
 
 router = APIRouter()
+
+
+class QRDetailsRequest(BaseModel):
+    values: list[str] = Field(..., min_length=1, max_length=500)
+
+
+@router.get("/details/{qr_value:path}")
+def qr_details(qr_value: str, db: Session = Depends(get_db)):
+    try:
+        return build_qr_detail(db, qr_value)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc))
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@router.post("/details")
+def qr_details_many(body: QRDetailsRequest, db: Session = Depends(get_db)):
+    rows = []
+    for value in body.values:
+        try:
+            rows.append(build_qr_detail(db, value))
+        except (LookupError, ValueError) as exc:
+            rows.append({"entity": "ERROR", "uuid": value, "code": value, "status": "ERRORE", "error": str(exc)})
+    return {"items": rows}
 
 
 @router.get("/resolve/{item_uuid}")
@@ -24,7 +50,7 @@ def resolve_uuid(item_uuid: str, db: Session = Depends(get_db)):
     raw_value = item_uuid.strip()
     value = raw_value.lower()
     piece = db.query(Piece).filter(
-        Piece.qr_code == raw_value,
+        (Piece.qr_code == raw_value) | (Piece.qr_payload == raw_value) | (Piece.uuid == value),
         Piece.qr_attivo.is_(True),
     ).first()
     if piece:
@@ -119,7 +145,10 @@ def scan_evento(
     except ValueError as exc:
         raise HTTPException(422, str(exc))
 
-    piece = db.query(Piece).filter(Piece.qr_code == qr_value, Piece.qr_attivo.is_(True)).first()
+    piece = db.query(Piece).filter(
+        (Piece.qr_code == qr_value) | (Piece.qr_payload == qr_value) | (Piece.uuid == qr_value.lower()),
+        Piece.qr_attivo.is_(True),
+    ).first()
     item_uuid = None
     item = None
     if piece and piece.distinta_item_id:

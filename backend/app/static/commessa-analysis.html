@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <link rel="stylesheet" href="/static/qr-drawer.css">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Analisi Commessa · MCC</title>
@@ -229,6 +230,7 @@
       gap: 12px; margin-top: 12px;
     }
     .qr-card {
+      position: relative;
       display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center;
       min-width: 0; padding: 13px; border: 1px solid var(--border);
       border-radius: 14px; background: #0c1322; cursor: pointer;
@@ -364,7 +366,7 @@
   const token = sessionStorage.getItem("stqc_token");
   const profile = sessionStorage.getItem("stqc_profilo");
   if (!token) { location.replace("/login"); return; }
-  if (!["Direttore", "Progettazione", "Admin"].includes(profile)) location.replace("/");
+  if (!["Direttore", "Capo Officina", "Progettazione", "Admin"].includes(profile)) location.replace("/");
 })();
 </script>
 
@@ -419,6 +421,7 @@
     </div>
     <div class="registry-tools">
       <input class="search" id="qr-registry-search" placeholder="Cerca marca pezzo, tipo, assemblato o stato…" oninput="searchQrItems(this.value)"/>
+      <button class="btn secondary" onclick="openSelectedPieceDetails()">Dettagli selezionati</button>
       <span class="registry-count" id="qr-registry-count">—</span>
     </div>
     <div class="registry-scroll" id="qr-items">
@@ -441,6 +444,7 @@ let qrQuery = "";
 let currentQrItems = [];
 let currentQrDetail = null;
 let qrEditUnlocked = false;
+const selectedQrPieces = new Set();
 
 document.getElementById("nav-user").textContent =
   `${sessionStorage.getItem("stqc_nome") || ""} · ${sessionStorage.getItem("stqc_profilo") || ""}`;
@@ -738,11 +742,7 @@ async function changeQrPage(delta) {
 }
 
 function openQrRegistry() {
-  document.getElementById("qr-registry-modal").classList.add("open");
-  const input = document.getElementById("qr-registry-search");
-  if (input) input.value = qrQuery;
-  loadQrItems();
-  setTimeout(() => input?.focus(), 80);
+  location.href = `/commesse/${commessaId}/qr-registry`;
 }
 
 function closeQrRegistry() {
@@ -775,7 +775,8 @@ function renderQrRegistryCards() {
   if (!target) return;
   target.innerHTML = `
     <div class="qr-grid">
-      ${currentQrItems.map(item => `<div class="qr-card" onclick="openQrModal('${jsArg(item.qr_code)}')">
+      ${currentQrItems.map(item => `<div class="qr-card" onclick="QrDrawer.open('${jsArg(item.uuid)}')">
+        <input type="checkbox" ${selectedQrPieces.has(item.uuid) ? "checked" : ""} onclick="togglePieceQrSelection('${jsArg(item.uuid)}',event)" style="position:absolute;right:12px;top:12px;width:20px;height:20px">
         <img src="${esc(item.qr_image_url)}" alt="QR ${esc(item.qr_code || item.part_number)}"/>
         <div>
           <div class="qr-field-label">Marca pezzo</div>
@@ -788,6 +789,18 @@ function renderQrRegistryCards() {
         </div>
       </div>`).join("")}
     </div>`;
+}
+
+function togglePieceQrSelection(uuid,event) {
+  event.stopPropagation();
+  if (selectedQrPieces.has(uuid)) selectedQrPieces.delete(uuid); else selectedQrPieces.add(uuid);
+  renderQrRegistryCards();
+}
+
+function openSelectedPieceDetails() {
+  const values = [...selectedQrPieces];
+  if (!values.length) return;
+  if (values.length === 1) QrDrawer.open(values[0]); else QrDrawer.openMany(values);
 }
 
 function openAssemblyModal(assemblato) {
@@ -1065,5 +1078,6 @@ async function load() {
 }
 load();
 </script>
+<script src="/static/qr-drawer.js"></script>
 </body>
 </html>

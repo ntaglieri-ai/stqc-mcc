@@ -39,11 +39,13 @@ class PieceManualUpdate(BaseModel):
     qualita: Optional[str] = None
     assemblato: Optional[str] = None
     stato: Optional[str] = None
+    nota: Optional[str] = None
 
 
 def _piece_qr_read(item: Piece) -> dict:
     return {
         "id": item.id,
+        "uuid": item.uuid,
         "distinta_item_id": item.distinta_item_id,
         "qr_code": item.qr_code,
         "part_number": item.marca_pos,
@@ -53,8 +55,10 @@ def _piece_qr_read(item: Piece) -> dict:
         "qualita": item.materiale,
         "assemblato": item.assemblato_id,
         "stato": item.stato_attuale,
+        "nota": item.note_materiale,
+        "materiale_origine_status": item.materiale_origine_status,
         "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
-        "resolve_url": f"/p/{item.qr_code}",
+        "resolve_url": f"/p/{item.uuid}",
         "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
     }
 
@@ -488,6 +492,7 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
     } if item_ids else {}
     now = datetime.utcnow()
     for piece in pieces:
+        piece.qr_payload = piece.uuid
         piece.qr_attivo = True
         piece.qr_status = "ACTIVE"
         piece.stato_attuale = "DA_PRODURRE"
@@ -496,7 +501,7 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
         if item:
             item.qr_attivo = True
             item.stato_tracciamento = "DA_PRODURRE"
-            item.qr_code = generate_qr_for_payload(piece.qr_payload)
+            item.qr_code = generate_qr_for_payload(piece.uuid)
     if revisione.step51_completed_at is None:
         revisione.step51_completed_at = now
     db.commit()
@@ -538,6 +543,7 @@ def list_commessa_item_qr(
             Piece.profilo.ilike(pattern),
             Piece.materiale.ilike(pattern),
             Piece.assemblato_id.ilike(pattern),
+            Piece.note_materiale.ilike(pattern),
         ))
     total = query.count()
     safe_limit = min(max(limit, 1), 5000)
@@ -573,6 +579,7 @@ def update_commessa_piece_qr(
         "qualita": "materiale",
         "assemblato": "assemblato_id",
         "stato": "stato_attuale",
+        "nota": "note_materiale",
     }
     data = payload.model_dump(exclude_unset=True)
     for public_field, model_field in field_map.items():
