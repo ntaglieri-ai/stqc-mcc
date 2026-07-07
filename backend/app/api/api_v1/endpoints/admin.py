@@ -27,6 +27,8 @@ from backend.app.core.log_collector import log_collector
 from backend.app.db.session import engine, get_db
 from backend.app.models.user import AuditLog, Group, GroupPermission, ProfiloUtente, User, UserAttributes
 from backend.app.models.commessa import ScannerDevice, Workstation
+from backend.app.services.qr import generate_qr_for_payload
+from backend.app.services.workstations import normalize_workstation_code, workstation_qr_codes
 from backend.app.schemas.admin import (
     AuditLogRead,
     GroupRead,
@@ -333,8 +335,7 @@ def group_users(name: str, db: Session = Depends(get_db)):
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
 def _workstation_qr(code: str) -> tuple[str, str]:
-    clean = code.strip().upper()
-    return f"{clean}_START", f"{clean}_END"
+    return workstation_qr_codes(code)
 
 
 @router.get("/workstations", response_model=list[WorkstationRead])
@@ -345,9 +346,43 @@ def list_workstations(include_inactive: bool = True, db: Session = Depends(get_d
     return q.order_by(Workstation.active.desc(), Workstation.code).all()
 
 
+@router.get("/workstations/qr-codes")
+def list_workstation_qr_codes(include_inactive: bool = False, db: Session = Depends(get_db)):
+    q = db.query(Workstation)
+    if not include_inactive:
+        q = q.filter(Workstation.active == True)
+    rows = q.order_by(Workstation.active.desc(), Workstation.code).all()
+    return {
+        "items": [
+            {
+                "id": ws.id,
+                "code": ws.code,
+                "name": ws.name,
+                "description": ws.description,
+                "active": ws.active,
+                "codes": [
+                    {
+                        "action": "START",
+                        "label": "Inizio",
+                        "payload": ws.start_qr_code,
+                        "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(ws.start_qr_code)}",
+                    },
+                    {
+                        "action": "END",
+                        "label": "Fine",
+                        "payload": ws.end_qr_code,
+                        "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(ws.end_qr_code)}",
+                    },
+                ],
+            }
+            for ws in rows
+        ]
+    }
+
+
 @router.post("/workstations", response_model=WorkstationRead, status_code=201)
 def create_workstation(body: WorkstationCreate, db: Session = Depends(get_db)):
-    code = body.code.strip().upper()
+    code = normalize_workstation_code(body.code)
     if not code:
         raise HTTPException(400, "Codice postazione obbligatorio")
     if db.query(Workstation).filter(Workstation.code == code).first():
@@ -376,7 +411,7 @@ def update_workstation(workstation_id: int, body: WorkstationUpdate, db: Session
 
     data = body.model_dump(exclude_unset=True)
     if "code" in data and data["code"] is not None:
-        new_code = data["code"].strip().upper()
+        new_code = normalize_workstation_code(data["code"])
         if not new_code:
             raise HTTPException(400, "Codice postazione obbligatorio")
         duplicate = db.query(Workstation).filter(Workstation.code == new_code, Workstation.id != workstation_id).first()

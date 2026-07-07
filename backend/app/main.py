@@ -15,6 +15,7 @@ from backend.app.models.user import GROUP_DEFAULTS, GROUP_POSTAZIONI_DEFAULTS
 from backend.app.api.api_v1.api import api_router, public_router
 from backend.app.core.log_collector import log_collector  # noqa: F401 — initialises log capture
 from backend.app.services.qr import generate_qr_for_uuid
+from backend.app.services.workstations import ensure_default_workstations, normalize_existing_workstation_qr_codes
 
 STATIC_DIR = Path(__file__).parent / "static"
 _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"}
@@ -102,6 +103,10 @@ def create_app() -> FastAPI:
                     if user.profilo != profilo:
                         user.profilo = profilo
                         _logger.info("Profilo account '%s' aggiornato a %s", username, profilo.value)
+            changed_workstations = ensure_default_workstations(db)
+            changed_workstations += normalize_existing_workstation_qr_codes(db)
+            if changed_workstations:
+                _logger.info("Postazioni officina allineate: %s", changed_workstations)
             db.commit()
         except Exception as exc:
             _logger.error("Errore nel seeding utenti: %s", exc)

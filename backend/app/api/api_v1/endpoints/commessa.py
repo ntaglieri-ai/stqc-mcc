@@ -18,7 +18,7 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
+    Commessa, CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
@@ -49,12 +49,29 @@ def _piece_qr_read(item: Piece) -> dict:
         "distinta_item_id": item.distinta_item_id,
         "qr_code": item.qr_code,
         "part_number": item.marca_pos,
+        "marca_pos": item.marca_pos,
         "instance_number": item.progressivo,
+        "progressivo": item.progressivo,
+        "commessa_id": item.commessa_id,
+        "revisione": item.revisione_id,
         "tipo": item.tipo_profilo,
         "profilo": item.profilo,
         "qualita": item.materiale,
+        "materiale": item.materiale,
+        "materiale_descrizione": item.materiale_descrizione,
         "assemblato": item.assemblato_id,
         "stato": item.stato_attuale,
+        "lunghezza_mm": float(item.lunghezza_mm) if item.lunghezza_mm is not None else None,
+        "larghezza_mm": float(item.larghezza_mm) if item.larghezza_mm is not None else None,
+        "spessore_mm": float(item.spessore_mm) if item.spessore_mm is not None else None,
+        "peso_kg": float(item.peso_kg) if item.peso_kg is not None else None,
+        "colata": item.colata,
+        "lotto": item.lotto,
+        "certificato_31": item.certificato_31,
+        "fornitore": item.fornitore,
+        "ultima_postazione": item.ultima_postazione,
+        "ultimo_evento": item.ultimo_evento,
+        "ultimo_aggiornamento": item.ultimo_evento_at,
         "nota": item.note_materiale,
         "materiale_origine_status": item.materiale_origine_status,
         "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
@@ -553,13 +570,17 @@ def list_commessa_item_qr(
         .limit(safe_limit)
         .all()
     )
+    commessa = db.get(Commessa, commessa_id)
     return {
         "commessa_id": commessa_id,
         "revisione_id": revisione.id,
         "total": total,
         "skip": max(skip, 0),
         "limit": safe_limit,
-        "items": [_piece_qr_read(item) for item in items],
+        "items": [
+            {**_piece_qr_read(item), "commessa": commessa.codice if commessa else str(commessa_id)}
+            for item in items
+        ],
     }
 
 
