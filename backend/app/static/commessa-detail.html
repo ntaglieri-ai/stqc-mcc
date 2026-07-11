@@ -940,7 +940,7 @@ function renderOperazioni(c, items) {
 
   const avviaBtn = isAperta ? `
     <div class="btn-avvia-prod">
-      <button id="btn-avvia" onclick="avviaProduzioneNew()">🚀 Avvia produzione</button>
+      <button id="btn-avvia" onclick="avviaProduzione()">🚀 Avvia produzione</button>
     </div>` : '';
 
   return `
@@ -955,28 +955,6 @@ function renderOperazioni(c, items) {
       <div class="op-gruppi">${gruppiHtml}</div>
       ${avviaBtn}
     </div>`;
-}
-
-/* ── Avvia produzione (nuovo — solo PATCH status) ── */
-async function avviaProduzioneNew() {
-  const btn = document.getElementById('btn-avvia');
-  if (btn) { btn.disabled = true; btn.textContent = '…avvio in corso'; }
-  try {
-    const res = await fetch(`/api/v1/commesse/${commessaId}`, {
-      method:  'PATCH',
-      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ status: 'IN_PRODUZIONE' }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${res.status}`);
-    }
-    toast('Produzione avviata', 'ok');
-    location.reload();
-  } catch (e) {
-    toast(`Errore: ${e.message}`, 'err');
-    if (btn) { btn.disabled = false; btn.textContent = '🚀 Avvia produzione'; }
-  }
 }
 
 /* ── Change status ── */

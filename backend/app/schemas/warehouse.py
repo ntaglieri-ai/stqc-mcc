@@ -65,9 +65,10 @@ class MaterialIncomingCreate(BaseModel):
     colata: Optional[str] = None
     uso_materiale: Optional[str] = None
     posizione: Optional[str] = None
+    commessa_ref: Optional[str] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
-    quantity: float = Field(..., gt=0)
+    quantity: float = Field(..., ge=0)
     reason: str = "Ingresso nuovo materiale"
 
 
@@ -83,6 +84,7 @@ class MaterialIncomingBulkResult(BaseModel):
     materials_existing: int
     movements_created: int
     physical_items_created: int
+    reserved_items_created: int = 0
 
 
 class MaterialRead(MaterialBase):

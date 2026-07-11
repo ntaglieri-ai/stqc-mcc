@@ -77,6 +77,31 @@ class CommessaDocumento(Base):
     revisione = relationship("CommessaRevisione", back_populates="documenti")
 
 
+class CommessaBulloneria(Base):
+    """Bulloneria/minuteria collegata a commessa e assemblati, senza QR fisico."""
+    __tablename__ = "commessa_bulloneria"
+
+    id = Column(Integer, primary_key=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
+    assemblato = Column(String(200), nullable=True, index=True)
+    codice = Column(String(200), nullable=True, index=True)
+    descrizione = Column(String(500), nullable=True)
+    categoria = Column(String(100), nullable=True, index=True)
+    tipo = Column(String(100), nullable=True, index=True)
+    norma = Column(String(120), nullable=True)
+    diametro = Column(String(80), nullable=True)
+    lunghezza = Column(String(80), nullable=True)
+    classe = Column(String(80), nullable=True)
+    trattamento = Column(String(160), nullable=True)
+    quantita = Column(Numeric(18, 6), nullable=False, default=0)
+    unita = Column(String(20), nullable=False, default="pz")
+    peso_kg = Column(Numeric(12, 4), nullable=True)
+    note = Column(Text, nullable=True)
+    source_file = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Piece(Base):
     """Pezzo fisico tracciabile generato dall'analisi commessa."""
     __tablename__ = "pieces"

@@ -130,7 +130,7 @@
     }
     .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: #fb923c; }
 
-    .upload-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .upload-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
     .upload-box {
       min-height: 164px; padding: 20px 16px 18px;
       display: flex; flex-direction: column; align-items: center;
@@ -144,9 +144,33 @@
     .upload-box.has-file {
       border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.04);
     }
+    .upload-box.validation-ok {
+      border-color: rgba(74,222,128,.75); background: rgba(74,222,128,.07);
+    }
+    .upload-box.validation-warning {
+      border-color: rgba(251,191,36,.75); background: rgba(251,191,36,.07);
+    }
+    .upload-box.validation-error {
+      border-color: rgba(248,113,113,.85); background: rgba(248,113,113,.08);
+    }
     .upload-box input[type=file] {
       position: absolute; inset: 0; opacity: 0; cursor: pointer;
       width: 100%; height: 100%;
+    }
+    .ub-clear {
+      display: none; position: absolute; top: 9px; right: 9px; z-index: 3;
+      width: 26px; height: 26px; border-radius: 50%;
+      align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(15,23,42,.88); color: rgba(255,255,255,.62);
+      font-size: 17px; font-weight: 900; line-height: 1; cursor: pointer;
+      transition: border-color .2s, background .2s, color .2s;
+    }
+    .upload-box.has-file .ub-clear { display: flex; }
+    .ub-clear:hover {
+      border-color: rgba(248,113,113,.65);
+      background: rgba(248,113,113,.14);
+      color: #fff;
     }
     .ub-req-badge {
       padding: 2px 7px; border-radius: 8px; margin-bottom: 10px;
@@ -171,6 +195,14 @@
     }
     .ub-selected.visible { display: flex; flex-direction: column; }
     .ub-selected-count { font-size: 10px; color: rgba(74,222,128,.7); }
+    .ub-validation {
+      min-height: 16px; margin-top: 7px; font-size: 10px; font-weight: 800;
+      line-height: 1.35; color: rgba(255,255,255,.26);
+    }
+    .ub-validation.ok { color: #4ade80; }
+    .ub-validation.warning { color: #fbbf24; }
+    .ub-validation.error { color: #f87171; }
+    .ub-validation.pending { color: #93c5fd; }
     .btn-create {
       width: 100%; padding: 16px; margin-top: 28px;
       border: none; border-radius: 13px;
@@ -288,6 +320,7 @@
           <div class="upload-box" id="ub-distinta">
             <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm" required
               onchange="ubSelected('ub-distinta','f-distinta',false)"/>
+            <button type="button" class="ub-clear" onclick="clearUpload('ub-distinta','f-distinta',event)" aria-label="Rimuovi file">×</button>
             <span class="ub-req-badge required">Obbligatorio</span>
             <div class="ub-icon">📊</div>
             <div class="ub-label">Lista pezzi</div>
@@ -297,11 +330,13 @@
             <div class="ub-selected" id="ub-distinta-sel">
               <span id="ub-distinta-name"></span>
             </div>
+            <div class="ub-validation" id="ub-distinta-status">In attesa file</div>
           </div>
 
           <div class="upload-box" id="ub-fasi">
             <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm" required
               onchange="ubSelected('ub-fasi','f-fasi',false)"/>
+            <button type="button" class="ub-clear" onclick="clearUpload('ub-fasi','f-fasi',event)" aria-label="Rimuovi file">×</button>
             <span class="ub-req-badge required">Obbligatorio</span>
             <div class="ub-icon">🔧</div>
             <div class="ub-label">Lista pezzi e assemblati</div>
@@ -311,12 +346,14 @@
             <div class="ub-selected" id="ub-fasi-sel">
               <span id="ub-fasi-name"></span>
             </div>
+            <div class="ub-validation" id="ub-fasi-status">In attesa file</div>
           </div>
 
           <div class="upload-box" id="ub-spedizione">
-            <input type="file" id="f-spedizione" accept=".xlsx,.xls,.xlsm" required
+            <input type="file" id="f-spedizione" accept=".xlsx,.xls,.xlsm"
               onchange="ubSelected('ub-spedizione','f-spedizione',false)"/>
-            <span class="ub-req-badge required">Obbligatorio</span>
+            <button type="button" class="ub-clear" onclick="clearUpload('ub-spedizione','f-spedizione',event)" aria-label="Rimuovi file">×</button>
+            <span class="ub-req-badge optional">Non bloccante</span>
             <div class="ub-icon">🚚</div>
             <div class="ub-label">Lista spedizione</div>
             <div class="ub-sub">Assemblati finali, quantità e pesi di consegna</div>
@@ -325,10 +362,27 @@
             <div class="ub-selected" id="ub-spedizione-sel">
               <span id="ub-spedizione-name"></span>
             </div>
+            <div class="ub-validation" id="ub-spedizione-status">Non caricato · non bloccante</div>
+          </div>
+
+          <div class="upload-box" id="ub-bulloneria">
+            <input type="file" id="f-bulloneria" accept=".xlsx,.xls,.xlsm,.csv,.pdf"
+              onchange="ubSelected('ub-bulloneria','f-bulloneria',false)"/>
+            <button type="button" class="ub-clear" onclick="clearUpload('ub-bulloneria','f-bulloneria',event)" aria-label="Rimuovi file">×</button>
+            <span class="ub-req-badge optional">Opzionale</span>
+            <div class="ub-icon">🔩</div>
+            <div class="ub-label">Bulloneria</div>
+            <div class="ub-sub">Viti, dadi, rondelle e minuteria senza QR</div>
+            <div class="ub-hint">.xlsx · .xls · .csv · .pdf</div>
+            <div class="ub-cta">Trascina o clicca</div>
+            <div class="ub-selected" id="ub-bulloneria-sel">
+              <span id="ub-bulloneria-name"></span>
+            </div>
+            <div class="ub-validation" id="ub-bulloneria-status">Non caricato · opzionale</div>
           </div>
         </div>
 
-        <button type="submit" class="btn-create" id="btn-submit">Avvia analisi commessa</button>
+        <button type="submit" class="btn-create" id="btn-submit" disabled>Avvia analisi commessa</button>
       </form>
       <div class="feedback" id="feedback"></div>
     </div>
@@ -337,6 +391,8 @@
 
 <script>
 const authHeader = () => "Bearer " + sessionStorage.getItem("stqc_token");
+let fileValidation = { can_upload: false };
+let validationRun = 0;
 
 window.addEventListener("load", () => document.getElementById("hero-bg").classList.add("loaded"));
 
@@ -349,9 +405,36 @@ function ubSelected(boxId, inputId, multi) {
   const files = Array.from(input.files || []);
   box.classList.toggle("has-file", files.length > 0);
   selected.classList.toggle("visible", files.length > 0);
-  if (!files.length) return;
+  if (!files.length) {
+    validateSelectedFiles();
+    return;
+  }
   name.textContent = files[0].name + (multi && files.length > 1 ? ` +${files.length - 1}` : "");
   if (count) count.textContent = files.length > 1 ? `${files.length} file selezionati` : "";
+  validateSelectedFiles();
+}
+
+function clearUpload(boxId, inputId, event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  const selected = document.getElementById(boxId + "-sel");
+  const name = document.getElementById(boxId + "-name");
+  const count = document.getElementById(boxId + "-count");
+  if (input) input.value = "";
+  if (box) box.classList.remove("has-file", "validation-ok", "validation-warning", "validation-error");
+  if (selected) selected.classList.remove("visible");
+  if (name) name.textContent = "";
+  if (count) count.textContent = "";
+  const defaults = {
+    "ub-distinta": "In attesa file obbligatorio",
+    "ub-fasi": "In attesa file obbligatorio",
+    "ub-spedizione": "Non caricato · non bloccante",
+    "ub-bulloneria": "Non caricato · opzionale",
+  };
+  setUploadStatus(boxId, "idle", defaults[boxId] || "");
+  validateSelectedFiles();
 }
 
 function setupDrop(boxId, inputId, multi) {
@@ -376,15 +459,111 @@ function setupDrop(boxId, inputId, multi) {
 setupDrop("ub-distinta", "f-distinta", false);
 setupDrop("ub-fasi", "f-fasi", false);
 setupDrop("ub-spedizione", "f-spedizione", false);
+setupDrop("ub-bulloneria", "f-bulloneria", false);
 
 function clearFeedback() {
   document.getElementById("feedback").className = "feedback";
+}
+
+function setUploadStatus(boxId, status, message) {
+  const box = document.getElementById(boxId);
+  const target = document.getElementById(boxId + "-status");
+  if (!box || !target) return;
+  box.classList.remove("validation-ok", "validation-warning", "validation-error");
+  target.className = "ub-validation";
+  if (status && !["missing", "idle"].includes(status)) {
+    target.classList.add(status);
+    if (status === "ok") box.classList.add("validation-ok");
+    if (status === "warning") box.classList.add("validation-warning");
+    if (status === "error") box.classList.add("validation-error");
+  }
+  target.textContent = message || "";
+}
+
+function updateSubmitState() {
+  const button = document.getElementById("btn-submit");
+  if (!button || button.dataset.busy === "1") return;
+  button.disabled = !fileValidation.can_upload;
+  button.textContent = fileValidation.can_upload ? "Avvia analisi commessa" : "Valida i file obbligatori";
+}
+
+function currentFiles() {
+  return {
+    listaPezzi: document.getElementById("f-distinta").files[0],
+    assemblaggi: document.getElementById("f-fasi").files[0],
+    spedizione: document.getElementById("f-spedizione").files[0],
+    bulloneria: document.getElementById("f-bulloneria").files[0],
+  };
+}
+
+async function validateSelectedFiles() {
+  clearFeedback();
+  const run = ++validationRun;
+  const files = currentFiles();
+  fileValidation = { can_upload: false };
+  if (!files.listaPezzi) setUploadStatus("ub-distinta", "idle", "In attesa file obbligatorio");
+  if (!files.assemblaggi) setUploadStatus("ub-fasi", "idle", "In attesa file obbligatorio");
+  if (!files.spedizione) setUploadStatus("ub-spedizione", "idle", "Non caricato · non bloccante");
+  if (!files.bulloneria) setUploadStatus("ub-bulloneria", "idle", "Non caricato · opzionale");
+  updateSubmitState();
+  if (!files.listaPezzi && !files.assemblaggi && !files.spedizione && !files.bulloneria) return;
+
+  if (files.listaPezzi) setUploadStatus("ub-distinta", "pending", "Validazione parsing…");
+  if (files.assemblaggi) setUploadStatus("ub-fasi", "pending", "Validazione parsing…");
+  if (files.spedizione) setUploadStatus("ub-spedizione", "pending", "Validazione non bloccante…");
+  if (files.bulloneria) setUploadStatus("ub-bulloneria", "pending", "Validazione non bloccante…");
+
+  const body = new FormData();
+  if (files.listaPezzi) body.append("lista_pezzi", files.listaPezzi);
+  if (files.assemblaggi) body.append("assemblaggi", files.assemblaggi);
+  if (files.spedizione) body.append("spedizione", files.spedizione);
+  if (files.bulloneria) body.append("bulloneria", files.bulloneria);
+
+  try {
+    const response = await fetch("/api/v1/commesse/validate-files", {
+      method: "POST",
+      headers: { Authorization: authHeader() },
+      body,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (run !== validationRun) return;
+    if (!response.ok) throw new Error(data.detail || "Validazione file non disponibile");
+    fileValidation = data;
+    const map = {
+      lista_pezzi: "ub-distinta",
+      assemblaggi: "ub-fasi",
+      spedizione: "ub-spedizione",
+      bulloneria: "ub-bulloneria",
+    };
+    Object.entries(map).forEach(([key, boxId]) => {
+      const info = data.files?.[key];
+      if (!info) return;
+      setUploadStatus(boxId, info.status, info.message);
+    });
+    if (data.errors?.length) showError(data.errors.join(" · "));
+  } catch (error) {
+    if (run !== validationRun) return;
+    fileValidation = { can_upload: false };
+    if (files.listaPezzi) setUploadStatus("ub-distinta", "error", "Validazione non riuscita");
+    if (files.assemblaggi) setUploadStatus("ub-fasi", "error", "Validazione non riuscita");
+    if (files.spedizione) setUploadStatus("ub-spedizione", "warning", "Validazione non riuscita · non bloccante");
+    if (files.bulloneria) setUploadStatus("ub-bulloneria", "warning", "Validazione non riuscita · opzionale");
+    showError(error.message || String(error));
+  } finally {
+    if (run === validationRun) updateSubmitState();
+  }
 }
 
 function showError(message) {
   const feedback = document.getElementById("feedback");
   feedback.className = "feedback error visible";
   feedback.textContent = "✕ " + message;
+}
+
+function parserErrorMessage(message) {
+  const text = message || "Inviare i file al supporto per adeguamento formato.";
+  if (String(text).toLowerCase().includes("file non importabile")) return text;
+  return `File non importabile. Verifica file/parsing. ${text}`;
 }
 
 async function handleSubmit(event) {
@@ -395,6 +574,7 @@ async function handleSubmit(event) {
   const listaPezzi = document.getElementById("f-distinta").files[0];
   const assemblaggi = document.getElementById("f-fasi").files[0];
   const spedizione = document.getElementById("f-spedizione").files[0];
+  const bulloneria = document.getElementById("f-bulloneria").files[0];
   if (!listaPezzi) {
     showError("La Lista pezzi è obbligatoria.");
     return;
@@ -403,12 +583,12 @@ async function handleSubmit(event) {
     showError("La Lista pezzi e assemblati è obbligatoria.");
     return;
   }
-  if (!spedizione) {
-    showError("La Lista spedizione è obbligatoria.");
+  if (!fileValidation.can_upload) {
+    showError("Prima valida i file obbligatori. Lista pezzi e Assemblaggi devono risultare OK.");
     return;
   }
-
   button.disabled = true;
+  button.dataset.busy = "1";
   button.textContent = "Creazione commessa…";
 
   let commessa;
@@ -431,7 +611,8 @@ async function handleSubmit(event) {
     const formData = new FormData();
     formData.append("lista_pezzi", listaPezzi);
     formData.append("assemblaggi", assemblaggi);
-    formData.append("spedizione", spedizione);
+    if (spedizione) formData.append("spedizione", spedizione);
+    if (bulloneria) formData.append("bulloneria", bulloneria);
     formData.append("predistinta", String(document.getElementById("f-predistinta").checked));
 
     const analysisResponse = await fetch(`/api/v1/commesse/${commessa.id}/analisi`, {
@@ -440,7 +621,10 @@ async function handleSubmit(event) {
       body: formData,
     });
     const analysis = await analysisResponse.json().catch(() => ({}));
-    if (!analysisResponse.ok) throw new Error(analysis.detail || `Errore analisi file (${analysisResponse.status})`);
+    if (!analysisResponse.ok) {
+      const detail = analysis.detail || `Errore analisi file (${analysisResponse.status})`;
+      throw new Error(analysisResponse.status === 422 ? parserErrorMessage(detail) : detail);
+    }
 
     location.replace(`/commesse/${commessa.id}/analisi`);
   } catch (error) {
@@ -452,7 +636,9 @@ async function handleSubmit(event) {
     }
     showError(error.message || String(error));
     button.disabled = false;
+    button.dataset.busy = "0";
     button.textContent = "Avvia analisi commessa";
+    updateSubmitState();
   }
 }
 </script>

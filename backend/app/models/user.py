@@ -22,7 +22,7 @@ _LIVELLI = ("none", "read", "write")
 # Default permissions per group — used to seed the groups table
 GROUP_DEFAULTS: dict[str, dict] = {
     "Admin":         {"commesse": "write", "magazzino": "write", "admin": "write"},
-    "Direttore":     {"commesse": "write", "magazzino": "read",  "admin": "none"},
+    "Direttore":     {"commesse": "write", "magazzino": "write", "admin": "none"},
     "Capo Officina": {"commesse": "write", "magazzino": "read",  "admin": "none"},
     "Progettazione": {"commesse": "write", "magazzino": "read",  "admin": "none"},
     "Logistica":     {"commesse": "read",  "magazzino": "write", "admin": "none"},
@@ -82,6 +82,7 @@ class UserAttributes(Base):
     postazioni_assegnate  = Column(JSON, nullable=True)   # list[str]
     commesse_visibili     = Column(JSON, nullable=True)   # list[int] | "all"
     permessi              = Column(JSON, nullable=True)   # {"section": {"read": bool, "write": bool}}
+    preferences           = Column(JSON, nullable=True)   # preferenze UI per utente
 
     user = relationship("User", back_populates="attributes")
 

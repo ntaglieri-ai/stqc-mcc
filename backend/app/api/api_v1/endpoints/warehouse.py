@@ -1,5 +1,5 @@
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Literal
 
 import base64
@@ -101,6 +101,7 @@ def _upsert_material_with_incoming(
     db: Session,
     material_in: warehouse_schemas.MaterialIncomingCreate,
     allow_existing: bool = True,
+    read_back: bool = True,
 ) -> dict:
     code = _material_code_from_input(material_in)
     existing = db.scalar(select(Material).where(Material.code == code))
@@ -123,6 +124,7 @@ def _upsert_material_with_incoming(
             norma_uni=material_in.norma_uni,
             qualita=material_in.qualita,
             colata=material_in.colata,
+            commessa_ref=material_in.commessa_ref,
             uso_materiale=material_in.uso_materiale,
             posizione=material_in.posizione,
             peso_u_kg=material_in.peso_u_kg,
@@ -141,28 +143,68 @@ def _upsert_material_with_incoming(
         material.norma_uni = material_in.norma_uni or material.norma_uni
         material.qualita = material_in.qualita or material.qualita
         material.colata = material_in.colata or material.colata
+        material.commessa_ref = material_in.commessa_ref or material.commessa_ref
         material.uso_materiale = material_in.uso_materiale or material.uso_materiale
         material.posizione = material_in.posizione or material.posizione
         material.peso_u_kg = material_in.peso_u_kg or material.peso_u_kg
         material.peso_1_pz = material_in.peso_1_pz or material.peso_1_pz
-    movement = StockMovement(
-        material_id=material.id,
-        quantity=material_in.quantity,
-        movement_type=MovementType.INCOMING,
-        reason=material_in.reason or "Ingresso nuovo materiale",
-    )
-    db.add(movement)
-    db.flush()
-    try:
-        create_items_for_incoming(db, material.id, material_in.quantity, movement.id)
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=422, detail=str(exc))
-    row = next((r for r in crud.get_magazzino_list(db=db, limit=1, q=code) if r["material_id"] == material.id), None)
-    if row is None:
-        raise HTTPException(status_code=500, detail="Materiale creato ma non riletto")
+    physical_created = 0
+    movement_created = 0
+    reserved_created = 0
+    if float(material_in.quantity or 0) > 0:
+        movement = StockMovement(
+            material_id=material.id,
+            quantity=material_in.quantity,
+            movement_type=MovementType.INCOMING,
+            reason=material_in.reason or "Ingresso nuovo materiale",
+        )
+        db.add(movement)
+        db.flush()
+        movement_created = 1
+        try:
+            new_items = create_items_for_incoming(db, material.id, material_in.quantity, movement.id)
+            physical_created = len(new_items)
+            reservation = _reservation_or_none(material_in.commessa_ref)
+            if reservation:
+                now = datetime.utcnow()
+                for warehouse_item in new_items:
+                    warehouse_item.status = "RESERVED"
+                    warehouse_item.reserved_for_commessa = reservation
+                    warehouse_item.reserved_at = now
+                reserved_created = len(new_items)
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(status_code=422, detail=str(exc))
+    if read_back:
+        row = next((r for r in crud.get_magazzino_list(db=db, limit=250, q=code) if r["material_id"] == material.id), None)
+        if row is None:
+            row = {
+                "material_id": material.id,
+                "material_code": material.code,
+                "tipo": material.tipo,
+                "profilo": material.profilo,
+                "n_pezzi": float(material_in.quantity),
+                "dimensioni": material.dimensioni,
+                "qualita": material.qualita,
+                "colata": material.colata,
+                "commessa_ref": material.commessa_ref,
+                "uso_materiale": material.uso_materiale,
+                "posizione": material.posizione,
+                "peso_kg": None,
+                "peso_u_kg": float(material.peso_u_kg) if material.peso_u_kg is not None else None,
+                "peso_1_pz": float(material.peso_1_pz) if material.peso_1_pz is not None else None,
+                "norma_uni": material.norma_uni,
+                "physical_items_count": physical_created,
+                "reserved_items_count": 0,
+                "reserved_commesse": [],
+                "custom_fields": {},
+            }
+    else:
+        row = {"material_id": material.id}
     row["_created"] = created
-    row["_physical_items_created"] = int(material_in.quantity)
+    row["_physical_items_created"] = physical_created
+    row["_movement_created"] = movement_created
+    row["_reserved_items_created"] = reserved_created
     row["_material_id"] = material.id
     return row
 
@@ -175,20 +217,25 @@ def create_materials_bulk_incoming(
     created = 0
     existing = 0
     physical = 0
+    movements = 0
+    reserved = 0
     for item in request.items:
-        row = _upsert_material_with_incoming(db, item, allow_existing=True)
+        row = _upsert_material_with_incoming(db, item, allow_existing=True, read_back=False)
         if row.get("_created"):
             created += 1
         else:
             existing += 1
         physical += int(row.get("_physical_items_created") or item.quantity or 0)
+        movements += int(row.get("_movement_created") or 0)
+        reserved += int(row.get("_reserved_items_created") or 0)
     db.commit()
     return {
         "rows": len(request.items),
         "materials_created": created,
         "materials_existing": existing,
-        "movements_created": len(request.items),
+        "movements_created": movements,
         "physical_items_created": physical,
+        "reserved_items_created": reserved,
     }
 
 
@@ -205,6 +252,10 @@ def _normalize_import_key(value: object) -> str:
         "qty": "quantity",
         "quantita": "quantity",
         "n_pezzi": "quantity",
+        "n_pezzi_attuale": "quantity",
+        "pezzi_attuale": "quantity",
+        "stock_attuale": "quantity",
+        "giacenza": "quantity",
         "pezzi": "quantity",
         "unita": "unit",
         "um": "unit",
@@ -221,6 +272,10 @@ def _normalize_import_key(value: object) -> str:
         "posizione": "posizione",
         "ubicazione": "posizione",
         "location": "posizione",
+        "commessa": "commessa_ref",
+        "commessa_ref": "commessa_ref",
+        "prenotazione": "commessa_ref",
+        "prenotato_per": "commessa_ref",
         "causale": "reason",
     }
     return aliases.get(key, key)
@@ -239,6 +294,7 @@ KNOWN_IMPORT_KEYS = {
     "colata",
     "uso_materiale",
     "posizione",
+    "commessa_ref",
     "peso_u_kg",
     "peso_1_pz",
     "reason",
@@ -260,6 +316,33 @@ def _float_or_none(value: object) -> float | None:
         return float(str(value).replace(",", "."))
     except (TypeError, ValueError):
         return None
+
+
+def _physical_quantity(value: float) -> int:
+    """L'inventario fisico genera un QR per elemento: la quantità deve essere intera."""
+    return int(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def _text_or_none(value: object) -> str | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    text = str(value).strip()
+    return text or None
+
+
+def _reservation_or_none(value: object) -> str | None:
+    text = _text_or_none(value)
+    if not text:
+        return None
+    normalized = re.sub(r"[^A-Z0-9]+", "", text.upper())
+    if normalized in {"MAG", "MG", "MAGAZZINO", "STOCK", "SCORTE"}:
+        return None
+    cleaned = text.upper().strip()
+    cleaned = re.sub(r"^(COMMESSA|COMM)\s*", "", cleaned).strip()
+    cleaned = re.sub(r"[^A-Z0-9]+", "_", cleaned).strip("_")
+    return cleaned or text
 
 
 def _clean_import_value(value: object) -> str | None:
@@ -344,25 +427,32 @@ def _rows_to_incoming_with_custom(
                     row[normalized] = value
                     custom_values[normalized] = cleaned
                     custom_labels[normalized] = str(raw_key or normalized).strip() or _custom_label_from_key(normalized)
-        quantity = _float_or_none(_value(row, "quantity"))
-        if not quantity or quantity <= 0:
+        raw_quantity = _float_or_none(_value(row, "quantity"))
+        if raw_quantity is None or raw_quantity < 0:
             continue
+        if not _value(row, "code") and not (_value(row, "tipo") and _value(row, "profilo")):
+            continue
+        quantity = _physical_quantity(raw_quantity)
+        if abs(float(raw_quantity) - quantity) > 1e-9:
+            custom_values.setdefault("quantita_file_originale", f"{raw_quantity:g}")
+            custom_labels.setdefault("quantita_file_originale", "Quantità file originale")
         payload = {
-            "code": _value(row, "code"),
-            "description": _value(row, "description"),
-            "unit": _value(row, "unit") or "PZ",
-            "tipo": _value(row, "tipo"),
-            "profilo": _value(row, "profilo"),
-            "dimensioni": _value(row, "dimensioni"),
-            "norma_uni": _value(row, "norma_uni"),
-            "qualita": _value(row, "qualita"),
-            "colata": _value(row, "colata"),
-            "uso_materiale": _value(row, "uso_materiale", "uso", "tipologia"),
-            "posizione": _value(row, "posizione", "ubicazione", "location"),
+            "code": _text_or_none(_value(row, "code")),
+            "description": _text_or_none(_value(row, "description")),
+            "unit": _text_or_none(_value(row, "unit")) or "PZ",
+            "tipo": _text_or_none(_value(row, "tipo")),
+            "profilo": _text_or_none(_value(row, "profilo")),
+            "dimensioni": _text_or_none(_value(row, "dimensioni")),
+            "norma_uni": _text_or_none(_value(row, "norma_uni")),
+            "qualita": _text_or_none(_value(row, "qualita")),
+            "colata": _text_or_none(_value(row, "colata")),
+            "uso_materiale": _text_or_none(_value(row, "uso_materiale", "uso", "tipologia")),
+            "posizione": _text_or_none(_value(row, "posizione", "ubicazione", "location")),
+            "commessa_ref": _reservation_or_none(_value(row, "commessa_ref")) or _text_or_none(_value(row, "commessa_ref")),
             "peso_u_kg": _float_or_none(_value(row, "peso_u_kg")),
             "peso_1_pz": _float_or_none(_value(row, "peso_1_pz")),
             "quantity": quantity,
-            "reason": _value(row, "reason") or reason,
+            "reason": _text_or_none(_value(row, "reason")) or reason,
         }
         parsed.append((warehouse_schemas.MaterialIncomingCreate.model_validate(payload), custom_values, custom_labels))
     return parsed
@@ -428,17 +518,21 @@ async def import_append_materials(
         except OSError:
             pass
     if not parsed_items:
-        raise HTTPException(status_code=422, detail="Nessuna riga valida trovata. Servono almeno quantità e codice oppure tipo/profilo.")
+        raise HTTPException(status_code=422, detail="Nessuna riga valida trovata. Servono almeno codice oppure tipo/profilo e una quantità attuale valida anche zero.")
     created = 0
     existing = 0
     physical = 0
+    movements = 0
+    reserved = 0
     for item, custom_values, custom_labels in parsed_items:
-        row = _upsert_material_with_incoming(db, item, allow_existing=True)
+        row = _upsert_material_with_incoming(db, item, allow_existing=True, read_back=False)
         if row.get("_created"):
             created += 1
         else:
             existing += 1
         physical += int(row.get("_physical_items_created") or item.quantity or 0)
+        movements += int(row.get("_movement_created") or 0)
+        reserved += int(row.get("_reserved_items_created") or 0)
         material_id = int(row.get("_material_id") or row["material_id"])
         _upsert_custom_values(db, material_id, custom_values, custom_labels)
     db.commit()
@@ -446,8 +540,9 @@ async def import_append_materials(
         "rows": len(parsed_items),
         "materials_created": created,
         "materials_existing": existing,
-        "movements_created": len(parsed_items),
+        "movements_created": movements,
         "physical_items_created": physical,
+        "reserved_items_created": reserved,
     }
 
 

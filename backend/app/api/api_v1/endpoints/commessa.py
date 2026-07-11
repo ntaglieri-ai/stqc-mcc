@@ -18,14 +18,19 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
+    Commessa, CommessaBulloneria, CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
 from backend.app.services.distinta import (
+    ALIASES,
+    _build_col_map,
+    _extract_rows,
+    _find_header_row,
     normalized_to_db_bulk,
     parse_commessa_files,
 )
+from backend.app.services.bulloneria import parse_bulloneria_file
 from backend.app.services.fasi_operative import parse_fasi_operative
 from backend.app.services.commessa_analysis import classify_commessa_materials
 from backend.app.services.qr import generate_qr_for_payload
@@ -139,6 +144,125 @@ def list_commesse(
     return crud.get_commesse(db=db, skip=skip, limit=limit, status=status, q=q)
 
 
+@router.post("/validate-files")
+async def validate_commessa_files(
+    lista_pezzi: UploadFile | None = File(None, description="Lista pezzi / Lavorazioni per posizione"),
+    assemblaggi: UploadFile | None = File(None, description="Lista pezzi e assemblati"),
+    spedizione: UploadFile | None = File(None, description="Lista spedizione"),
+    bulloneria: UploadFile | None = File(None, description="Bulloneria / minuteria senza QR"),
+):
+    """Valida i file prima dell'upload definitivo, senza creare commessa o revisione."""
+    result = {
+        "ok": False,
+        "can_upload": False,
+        "files": {
+            "lista_pezzi": {"required": True, "status": "missing", "message": "Lista pezzi obbligatoria"},
+            "assemblaggi": {"required": True, "status": "missing", "message": "Lista pezzi e assemblati obbligatoria"},
+            "spedizione": {"required": False, "status": "missing", "message": "Non caricata · non bloccante"},
+            "bulloneria": {"required": False, "status": "missing", "message": "Non caricata · opzionale"},
+        },
+        "errors": [],
+        "warnings": [],
+        "summary": None,
+    }
+    with tempfile.TemporaryDirectory(prefix="stqc_validate_") as tmp:
+        tmp_dir = Path(tmp)
+        lista_dest = None
+        asm_dest = None
+        if lista_pezzi is not None and lista_pezzi.filename:
+            suffix = Path(lista_pezzi.filename).suffix.lower() or ".xls"
+            lista_dest = tmp_dir / f"lista_pezzi{suffix}"
+            lista_dest.write_bytes(await lista_pezzi.read())
+            result["files"]["lista_pezzi"] = {"required": True, "status": "pending", "message": "Validazione in corso"}
+            try:
+                lista_report = _validate_lista_pezzi_file(lista_dest)
+                result["files"]["lista_pezzi"] = {
+                    "required": True,
+                    "status": "ok",
+                    "message": f"OK · {lista_report.get('righe', 0)} posizioni · {lista_report.get('quantita', 0)} pezzi",
+                }
+            except Exception as exc:
+                message = f"Lista pezzi non valida per questo riquadro: {exc}"
+                result["files"]["lista_pezzi"] = {"required": True, "status": "error", "message": message}
+                result["errors"].append(message)
+        if assemblaggi is not None and assemblaggi.filename:
+            suffix = Path(assemblaggi.filename).suffix.lower() or ".xls"
+            asm_dest = tmp_dir / f"assemblaggi{suffix}"
+            asm_dest.write_bytes(await assemblaggi.read())
+            result["files"]["assemblaggi"] = {"required": True, "status": "pending", "message": "Validazione in corso"}
+            try:
+                asm_report = _validate_assemblaggi_file(asm_dest)
+                result["files"]["assemblaggi"] = {
+                    "required": True,
+                    "status": "ok",
+                    "message": f"OK · {asm_report.get('assemblati', 0)} assemblati · {asm_report.get('righe', 0)} righe pezzo",
+                }
+            except Exception as exc:
+                message = f"Lista pezzi e assemblati non valida per questo riquadro: {exc}"
+                result["files"]["assemblaggi"] = {"required": True, "status": "error", "message": message}
+                result["errors"].append(message)
+
+        mandatory_files_ok = (
+            result["files"]["lista_pezzi"]["status"] == "ok"
+            and result["files"]["assemblaggi"]["status"] == "ok"
+        )
+        if lista_dest is not None and asm_dest is not None and mandatory_files_ok:
+            try:
+                items_normalized, report = parse_commessa_files(lista_dest, asm_dest)
+                result["files"]["lista_pezzi"] = {
+                    "required": True,
+                    "status": "ok",
+                    "message": f"OK · {report.get('unique_parts', 0)} posizioni · {report.get('total_pieces', len(items_normalized))} pezzi",
+                }
+                result["files"]["assemblaggi"] = {
+                    "required": True,
+                    "status": "ok",
+                    "message": f"OK · {report.get('assemblies', 0)} assemblati collegati",
+                }
+                result["summary"] = report.get("summary")
+            except Exception as exc:
+                message = f"File non importabile. Verifica file/parsing sui file obbligatori: {exc}"
+                result["files"]["lista_pezzi"] = {"required": True, "status": "error", "message": "Parsing obbligatorio fallito"}
+                result["files"]["assemblaggi"] = {"required": True, "status": "error", "message": "Parsing obbligatorio fallito"}
+                result["errors"].append(message)
+
+        if spedizione is not None and spedizione.filename:
+            suffix = Path(spedizione.filename).suffix.lower() or ".xls"
+            spedizione_dest = tmp_dir / f"spedizione{suffix}"
+            spedizione_dest.write_bytes(await spedizione.read())
+            try:
+                sped_report = _validate_spedizione_file(spedizione_dest)
+                result["files"]["spedizione"] = {
+                    "required": False,
+                    "status": "ok",
+                    "message": f"OK · {sped_report.get('righe', 0)} righe spedizione",
+                }
+            except Exception as exc:
+                message = f"Lista spedizione non interpretata: {exc}. Non bloccante."
+                result["files"]["spedizione"] = {"required": False, "status": "warning", "message": message}
+                result["warnings"].append(message)
+
+        if bulloneria is not None and bulloneria.filename:
+            suffix = Path(bulloneria.filename).suffix.lower() or ".xlsx"
+            bulloneria_dest = tmp_dir / f"bulloneria{suffix}"
+            bulloneria_dest.write_bytes(await bulloneria.read())
+            try:
+                _, bull_report = parse_bulloneria_file(bulloneria_dest)
+                result["files"]["bulloneria"] = {
+                    "required": False,
+                    "status": "ok",
+                    "message": f"OK · {bull_report.get('righe', 0)} righe · {bull_report.get('quantita_totale', 0):g} pezzi",
+                }
+            except Exception as exc:
+                message = f"Bulloneria non interpretata: {exc}. Non bloccante."
+                result["files"]["bulloneria"] = {"required": False, "status": "warning", "message": message}
+                result["warnings"].append(message)
+
+    result["can_upload"] = not result["errors"] and result["files"]["lista_pezzi"]["status"] == "ok" and result["files"]["assemblaggi"]["status"] == "ok"
+    result["ok"] = result["can_upload"] and not result["warnings"]
+    return result
+
+
 @router.get("/{commessa_id}", response_model=CommessaRead)
 def get_commessa(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
@@ -152,6 +276,13 @@ def update_commessa(commessa_id: int, commessa_in: CommessaUpdate, db: Session =
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
     if commessa is None:
         raise HTTPException(status_code=404, detail="Commessa non trovata")
+    data = commessa_in.model_dump(exclude_unset=True)
+    target_status = data.get("status")
+    if target_status == CommessaStatus.IN_PRODUZIONE and commessa.status != CommessaStatus.IN_PRODUZIONE:
+        raise HTTPException(
+            status_code=409,
+            detail="Usa l'endpoint /avvia-produzione per avviare la produzione",
+        )
     return crud.update_commessa(db=db, commessa=commessa, obj_in=commessa_in)
 
 
@@ -170,7 +301,8 @@ async def create_analisi_commessa(
     commessa_id: int,
     lista_pezzi: UploadFile = File(..., description="Lista pezzi / Lavorazioni per posizione"),
     assemblaggi: UploadFile = File(..., description="Lista pezzi e assemblati"),
-    spedizione: UploadFile = File(..., description="Lista spedizione"),
+    spedizione: UploadFile | None = File(None, description="Lista spedizione"),
+    bulloneria: UploadFile | None = File(None, description="Bulloneria / minuteria senza QR"),
     predistinta: bool = Form(False),
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -191,6 +323,10 @@ async def create_analisi_commessa(
     rev_dir = settings.upload_dir / f"commessa_{commessa_id}" / codice_rev
     rev_dir.mkdir(parents=True, exist_ok=True)
 
+    spedizione_dest = None
+    bulloneria_dest = None
+    bulloneria_items: list[dict] = []
+
     try:
         lista_suffix = Path(lista_pezzi.filename or "lista_pezzi.xls").suffix.lower() or ".xls"
         lista_dest = rev_dir / f"lista_pezzi{lista_suffix}"
@@ -202,19 +338,58 @@ async def create_analisi_commessa(
         with asm_dest.open("wb") as f:
             f.write(await assemblaggi.read())
 
-        spedizione_suffix = Path(spedizione.filename or "spedizione.xls").suffix.lower() or ".xls"
-        spedizione_dest = rev_dir / f"spedizione{spedizione_suffix}"
-        with spedizione_dest.open("wb") as f:
-            f.write(await spedizione.read())
-
         items_normalized, report = parse_commessa_files(
             lista_dest,
             asm_dest,
         )
     except Exception as exc:
         shutil.rmtree(rev_dir, ignore_errors=True)
-        _logger.exception("Errore nel parsing revisione %s commessa %d", codice_rev, commessa_id)
-        raise HTTPException(422, f"Errore parser: {exc}")
+        _logger.exception("Errore nel parsing file obbligatori revisione %s commessa %d", codice_rev, commessa_id)
+        raise HTTPException(
+            422,
+            f"File non importabile. Verifica file/parsing sui file obbligatori Lista pezzi e Assemblaggi: {exc}",
+        )
+
+    report.setdefault("file_warnings", [])
+    if spedizione is not None and spedizione.filename:
+        spedizione_suffix = Path(spedizione.filename or "spedizione.xls").suffix.lower() or ".xls"
+        spedizione_dest = rev_dir / f"spedizione{spedizione_suffix}"
+        with spedizione_dest.open("wb") as f:
+            f.write(await spedizione.read())
+        try:
+            report["spedizione"] = _validate_spedizione_file(spedizione_dest)
+        except Exception as exc:
+            _logger.warning("Lista spedizione non validata per revisione %s commessa %d: %s", codice_rev, commessa_id, exc)
+            report["spedizione"] = {"ok": False, "summary": str(exc)}
+            report["file_warnings"].append({
+                "file": "Lista spedizione",
+                "level": "warning",
+                "message": f"Lista spedizione non interpretata: {exc}. Analisi commessa proseguita.",
+            })
+    else:
+        report["file_warnings"].append({
+            "file": "Lista spedizione",
+            "level": "warning",
+            "message": "Lista spedizione non caricata. Analisi commessa proseguita.",
+        })
+
+    if bulloneria is not None and bulloneria.filename:
+        bulloneria_suffix = Path(bulloneria.filename or "bulloneria.xlsx").suffix.lower() or ".xlsx"
+        bulloneria_dest = rev_dir / f"bulloneria{bulloneria_suffix}"
+        with bulloneria_dest.open("wb") as f:
+            f.write(await bulloneria.read())
+        try:
+            bulloneria_items, bulloneria_report = parse_bulloneria_file(bulloneria_dest)
+            report["bulloneria"] = bulloneria_report
+        except Exception as exc:
+            _logger.warning("Bulloneria non validata per revisione %s commessa %d: %s", codice_rev, commessa_id, exc)
+            bulloneria_items = []
+            report["bulloneria"] = {"ok": False, "summary": str(exc)}
+            report["file_warnings"].append({
+                "file": "Bulloneria",
+                "level": "warning",
+                "message": f"Bulloneria non interpretata: {exc}. Analisi commessa proseguita senza fabbisogno bulloneria dedicato.",
+            })
 
     revisione = CommessaRevisione(
         commessa_id=commessa_id,
@@ -268,14 +443,24 @@ async def create_analisi_commessa(
     db.add(revisione)
     db.flush()
 
-    db.add(CommessaDocumento(
-        commessa_id=commessa_id,
-        revisione_id=revisione.id,
-        categoria="SPEDIZIONE",
-        filename=Path(spedizione.filename or spedizione_dest.name).name,
-        storage_path=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
-        mime_type=spedizione.content_type,
-    ))
+    if spedizione_dest is not None:
+        db.add(CommessaDocumento(
+            commessa_id=commessa_id,
+            revisione_id=revisione.id,
+            categoria="SPEDIZIONE",
+            filename=Path(spedizione.filename or spedizione_dest.name).name,
+            storage_path=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
+            mime_type=spedizione.content_type if spedizione else None,
+        ))
+    if bulloneria_dest is not None:
+        db.add(CommessaDocumento(
+            commessa_id=commessa_id,
+            revisione_id=revisione.id,
+            categoria="BULLONERIA",
+            filename=Path(bulloneria.filename or bulloneria_dest.name).name,
+            storage_path=str(bulloneria_dest.relative_to(settings.upload_dir.parent)),
+            mime_type=bulloneria.content_type,
+        ))
 
     distinta_import = DistintaImport(
         filename=lista_pezzi.filename or f"{commessa.codice}_{codice_rev}",
@@ -303,6 +488,27 @@ async def create_analisi_commessa(
     db.flush()
     for di in inserted_items:
         _create_piece_from_item(db, di, commessa_id, revisione.id)
+
+    for row in bulloneria_items:
+        db.add(CommessaBulloneria(
+            commessa_id=commessa_id,
+            revisione_id=revisione.id,
+            assemblato=row.get("assemblato"),
+            codice=row.get("codice"),
+            descrizione=row.get("descrizione"),
+            categoria=row.get("categoria"),
+            tipo=row.get("tipo"),
+            norma=row.get("norma"),
+            diametro=row.get("diametro"),
+            lunghezza=row.get("lunghezza"),
+            classe=row.get("classe"),
+            trattamento=row.get("trattamento"),
+            quantita=row.get("quantita") or 0,
+            unita=row.get("unita") or "pz",
+            peso_kg=row.get("peso_kg"),
+            note=row.get("note"),
+            source_file=row.get("source_file"),
+        ))
 
     db.commit()
     return {
@@ -334,6 +540,7 @@ def list_revisioni(commessa_id: int, db: Session = Depends(get_db)):
             "file_assemblaggi": r.file_assemblaggi,
             "file_lista_pezzi": r.file_lavorazioni,
             "file_spedizione":  _spedizione_doc(r).storage_path if _spedizione_doc(r) else None,
+            "file_bulloneria":  _doc_by_category(r, "BULLONERIA").storage_path if _doc_by_category(r, "BULLONERIA") else None,
             "predistinta":      r.predistinta,
             "corrente":         r.corrente,
             "stato_analisi":    r.stato_analisi,
@@ -379,6 +586,258 @@ def _latest_revision(db: Session, commessa_id: int) -> CommessaRevisione | None:
 
 def _spedizione_doc(revisione: CommessaRevisione) -> CommessaDocumento | None:
     return next((doc for doc in revisione.documenti if doc.categoria == "SPEDIZIONE"), None)
+
+
+def _doc_by_category(revisione: CommessaRevisione, categoria: str) -> CommessaDocumento | None:
+    return next((doc for doc in revisione.documenti if doc.categoria == categoria), None)
+
+
+def _num(value) -> float:
+    return float(value) if value is not None else 0.0
+
+
+def _fmt_dim(value) -> str | None:
+    if value is None:
+        return None
+    number = float(value)
+    return f"{number:g}"
+
+
+def _item_dimension_label(item: DistintaItem) -> str | None:
+    length = _fmt_dim(item.length_mm)
+    width = _fmt_dim(item.width_mm)
+    if length and width:
+        return f"{width}×{length} mm"
+    if length:
+        return f"L {length} mm"
+    if width:
+        return f"{width} mm"
+    return None
+
+
+def _bolt_dimension_label(row: CommessaBulloneria) -> str | None:
+    values = [row.diametro, row.lunghezza]
+    values = [str(value).strip() for value in values if value]
+    if values:
+        return "×".join(values)
+    return None
+
+
+def _fabbisogno_category_from_piece(item: DistintaItem) -> str:
+    text = " ".join(str(value or "") for value in (
+        item.tipo_profilo,
+        item.description,
+        item.material_description,
+        item.part_number,
+    )).upper()
+    if any(token in text for token in ("DADO", "RONDELL", "VITE", "BULL", "BOLT", "TIRAFON", "BARRA FILETTATA", "PIOLO")):
+        return "Bulloneria"
+    if any(token in text for token in ("LAMIERA", "PIATTO", "PIATTI", "PL")):
+        return "Lamiere / piatti"
+    if any(token in text for token in ("TRAVE", "IPE", "HEA", "HEB", "UPN")):
+        return "Travi"
+    if any(token in text for token in ("TUBO", "RHS", "SHS", "TUBE")):
+        return "Tubolari"
+    profile = str(item.description or "").upper().strip()
+    if "ANGOL" in text or profile.startswith("L"):
+        return "Angolari"
+    if "TONDO" in text:
+        return "Tondi"
+    if "QUADRO" in text:
+        return "Quadri"
+    return item.tipo_profilo or "Altro"
+
+
+def _fabbisogno_group(rows: list[dict]) -> dict:
+    groups: dict[tuple, dict] = {}
+    summary: dict[str, dict] = {}
+    for row in rows:
+        key = (
+            row["categoria"],
+            row.get("codice") or "",
+            row.get("descrizione") or "",
+            row.get("materiale_norma") or "",
+            row.get("dimensioni") or "",
+            row.get("origine") or "",
+        )
+        target = groups.setdefault(key, {
+            **row,
+            "righe": 0,
+            "quantita": 0.0,
+            "peso_kg": 0.0,
+            "assemblati": set(),
+        })
+        target["righe"] += int(row.get("righe") or 1)
+        target["quantita"] += _num(row.get("quantita"))
+        target["peso_kg"] += _num(row.get("peso_kg"))
+        if row.get("assemblato"):
+            target["assemblati"].add(row["assemblato"])
+
+        cat = summary.setdefault(row["categoria"], {
+            "categoria": row["categoria"],
+            "righe": 0,
+            "quantita": 0.0,
+            "peso_kg": 0.0,
+            "origini": set(),
+        })
+        cat["righe"] += int(row.get("righe") or 1)
+        cat["quantita"] += _num(row.get("quantita"))
+        cat["peso_kg"] += _num(row.get("peso_kg"))
+        cat["origini"].add(row.get("origine_label") or row.get("origine") or "—")
+
+    detail = []
+    for row in groups.values():
+        row["assemblati"] = sorted(row["assemblati"])
+        detail.append(row)
+    detail.sort(key=lambda row: (row["categoria"], row.get("descrizione") or "", row.get("dimensioni") or "", row.get("origine") or ""))
+
+    summary_rows = []
+    for row in summary.values():
+        row["origini"] = sorted(row["origini"])
+        summary_rows.append(row)
+    summary_rows.sort(key=lambda row: row["categoria"])
+    return {"summary": summary_rows, "detail": detail}
+
+
+def _validate_spedizione_file(path: Path) -> dict:
+    rows = _extract_rows(path)
+    nonempty = [
+        [str(cell).strip() for cell in row if str(cell).strip()]
+        for row in rows
+        if any(str(cell).strip() for cell in row)
+    ]
+    if not nonempty:
+        raise ValueError("nessuna riga leggibile trovata")
+    header_idx = None
+    for idx, row in enumerate(nonempty[:30]):
+        normalized = {cell.lower() for cell in row}
+        if any(cell in normalized for cell in {"assemb.", "assemb", "assemblato"}) and any("q.t" in cell or cell in {"qty", "quantita", "quantità"} for cell in normalized):
+            header_idx = idx
+            break
+    if header_idx is None:
+        raise ValueError("intestazione spedizione non riconosciuta")
+    data_rows = [
+        row for row in nonempty[header_idx + 1:]
+        if row and row[0] and not row[0].lower().startswith("totale")
+    ]
+    if not data_rows:
+        raise ValueError("nessuna riga spedizione valida trovata")
+    return {
+        "ok": True,
+        "summary": f"Lista spedizione leggibile: {len(data_rows)} righe rilevate",
+        "righe": len(data_rows),
+    }
+
+
+def _validate_lista_pezzi_file(path: Path) -> dict:
+    rows = _extract_rows(path)
+    if not rows:
+        raise ValueError("file vuoto o non leggibile")
+    header_idx = _find_header_row(rows, ALIASES["part_code"] + ALIASES["profile"] + ALIASES["qty"])
+    col_map = _build_col_map(rows[header_idx])
+    required = {"part_code", "profile", "qty"}
+    missing = sorted(required - set(col_map))
+    if missing:
+        raise ValueError("colonne lista pezzi non riconosciute")
+    valid_rows = 0
+    total_qty = 0
+    for row in rows[header_idx + 1:]:
+        if not row or col_map["part_code"] >= len(row):
+            continue
+        code = str(row[col_map["part_code"]] or "").strip()
+        if not code or code.lower().startswith("totale"):
+            continue
+        valid_rows += 1
+        try:
+            total_qty += int(round(float(str(row[col_map["qty"]]).replace(",", ".") or "0")))
+        except (ValueError, TypeError):
+            pass
+    if valid_rows == 0:
+        raise ValueError("nessuna riga lista pezzi valida trovata")
+    return {"ok": True, "righe": valid_rows, "quantita": total_qty}
+
+
+def _validate_assemblaggi_file(path: Path) -> dict:
+    rows = _extract_rows(path)
+    if not rows:
+        raise ValueError("file vuoto o non leggibile")
+    header_idx = _find_header_row(rows, ALIASES["assembly"] + ALIASES["part_code"] + ALIASES["qty"])
+    col_map = _build_col_map(rows[header_idx])
+    required = {"assembly", "part_code", "qty"}
+    missing = sorted(required - set(col_map))
+    if missing:
+        raise ValueError("colonne assemblaggi non riconosciute")
+    assemblies = set()
+    parts = 0
+    current_assembly = None
+    for row in rows[header_idx + 1:]:
+        asm = str(row[col_map["assembly"]] if col_map["assembly"] < len(row) else "").strip()
+        part = str(row[col_map["part_code"]] if col_map["part_code"] < len(row) else "").strip()
+        if asm.lower().startswith("totale") or part.lower().startswith("totale"):
+            continue
+        if asm and not part:
+            current_assembly = asm
+            assemblies.add(asm)
+        elif part:
+            parts += 1
+            if current_assembly:
+                assemblies.add(current_assembly)
+            elif asm:
+                assemblies.add(asm)
+    if not assemblies or parts == 0:
+        raise ValueError("nessun collegamento assemblato/pezzo valido trovato")
+    return {"ok": True, "assemblati": len(assemblies), "righe": parts}
+
+
+def _build_fabbisogno_commessa(items: list[DistintaItem], bulloneria_rows: list[CommessaBulloneria]) -> dict:
+    rows: list[dict] = []
+    for item in items:
+        rows.append({
+            "categoria": _fabbisogno_category_from_piece(item),
+            "codice": item.part_number,
+            "descrizione": item.description or item.part_number,
+            "materiale_norma": item.material_code,
+            "dimensioni": _item_dimension_label(item),
+            "quantita": 1,
+            "unita": "pz",
+            "peso_kg": _num(item.weight_kg),
+            "origine": "FILE_PEZZI",
+            "origine_label": "File pezzi",
+            "qr_scope": "PEZZO",
+            "assemblato": item.parent_assembly,
+            "righe": 1,
+        })
+    for row in bulloneria_rows:
+        rows.append({
+            "categoria": "Bulloneria",
+            "codice": row.codice,
+            "descrizione": row.descrizione or row.codice or row.tipo or row.categoria,
+            "materiale_norma": " · ".join(str(value) for value in (row.norma, row.classe) if value),
+            "dimensioni": _bolt_dimension_label(row),
+            "quantita": _num(row.quantita),
+            "unita": row.unita or "pz",
+            "peso_kg": _num(row.peso_kg),
+            "origine": "FILE_BULLONERIA",
+            "origine_label": "File bulloneria",
+            "qr_scope": "NESSUN_QR",
+            "assemblato": row.assemblato,
+            "righe": 1,
+            "tipo": row.tipo,
+            "sottocategoria": row.categoria,
+        })
+    grouped = _fabbisogno_group(rows)
+    total_qty = sum(_num(row["quantita"]) for row in grouped["detail"])
+    total_weight = sum(_num(row["peso_kg"]) for row in grouped["detail"])
+    return {
+        "summary": grouped["summary"],
+        "detail": grouped["detail"],
+        "totals": {
+            "righe": len(grouped["detail"]),
+            "quantita": total_qty,
+            "peso_kg": total_weight,
+        },
+        "note": "Vista materiali/fabbisogno derivata dai file caricati. Non modifica la logica QR.",
+    }
 
 
 @router.get("/{commessa_id}/analisi")
@@ -429,6 +888,17 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
         position_rows.append(row)
 
     spedizione_doc = _spedizione_doc(revisione)
+    bulloneria_doc = _doc_by_category(revisione, "BULLONERIA")
+    bulloneria_rows = (
+        db.query(CommessaBulloneria)
+        .filter(CommessaBulloneria.revisione_id == revisione.id)
+        .order_by(CommessaBulloneria.assemblato, CommessaBulloneria.tipo, CommessaBulloneria.codice, CommessaBulloneria.id)
+        .all()
+    )
+    bulloneria_totale = sum(float(row.quantita or 0) for row in bulloneria_rows)
+    bulloneria_tipologie: dict[str, float] = defaultdict(float)
+    for row in bulloneria_rows:
+        bulloneria_tipologie[row.tipo or "Altro"] += float(row.quantita or 0)
 
     return {
         "commessa": {
@@ -453,6 +923,7 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
                 "lista_pezzi": revisione.file_lavorazioni,
                 "assemblaggi": revisione.file_assemblaggi,
                 "spedizione": spedizione_doc.storage_path if spedizione_doc else None,
+                "bulloneria": bulloneria_doc.storage_path if bulloneria_doc else None,
                 "documenti": [
                     {
                         "id": doc.id,
@@ -475,7 +946,36 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
                 (item.description, item.material_code)
                 for item in items if item.description
             }),
+            "n_bulloneria_righe": len(bulloneria_rows),
+            "n_bulloneria_totale": bulloneria_totale,
+            "n_bulloneria_tipologie": len(bulloneria_tipologie),
         },
+        "bulloneria": [
+            {
+                "id": row.id,
+                "assemblato": row.assemblato,
+                "codice": row.codice,
+                "descrizione": row.descrizione,
+                "categoria": row.categoria,
+                "tipo": row.tipo,
+                "norma": row.norma,
+                "diametro": row.diametro,
+                "lunghezza": row.lunghezza,
+                "classe": row.classe,
+                "trattamento": row.trattamento,
+                "quantita": float(row.quantita or 0),
+                "unita": row.unita,
+                "peso_kg": float(row.peso_kg or 0),
+                "note": row.note,
+            }
+            for row in bulloneria_rows
+        ],
+        "bulloneria_summary": {
+            "righe": len(bulloneria_rows),
+            "quantita_totale": bulloneria_totale,
+            "tipologie": dict(sorted(bulloneria_tipologie.items())),
+        },
+        "fabbisogno": _build_fabbisogno_commessa(items, bulloneria_rows),
         "positions": position_rows,
     }
 
@@ -636,6 +1136,12 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
         .order_by(Piece.assemblato_id, Piece.marca_pos, Piece.progressivo, Piece.id)
         .all()
     )
+    bulloneria_rows = (
+        db.query(CommessaBulloneria)
+        .filter(CommessaBulloneria.revisione_id == revisione.id)
+        .order_by(CommessaBulloneria.assemblato, CommessaBulloneria.tipo, CommessaBulloneria.codice, CommessaBulloneria.id)
+        .all()
+    )
     groups: dict[str, dict] = {}
     unassigned = 0
     for piece in pieces:
@@ -653,6 +1159,9 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
             "last_event": None,
             "last_postazione": None,
             "pieces": [],
+            "bulloneria": [],
+            "bulloneria_righe": 0,
+            "bulloneria_quantita": 0,
         })
         row["pezzi_previsti"] += 1
         if piece.qr_attivo:
@@ -694,6 +1203,46 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
             "completed_assembly": completed,
         })
 
+    bulloneria_senza_assemblato = 0
+    for bolt in bulloneria_rows:
+        if not bolt.assemblato:
+            bulloneria_senza_assemblato += 1
+            continue
+        row = groups.setdefault(bolt.assemblato, {
+            "assemblato": bolt.assemblato,
+            "pezzi_previsti": 0,
+            "qr_attivi": 0,
+            "pezzi_entrati": 0,
+            "pezzi_completati": 0,
+            "started_at": None,
+            "last_event_at": None,
+            "last_event": None,
+            "last_postazione": None,
+            "pieces": [],
+            "bulloneria": [],
+            "bulloneria_righe": 0,
+            "bulloneria_quantita": 0,
+        })
+        qty = float(bolt.quantita or 0)
+        row["bulloneria_righe"] += 1
+        row["bulloneria_quantita"] += qty
+        row["bulloneria"].append({
+            "id": bolt.id,
+            "codice": bolt.codice,
+            "descrizione": bolt.descrizione,
+            "categoria": bolt.categoria,
+            "tipo": bolt.tipo,
+            "norma": bolt.norma,
+            "diametro": bolt.diametro,
+            "lunghezza": bolt.lunghezza,
+            "classe": bolt.classe,
+            "trattamento": bolt.trattamento,
+            "quantita": qty,
+            "unita": bolt.unita,
+            "peso_kg": float(bolt.peso_kg or 0),
+            "note": bolt.note,
+        })
+
     assemblati = []
     for row in groups.values():
         total = row["pezzi_previsti"] or 0
@@ -707,6 +1256,11 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
             stato = "DA_PRODURRE"
         row["stato"] = stato
         row["progress"] = round((completed / total) * 100, 1) if total else 0
+        row["narrative"] = (
+            f"{row['assemblato']} richiede {row['pezzi_previsti']} pezzi strutturali"
+            f" e {row['bulloneria_quantita']:g} componenti di bulloneria"
+            f" su {row['bulloneria_righe']} righe dedicate."
+        )
         assemblati.append(row)
 
     assemblati.sort(key=lambda row: row["assemblato"])
@@ -719,6 +1273,10 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
         "pezzi_entrati": sum(row["pezzi_entrati"] for row in assemblati),
         "pezzi_completati": sum(row["pezzi_completati"] for row in assemblati),
         "pezzi_senza_assemblato": unassigned,
+        "bulloneria_righe": sum(row["bulloneria_righe"] for row in assemblati),
+        "bulloneria_quantita": sum(row["bulloneria_quantita"] for row in assemblati),
+        "assemblati_con_bulloneria": sum(1 for row in assemblati if row["bulloneria_righe"] > 0),
+        "bulloneria_senza_assemblato": bulloneria_senza_assemblato,
     }
     totals["progress"] = round((totals["pezzi_completati"] / totals["pezzi_previsti"]) * 100, 1) if totals["pezzi_previsti"] else 0
     return {
@@ -873,6 +1431,14 @@ def avvia_produzione(commessa_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Commessa non trovata")
     if commessa.status != CommessaStatus.APERTA:
         raise HTTPException(409, f"Commessa non è APERTA (stato attuale: {commessa.status})")
+
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    if revisione.predistinta:
+        raise HTTPException(409, "Produzione bloccata: la revisione corrente è una pre-distinta")
+    if revisione.step51_completed_at is None:
+        raise HTTPException(409, "Completa lo Step 5.1 prima di avviare la produzione")
 
     existing = db.query(PezzoPercorso).filter(PezzoPercorso.commessa_id == commessa_id).first()
     if existing:

@@ -1,13 +1,13 @@
 .PHONY: run migrate upgrade downgrade
 
 run:
-	uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+	./venv/bin/uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
 migrate:
 	alembic revision --autogenerate -m "$(msg)"
 
 upgrade:
-	alembic upgrade head
+	./venv/bin/alembic upgrade head
 
 downgrade:
-	alembic downgrade -1
+	./venv/bin/alembic downgrade -1

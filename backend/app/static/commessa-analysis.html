@@ -76,7 +76,7 @@
     }
     .section-title { font-size: 15px; font-weight: 850; }
     .section-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
-    .file-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .file-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .file-card {
       min-height: 90px; padding: 14px; border-radius: 11px;
       background: var(--panel2); border: 1px solid var(--border);
@@ -129,6 +129,28 @@
       color: var(--secondary); font-size: 11px; line-height: 1.55;
     }
     .explanation strong { color: #bfdbfe; }
+    .needs-overview {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px; margin-bottom: 15px;
+    }
+    .need-card {
+      padding: 15px; border-radius: 13px; border: 1px solid rgba(147,197,253,.14);
+      background:
+        radial-gradient(circle at 86% 12%, rgba(59,130,246,.13), transparent 34%),
+        var(--panel2);
+      cursor: pointer; transition: transform .15s ease, border-color .15s ease;
+    }
+    .need-card:hover { transform: translateY(-1px); border-color: rgba(147,197,253,.34); }
+    .need-label { color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+    .need-value { margin-top: 7px; font-size: 24px; font-weight: 950; letter-spacing: -.035em; }
+    .need-sub { margin-top: 5px; color: var(--secondary); font-size: 10px; line-height: 1.4; }
+    .origin-pill, .qr-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 4px 7px; border-radius: 999px; font-size: 8px; font-weight: 900;
+      letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
+      background: rgba(147,197,253,.08); border: 1px solid rgba(147,197,253,.16); color: #bfdbfe;
+    }
+    .qr-pill.no { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.18); color: #fde68a; }
     .anomaly-list { display: flex; flex-direction: column; gap: 7px; }
     .anomaly {
       padding: 10px 12px; border-radius: 9px; font-size: 11px;
@@ -137,15 +159,6 @@
     .anomaly.warning {
       background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.16); color: #fcd34d;
     }
-    .stock-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-    .stock-kpi {
-      padding: 13px; border-radius: 10px; text-align: center; cursor: pointer;
-      border: 1px solid var(--border); background: var(--panel2); transition: border-color .15s;
-    }
-    .stock-kpi:hover, .stock-kpi.active { border-color: rgba(59,130,246,.55); }
-    .stock-num { font-size: 22px; font-weight: 900; }
-    .stock-label { margin-top: 4px; color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
-    .stock-meta { margin-top: 5px; color: var(--secondary); font-size: 10px; }
     .footer-note {
       margin-top: 22px; padding: 15px; text-align: center;
       color: var(--secondary); font-size: 12px;
@@ -245,7 +258,7 @@
     .qr-link { display: inline-block; margin-top: 8px; color: #93c5fd; font-size: 10px; font-weight: 800; text-decoration: none; }
     .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 10px; }
     .assembly-overview {
-      display: grid; grid-template-columns: 1.1fr repeat(4, minmax(120px, .7fr));
+      display: grid; grid-template-columns: minmax(230px, 1.2fr) repeat(5, minmax(120px, .7fr));
       gap: 10px; margin-bottom: 15px;
     }
     .assembly-progress-card {
@@ -350,7 +363,6 @@
       .detail-grid { grid-template-columns: repeat(2, 1fr); }
       .qr-summary-card { grid-template-columns: 1fr; }
       .file-grid { grid-template-columns: 1fr; }
-      .stock-kpis { grid-template-columns: repeat(2, 1fr); }
       .revision-form { grid-template-columns: 1fr; }
     }
     @media (max-width: 620px) {
@@ -434,10 +446,8 @@
 const commessaId = Number(location.pathname.split("/").filter(Boolean).at(-2));
 const auth = () => ({ Authorization: "Bearer " + sessionStorage.getItem("stqc_token") });
 let analysisData = null;
-let stockData = null;
 let assemblyData = null;
 let revisionData = [];
-let stockFilter = "tutti";
 let qrPage = 0;
 const qrPageSize = 5000;
 let qrQuery = "";
@@ -495,12 +505,13 @@ function renderPage() {
 
     <div class="steps">
       <div class="step"><span class="step-num">1</span><span class="step-label">File acquisiti</span></div>
-      <div class="step"><span class="step-num">2</span><span class="step-label">Distinta letta</span></div>
+      <div class="step"><span class="step-num">2</span><span class="step-label">Fabbisogno</span></div>
       <div class="step"><span class="step-num">3</span><span class="step-label">Assemblati</span></div>
       <div class="step"><span class="step-num">4</span><span class="step-label">QR commessa</span></div>
     </div>
 
     ${r.predistinta ? renderPredistintaWarning(r) : ""}
+    ${renderFileWarnings(r)}
 
     <section class="section">
       <div class="section-head">
@@ -510,14 +521,15 @@ function renderPage() {
       <div class="file-grid">
         ${fileCard("Lista pezzi", basename(r.files.lista_pezzi), "File obbligatorio non disponibile")}
         ${fileCard("Pezzi e assemblati", basename(r.files.assemblaggi), "Nessuna gerarchia caricata")}
-        ${fileCard("Lista spedizione", basename(r.files.spedizione), "File obbligatorio non disponibile")}
+        ${fileCard("Lista spedizione", basename(r.files.spedizione), "Non caricata · non bloccante")}
+        ${fileCard("Bulloneria", basename(r.files.bulloneria), "Opzionale · nessun QR associato")}
       </div>
     </section>
 
     <section class="section">
       <div class="section-head">
-        <div><div class="section-title">Distinta letta</div>
-        <div class="section-sub">Pezzi, assemblati e profili raggruppati in un'unica vista di controllo</div></div>
+        <div><div class="section-title">Sintesi distinta acquisita</div>
+        <div class="section-sub">Numeri base letti dai file caricati. Il dettaglio materiali è nella sezione Fabbisogno commessa.</div></div>
       </div>
       <div class="kpis">
         <div class="kpi"><div class="kpi-label">Pezzi fisici</div><div class="kpi-value">${fmt(s.n_pezzi)}</div></div>
@@ -526,19 +538,12 @@ function renderPage() {
         <div class="kpi"><div class="kpi-label">Profili / qualità</div><div class="kpi-value">${fmt(s.n_profili)}</div></div>
       </div>
       <div class="explanation">
-        <strong>Come leggere la tabella:</strong> ogni riga raggruppa i pezzi che condividono tipo materiale, profilo e qualità.
-        "Part number distinti" indica quanti codici diversi sono compresi nel gruppo; "Assemblati" indica quanti assemblati risultano collegati a quei codici.
-      </div>
-      <div class="toolbar"><input class="search" id="unified-search" placeholder="Cerca tipo, profilo, qualità o assemblato…" oninput="renderUnifiedRows(this.value)"/></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Tipo materiale</th><th>Profilo</th><th>Qualità</th><th class="right">Pezzi fisici</th><th class="right">Part number distinti</th><th class="right">Assemblati</th></tr></thead>
-          <tbody id="unified-body"></tbody>
-        </table>
+        <strong>Nota:</strong> questa è solo una sintesi di controllo. La vista operativa dei materiali necessari,
+        compresa la bulloneria da file dedicato e gli elementi presenti nel file pezzi, è raccolta sotto “Fabbisogno commessa”.
       </div>
     </section>
 
-    ${renderAssemblatiSection()}
+    ${renderFabbisognoSection()}
 
     <section class="section" id="step-5-1">
       <div class="section-head">
@@ -572,11 +577,13 @@ function renderPage() {
       </div>
     </section>
 
+    ${renderAssemblatiSection()}
+
     <div class="footer-note">
       La commessa viene aggiornata dagli eventi reali generati dagli scan in officina.
     </div>`;
 
-  renderUnifiedRows("");
+  renderFabbisognoRows("");
   renderAssemblyRows("");
 }
 
@@ -601,6 +608,77 @@ function renderProgress(value) {
     <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
     <span>${fmt(pct)}%</span>
   </div>`;
+}
+
+let fabbisognoCategory = "Tutte";
+
+function renderFabbisognoSection() {
+  const data = analysisData?.fabbisogno || { summary: [], detail: [], totals: {} };
+  const summary = data.summary || [];
+  const totals = data.totals || {};
+  const cards = [
+    `<div class="need-card" onclick="filterFabbisogno('Tutte')">
+      <div class="need-label">Totale fabbisogno</div>
+      <div class="need-value">${fmt(totals.quantita)}</div>
+      <div class="need-sub">${fmt(totals.righe)} righe aggregate · ${fmt(totals.peso_kg)} kg</div>
+    </div>`,
+    ...summary.map(row => `
+      <div class="need-card" onclick="filterFabbisogno('${jsArg(row.categoria)}')">
+        <div class="need-label">${esc(row.categoria)}</div>
+        <div class="need-value">${fmt(row.quantita)}</div>
+        <div class="need-sub">${fmt(row.righe)} elementi · ${fmt(row.peso_kg)} kg<br>${esc((row.origini || []).join(" + ") || "—")}</div>
+      </div>`)
+  ].join("");
+  return `<section class="section" id="fabbisogno-section">
+    <div class="section-head">
+      <div><div class="section-title">Fabbisogno commessa</div>
+      <div class="section-sub">Materiali necessari ricavati dai file caricati. È una vista documentale: non modifica i QR.</div></div>
+    </div>
+    <div class="needs-overview">${cards}</div>
+    <div class="explanation">
+      <strong>Nota operativa:</strong> i pezzi da distinta restano nel flusso QR pezzi/assemblati. La bulloneria da file dedicato alimenta il fabbisogno, ma non genera QR.
+    </div>
+    <div class="toolbar"><input class="search" id="fabbisogno-search" placeholder="Cerca categoria, profilo, norma, dimensione, origine…" oninput="renderFabbisognoRows(this.value)"/></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Categoria</th><th>Codice</th><th>Descrizione</th><th>Materiale / norma</th><th>Dimensioni</th>
+          <th class="right">Quantità</th><th class="right">Peso kg</th><th>Origine</th><th>QR</th>
+        </tr></thead>
+        <tbody id="fabbisogno-body"></tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+function filterFabbisogno(category) {
+  fabbisognoCategory = category || "Tutte";
+  const input = document.getElementById("fabbisogno-search");
+  renderFabbisognoRows(input?.value || "");
+}
+
+function renderFabbisognoRows(query) {
+  const body = document.getElementById("fabbisogno-body");
+  if (!body) return;
+  const q = String(query || "").trim().toLowerCase();
+  const rows = (analysisData?.fabbisogno?.detail || []).filter(row => {
+    const categoryOk = fabbisognoCategory === "Tutte" || row.categoria === fabbisognoCategory;
+    const text = [row.categoria, row.codice, row.descrizione, row.materiale_norma, row.dimensioni, row.origine_label, row.qr_scope]
+      .map(value => String(value || "").toLowerCase()).join(" ");
+    return categoryOk && (!q || text.includes(q));
+  });
+  body.innerHTML = rows.map(row => `
+    <tr>
+      <td><span class="mono">${esc(row.categoria || "—")}</span></td>
+      <td>${esc(row.codice || "—")}</td>
+      <td>${esc(row.descrizione || "—")}</td>
+      <td>${esc(row.materiale_norma || "—")}</td>
+      <td>${esc(row.dimensioni || "—")}</td>
+      <td class="right">${fmt(row.quantita)} ${esc(row.unita || "pz")}</td>
+      <td class="right">${fmt(row.peso_kg)}</td>
+      <td><span class="origin-pill">${esc(row.origine_label || row.origine || "—")}</span></td>
+      <td><span class="qr-pill ${row.qr_scope === "NESSUN_QR" ? "no" : ""}">${row.qr_scope === "NESSUN_QR" ? "No QR" : "QR pezzo"}</span></td>
+    </tr>`).join("") || '<tr><td colspan="9">Nessun fabbisogno trovato</td></tr>';
 }
 
 function renderAssemblatiSection() {
@@ -656,6 +734,18 @@ function renderAssemblyRows(query) {
     </tr>`).join("") || '<tr><td colspan="7">Nessun assemblato trovato</td></tr>';
 }
 
+function renderFileWarnings(revision) {
+  const warnings = revision?.report?.file_warnings || [];
+  if (!warnings.length) return "";
+  return `<section class="section">
+    <div class="section-head"><div><div class="section-title">Warning file non bloccanti</div>
+    <div class="section-sub">L'analisi commessa è proseguita. Questi file possono essere inviati per verifica parsing/maintenance.</div></div></div>
+    <div class="notice warn">
+      ${warnings.map(item => `<div><strong>${esc(item.file || "File")}:</strong> ${esc(item.message || "Verifica file/parsing")}</div>`).join("")}
+    </div>
+  </section>`;
+}
+
 function renderPredistintaWarning(revision) {
   const chips = revisionData.map(row => `
     <div class="revision-chip${row.corrente ? " current" : ""}">
@@ -672,7 +762,8 @@ function renderPredistintaWarning(revision) {
     <form class="revision-form" onsubmit="uploadDefinitive(event)">
       <div class="upload-field"><label>Lista pezzi definitiva *</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm" required/></div>
       <div class="upload-field"><label>Pezzi e assemblati *</label><input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm" required/></div>
-      <div class="upload-field"><label>Lista spedizione *</label><input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm" required/></div>
+      <div class="upload-field"><label>Lista spedizione non bloccante</label><input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm"/></div>
+      <div class="upload-field"><label>Bulloneria senza QR</label><input type="file" id="def-bulloneria" accept=".xls,.xlsx,.xlsm,.csv,.pdf"/></div>
       <div class="revision-actions">
         <span class="feedback" id="revision-feedback"></span>
         <button class="btn" id="revision-submit" type="submit">Carica distinta definitiva e riesegui Step 4</button>
@@ -688,21 +779,26 @@ async function uploadDefinitive(event) {
   const lista = document.getElementById("def-lista").files[0];
   const assemblaggi = document.getElementById("def-assemblaggi").files[0];
   const spedizione = document.getElementById("def-spedizione").files[0];
-  if (!lista || !assemblaggi || !spedizione) return;
+  const bulloneria = document.getElementById("def-bulloneria").files[0];
+  if (!lista || !assemblaggi) return;
   button.disabled = true;
   feedback.className = "feedback";
   feedback.textContent = "Caricamento e nuova analisi in corso…";
   const body = new FormData();
   body.append("lista_pezzi", lista);
   body.append("assemblaggi", assemblaggi);
-  body.append("spedizione", spedizione);
+  if (spedizione) body.append("spedizione", spedizione);
+  if (bulloneria) body.append("bulloneria", bulloneria);
   body.append("predistinta", "false");
   try {
     const response = await fetch(`/api/v1/commesse/${commessaId}/analisi`, {
       method: "POST", headers: auth(), body,
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || "Impossibile analizzare la distinta definitiva");
+    if (!response.ok) {
+      const detail = data.detail || "Impossibile analizzare la distinta definitiva";
+      throw new Error(response.status === 422 ? `File non importabile. Verifica file/parsing. ${detail}` : detail);
+    }
     location.reload();
   } catch (error) {
     feedback.className = "feedback error";
@@ -951,44 +1047,6 @@ async function printCommessaLabel(url, event) {
   }
 }
 
-function getUnifiedRows() {
-  if (!stockData || !Array.isArray(stockData.groups)) return [];
-  return stockData.groups.map(group => {
-    const assemblati = new Set();
-    const matchingPositions = (analysisData.positions || []).filter(position =>
-      String(position.profilo || "") === String(group.profilo || "") &&
-      String(position.qualita || "") === String(group.qualita || "")
-    );
-    matchingPositions.forEach(position => {
-      (position.assemblati || []).forEach(ass => {
-        if (ass) assemblati.add(String(ass));
-      });
-    });
-    return {
-      ...group,
-      n_assemblati: assemblati.size,
-      assemblati_label: Array.from(assemblati).slice(0, 5).join(", "),
-    };
-  });
-}
-
-function renderUnifiedRows(query) {
-  const q = String(query || "").trim().toLowerCase();
-  const rows = getUnifiedRows().filter(row =>
-    [row.tipo, row.profilo, row.qualita, row.assemblati_label]
-      .some(value => String(value || "").toLowerCase().includes(q))
-  );
-  document.getElementById("unified-body").innerHTML = rows.map(row => `
-    <tr>
-      <td>${esc(row.tipo || "—")}</td>
-      <td class="mono">${esc(row.profilo || "—")}</td>
-      <td>${esc(row.qualita || "—")}</td>
-      <td class="right">${fmt(row.n_pezzi)}</td>
-      <td class="right">${fmt(row.n_codici_pezzo)}</td>
-      <td class="right">${fmt(row.n_assemblati)}</td>
-    </tr>`).join("") || '<tr><td colspan="6">Nessun gruppo trovato</td></tr>';
-}
-
 function renderPositions(query) {
   const q = String(query || "").trim().toLowerCase();
   const rows = analysisData.positions.filter(row =>
@@ -1005,70 +1063,20 @@ function renderPositions(query) {
     </tr>`).join("") || '<tr><td colspan="5">Nessun part number trovato</td></tr>';
 }
 
-function setStockFilter(value) {
-  stockFilter = value;
-  renderStock();
-}
-
-function renderStock() {
-  const target = document.getElementById("stock-content");
-  if (!stockData) return;
-  const rows = stockData.groups.filter(row => stockFilter === "tutti" || row.tipo === stockFilter);
-  target.innerHTML = `
-    <div class="stock-kpis">
-      ${stockData.types.map(row => `<div class="stock-kpi${stockFilter === row.tipo ? " active" : ""}" onclick="setStockFilter('${esc(row.tipo)}')">
-        <div class="stock-num">${fmt(row.n_pezzi)}</div>
-        <div class="stock-label">${esc(row.tipo)}</div>
-        <div class="stock-meta">${fmt(row.n_codici_pezzo)} part number distinti · ${fmt(row.n_gruppi)} profili/qualità</div>
-      </div>`).join("")}
-    </div>
-    <div class="toolbar">
-      <input class="search" id="stock-search" placeholder="Cerca tipo, profilo o qualità…" oninput="renderStockRows(this.value)"/>
-      ${stockFilter !== "tutti" ? '<button class="search" style="flex:0;cursor:pointer" onclick="setStockFilter(\'tutti\')">Tutti</button>' : ""}
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Tipo materiale</th><th>Profilo</th><th>Qualità</th><th class="right">Pezzi fisici</th><th class="right">Part number distinti</th></tr></thead>
-        <tbody id="stock-body"></tbody>
-      </table>
-    </div>`;
-  renderStockRows("");
-}
-
-function renderStockRows(query) {
-  const q = String(query || "").trim().toLowerCase();
-  const rows = stockData.groups.filter(row =>
-    (stockFilter === "tutti" || row.tipo === stockFilter) &&
-    [row.tipo, row.profilo, row.qualita].some(value => String(value || "").toLowerCase().includes(q))
-  );
-  document.getElementById("stock-body").innerHTML = rows.map(row => `
-    <tr>
-      <td>${esc(row.tipo)}</td>
-      <td class="mono">${esc(row.profilo)}</td>
-      <td>${esc(row.qualita || "—")}</td>
-      <td class="right">${fmt(row.n_pezzi)}</td>
-      <td class="right">${fmt(row.n_codici_pezzo)}</td>
-    </tr>`).join("") || '<tr><td colspan="5">Nessun profilo in questa categoria</td></tr>';
-}
-
 async function load() {
   try {
-    const [analysisResponse, stockResponse, assembliesResponse, revisionsResponse] = await Promise.all([
+    const [analysisResponse, assembliesResponse, revisionsResponse] = await Promise.all([
       fetch(`/api/v1/commesse/${commessaId}/analisi`, { headers: auth() }),
-      fetch(`/api/v1/commesse/${commessaId}/analisi/materiali`, { headers: auth() }),
       fetch(`/api/v1/commesse/${commessaId}/analisi/assemblati`, { headers: auth() }),
       fetch(`/api/v1/commesse/${commessaId}/revisioni`, { headers: auth() }),
     ]);
     const analysis = await analysisResponse.json().catch(() => ({}));
-    const stock = await stockResponse.json().catch(() => ({}));
     const assemblies = await assembliesResponse.json().catch(() => ({}));
     const revisions = await revisionsResponse.json().catch(() => ([]));
     if (!analysisResponse.ok) throw new Error(analysis.detail || "Analisi non disponibile");
-    if (!stockResponse.ok) throw new Error(stock.detail || "Classificazione materiali non disponibile");
     if (!assembliesResponse.ok) throw new Error(assemblies.detail || "Assemblati non disponibili");
     if (!revisionsResponse.ok) throw new Error(revisions.detail || "Revisioni non disponibili");
     analysisData = analysis;
-    stockData = stock;
     assemblyData = assemblies;
     revisionData = revisions;
     renderPage();

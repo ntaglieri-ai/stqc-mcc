@@ -14,7 +14,7 @@ from backend.app.core.auth import (
     write_audit_log,
 )
 from backend.app.db.session import get_db
-from backend.app.models.user import User
+from backend.app.models.user import User, UserAttributes
 
 _logger = logging.getLogger("stqc.auth")
 
@@ -32,6 +32,10 @@ class TokenResponse(BaseModel):
     profilo:      str
     username:     str
     id:           int
+
+
+class PreferenceRequest(BaseModel):
+    value: dict
 
 
 def _profilo_str(user: User) -> str:
@@ -104,3 +108,40 @@ def me(current_user: User = Depends(require_auth)):
         "profilo":  _profilo_str(current_user),
         "attivo":   current_user.attivo,
     }
+
+
+def _user_attributes(db: Session, user: User) -> UserAttributes:
+    attrs = db.query(UserAttributes).filter(UserAttributes.user_id == user.id).first()
+    if attrs is None:
+        attrs = UserAttributes(user_id=user.id, preferences={})
+        db.add(attrs)
+        db.flush()
+    if attrs.preferences is None:
+        attrs.preferences = {}
+    return attrs
+
+
+@router.get("/preferences/{key}")
+def get_preference(
+    key: str,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    attrs = _user_attributes(db, current_user)
+    return {"key": key, "value": (attrs.preferences or {}).get(key)}
+
+
+@router.put("/preferences/{key}")
+def set_preference(
+    key: str,
+    payload: PreferenceRequest,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    attrs = _user_attributes(db, current_user)
+    prefs = dict(attrs.preferences or {})
+    prefs[key] = payload.value
+    attrs.preferences = prefs
+    db.add(attrs)
+    db.commit()
+    return {"key": key, "value": payload.value}

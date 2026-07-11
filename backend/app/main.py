@@ -78,7 +78,8 @@ def create_app() -> FastAPI:
 
             # Seed groups se non esistono
             for group_name, perms in GROUP_DEFAULTS.items():
-                if not db.query(Group).filter(Group.name == group_name).first():
+                group = db.query(Group).filter(Group.name == group_name).first()
+                if not group:
                     g = Group(
                         name=group_name,
                         postazioni=GROUP_POSTAZIONI_DEFAULTS.get(group_name, []),
@@ -88,6 +89,16 @@ def create_app() -> FastAPI:
                     for sezione, livello in perms.items():
                         db.add(GroupPermission(group_name=group_name, sezione=sezione, livello=livello))
                     _logger.info("Gruppo '%s' creato", group_name)
+                else:
+                    existing_perms = {p.sezione: p for p in group.permissions}
+                    for sezione, livello in perms.items():
+                        perm = existing_perms.get(sezione)
+                        if perm is None:
+                            db.add(GroupPermission(group_name=group_name, sezione=sezione, livello=livello))
+                            _logger.info("Permesso '%s/%s' creato a %s", group_name, sezione, livello)
+                        elif perm.livello != livello:
+                            perm.livello = livello
+                            _logger.info("Permesso '%s/%s' aggiornato a %s", group_name, sezione, livello)
 
             for username, pwd, profilo, email in DEV_ACCOUNTS:
                 user = db.query(User).filter(User.username == username).first()

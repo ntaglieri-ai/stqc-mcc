@@ -663,8 +663,8 @@
       backdrop-filter: blur(8px);
     }
     .ddt-review-modal {
-      width: min(1180px, 94vw);
-      max-height: 92vh;
+      width: min(1720px, calc(100vw - 48px));
+      max-height: min(94vh, 980px);
       display: flex; flex-direction: column;
       overflow: hidden;
       background:
@@ -680,13 +680,13 @@
     }
     #ddt-review-modal.open .ddt-review-modal { transform: translateY(0) scale(1); opacity: 1; }
     .ddt-review-head {
-      padding: 26px 28px 20px;
+      padding: clamp(18px, 2.1vw, 30px) clamp(20px, 2.4vw, 34px) 20px;
       border-bottom: 1px solid var(--color-border-secondary);
       display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
     }
     .ddt-review-title { font-size: 24px; font-weight: 900; color: var(--color-text-primary); line-height: 1.08; }
-    .ddt-review-sub { margin-top: 8px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.45; max-width: 760px; }
-    .ddt-review-body { padding: 22px 28px 24px; overflow: auto; }
+    .ddt-review-sub { margin-top: 8px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.45; max-width: 980px; }
+    .ddt-review-body { padding: 22px clamp(20px, 2.4vw, 34px) 24px; overflow: auto; }
     .ddt-review-section {
       border: 1px solid var(--color-border-secondary);
       background: rgba(255,255,255,.025);
@@ -698,7 +698,7 @@
       font-size: 11px; text-transform: uppercase; letter-spacing: .14em;
       color: var(--color-accent-text); font-weight: 900; margin-bottom: 14px;
     }
-    .ddt-review-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .ddt-review-grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 12px; }
     .ddt-review-field label {
       display: block; margin-bottom: 7px;
       font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
@@ -706,14 +706,16 @@
     }
     .ddt-review-input {
       width: 100%;
+      min-width: 0;
       border: 1px solid var(--color-border-secondary);
       background: rgba(7,10,18,.74);
       color: var(--color-text-primary);
       border-radius: 12px;
-      padding: 10px 11px;
+      padding: 10px 12px;
       font: inherit;
-      font-size: 12px;
+      font-size: 13px;
       outline: none;
+      text-overflow: ellipsis;
     }
     .ddt-review-input:focus {
       border-color: rgba(139,174,255,.52);
@@ -723,25 +725,42 @@
       border: 1px solid var(--color-border-secondary);
       border-radius: 16px;
       overflow: auto;
-      max-height: 46vh;
+      max-height: min(52vh, 560px);
       background: rgba(6,9,16,.45);
     }
-    .ddt-review-table { width: 100%; min-width: 1060px; border-collapse: collapse; }
+    .ddt-review-table {
+      width: 100%;
+      min-width: 1440px;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
     .ddt-review-table th {
       position: sticky; top: 0; z-index: 1;
       background: #20293a;
       color: var(--color-text-muted);
       font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 900;
-      text-align: left; padding: 12px 10px;
+      text-align: left; padding: 12px 12px;
       border-bottom: 1px solid var(--color-border-secondary);
+      white-space: nowrap;
     }
     .ddt-review-table td {
-      padding: 10px;
+      padding: 10px 12px;
       border-bottom: 1px solid rgba(255,255,255,.045);
       vertical-align: top;
     }
-    .ddt-review-table td.small { width: 92px; }
-    .ddt-review-table td.medium { width: 138px; }
+    .ddt-review-table .col-code { width: 120px; }
+    .ddt-review-table .col-description { width: 190px; }
+    .ddt-review-table .col-qty { width: 82px; }
+    .ddt-review-table .col-unit { width: 76px; }
+    .ddt-review-table .col-type { width: 126px; }
+    .ddt-review-table .col-use { width: 118px; }
+    .ddt-review-table .col-position { width: 126px; }
+    .ddt-review-table .col-profile { width: 130px; }
+    .ddt-review-table .col-dimensions { width: 136px; }
+    .ddt-review-table .col-quality { width: 112px; }
+    .ddt-review-table .col-heat { width: 126px; }
+    .ddt-review-table .col-weight { width: 108px; }
+    .ddt-review-table .col-unit-weight { width: 108px; }
     .ddt-review-note {
       margin-top: 12px; color: var(--color-text-secondary);
       font-size: 12px; line-height: 1.45;
@@ -761,6 +780,11 @@
     }
     @media (max-width: 980px) {
       .ddt-review-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .ddt-review-modal { width: calc(100vw - 20px); max-height: 96vh; border-radius: 18px; }
+      .ddt-review-head,
+      .ddt-review-body,
+      .ddt-review-actions { padding-left: 16px; padding-right: 16px; }
+      .ddt-review-table { min-width: 1320px; }
     }
 
     /* ── Chips ────────────────────────────────────────────────────────── */
@@ -928,20 +952,8 @@
     .b-o { background: var(--color-status-orange-bg); color: var(--color-status-orange-text); border: 1px solid var(--color-status-orange-border); }
     .b-r { background: var(--color-status-red-bg);    color: var(--color-status-red-text);    border: 1px solid var(--color-status-red-border); }
 
-    /* Row hover actions */
+    /* Row quantity */
     .row-badge { display: inline-flex; }
-    .row-act   { display: none; align-items: center; justify-content: flex-end; gap: 4px; }
-    tbody tr:hover .row-badge { display: none; }
-    tbody tr:hover .row-act   { display: flex; }
-    .ra {
-      display: flex; align-items: center; gap: 3px;
-      padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600;
-      cursor: pointer; border: 1px solid; transition: all .14s; font-family: inherit;
-    }
-    .ra-in  { background: var(--color-status-green-bg);  border-color: var(--color-status-green-border);  color: var(--color-status-green-text); }
-    .ra-in:hover  { background: rgba(34,197,94,0.14); }
-    .ra-out { background: var(--color-status-orange-bg); border-color: var(--color-status-orange-border); color: var(--color-status-orange-text); }
-    .ra-out:hover { background: rgba(249,115,22,0.14); }
     .ra-del { background: var(--color-status-red-bg); border-color: var(--color-status-red-border); color: var(--color-status-red-text); }
     .ra-del:hover { background: rgba(239,68,68,0.16); }
     .ra-qr { background: var(--color-accent-bg); border-color: var(--color-accent-border); color: var(--color-accent-text); }
@@ -975,8 +987,23 @@
     .physical-uuid { margin-top:4px;font-family:'SF Mono','Menlo',monospace;font-size:8px;color:var(--color-text-muted);word-break:break-all;line-height:1.35; }
     .physical-print { margin-top:6px;background:none;border:0;padding:0;color:var(--color-accent-text);font:inherit;font-size:10px;cursor:pointer; }
     .item-select {
-      width:18px;height:18px;accent-color:#8BAEFF;cursor:pointer;
+      width:18px;height:18px;accent-color:#8BAEFF;cursor:pointer;display:block;margin:0 auto;
       filter: drop-shadow(0 4px 10px rgba(0,0,0,.22));
+    }
+    th[data-col="select"],
+    td.col-select,
+    #tbl th:first-child,
+    #tbl td:first-child {
+      text-align: center;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      vertical-align: middle;
+    }
+    #tbl th:first-child,
+    #tbl td:first-child {
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
     }
     .stock-row.selected,
     .physical-card.selected,
@@ -1399,6 +1426,7 @@
             <button class="menu-item" onclick="openImport();closeToolbarMenus()">↑ Import inventario</button>
             <button class="menu-item" onclick="exportInventory();closeToolbarMenus()">↓ Export inventario</button>
             <button class="menu-item" onclick="deleteInventorySelection();closeToolbarMenus()">✕ Delete inventario selezionato</button>
+            <button class="menu-item" onclick="deleteEntireInventory();closeToolbarMenus()">⚠ Delete tutto inventario</button>
           </div>
         </div>
       </div>
@@ -1522,11 +1550,11 @@
   <div class="drawer-body">
     <label class="ddt-drop" for="ddt-file">
       <div class="ddt-drop-ico">◇</div>
-      <div class="ddt-drop-title">Carica PDF, immagine o scansione</div>
+      <div class="ddt-drop-title">Carica PDF DDT</div>
       <div class="ddt-drop-copy">
-        Il modulo leggerà fornitore, numero DDT, data, materiali, quantità, colate e certificati quando collegheremo il parser.
+        Il sistema legge fornitore, numero documento, data e righe materiale; prima dell'ingresso tutto passa da una review modificabile.
       </div>
-      <input class="ddt-file" id="ddt-file" type="file" accept=".pdf,image/*" onchange="onDdtFileSelected(this)"/>
+      <input class="ddt-file" id="ddt-file" type="file" accept=".pdf" onchange="onDdtFileSelected(this)"/>
     </label>
 
     <div class="ddt-grid">
@@ -1547,9 +1575,9 @@
         <div class="ddt-card-value" id="ddt-state">In attesa</div>
       </div>
       <div class="ddt-card full">
-        <div class="ddt-card-label">Prossimo passaggio</div>
+        <div class="ddt-card-label">Flusso operativo</div>
         <div class="ddt-card-muted" id="ddt-next">
-          Dopo l'analisi il sistema proporrà righe di ingresso magazzino, senza movimentare nulla finché la logistica non conferma.
+          Analisi documento, controllo manuale dei dati letti e conferma finale: solo alla conferma vengono creati ingresso magazzino e QR fisici.
         </div>
       </div>
     </div>
@@ -1558,12 +1586,12 @@
     <div class="ddt-warnings" id="ddt-warnings"></div>
 
     <div class="ddt-status" id="ddt-status">
-      Funzione predisposta: interfaccia pronta, analisi documento da collegare nel prossimo step.
+      Carica un DDT PDF per generare una proposta di ingresso magazzino.
     </div>
   </div>
   <div class="drawer-actions">
     <button class="ddt-secondary" onclick="closeDdt()">Chiudi</button>
-    <button class="ddt-primary" id="ddt-confirm" onclick="openDdtReview()" disabled>Review ingresso</button>
+    <button class="ddt-primary" id="ddt-confirm" onclick="openDdtReview()" disabled>Apri review ingresso</button>
   </div>
 </aside>
 
@@ -1593,19 +1621,19 @@
           <table class="ddt-review-table">
             <thead>
               <tr>
-                <th>Codice</th>
-                <th>Descrizione</th>
-                <th>Q.tà</th>
-                <th>UM</th>
-                <th>Tipo</th>
-                <th>Uso</th>
-                <th>Posizione</th>
-                <th>Profilo</th>
-                <th>Dimensioni</th>
-                <th>Qualità</th>
-                <th>Colata</th>
-                <th>Peso kg</th>
-                <th>Peso/u</th>
+                <th class="col-code">Codice</th>
+                <th class="col-description">Descrizione</th>
+                <th class="col-qty">Q.tà</th>
+                <th class="col-unit">UM</th>
+                <th class="col-type">Tipo</th>
+                <th class="col-use">Uso</th>
+                <th class="col-position">Posizione</th>
+                <th class="col-profile">Profilo</th>
+                <th class="col-dimensions">Dimensioni</th>
+                <th class="col-quality">Qualità</th>
+                <th class="col-heat">Colata</th>
+                <th class="col-weight">Peso kg</th>
+                <th class="col-unit-weight">Peso/u</th>
               </tr>
             </thead>
             <tbody id="ddt-review-items"></tbody>
@@ -1821,6 +1849,108 @@ function logout() {
   window.location.replace('/login');
 }
 
+// ── User preferences ──────────────────────────────────────────────────────────
+const WAREHOUSE_PREF_KEY = 'magazzino_view';
+let preferenceSyncReady = false;
+let preferenceSaveTimer = null;
+
+function safeJsonLocal(key, fallback) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '');
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function collectWarehousePreferences() {
+  return {
+    version: COLUMN_PREF_VERSION,
+    viewMode,
+    stockFilter,
+    sidebarCollapsed,
+    visibleColumns: [...visibleColumns],
+    columnOrder,
+    columnWidths,
+    columnAutoFit,
+    knownColumns: safeJsonLocal('stqc_magazzino_known_columns', []),
+    labelFormat,
+    labelText,
+    qrEncoding,
+    qrSize,
+  };
+}
+
+function applyWarehousePreferences(prefs) {
+  if (!prefs || typeof prefs !== 'object') return;
+  if (['compact', 'extended'].includes(prefs.viewMode)) {
+    viewMode = prefs.viewMode;
+    localStorage.setItem('stqc_magazzino_view', viewMode);
+  }
+  if (['available', 'reserved', 'all'].includes(prefs.stockFilter)) {
+    stockFilter = prefs.stockFilter;
+    localStorage.setItem('stqc_magazzino_stock_filter', stockFilter);
+  }
+  if (typeof prefs.sidebarCollapsed === 'boolean') {
+    sidebarCollapsed = prefs.sidebarCollapsed;
+    localStorage.setItem('stqc_magazzino_sidebar', sidebarCollapsed ? 'collapsed' : 'open');
+  }
+  if (prefs.version) localStorage.setItem('stqc_magazzino_columns_version', prefs.version);
+  if (Array.isArray(prefs.visibleColumns)) localStorage.setItem('stqc_magazzino_columns', JSON.stringify(prefs.visibleColumns));
+  if (Array.isArray(prefs.columnOrder)) localStorage.setItem('stqc_magazzino_column_order', JSON.stringify(prefs.columnOrder));
+  if (prefs.columnWidths && typeof prefs.columnWidths === 'object') localStorage.setItem('stqc_magazzino_column_widths', JSON.stringify(prefs.columnWidths));
+  if (typeof prefs.columnAutoFit === 'boolean') localStorage.setItem('stqc_magazzino_column_autofit', prefs.columnAutoFit ? 'auto' : 'manual');
+  if (Array.isArray(prefs.knownColumns)) localStorage.setItem('stqc_magazzino_known_columns', JSON.stringify(prefs.knownColumns));
+  if (prefs.labelFormat) {
+    labelFormat = prefs.labelFormat;
+    localStorage.setItem('stqc_label_format', labelFormat);
+  }
+  if (typeof prefs.labelText === 'string') {
+    labelText = prefs.labelText;
+    localStorage.setItem('stqc_label_text', labelText);
+  }
+  if (['link', 'uuid', 'json'].includes(prefs.qrEncoding)) {
+    qrEncoding = prefs.qrEncoding;
+    localStorage.setItem('stqc_qr_encoding', qrEncoding);
+  }
+  if (prefs.qrSize !== undefined) {
+    qrSize = String(prefs.qrSize || '').trim();
+    localStorage.setItem('stqc_qr_size', qrSize);
+  }
+}
+
+async function loadWarehouseUserPrefs() {
+  try {
+    const res = await fetch(`/api/v1/auth/preferences/${WAREHOUSE_PREF_KEY}`, { headers: hdr() });
+    if (!res.ok) throw new Error(`Preferenze non disponibili (${res.status})`);
+    const data = await res.json();
+    applyWarehousePreferences(data.value);
+  } catch {
+    // Fallback silenzioso: su installazioni vecchie o offline resta localStorage.
+  } finally {
+    preferenceSyncReady = true;
+  }
+}
+
+function scheduleWarehousePrefsSave() {
+  if (!preferenceSyncReady) return;
+  clearTimeout(preferenceSaveTimer);
+  preferenceSaveTimer = setTimeout(saveWarehouseUserPrefs, 450);
+}
+
+async function saveWarehouseUserPrefs() {
+  if (!preferenceSyncReady) return;
+  try {
+    await fetch(`/api/v1/auth/preferences/${WAREHOUSE_PREF_KEY}`, {
+      method: 'PUT',
+      headers: {...hdr(), 'Content-Type': 'application/json'},
+      body: JSON.stringify({value: collectWarehousePreferences()}),
+    });
+  } catch {
+    // La cache locale è già aggiornata: non disturbiamo l'operatore.
+  }
+}
+
 // ── State ──────────────────────────────────────────────────────────────────────
 let allRows  = [];
 let allItems = [];
@@ -1888,6 +2018,7 @@ let ddtAnalysis = null;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
+  await loadWarehouseUserPrefs();
   applySidebarState();
   loadColumnPrefs();
   renderSkeleton(12);
@@ -1941,6 +2072,7 @@ async function loadStock() {
 function setViewMode(mode) {
   viewMode = mode === 'compact' ? 'compact' : 'extended';
   localStorage.setItem('stqc_magazzino_view', viewMode);
+  scheduleWarehousePrefsSave();
   page = 1;
   expandedMaterial = null;
   updateViewButtons();
@@ -1950,6 +2082,7 @@ function setViewMode(mode) {
 function setStockFilter(mode) {
   stockFilter = ['available','reserved','all'].includes(mode) ? mode : 'available';
   localStorage.setItem('stqc_magazzino_stock_filter', stockFilter);
+  scheduleWarehousePrefsSave();
   page = 1;
   updateStockFilterButtons();
   applyFilters();
@@ -2030,6 +2163,7 @@ function saveColumnPrefs() {
   localStorage.setItem('stqc_magazzino_column_widths', JSON.stringify(columnWidths));
   localStorage.setItem('stqc_magazzino_column_autofit', columnAutoFit ? 'auto' : 'manual');
   localStorage.setItem('stqc_magazzino_columns_version', COLUMN_PREF_VERSION);
+  scheduleWarehousePrefsSave();
 }
 
 function resetColumnPrefs() {
@@ -2125,6 +2259,7 @@ function colStyle(key) {
 }
 
 function columnWidth(key) {
+  if (key === 'select') return 42;
   if (columnWidths[key]) return Number(columnWidths[key]);
   const widths = {
     select: 42,
@@ -2248,6 +2383,13 @@ function headerClass(key) {
 }
 
 function renderHeaderCell(col) {
+  if (col.key === 'select') {
+    return `<th${headerClass(col.key)} data-col="${esc(col.key)}">
+      <input class="item-select" id="select-all-visible" type="checkbox"
+        onclick="toggleSelectAllVisible(event)"
+        title="${viewMode === 'extended' ? 'Seleziona tutti i QR filtrati' : 'Seleziona tutte le righe materiale filtrate'}"/>
+    </th>`;
+  }
   return `<th${headerClass(col.key)} data-col="${esc(col.key)}" draggable="${col.locked ? 'false' : 'true'}"
     ondragstart="startColumnDrag(event,'${esc(col.key)}')"
     ondragover="overColumnDrag(event,'${esc(col.key)}')"
@@ -2278,6 +2420,14 @@ function filterCell(col) {
 
 function renderHeaderRows() {
   const defs = visibleColumnDefs();
+  const selectCol = defs.find(col => col.key === 'select');
+  const otherDefs = defs.filter(col => col.key !== 'select');
+  if (selectCol) {
+    return `<thead>
+      <tr class="tr-head">${renderHeaderCell(selectCol).replace('<th', '<th rowspan="2"')}${otherDefs.map(renderHeaderCell).join('')}</tr>
+      <tr class="tr-filters" id="col-filter-row">${otherDefs.map(filterCell).join('')}</tr>
+    </thead>`;
+  }
   return `<thead>
     <tr class="tr-head">${defs.map(renderHeaderCell).join('')}</tr>
     <tr class="tr-filters" id="col-filter-row">${defs.map(filterCell).join('')}</tr>
@@ -2506,6 +2656,7 @@ function applySidebarState() {
 function toggleSidebar() {
   sidebarCollapsed = !sidebarCollapsed;
   localStorage.setItem('stqc_magazzino_sidebar', sidebarCollapsed ? 'collapsed' : 'open');
+  scheduleWarehousePrefsSave();
   applySidebarState();
 }
 
@@ -2640,7 +2791,50 @@ function openDropdown(anchor, withSearch, initialQuery='') {
 function dropdownSourceRows() {
   const source = viewMode === 'extended' ? allItems : allRows;
   return source.filter(r => {
-    if (dropdownCtx?.type === 'column') return true;
+    if (stockFilter === 'available') {
+      if (viewMode === 'extended') {
+        if (r.reserved_for_commessa || String(r.status || '').toUpperCase() !== 'AVAILABLE') return false;
+      } else if (Number(r.n_pezzi || 0) <= 0) {
+        return false;
+      }
+    } else if (stockFilter === 'reserved') {
+      if (viewMode === 'extended') {
+        if (!r.reserved_for_commessa) return false;
+      } else if (Number(r.reserved_items_count || 0) <= 0) {
+        return false;
+      }
+    } else if (stockFilter === 'all') {
+      if (viewMode === 'extended') {
+        if (!['AVAILABLE','RESERVED'].includes(String(r.status || '').toUpperCase())) return false;
+      } else if (Number(r.physical_items_count || 0) <= 0) {
+        return false;
+      }
+    }
+    if (selectedTypes.size && !selectedTypes.has(typeLabel(r.tipo))) return false;
+    if (selectedReservation) {
+      if (viewMode === 'extended') {
+        if (r.reserved_for_commessa !== selectedReservation) return false;
+      } else if (!(r.reserved_commesse || []).includes(selectedReservation)) {
+        return false;
+      }
+    }
+    if (searchQ) {
+      const hay = [
+        r.tipo,r.profilo,r.uso_materiale,r.posizione,r.qualita,r.colata,r.dimensioni,r.norma_uni,r.material_code,r.uuid,r.label,
+        r.commessa_ref,r.reserved_for_commessa,(r.reserved_commesse||[]).join(' '),customSearchText(r)
+      ]
+        .map(v=>(v||'').toLowerCase()).join(' ');
+      if (!hay.includes(searchQ)) return false;
+    }
+    for (const [name, key] of Object.entries(CHIP_MAP)) {
+      if (dropdownCtx?.type === 'chip' && dropdownCtx.name === name) continue;
+      if (AF[name] && (r[key]||'') !== AF[name]) return false;
+    }
+    for (const [name, key] of Object.entries(CF_KEY)) {
+      if (dropdownCtx?.type === 'column' && dropdownCtx.name === name) continue;
+      const v = CF[name];
+      if (v && !(r[key]||'').toLowerCase().startsWith(v.toLowerCase())) return false;
+    }
     return true;
   });
 }
@@ -2783,7 +2977,6 @@ function statusBadge(status) {
 
 function compactDisplayQty(row) {
   if (stockFilter === 'reserved') return Number(row.reserved_items_count || 0);
-  if (stockFilter === 'all') return Number(row.physical_items_count || 0);
   return Number(row.n_pezzi || 0);
 }
 
@@ -2822,17 +3015,12 @@ function renderSkeleton(n) {
 function renderCompactCell(r, col) {
   const n = compactDisplayQty(r);
   const mid = r.material_id;
-  const reservedCount = r.reserved_items_count || 0;
-  const reservedList = (r.reserved_commesse || []).join(', ');
-  const reservedNote = reservedCount
-    ? `<div class="reserved-note" title="${esc(reservedList)}">${reservedCount} prenotati${reservedList ? ' · ' + esc(reservedList) : ''}</div>`
-    : '';
   if (col.key.startsWith('custom:')) {
     const key = col.key.slice(7);
     return `<td class="td-muted" title="${esc((r.custom_fields || {})[key])}">${esc((r.custom_fields || {})[key]) || '—'}</td>`;
   }
   const cells = {
-    select: `<td onclick="event.stopPropagation()">${materialCheckbox(mid)}</td>`,
+    select: `<td class="col-select" onclick="event.stopPropagation()">${materialCheckbox(mid)}</td>`,
     item: `<td><span class="td-mono td-muted">${esc(r.material_code)}</span></td>`,
     tipo: `<td class="td-tipo">${esc(r.tipo)||'—'}</td>`,
     profilo: `<td class="td-profilo" title="${esc(r.profilo)}">${esc(r.profilo)||'—'}</td>`,
@@ -2840,11 +3028,6 @@ function renderCompactCell(r, col) {
     posizione: `<td class="td-muted" style="font-size:11px" title="${esc(r.posizione)}">${esc(r.posizione)||'—'}</td>`,
     n_pezzi: `<td class="td-r">
       <span class="badge ${badgeCls(n)} row-badge">${Math.round(n)}</span>
-      ${reservedNote}
-      <div class="row-act">
-        <button class="ra ra-out" onclick="openMov(${mid},'out',event)">↓ Usc</button>
-        <button class="ra ra-in"  onclick="openMov(${mid},'in',event)">↑ Ing</button>
-      </div>
     </td>`,
     dimensioni: `<td class="td-mono td-muted" title="${esc(r.dimensioni)}">${esc(r.dimensioni)||'—'}</td>`,
     norma_uni: `<td class="col-norma td-muted" style="font-size:11px" title="${esc(r.norma_uni)}">${esc(r.norma_uni)||'—'}</td>`,
@@ -2868,7 +3051,7 @@ function renderExtendedCell(item, col) {
     return `<td class="td-muted" title="${esc((item.custom_fields || {})[key])}">${esc((item.custom_fields || {})[key]) || '—'}</td>`;
   }
   const cells = {
-    select: `<td onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</td>`,
+    select: `<td class="col-select" onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</td>`,
     item: `<td><div class="item-main-text"><div class="item-code">${esc(item.label || item.material_code)}</div><div class="item-sub">${esc(item.uuid)}</div></div></td>`,
     tipo: `<td><span class="item-pill">${esc(item.tipo)||'—'}</span></td>`,
     profilo: `<td title="${esc(item.profilo)}">${esc(item.profilo)||'—'}</td>`,
@@ -3012,6 +3195,7 @@ function renderPhysicalPanel(row) {
 function saveLabelConfig(format,text) {
   if(format!==null){labelFormat=format;localStorage.setItem('stqc_label_format',format);}
   if(text!==null){labelText=text;localStorage.setItem('stqc_label_text',text);}
+  scheduleWarehousePrefsSave();
 }
 
 function saveQrConfig(next={}) {
@@ -3023,6 +3207,7 @@ function saveQrConfig(next={}) {
     qrSize = String(next.size || '').trim();
     localStorage.setItem('stqc_qr_size', qrSize);
   }
+  scheduleWarehousePrefsSave();
 }
 
 function refreshQrPreviewImage() {
@@ -3041,6 +3226,7 @@ function updateSelectionBar() {
   if (selectedMaterials.size) parts.push(`${selectedMaterials.size} righe materiale`);
   if (selectedItems.size) parts.push(`${selectedItems.size} QR fisici`);
   count.textContent = parts.length ? parts.join(' · ') : '0 elementi selezionati';
+  updateSelectAllVisibleState();
 }
 
 function toggleItemSelection(uuid,e) {
@@ -3067,6 +3253,59 @@ function clearItemSelection() {
   selectedItems.clear();
   selectedMaterials.clear();
   renderTable();
+}
+
+function visibleSelectionIds() {
+  const s = (page - 1) * rpp;
+  const e = Math.min(s + rpp, filtered.length);
+  const pageRows = filtered.slice(s, e);
+  if (viewMode === 'extended') {
+    return pageRows.map(item => item.uuid).filter(Boolean);
+  }
+  return pageRows.map(row => Number(row.material_id)).filter(Boolean);
+}
+
+function updateSelectAllVisibleState() {
+  const box = document.getElementById('select-all-visible');
+  if (!box) return;
+  const ids = visibleSelectionIds();
+  const selectedCount = viewMode === 'extended'
+    ? ids.filter(id => selectedItems.has(id)).length
+    : ids.filter(id => selectedMaterials.has(Number(id))).length;
+  box.checked = ids.length > 0 && selectedCount === ids.length;
+  box.indeterminate = selectedCount > 0 && selectedCount < ids.length;
+}
+
+function toggleSelectAllVisible(e) {
+  if (e) e.stopPropagation();
+  const ids = visibleSelectionIds();
+  if (!ids.length) return;
+  if (viewMode === 'extended') {
+    const allSelected = ids.every(id => selectedItems.has(id));
+    ids.forEach(id => allSelected ? selectedItems.delete(id) : selectedItems.add(id));
+  } else {
+    const allSelected = ids.every(id => selectedMaterials.has(Number(id)));
+    ids.forEach(id => allSelected ? selectedMaterials.delete(Number(id)) : selectedMaterials.add(Number(id)));
+  }
+  renderTable();
+}
+
+function selectAllInventory() {
+  selectedItems.clear();
+  selectedMaterials.clear();
+  allRows.forEach(row => {
+    const id = Number(row.material_id);
+    if (id) selectedMaterials.add(id);
+  });
+  page = 1;
+  renderTable();
+  showToast(`${selectedMaterials.size} righe inventario selezionate`, 'ok');
+}
+
+function deleteEntireInventory() {
+  const ids = allRows.map(row => Number(row.material_id)).filter(Boolean);
+  if (!ids.length) return showToast('Inventario già vuoto', 'err');
+  deleteMaterialsById(ids);
 }
 
 function openSelectedQrDetails() {
@@ -3337,8 +3576,18 @@ function deleteSelectedItems(e) {
 async function deleteMaterialsById(materialIds) {
   const ids = [...new Set(materialIds.map(Number).filter(Boolean))];
   if(!ids.length) return;
-  const ok = confirm(`Eliminare definitivamente ${ids.length} righe materiale selezionate?\\n\\nVerranno rimossi anche movimenti, lotti, ricevute e QR fisici collegati.`);
+  const ok = confirm(
+    `ATTENZIONE: cancellazione inventario definitiva.\\n\\n` +
+    `Stai per eliminare ${ids.length} righe materiale.\\n` +
+    `Verranno rimossi anche QR fisici, movimenti, lotti, ricevute e certificati collegati.\\n\\n` +
+    `Questa operazione non si annulla. Continuare?`
+  );
   if(!ok) return;
+  const typed = prompt(`Per confermare la cancellazione definitiva scrivi ELIMINA`);
+  if (typed !== 'ELIMINA') {
+    showToast('Cancellazione annullata: conferma testuale non valida.', 'err');
+    return;
+  }
   let deleted = 0;
   try {
     for (const id of ids) {
@@ -3500,11 +3749,14 @@ async function confirmMov() {
   const isIn = opTipo === 'in';
   const reason  = document.getElementById('mov-reason').value.trim() || (isIn ? 'Ingresso manuale' : 'Uscita manuale');
   const ok = document.getElementById('mov-ok'); ok.disabled=true; ok.textContent='Salvataggio…';
+  const knownTypesBefore = new Set(allRows.map(row => typeLabel(row.tipo)));
+  let manualNewItems = [];
   try {
     let res;
     if (opMode === 'new') {
       if (!isIn) throw new Error('Nuovo materiale disponibile solo in ingresso.');
       const items = bulkIncomingRows.length ? bulkIncomingRows : [collectNewMaterialPayload(qty, reason)];
+      manualNewItems = items;
       res = await fetch('/api/v1/warehouse/materials/bulk-incoming',{
         method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
         body:JSON.stringify({items}),
@@ -3523,11 +3775,31 @@ async function confirmMov() {
     renderBulkIncomingRows();
     showToast(opMode==='new'?'Ingresso multiplo registrato':(isIn?'Ingresso registrato':'Uscita registrata'),'ok');
     await loadStock();
+    if (opMode === 'new') focusNewQuickTypes(manualNewItems, knownTypesBefore);
   } catch(e) {
     err.textContent=e.message; err.classList.add('show');
     ok.disabled=false;
     ok.textContent = opMode === 'new' ? '+ Crea e registra ingresso' : (isIn ? '↑ Conferma ingresso' : '↓ Conferma uscita');
   }
+}
+
+function focusNewQuickTypes(items, knownTypesBefore) {
+  const newTypes = [...new Set(
+    (items || [])
+      .map(item => typeLabel(item.tipo))
+      .filter(tipo => tipo && !knownTypesBefore.has(tipo))
+  )];
+  if (!newTypes.length) return;
+  newTypes.forEach(tipo => selectedTypes.add(tipo));
+  if (sidebarCollapsed) {
+    sidebarCollapsed = false;
+    localStorage.setItem('stqc_magazzino_sidebar', 'open');
+    scheduleWarehousePrefsSave();
+    applySidebarState();
+  }
+  page = 1;
+  applyFilters();
+  showToast(`Nuova tipologia aggiunta ai filtri rapidi: ${newTypes.join(', ')}`, 'ok');
 }
 
 function collectNewMaterialPayload(quantity, reason) {
@@ -3618,7 +3890,10 @@ async function confirmImport() {
     const res=await fetch(`/api/v1/warehouse/materials/import-append?reason=${reason}`,{method:'POST',headers:hdr(),body:fd});
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
     const data=await res.json(); closeImport();
-    showToast(`Import append completato — ${data.materials_created||0} nuovi, ${data.materials_existing||0} aggiornati`,'ok');
+    showToast(
+      `Import completato — ${data.rows||0} righe, ${data.materials_created||0} nuovi, ${data.materials_existing||0} aggiornati, ${data.physical_items_created||0} QR, ${data.reserved_items_created||0} prenotati`,
+      'ok'
+    );
     await loadStock();
   } catch(e){err.textContent=e.message; err.classList.add('show');}
   finally{btn.disabled=false; btn.textContent='↑ Importa';}
@@ -3703,7 +3978,7 @@ function renderDdtAnalysis(data){
     </div>`).join('') || '<div class="ddt-card-muted">Nessuna riga materiale proposta.</div>';
   document.getElementById('ddt-warnings').innerHTML = (data.warnings || []).map(w => `<div class="ddt-warning">${esc(w)}</div>`).join('');
   document.getElementById('ddt-status').textContent = ready
-    ? 'Proposta pronta: apri la review per controllare e correggere i dati prima dell ingresso.'
+    ? "Proposta pronta: apri la review per controllare e correggere i dati prima dell'ingresso."
     : 'Nessuna riga materiale rilevata: verifica il documento o riprova con un file più leggibile.';
   document.getElementById('ddt-confirm').disabled = !ready;
 }
@@ -3750,19 +4025,19 @@ function openDdtReview(){
   document.getElementById('ddt-review-filename').textContent = ddtAnalysis.filename ? `File origine: ${ddtAnalysis.filename}` : '';
   document.getElementById('ddt-review-items').innerHTML = (ddtAnalysis.items || []).map((item, idx) => `
     <tr>
-      <td class="medium">${ddtCellInput(idx, 'material_code', item.material_code)}</td>
-      <td>${ddtCellInput(idx, 'description', item.description)}</td>
-      <td class="small">${ddtCellInput(idx, 'quantity', item.quantity, 'number', '1')}</td>
-      <td class="small">${ddtCellInput(idx, 'unit', item.unit || 'PZ')}</td>
-      <td class="medium">${ddtCellInput(idx, 'tipo', item.tipo)}</td>
-      <td class="medium">${ddtCellInput(idx, 'uso_materiale', item.uso_materiale)}</td>
-      <td class="medium">${ddtCellInput(idx, 'posizione', item.posizione)}</td>
-      <td class="medium">${ddtCellInput(idx, 'profilo', item.profilo)}</td>
-      <td class="medium">${ddtCellInput(idx, 'dimensioni', item.dimensioni)}</td>
-      <td class="medium">${ddtCellInput(idx, 'qualita', item.qualita)}</td>
-      <td class="medium">${ddtCellInput(idx, 'colata', item.colata)}</td>
-      <td class="small">${ddtCellInput(idx, 'peso_kg', item.peso_kg, 'number', '0.001')}</td>
-      <td class="small">${ddtCellInput(idx, 'peso_u_kg', item.peso_u_kg, 'number', '0.001')}</td>
+      <td class="col-code">${ddtCellInput(idx, 'material_code', item.material_code)}</td>
+      <td class="col-description">${ddtCellInput(idx, 'description', item.description)}</td>
+      <td class="col-qty">${ddtCellInput(idx, 'quantity', item.quantity, 'number', '1')}</td>
+      <td class="col-unit">${ddtCellInput(idx, 'unit', item.unit || 'PZ')}</td>
+      <td class="col-type">${ddtCellInput(idx, 'tipo', item.tipo)}</td>
+      <td class="col-use">${ddtCellInput(idx, 'uso_materiale', item.uso_materiale)}</td>
+      <td class="col-position">${ddtCellInput(idx, 'posizione', item.posizione)}</td>
+      <td class="col-profile">${ddtCellInput(idx, 'profilo', item.profilo)}</td>
+      <td class="col-dimensions">${ddtCellInput(idx, 'dimensioni', item.dimensioni)}</td>
+      <td class="col-quality">${ddtCellInput(idx, 'qualita', item.qualita)}</td>
+      <td class="col-heat">${ddtCellInput(idx, 'colata', item.colata)}</td>
+      <td class="col-weight">${ddtCellInput(idx, 'peso_kg', item.peso_kg, 'number', '0.001')}</td>
+      <td class="col-unit-weight">${ddtCellInput(idx, 'peso_u_kg', item.peso_u_kg, 'number', '0.001')}</td>
     </tr>`).join('');
   document.getElementById('ddt-drawer').classList.add('reviewing');
   document.getElementById('ddt-review-modal').classList.add('open');
