@@ -62,7 +62,7 @@
     .nav-item .ni-icon { font-size: 16px; flex-shrink: 0; }
 
     /* ── Main content ── */
-    .main { flex: 1; padding: 40px 44px 72px; overflow-y: auto; max-width: 1100px; }
+    .main { flex: 1; padding: 40px 44px 72px; overflow-y: auto; max-width: none; width: 100%; min-width: 0; }
 
     .section { display: none; }
     .section.active { display: block; }
@@ -126,6 +126,33 @@
     .badge-on       { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
     .badge-off      { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
     .badge-locked   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .mono-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; color:rgba(219,234,254,.78); word-break:break-all; }
+    .scan-url { display:block; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .scan-table-scroll { width:100%; overflow-x:auto; padding-bottom:6px; }
+    .scan-table { min-width:980px; table-layout:fixed; }
+    .scan-table th:nth-child(1), .scan-table td:nth-child(1) { width:130px; }
+    .scan-table th:nth-child(2), .scan-table td:nth-child(2) { width:130px; }
+    .scan-table th:nth-child(3), .scan-table td:nth-child(3) { width:210px; }
+    .scan-table th:nth-child(4), .scan-table td:nth-child(4) { width:360px; }
+    .scan-table th:nth-child(5), .scan-table td:nth-child(5) { width:70px; }
+    .scan-table th:nth-child(6), .scan-table td:nth-child(6) { width:85px; }
+    .scan-table th:nth-child(7), .scan-table td:nth-child(7) { width:210px; }
+    .scan-conn { display:grid; gap:6px; }
+    .scan-conn-line { display:grid; grid-template-columns:58px minmax(0,1fr); gap:8px; align-items:center; }
+    .scan-conn-label { color:rgba(255,255,255,.34); font-family:inherit; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .scan-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .station-code-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+    .station-code-card { border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.72); border-radius:16px; padding:14px; }
+    .station-code-title { font-weight:900; color:#dbeafe; letter-spacing:.02em; }
+    .station-code-sub { margin-top:3px; font-size:11px; color:rgba(255,255,255,.38); }
+    .station-code-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    .station-code-qr { display:flex; gap:10px; align-items:center; border:1px solid rgba(255,255,255,.08); border-radius:13px; padding:8px; background:rgba(255,255,255,.035); cursor:pointer; }
+    .station-code-qr:hover { border-color:rgba(147,197,253,.35); background:rgba(59,130,246,.08); }
+    .station-code-qr img { width:58px; height:58px; border-radius:8px; background:#fff; padding:4px; }
+    .station-code-label { font-size:12px; font-weight:900; color:#e5edff; }
+    .station-code-payload { margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9px; color:rgba(219,234,254,.52); word-break:break-all; }
+    .scan-row-error td { background:rgba(239,68,68,.055); }
+    .scan-row-warning td { background:rgba(251,191,36,.045); }
     /* Audit log */
     .audit-stream { background:#070e1d; border-radius:12px; border:1px solid rgba(255,255,255,.06);
       max-height:380px; overflow-y:auto; font-size:12px; }
@@ -479,7 +506,7 @@
       <div class="section-header">
         <div class="section-eyebrow">Configurazione officina</div>
         <div class="section-title">Postazioni &amp; Scanner</div>
-        <div class="section-sub">Configura le postazioni operative e associa ogni scanner fisico alla postazione corretta</div>
+        <div class="section-sub">Scanner identificato dal token: legge QR postazione inizio/fine e QR pezzi. Ogni lettura viene registrata e resa visibile al capo officina.</div>
       </div>
 
       <div class="table-wrap" style="padding:22px 24px;margin-bottom:22px">
@@ -513,11 +540,24 @@
         </table>
       </div>
 
+      <div class="table-wrap" style="padding:22px 24px;margin-bottom:22px">
+        <div style="display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+          <div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Codici postazione</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Per ogni postazione: QR INIZIO e QR FINE, cliccabili e stampabili.</div>
+          </div>
+          <button class="btn btn-ghost" onclick="loadStationQrCodes()">↻ Aggiorna</button>
+        </div>
+        <div class="station-code-grid" id="admin-station-codes">
+          <div style="color:rgba(255,255,255,.25);padding:12px">Caricamento codici…</div>
+        </div>
+      </div>
+
       <div class="table-wrap" style="padding:22px 24px">
         <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
           <div>
             <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Scanner fisici</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Lo scanner determina la postazione: ogni scan pezzo diventa START/END sulla postazione associata.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">La pistola è identificata dal suo URL/token. Poi scannerizza: postazione INIZIO, pezzi lavorati, postazione FINE; oppure QR pezzi in sola lettura.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input id="sc-new-code" placeholder="SCN-TAGLIO-01"
@@ -530,19 +570,48 @@
             <button class="btn btn-primary" onclick="createScannerDevice()">+ Scanner</button>
           </div>
         </div>
+        <div class="scan-table-scroll">
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>Scanner</th>
+                <th>Nome</th>
+                <th>Postazione</th>
+                <th>Connessioni</th>
+                <th>IP</th>
+                <th>Stato</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="scanner-tbody">
+              <tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="padding:22px 24px;margin-top:22px">
+        <div style="display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+          <div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Ultimi scan / errori</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Registro pratico per capo officina: letture corrette, warning e QR rifiutati.</div>
+          </div>
+          <button class="btn btn-ghost" onclick="loadScannerAttempts()">↻ Aggiorna</button>
+        </div>
         <table>
           <thead>
             <tr>
+              <th>Ora</th>
               <th>Scanner</th>
-              <th>Nome</th>
               <th>Postazione</th>
-              <th>IP</th>
-              <th>Stato</th>
-              <th>Azioni</th>
+              <th>Tipo</th>
+              <th>Esito</th>
+              <th>Messaggio</th>
+              <th>Payload</th>
             </tr>
           </thead>
-          <tbody id="scanner-tbody">
-            <tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
+          <tbody id="scanner-attempts-tbody">
+            <tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
           </tbody>
         </table>
       </div>
@@ -1362,12 +1431,14 @@ async function saveGroup(name) {
 
 let _workstations = [];
 let _scannerDevices = [];
+let _scannerAttempts = [];
+let _stationQrCodes = [];
 
 async function loadWorkstationsConfig() {
   const wsBody = document.getElementById('workstations-tbody');
   const scBody = document.getElementById('scanner-tbody');
   wsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
-  scBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
+  scBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
   try {
     const [wsRes, scRes] = await Promise.all([
       api('GET', '/workstations?include_inactive=true'),
@@ -1378,10 +1449,58 @@ async function loadWorkstationsConfig() {
     renderWorkstations();
     renderScannerDevices();
     renderScannerWorkstationSelect();
+    loadStationQrCodes();
+    loadScannerAttempts();
   } catch(e) {
     wsBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
-    scBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
+    scBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
   }
+}
+
+async function loadStationQrCodes() {
+  const el = document.getElementById('admin-station-codes');
+  if (!el) return;
+  el.innerHTML = '<div style="color:rgba(255,255,255,.25);padding:12px">Caricamento codici…</div>';
+  try {
+    const res = await api('GET', '/workstations/qr-codes?include_inactive=false');
+    const data = await res.json();
+    _stationQrCodes = data.items || [];
+    renderAdminStationCodes();
+  } catch(e) {
+    el.innerHTML = `<div style="color:#f87171;padding:12px">${esc(e.message)}</div>`;
+  }
+}
+
+function renderAdminStationCodes() {
+  const el = document.getElementById('admin-station-codes');
+  if (!_stationQrCodes.length) {
+    el.innerHTML = '<div style="color:rgba(255,255,255,.25);padding:12px">Nessuna postazione attiva</div>';
+    return;
+  }
+  el.innerHTML = _stationQrCodes.map(ws => `
+    <div class="station-code-card">
+      <div class="station-code-title">${esc(ws.name || ws.code)}</div>
+      <div class="station-code-sub">${esc(ws.code)}${ws.description ? ' · ' + esc(ws.description) : ''}</div>
+      <div class="station-code-actions">
+        ${(ws.codes || []).map(c => `
+          <div class="station-code-qr" onclick="printStationQr('${esc(ws.code)}','${esc(ws.name || ws.code)}','${esc(c.label)}','${esc(c.payload)}','${esc(c.qr_image_url)}')">
+            <img src="${esc(c.qr_image_url)}" alt="${esc(c.label)} ${esc(ws.code)}">
+            <div>
+              <div class="station-code-label">${esc(c.label)}</div>
+              <div class="station-code-payload">${esc(c.payload)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function printStationQr(code, name, label, payload, img) {
+  const w = window.open('', '_blank', 'width=760,height=860');
+  if (!w) return alert('Popup bloccato: abilita le finestre di stampa.');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(code)} ${esc(label)}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;margin:0;color:#101828}.sheet{min-height:calc(100vh - 36mm);display:flex;align-items:center;justify-content:center}.label{text-align:center;border:2px solid #111827;border-radius:18px;padding:28px 34px;max-width:520px}.kicker{font-size:16px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#475467}.name{font-size:34px;font-weight:900;margin-top:10px}.action{font-size:46px;font-weight:950;margin:8px 0 20px}.action.start{color:#047857}.action.end{color:#b42318}img{width:360px;height:360px;image-rendering:pixelated}.payload{margin-top:18px;font-family:monospace;font-size:18px;word-break:break-all}.hint{margin-top:12px;color:#667085;font-size:13px}@media print{button{display:none}}</style></head><body><div class="sheet"><div class="label"><div class="kicker">Codice postazione officina</div><div class="name">${esc(name)}</div><div class="action ${label.toLowerCase().includes('inizio')?'start':'end'}">${esc(label).toUpperCase()}</div><img src="${esc(img)}"><div class="payload">${esc(payload)}</div><div class="hint">${esc(code)} · scannerizza questo QR con la pistola</div><button onclick="window.print()" style="margin-top:22px;padding:12px 18px;border-radius:10px;border:1px solid #111827;background:#111827;color:white;font-weight:800">Stampa</button></div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
+  w.document.close();
 }
 
 function renderScannerWorkstationSelect() {
@@ -1418,24 +1537,106 @@ function renderWorkstations() {
 function renderScannerDevices() {
   const tbody = document.getElementById('scanner-tbody');
   if (!_scannerDevices.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuno scanner configurato</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuno scanner configurato</td></tr>';
     return;
   }
   tbody.innerHTML = _scannerDevices.map(s => {
     const options = '<option value="">— Nessuna —</option>' + _workstations.filter(w => w.active).map(w =>
       `<option value="${w.id}" ${s.postazione_id === w.id ? 'selected' : ''}>${esc(w.code)}</option>`
     ).join('');
+    const token = s.device_token || '';
+    const scanUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan` : '—';
+    const readApiUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read` : '—';
+    const readPageUrl = token ? `${location.origin}/scanner-view/${encodeURIComponent(token)}` : '—';
     return `
     <tr style="${s.active ? '' : 'opacity:.42'}">
       <td style="font-weight:800;color:#dbeafe">${esc(s.scanner_code)}</td>
       <td>${esc(s.name || '—')}</td>
       <td><select onchange="assignScannerWorkstation(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px">${options}</select></td>
+      <td class="mono-cell">
+        <div class="scan-conn">
+          <div class="scan-conn-line"><span class="scan-conn-label">Scan</span><span class="scan-url" title="${esc(scanUrl)}">${esc(scanUrl)}</span></div>
+          <div class="scan-conn-line"><span class="scan-conn-label">Read</span><span class="scan-url" title="${esc(readApiUrl)}">${esc(readApiUrl)}</span></div>
+          <div class="scan-conn-line"><span class="scan-conn-label">Pagina</span><span class="scan-url" title="${esc(readPageUrl)}">${esc(readPageUrl)}</span></div>
+        </div>
+      </td>
       <td style="color:rgba(255,255,255,.48)">${esc(s.ip_address || '—')}</td>
       <td><span class="badge ${s.active ? 'badge-on' : 'badge-off'}">${s.active ? 'Attivo' : 'Disattivo'}</span></td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick="editScannerDevice(${s.id})">Modifica</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleScannerDevice(${s.id}, ${!s.active})">${s.active ? 'Disattiva' : 'Attiva'}</button>
+        <div class="scan-actions">
+          <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','scan')">Copia scan</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','read')">Copia read</button>
+          <button class="btn btn-success btn-sm" onclick="testScannerScan('${esc(token)}')">Test</button>
+          <button class="btn btn-ghost btn-sm" onclick="editScannerDevice(${s.id})">Modifica</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleScannerDevice(${s.id}, ${!s.active})">${s.active ? 'Disattiva' : 'Attiva'}</button>
+        </div>
       </td>
+    </tr>`;
+  }).join('');
+}
+
+async function copyScannerUrl(token, mode) {
+  if (!token) return toast('Token scanner mancante', 'err');
+  const url = mode === 'read'
+    ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read`
+    : `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan`;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(mode === 'read' ? 'URL lettura copiato' : 'URL scan copiato', 'ok');
+  } catch {
+    prompt('Copia URL scanner', url);
+  }
+}
+
+async function testScannerScan(token) {
+  if (!token) return toast('Token scanner mancante', 'err');
+  const payload = prompt('QR/payload da simulare');
+  if (!payload) return;
+  try {
+    const res = await fetch(`/api/v1/scanner/netum/${encodeURIComponent(token)}/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msg: payload, id: `MANUAL-${Date.now()}` })
+    });
+    const data = await res.json().catch(() => ({}));
+    toast(data.msg || (res.ok ? 'Scan inviato' : 'Errore scan'), data.ok ? 'ok' : 'err');
+    await loadScannerAttempts();
+  } catch(e) {
+    toast(e.message, 'err');
+  }
+}
+
+async function loadScannerAttempts() {
+  const tbody = document.getElementById('scanner-attempts-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
+  try {
+    const res = await api('GET', '/scanner-devices/scan-attempts?limit=80');
+    const data = await res.json();
+    _scannerAttempts = data.items || [];
+    renderScannerAttempts();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
+  }
+}
+
+function renderScannerAttempts() {
+  const tbody = document.getElementById('scanner-attempts-tbody');
+  if (!_scannerAttempts.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuno scan registrato</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _scannerAttempts.map(a => {
+    const cls = a.outcome === 'ERROR' ? 'scan-row-error' : a.outcome === 'WARNING' ? 'scan-row-warning' : '';
+    const badgeCls = a.outcome === 'OK' ? 'badge-on' : a.outcome === 'WARNING' ? 'badge-acq' : 'badge-locked';
+    return `<tr class="${cls}">
+      <td class="mono-cell">${esc(a.created_at ? fmtDate(a.created_at) : '—')}</td>
+      <td>${esc(a.scanner || '—')}</td>
+      <td>${esc(a.workstation || '—')}</td>
+      <td>${esc(a.scan_kind || '—')}</td>
+      <td><span class="badge ${badgeCls}">${esc(a.outcome || '—')}</span>${a.error_code ? `<div class="mono-cell">${esc(a.error_code)}</div>` : ''}</td>
+      <td>${esc(a.message || '—')}</td>
+      <td class="mono-cell"><span class="scan-url" title="${esc(a.raw_payload || '')}">${esc(a.raw_payload || '—')}</span></td>
     </tr>`;
   }).join('');
 }

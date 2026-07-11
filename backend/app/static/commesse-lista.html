@@ -155,6 +155,32 @@
     .filter-chip.active { background: #2563eb; color: #fff; }
     .filter-chip:not(.active) { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); }
     .filter-chip:not(.active):hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+    .ops-box {
+      margin-bottom: 24px; border: 1px solid rgba(96,165,250,.18); border-radius: 18px;
+      background: linear-gradient(135deg, rgba(30,64,175,.18), rgba(15,23,42,.92));
+      padding: 18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    }
+    .ops-title { font-size:17px; font-weight:900; color:#e5edff; }
+    .ops-sub { margin-top:4px; font-size:12px; color:rgba(255,255,255,.42); }
+    .ops-btn {
+      border:1px solid rgba(147,197,253,.35); background:rgba(59,130,246,.18); color:#bfdbfe;
+      border-radius:12px; padding:10px 16px; font-size:13px; font-weight:900; cursor:pointer;
+    }
+    .ops-btn:hover { background:rgba(59,130,246,.28); color:#fff; }
+    .station-backdrop { position:fixed; inset:0; z-index:80; display:none; background:rgba(2,6,23,.78); backdrop-filter:blur(10px); padding:36px; }
+    .station-backdrop.open { display:block; }
+    .station-drawer { max-width:1180px; max-height:calc(100vh - 72px); overflow:auto; margin:0 auto; border:1px solid rgba(148,163,184,.24); border-radius:22px; background:#0f172a; padding:24px; box-shadow:0 30px 90px rgba(0,0,0,.45); }
+    .station-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; }
+    .station-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; }
+    .station-card { border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.75); border-radius:16px; padding:14px; }
+    .station-title { font-weight:900; color:#dbeafe; }
+    .station-sub { margin-top:3px; font-size:11px; color:rgba(255,255,255,.38); }
+    .station-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    .station-qr { display:flex; gap:10px; align-items:center; border:1px solid rgba(255,255,255,.08); border-radius:13px; padding:8px; background:rgba(255,255,255,.035); cursor:pointer; }
+    .station-qr:hover { border-color:rgba(147,197,253,.35); background:rgba(59,130,246,.08); }
+    .station-qr img { width:62px; height:62px; border-radius:8px; background:#fff; padding:4px; }
+    .station-label { font-size:12px; font-weight:900; color:#e5edff; }
+    .station-payload { margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9px; color:rgba(219,234,254,.52); word-break:break-all; }
   </style>
 </head>
 <body>
@@ -189,6 +215,14 @@
     <div class="page-sub" id="page-sub">Caricamento…</div>
   </div>
 
+  <div class="ops-box">
+    <div>
+      <div class="ops-title">Codici postazione officina</div>
+      <div class="ops-sub">QR INIZIO e FINE per lavorare con pistola scanner: postazione → pezzi → chiusura fase.</div>
+    </div>
+    <button class="ops-btn" onclick="openStationCodes()">Apri codici postazione</button>
+  </div>
+
   <!-- Filter bar -->
   <div class="filter-bar">
     <button class="filter-chip active" data-status="ALL" onclick="setFilter('ALL')">Tutte</button>
@@ -201,6 +235,23 @@
     <div class="state-msg">Caricamento commesse…</div>
   </div>
 
+</div>
+
+<div class="station-backdrop" id="station-backdrop" onclick="closeStationCodes(event)">
+  <section class="station-drawer" onclick="event.stopPropagation()">
+    <div class="station-head">
+      <div>
+        <div class="page-eyebrow">Officina</div>
+        <div class="page-title" style="font-size:24px">Codici postazione</div>
+        <div class="page-sub">Scansiona INIZIO, poi i pezzi, poi FINE. Clicca un QR per stamparlo.</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ops-btn" onclick="loadStationCodes()">Aggiorna</button>
+        <button class="ops-btn" onclick="closeStationCodes()">×</button>
+      </div>
+    </div>
+    <div class="station-grid" id="station-grid"><div class="state-msg">Caricamento postazioni…</div></div>
+  </section>
 </div>
 
 <script>
@@ -223,9 +274,66 @@ const BG_IMGS = [
 
 let allCommesse = [];
 let currentFilter = 'ALL';
+let stationCodes = [];
 
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openStationCodes() {
+  document.getElementById('station-backdrop').classList.add('open');
+  loadStationCodes();
+}
+
+function closeStationCodes(event) {
+  if (event && event.target && event.target.id !== 'station-backdrop') return;
+  document.getElementById('station-backdrop').classList.remove('open');
+}
+
+async function loadStationCodes() {
+  const grid = document.getElementById('station-grid');
+  grid.innerHTML = '<div class="state-msg">Caricamento postazioni…</div>';
+  try {
+    const r = await fetch('/api/v1/admin/workstations/qr-codes', { headers: { Authorization: getAuth() } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Errore caricamento postazioni');
+    stationCodes = d.items || [];
+    renderStationCodes();
+  } catch(e) {
+    grid.innerHTML = `<div class="state-msg" style="color:#f87171">${esc(e.message)}</div>`;
+  }
+}
+
+function renderStationCodes() {
+  const grid = document.getElementById('station-grid');
+  if (!stationCodes.length) {
+    grid.innerHTML = '<div class="state-msg">Nessuna postazione attiva.</div>';
+    return;
+  }
+  grid.innerHTML = stationCodes.map(ws => `
+    <div class="station-card">
+      <div class="station-title">${esc(ws.name || ws.code)}</div>
+      <div class="station-sub">${esc(ws.code)}${ws.description ? ' · ' + esc(ws.description) : ''}</div>
+      <div class="station-actions">
+        ${(ws.codes || []).map(c => `
+          <div class="station-qr" onclick="printStationCode('${esc(ws.code)}','${esc(ws.name || ws.code)}','${esc(c.label)}','${esc(c.payload)}','${esc(c.qr_image_url)}')">
+            <img src="${esc(c.qr_image_url)}" alt="${esc(c.label)} ${esc(ws.code)}">
+            <div>
+              <div class="station-label">${esc(c.label)}</div>
+              <div class="station-payload">${esc(c.payload)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function printStationCode(code, name, label, payload, img) {
+  const w = window.open('', '_blank', 'width=760,height=860');
+  if (!w) return alert('Popup bloccato: abilita le finestre di stampa.');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(code)} ${esc(label)}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;margin:0;color:#101828}.sheet{min-height:calc(100vh - 36mm);display:flex;align-items:center;justify-content:center}.label{text-align:center;border:2px solid #111827;border-radius:18px;padding:28px 34px;max-width:520px}.kicker{font-size:16px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#475467}.name{font-size:34px;font-weight:900;margin-top:10px}.action{font-size:46px;font-weight:950;margin:8px 0 20px}.action.start{color:#047857}.action.end{color:#b42318}img{width:360px;height:360px;image-rendering:pixelated}.payload{margin-top:18px;font-family:monospace;font-size:18px;word-break:break-all}.hint{margin-top:12px;color:#667085;font-size:13px}@media print{button{display:none}}</style></head><body><div class="sheet"><div class="label"><div class="kicker">Codice postazione officina</div><div class="name">${esc(name)}</div><div class="action ${label.toLowerCase().includes('inizio')?'start':'end'}">${esc(label).toUpperCase()}</div><img src="${esc(img)}"><div class="payload">${esc(payload)}</div><div class="hint">${esc(code)} · scannerizza questo QR con la pistola</div><button onclick="window.print()" style="margin-top:22px;padding:12px 18px;border-radius:10px;border:1px solid #111827;background:#111827;color:white;font-weight:800">Stampa</button></div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
+  w.document.close();
 }
 
 function getSemaforo(c) {

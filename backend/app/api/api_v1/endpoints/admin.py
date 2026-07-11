@@ -26,7 +26,7 @@ from backend.app.core.config import settings
 from backend.app.core.log_collector import log_collector
 from backend.app.db.session import engine, get_db
 from backend.app.models.user import AuditLog, Group, GroupPermission, ProfiloUtente, User, UserAttributes
-from backend.app.models.commessa import ScannerDevice, Workstation
+from backend.app.models.commessa import ScannerDevice, WorkshopScanAttempt, Workstation
 from backend.app.services.qr import generate_qr_for_payload
 from backend.app.services.workstations import normalize_workstation_code, workstation_qr_codes
 from backend.app.schemas.admin import (
@@ -438,6 +438,35 @@ def list_scanner_devices(include_inactive: bool = True, db: Session = Depends(ge
     if not include_inactive:
         q = q.filter(ScannerDevice.active == True)
     return q.order_by(ScannerDevice.active.desc(), ScannerDevice.scanner_code).all()
+
+
+@router.get("/scanner-devices/scan-attempts")
+def list_scanner_scan_attempts(limit: int = 80, db: Session = Depends(get_db)):
+    limit = max(1, min(int(limit or 80), 300))
+    rows = (
+        db.query(WorkshopScanAttempt, ScannerDevice, Workstation)
+        .outerjoin(ScannerDevice, WorkshopScanAttempt.scanner_device_id == ScannerDevice.id)
+        .outerjoin(Workstation, WorkshopScanAttempt.workstation_id == Workstation.id)
+        .order_by(WorkshopScanAttempt.created_at.desc(), WorkshopScanAttempt.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "items": [
+            {
+                "id": attempt.id,
+                "scanner": scanner.scanner_code if scanner else "—",
+                "workstation": workstation.code if workstation else None,
+                "scan_kind": attempt.scan_kind,
+                "outcome": attempt.outcome,
+                "error_code": attempt.error_code,
+                "message": attempt.message,
+                "raw_payload": attempt.raw_payload,
+                "created_at": attempt.created_at,
+            }
+            for attempt, scanner, workstation in rows
+        ]
+    }
 
 
 def _ensure_workstation_exists(db: Session, postazione_id: Optional[int]) -> None:
