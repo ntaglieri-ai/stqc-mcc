@@ -1,6 +1,7 @@
 import logging
 import base64
 import re
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -91,15 +92,34 @@ def create_app() -> FastAPI:
             for username, pwd, profilo, email in DEV_ACCOUNTS:
                 user = db.query(User).filter(User.username == username).first()
                 if not user:
+                    # Recupera record legacy creati dalle vecchie migrazioni, es.
+                    # admin@mcc.local senza username/password_hash. Questo rende
+                    # il bootstrap affidabile anche su DB appena migrati da zero.
+                    user = db.query(User).filter(User.email == email).first() if email else None
+
+                if not user:
                     db.add(User(
                         username=username,
                         email=email,
                         password_hash=hash_password(pwd),
                         profilo=profilo, attivo=True,
+                        password_changed_at=datetime.utcnow(),
                     ))
                     _logger.info("Account dev '%s' creato", username)
                 else:
-                    # aggiorna il profilo se è cambiato
+                    if user.username != username:
+                        user.username = username
+                        _logger.info("Username account base aggiornato a '%s'", username)
+                    if email and user.email != email:
+                        user.email = email
+                    if not user.password_hash:
+                        user.password_hash = hash_password(pwd)
+                        user.password_changed_at = datetime.utcnow()
+                        user.failed_attempts = 0
+                        user.locked_until = None
+                        user.attivo = True
+                        _logger.info("Password iniziale account base '%s' impostata", username)
+                    # aggiorna il profilo se è cambiato, senza toccare password già personalizzate
                     if user.profilo != profilo:
                         user.profilo = profilo
                         _logger.info("Profilo account '%s' aggiornato a %s", username, profilo.value)
