@@ -334,6 +334,16 @@ def group_users(name: str, db: Session = Depends(get_db)):
 
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
+SCANNER_SCAN_MODES = {"OFFICINA", "MAGAZZINO"}
+
+
+def _normalize_scanner_scan_mode(value: str | None) -> str:
+    mode = (value or "OFFICINA").strip().upper()
+    if mode not in SCANNER_SCAN_MODES:
+        raise HTTPException(400, "Tipo pistola non valido")
+    return mode
+
+
 def _workstation_qr(code: str) -> tuple[str, str]:
     return workstation_qr_codes(code)
 
@@ -484,11 +494,13 @@ def create_scanner_device(body: ScannerDeviceCreate, db: Session = Depends(get_d
     if body.device_token and db.query(ScannerDevice).filter(ScannerDevice.device_token == body.device_token).first():
         raise HTTPException(409, "Device token già associato a un altro scanner")
     _ensure_workstation_exists(db, body.postazione_id)
+    scan_mode = _normalize_scanner_scan_mode(body.scan_mode)
 
     scanner = ScannerDevice(
         scanner_code=scanner_code,
         name=body.name.strip() or scanner_code,
         description=body.description,
+        scan_mode=scan_mode,
         postazione_id=body.postazione_id,
         ip_address=body.ip_address,
         serial_number=body.serial_number,
@@ -496,7 +508,7 @@ def create_scanner_device(body: ScannerDeviceCreate, db: Session = Depends(get_d
         active=body.active,
     )
     db.add(scanner)
-    write_audit_log(db, "CREATE_SCANNER_DEVICE", details=f"scanner={scanner_code}, postazione_id={body.postazione_id}")
+    write_audit_log(db, "CREATE_SCANNER_DEVICE", details=f"scanner={scanner_code}, mode={scan_mode}, postazione_id={body.postazione_id}")
     db.commit()
     db.refresh(scanner)
     return scanner
@@ -522,6 +534,8 @@ def update_scanner_device(scanner_id: int, body: ScannerDeviceUpdate, db: Sessio
     if "postazione_id" in data:
         _ensure_workstation_exists(db, data["postazione_id"])
         scanner.postazione_id = data["postazione_id"]
+    if "scan_mode" in data:
+        scanner.scan_mode = _normalize_scanner_scan_mode(data["scan_mode"])
     if "device_token" in data and data["device_token"]:
         duplicate = db.query(ScannerDevice).filter(
             ScannerDevice.device_token == data["device_token"],
@@ -535,10 +549,22 @@ def update_scanner_device(scanner_id: int, body: ScannerDeviceUpdate, db: Sessio
             setattr(scanner, field, data[field])
     scanner.updated_at = datetime.utcnow()
 
-    write_audit_log(db, "UPDATE_SCANNER_DEVICE", details=f"id={scanner_id}, scanner={scanner.scanner_code}, postazione_id={scanner.postazione_id}")
+    write_audit_log(db, "UPDATE_SCANNER_DEVICE", details=f"id={scanner_id}, scanner={scanner.scanner_code}, mode={scanner.scan_mode}, postazione_id={scanner.postazione_id}")
     db.commit()
     db.refresh(scanner)
     return scanner
+
+
+@router.delete("/scanner-devices/{scanner_id}", status_code=204)
+def delete_scanner_device(scanner_id: int, db: Session = Depends(get_db)):
+    scanner = db.get(ScannerDevice, scanner_id)
+    if not scanner:
+        raise HTTPException(404, "Scanner non trovato")
+    code = scanner.scanner_code
+    db.delete(scanner)
+    write_audit_log(db, "DELETE_SCANNER_DEVICE", details=f"id={scanner_id}, scanner={code}")
+    db.commit()
+    return None
 
 
 # ── System Status ─────────────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ from backend.app.models.commessa import (
     WorkshopScanBlock,
     Workstation,
 )
-from backend.app.models.warehouse import DistintaItem
+from backend.app.models.warehouse import DistintaItem, WarehouseItem
 
 
 def _scan_value(raw: str) -> str:
@@ -151,6 +151,15 @@ def process_workshop_scan(
         .first()
     )
 
+    warehouse_item = db.query(WarehouseItem).filter(WarehouseItem.uuid == value.lower()).first()
+    if warehouse_item:
+        return _failure(
+            db, scanner, external_id, raw_payload, "WORKSHOP_WAREHOUSE_ITEM",
+            "WAREHOUSE_QR_NOT_ALLOWED_IN_WORKSHOP",
+            "QR grezzo: usare Pre-produzione, non Officina",
+            workstation=assigned_workstation, block=open_block, warning=True,
+        )
+
     if workstation:
         is_start = value == workstation.start_qr_code
         kind = "WORKSTATION_START" if is_start else "WORKSTATION_END"
@@ -275,7 +284,6 @@ def process_workshop_scan(
     piece_matches = db.query(Piece).filter(
         or_(Piece.qr_code == value, Piece.qr_payload == value, Piece.uuid == value.lower()),
         Piece.qr_attivo.is_(True),
-        Piece.qr_status == "ACTIVE",
     ).all()
     if not piece_matches:
         return _failure(
@@ -291,10 +299,13 @@ def process_workshop_scan(
             "AMBIGUOUS_PIECE_QR", "QR associato a più pezzi attivi", block=open_block,
         )
     piece = candidates[0]
+    now = datetime.utcnow()
+
     if not open_block:
         return _failure(
             db, scanner, external_id, raw_payload, "PIECE",
-            "NO_OPEN_BLOCK", "Scansionare prima INIZIO postazione", piece=piece,
+            "NO_OPEN_BLOCK", "Scansiona prima il QR INIZIO della postazione",
+            workstation=assigned_workstation, piece=piece,
         )
 
     workstation = db.get(Workstation, open_block.workstation_id)
@@ -319,7 +330,6 @@ def process_workshop_scan(
             workstation=workstation, block=open_block, piece=piece,
         )
 
-    now = datetime.utcnow()
     session = PieceWorkSession(
         piece_id=piece.id,
         commessa_id=piece.commessa_id,
@@ -350,7 +360,9 @@ def process_workshop_scan(
         session_id=session.id,
         scanner_device_id=scanner.id,
         scan_block_id=open_block.id,
-        metadata_json={"source": "NETUM"},
+        metadata_json={
+            "source": "NETUM",
+        },
     )
     db.add(event)
     db.flush()

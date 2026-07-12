@@ -8,7 +8,7 @@ from decimal import Decimal
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from backend.app.models.commessa import Commessa, Piece, PieceScanEvent, PieceWorkSession
+from backend.app.models.commessa import Commessa, Piece, PieceScanEvent, PieceWorkSession, Workstation
 from backend.app.models.warehouse import WarehouseItem
 from backend.app.services.qr import generate_qr_for_payload
 
@@ -99,6 +99,11 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         row.id: row
         for row in db.query(PieceWorkSession).filter(PieceWorkSession.piece_id == piece.id).all()
     }
+    workstation_codes = sorted({row.postazione_code for row in events if row.postazione_code})
+    workstation_names = {
+        row.code: row.name
+        for row in db.query(Workstation).filter(Workstation.code.in_(workstation_codes)).all()
+    } if workstation_codes else {}
     fields = {
         "UUID": piece.uuid,
         "Codice pezzo": piece.qr_code,
@@ -143,6 +148,7 @@ def build_qr_detail(db: Session, raw: str) -> dict:
                 "event": row.event_type,
                 "timestamp": row.timestamp,
                 "workstation": row.postazione_code,
+                "workstation_label": workstation_names.get(row.postazione_code) or row.postazione_code,
                 "duration_seconds": (
                     sessions[row.session_id].duration_seconds
                     if row.session_id in sessions and row.event_type == "PHASE_END" else None

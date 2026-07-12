@@ -31,6 +31,15 @@
     list.innerHTML=rows.slice(0,500).map(x=>`<button class="qrd-nav-item ${currentValues.length===1&&currentValues[0]===x.uuid?"active":""}" onclick="QrDrawer.open('${esc(x.uuid)}')"><div class="qrd-nav-code">${esc(x.code)}</div><div class="qrd-nav-meta">${esc(x.profilo||"—")}${x.assemblato?" · "+esc(x.assemblato):""}</div></button>`).join("")||'<div class="qrd-empty">Nessun codice.</div>';
   }
   function rowLink(x){return `<div class="qrd-row click" onclick="QrDrawer.open('${esc(x.uuid)}',true)"><div><div class="qrd-row-main">${esc(x.code)}</div><div class="qrd-row-sub">${esc(x.type||"")} · ${esc(x.status||"—")}</div></div><div class="qrd-time">Apri →</div></div>`}
+  function phaseLabel(event){
+    const map={PHASE_START:"START",PHASE_END:"END",MATERIAL_ASSIGNED:"MATERIALE ASSEGNATO",MATERIAL_PENDING:"ATTESA GREZZO"};
+    return map[event]||event||"EVENTO";
+  }
+  function timelineRow(x){
+    const main=x.workstation_label||x.workstation||"Postazione non indicata";
+    const sub=phaseLabel(x.event);
+    return `<div class="qrd-row"><div><div class="qrd-row-main phase">${esc(main)}</div><div class="qrd-row-sub phase">${esc(sub)}</div></div><div class="qrd-time">${esc(display(x.timestamp))}${x.duration_seconds!=null?`<br>${esc(x.duration_seconds)} s`:""}</div></div>`;
+  }
   function render(d){
     document.getElementById("qrd-kicker").textContent=d.entity_label||"Scheda QR";
     document.getElementById("qrd-title").textContent=d.code||d.uuid;
@@ -38,7 +47,7 @@
     const fields=Object.entries(d.fields||{}).map(([k,v])=>`<div class="qrd-field"><div class="qrd-label">${esc(k)}</div><div class="qrd-value">${esc(display(v))}</div></div>`).join("");
     const origin=d.origin?`<div class="qrd-section"><h3>Origine</h3><div class="qrd-list">${rowLink({...d.origin,type:"WAREHOUSE_ITEM"})}</div></div>`:"";
     const deps=(d.dependencies||[]).length?`<div class="qrd-section"><h3>Dipendenze e componenti collegati</h3><div class="qrd-list">${d.dependencies.map(rowLink).join("")}</div></div>`:"";
-    const timeline=(d.timeline||[]).length?`<div class="qrd-section"><h3>Aggiornamenti da scansione</h3><div class="qrd-list">${d.timeline.map(x=>`<div class="qrd-row"><div><div class="qrd-row-main">${esc(x.event)}</div><div class="qrd-row-sub">${esc(x.workstation||"Postazione non indicata")}</div></div><div class="qrd-time">${esc(display(x.timestamp))}${x.duration_seconds!=null?`<br>${esc(x.duration_seconds)} s`:""}</div></div>`).join("")}</div></div>`:"<div class='qrd-section'><h3>Aggiornamenti da scansione</h3><div class='qrd-empty'>Nessun aggiornamento operativo registrato.</div></div>";
+    const timeline=(d.timeline||[]).length?`<div class="qrd-section"><h3>Aggiornamenti da scansione</h3><div class="qrd-list">${d.timeline.map(timelineRow).join("")}</div></div>`:"<div class='qrd-section'><h3>Aggiornamenti da scansione</h3><div class='qrd-empty'>Nessun aggiornamento operativo registrato.</div></div>";
     document.getElementById("qrd-body").innerHTML=`<div class="qrd-hero"><img class="qrd-qr" src="${esc(d.qr_image_url)}" alt="QR"><div><div class="qrd-status">${esc(d.status||"—")}</div><div class="qrd-grid">${fields}</div></div></div>${origin}${deps}${timeline}`;
   }
   async function open(value,fromLink=false){

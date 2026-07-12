@@ -373,6 +373,35 @@
       background: linear-gradient(135deg, rgba(73,129,255,.36), rgba(112,76,255,.24));
       box-shadow: 0 10px 24px rgba(73,129,255,.12), inset 0 1px 0 rgba(255,255,255,.10);
     }
+    .mapped-btn {
+      position: relative;
+      min-height: 42px;
+      padding: 9px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(251,191,36,.38);
+      background: linear-gradient(135deg, rgba(180,83,9,.42), rgba(245,158,11,.22));
+      color: #fde68a;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(245,158,11,.12), inset 0 1px 0 rgba(255,255,255,.08);
+    }
+    .mapped-btn:hover { color:#fff7d6; border-color:rgba(252,211,77,.68); transform:translateY(-1px); }
+    .mapped-counter {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:24px;
+      height:24px;
+      margin-left:8px;
+      padding:0 7px;
+      border-radius:999px;
+      background:#facc15;
+      color:#201400;
+      font-size:11px;
+      font-weight:1000;
+    }
     .menu-wrap { position: relative; display: inline-flex; }
     .toolbar-menu {
       position: absolute;
@@ -644,6 +673,25 @@
       display: flex; gap: 10px; justify-content: flex-end;
       background: rgba(15,17,23,.78);
     }
+    .mapped-drawer-body { display:grid; gap:10px; }
+    #mapped-grezzi-drawer { width:min(96vw,1760px); }
+    #mapped-grezzi-drawer .drawer-body { overflow-x:hidden; }
+    .mapped-row {
+      display:grid;
+      grid-template-columns:minmax(0,1.35fr) minmax(180px,.55fr) minmax(96px,.25fr) minmax(190px,.35fr);
+      gap:16px;
+      align-items:center;
+      padding:18px;
+      border:1px solid rgba(125,160,220,.16);
+      border-radius:18px;
+      background:linear-gradient(135deg, rgba(30,41,59,.82), rgba(15,23,42,.62));
+    }
+    .mapped-code { font-size:22px; line-height:1.08; font-weight:950; color:#edf4ff; word-break:normal; overflow-wrap:anywhere; }
+    .mapped-meta { margin-top:8px; color:#9fb4d0; font-size:13px; line-height:1.35; }
+    .mapped-label { font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:#7f96b4; font-weight:950; margin-bottom:6px; }
+    .mapped-commessa { color:#dbeafe; font-size:17px; font-weight:950; }
+    .mapped-pieces { display:inline-flex; justify-content:center; align-items:center; min-width:84px; padding:10px 14px; border-radius:999px; background:rgba(59,130,246,.14); color:#bfdbfe; border:1px solid rgba(96,165,250,.28); font-weight:950; font-size:18px; }
+    @media(max-width:900px){#mapped-grezzi-drawer{width:100vw}.mapped-row{grid-template-columns:1fr}.mapped-row .ddt-primary{width:100%}}
     .ddt-primary {
       min-height: 42px; padding: 10px 18px; border-radius: 12px;
       border: 1px solid rgba(139,174,255,.35);
@@ -1195,6 +1243,16 @@
     }
     .item-field.full { grid-column:1/-1; }
     .item-source-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px; }
+    .linked-pieces-box { margin-top:16px; border:1px solid rgba(125,160,220,.18); border-radius:16px; background:rgba(15,23,42,.48); padding:14px; }
+    .linked-pieces-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .linked-pieces-title { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#93c5fd; font-weight:950; }
+    .linked-pieces-count { display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:28px; padding:0 9px; border-radius:999px; background:rgba(59,130,246,.14); border:1px solid rgba(96,165,250,.32); color:#bfdbfe; font-size:12px; font-weight:950; }
+    .linked-piece-list { display:grid; gap:8px; max-height:230px; overflow:auto; }
+    .linked-piece-row { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid rgba(125,160,220,.12); background:#101a2b; border-radius:12px; padding:10px 12px; }
+    .linked-piece-code { font-weight:950; color:#e5edff; }
+    .linked-piece-meta { margin-top:3px; font-size:11px; color:#8fa4bf; }
+    .linked-badge-btn { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border-radius:999px; border:1px solid rgba(96,165,250,.32); background:rgba(59,130,246,.12); color:#bfdbfe; font-size:10px; font-weight:950; cursor:pointer; }
+    .linked-badge-btn:hover { border-color:rgba(147,197,253,.65); color:#eff6ff; }
     .item-source {
       border:1px solid var(--color-border-secondary);border-radius:14px;padding:12px;background:rgba(255,255,255,.025);
     }
@@ -1396,6 +1454,9 @@
           <button class="view-btn" id="stock-filter-reserved" onclick="setStockFilter('reserved')">Prenotati</button>
           <button class="view-btn" id="stock-filter-all" onclick="setStockFilter('all')">Tutti</button>
         </div>
+        <button class="mapped-btn" id="mapped-grezzi-btn" onclick="openMappedGrezziDrawer()">
+          Notifiche <span class="mapped-counter" id="mapped-grezzi-count">0</span>
+        </button>
         <div class="tb-spacer"></div>
         <div class="menu-wrap">
           <button class="tbtn tbtn-n" id="view-menu-btn" onclick="toggleToolbarMenu('view-menu',event)">☷ Vista</button>
@@ -1533,6 +1594,26 @@
 
 <!-- GLOBAL DROPDOWN — portato fuori da qualsiasi overflow container -->
 <div id="gdd" role="listbox"></div>
+
+<!-- MAPPED GREZZI DRAWER -->
+<div class="drawer-backdrop" id="mapped-grezzi-backdrop" onclick="closeMappedGrezziDrawer()"></div>
+<aside class="drawer" id="mapped-grezzi-drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-eyebrow">Magazzino · Pre-produzione</div>
+      <div class="drawer-title">Grezzi mappati a commessa</div>
+      <div class="drawer-sub">
+        Elenco dei grezzi collegati a pezzi di commessa. Da qui gestisci l'uscita del grezzo dal magazzino.
+      </div>
+    </div>
+    <button class="drawer-close" onclick="closeMappedGrezziDrawer()" aria-label="Chiudi">×</button>
+  </div>
+  <div class="drawer-body">
+    <div class="mapped-drawer-body" id="mapped-grezzi-list">
+      <div class="physical-loading">Caricamento grezzi mappati…</div>
+    </div>
+  </div>
+</aside>
 
 <!-- DDT DRAWER -->
 <div class="drawer-backdrop" id="ddt-backdrop" onclick="closeDdt()"></div>
@@ -1819,10 +1900,12 @@
       <div>
         <div class="item-fields" id="item-fields"></div>
         <div class="item-source-grid" id="item-source-grid"></div>
+        <div id="linked-pieces-section"></div>
       </div>
     </div>
     <div class="item-modal-actions">
       <button class="ddt-secondary" onclick="closeQrPreview()">Chiudi</button>
+      <button class="ddt-secondary" id="item-out-btn" onclick="openOutgoingForPreviewItem()">Gestisci uscita</button>
       <button class="ddt-secondary" onclick="toggleCurrentItemSelection()">Seleziona QR</button>
       <button class="ddt-secondary" onclick="deletePreviewItem()">Elimina record</button>
       <button class="ddt-secondary" onclick="printPreviewItem()">Stampa QR</button>
@@ -1966,6 +2049,7 @@ const selectedTypes = new Set();
 let selectedReservation = null;
 const selectedItems = new Set();
 const selectedMaterials = new Set();
+let mappedGrezzi = [];
 
 // Chip filters (exact match)
 const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
@@ -2036,7 +2120,7 @@ let ddtAnalysis = null;
     closeToolbarMenus(e);
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); closeDdtReview(); closeDdt(); }
+    if (e.key === 'Escape') { closeGdd(); closeMov(); closeImport(); closeScan(); closeQrPreview(); closeMappedGrezziDrawer(); closeDdtReview(); closeDdt(); }
     if (e.key === 'Enter' && document.getElementById('mov-modal').classList.contains('open')) confirmMov();
   });
 })();
@@ -2047,17 +2131,22 @@ async function loadStock() {
     expandedMaterial = null;
     Object.keys(physicalCache).forEach(key => delete physicalCache[key]);
     Object.keys(physicalPages).forEach(key => delete physicalPages[key]);
-    const [r, i, c] = await Promise.all([
+    const [r, i, c, m] = await Promise.all([
       fetch('/api/v1/warehouse/magazzino?limit=5000', { headers: hdr() }),
       fetch('/api/v1/warehouse/items?limit=20000', { headers: hdr() }),
       fetch('/api/v1/warehouse/custom-fields', { headers: hdr() }),
+      fetch('/api/v1/warehouse/mapped-grezzi', { headers: hdr() }),
     ]);
     if (!r.ok) throw new Error(r.status);
     if (!i.ok) throw new Error(i.status);
     if (!c.ok) throw new Error(c.status);
+    if (!m.ok) throw new Error(m.status);
     allRows = await r.json();
     allItems = await i.json();
     allCustomFields = await c.json();
+    const mappedData = await m.json();
+    mappedGrezzi = mappedData.items || [];
+    updateMappedGrezziButton(mappedData.count ?? mappedGrezzi.length);
     syncNewColumnsVisible();
     const validUuids = new Set(allItems.map(item => item.uuid));
     const validMaterials = new Set(allRows.map(row => Number(row.material_id)));
@@ -3002,6 +3091,79 @@ function itemCommessa(item) {
   return item.reserved_for_commessa || item.commessa_ref || '';
 }
 
+function updateMappedGrezziButton(count) {
+  const n = Number(count || 0);
+  const btn = document.getElementById('mapped-grezzi-btn');
+  const badge = document.getElementById('mapped-grezzi-count');
+  if (badge) badge.textContent = n;
+  if (btn) {
+    btn.style.opacity = n ? '1' : '.45';
+    btn.title = n ? `${n} grezzi mappati da gestire` : 'Nessun grezzo mappato da gestire';
+  }
+}
+
+function openMappedGrezziDrawer() {
+  document.getElementById('mapped-grezzi-backdrop').classList.add('open');
+  document.getElementById('mapped-grezzi-drawer').classList.add('open');
+  renderMappedGrezziDrawer();
+}
+
+function closeMappedGrezziDrawer() {
+  document.getElementById('mapped-grezzi-backdrop')?.classList.remove('open');
+  document.getElementById('mapped-grezzi-drawer')?.classList.remove('open');
+}
+
+function renderMappedGrezziDrawer() {
+  const target = document.getElementById('mapped-grezzi-list');
+  if (!target) return;
+  if (!mappedGrezzi.length) {
+    target.innerHTML = '<div class="empty">Nessun grezzo mappato da gestire.</div>';
+    return;
+  }
+  target.innerHTML = mappedGrezzi.map(item => `
+    <div class="mapped-row">
+      <div>
+        <div class="mapped-code">${esc(item.label || item.material_code || item.uuid)}</div>
+        <div class="mapped-meta">${esc([item.tipo, item.profilo, item.dimensioni, item.qualita].filter(Boolean).join(' · ') || item.uuid)}</div>
+      </div>
+      <div>
+        <div class="mapped-label">Commessa</div>
+        <div class="mapped-commessa">${esc(item.commessa || item.reserved_for_commessa || '—')}</div>
+      </div>
+      <div class="mapped-pieces">${Number(item.pieces_count || 0)} pz</div>
+      <button class="ddt-primary" onclick="manageMappedGrezzoOutgoing('${esc(item.uuid)}')">Gestisci uscita</button>
+    </div>
+  `).join('');
+}
+
+async function refreshMappedGrezzi() {
+  const res = await fetch('/api/v1/warehouse/mapped-grezzi', { headers: hdr() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+  mappedGrezzi = data.items || [];
+  updateMappedGrezziButton(data.count ?? mappedGrezzi.length);
+  renderMappedGrezziDrawer();
+}
+
+async function manageMappedGrezzoOutgoing(uuid) {
+  const item = mappedGrezzi.find(row => row.uuid === uuid);
+  const label = item ? `${item.label} · ${item.commessa}` : uuid;
+  if (!confirm(`Registrare uscita magazzino per questo grezzo?\n\n${label}`)) return;
+  try {
+    const res = await fetch(`/api/v1/warehouse/mapped-grezzi/${encodeURIComponent(uuid)}/outgoing`, {
+      method: 'POST',
+      headers: hdr(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    showToast('Uscita grezzo registrata', 'ok');
+    await loadStock();
+    await refreshMappedGrezzi();
+  } catch (err) {
+    showToast(err.message || String(err), 'err');
+  }
+}
+
 function renderSkeleton(n) {
   document.getElementById('tbody').innerHTML = Array.from({length:n},()=>
     `<tr class="sk"><td></td><td><div class="skb" style="width:65%"></div></td>
@@ -3379,6 +3541,32 @@ function renderItemSources() {
     </div>`).join('');
 }
 
+function renderLinkedPiecesSection() {
+  const target = document.getElementById('linked-pieces-section');
+  if (!target) return;
+  const pieces = previewItemDetail?.linked_pieces || [];
+  const count = Number(previewItemDetail?.linked_pieces_count || pieces.length || 0);
+  if (!count) {
+    target.innerHTML = '';
+    return;
+  }
+  target.innerHTML = `<div class="linked-pieces-box">
+    <div class="linked-pieces-head">
+      <div class="linked-pieces-title">Pezzi appesi a questo grezzo</div>
+      <div class="linked-pieces-count">${count}</div>
+    </div>
+    <div class="linked-piece-list">
+      ${pieces.map(piece => `<div class="linked-piece-row">
+        <div>
+          <div class="linked-piece-code">${esc(piece.qr_code)}</div>
+          <div class="linked-piece-meta">${esc([piece.profilo, piece.assemblato_id, piece.stato_attuale].filter(Boolean).join(' · ') || '—')}</div>
+        </div>
+        <button class="ddt-secondary" style="padding:7px 10px;font-size:11px" onclick="QrDrawer.open('${esc(piece.uuid)}')">Info</button>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
 function setItemEdit(enabled) {
   itemEditEnabled = enabled;
   const lock = document.getElementById('item-edit-lock');
@@ -3402,6 +3590,7 @@ function renderItemDetail(detail) {
   document.getElementById('preview-qr-size').value=qrSize;
   renderItemFields();
   renderItemSources();
+  renderLinkedPiecesSection();
   setItemEdit(false);
 }
 
@@ -3417,6 +3606,7 @@ async function openQrPreview(uuid,e) {
   document.getElementById('item-current-status').textContent='—';
   document.getElementById('item-fields').innerHTML='<div class="physical-loading">Caricamento scheda…</div>';
   document.getElementById('item-source-grid').innerHTML='';
+  document.getElementById('linked-pieces-section').innerHTML='';
   setItemEdit(false);
   try {
     const res = await fetch(`/api/v1/warehouse/items/${uuid}`, { headers: hdr() });
@@ -3434,6 +3624,12 @@ function closeQrPreview(){
   itemEditEnabled=false;
 }
 function printPreviewItem(){if(previewItem)printItemLabel(previewItem.uuid);}
+
+function openOutgoingForPreviewItem() {
+  if (!previewItemDetail?.material_id) return;
+  closeQrPreview();
+  openMov(previewItemDetail.material_id, 'out');
+}
 
 function collectItemPayload() {
   const payload = {};

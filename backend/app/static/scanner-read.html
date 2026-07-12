@@ -17,10 +17,14 @@ const token=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop(
 const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const val=v=>v===null||v===undefined||v===''?'—':typeof v==='string'&&/T\\d\\d:/.test(v)?new Date(v).toLocaleString('it-IT'):String(v);
 let lastRead=null;
+function phaseLabel(event){
+  const map={PHASE_START:'START',PHASE_END:'END',MATERIAL_ASSIGNED:'MATERIALE ASSEGNATO',MATERIAL_PENDING:'ATTESA GREZZO'};
+  return map[event]||event||'EVENTO';
+}
 function render(d){
   const fields=Object.entries(d.fields||{}).map(([k,v])=>`<div class="qrd-field"><div class="qrd-label">${esc(k)}</div><div class="qrd-value">${esc(val(v))}</div></div>`).join('');
   const deps=(d.dependencies||[]).map(x=>`<div class="qrd-row"><div><div class="qrd-row-main">${esc(x.code)}</div><div class="qrd-row-sub">${esc(x.status||'—')}</div></div></div>`).join('');
-  const timeline=(d.timeline||[]).map(x=>`<div class="qrd-row"><div><div class="qrd-row-main">${esc(x.event)}</div><div class="qrd-row-sub">${esc(x.workstation||'—')}</div></div><div class="qrd-time">${esc(val(x.timestamp))}</div></div>`).join('');
+  const timeline=(d.timeline||[]).map(x=>`<div class="qrd-row"><div><div class="qrd-row-main phase">${esc(x.workstation_label||x.workstation||'Postazione non indicata')}</div><div class="qrd-row-sub phase">${esc(phaseLabel(x.event))}</div></div><div class="qrd-time">${esc(val(x.timestamp))}</div></div>`).join('');
   document.getElementById('root').innerHTML=`<div class="qrd-kicker">${esc(d.entity_label)}</div><div class="read-code">${esc(d.code)}</div><div class="qrd-status">${esc(d.status||'—')}</div><div class="read-hero"><img class="read-qr" src="${esc(d.qr_image_url)}"><div class="qrd-grid">${fields}</div></div>${d.origin?`<div class="qrd-section"><h3>Origine</h3><div class="qrd-row"><div class="qrd-row-main">${esc(d.origin.code)}</div><div class="qrd-time">${esc(d.origin.status)}</div></div></div>`:''}${deps?`<div class="qrd-section"><h3>Dipendenze</h3><div class="qrd-list">${deps}</div></div>`:''}<div class="qrd-section"><h3>Aggiornamenti da scansione</h3><div class="qrd-list">${timeline||'<div class="qrd-empty">Nessun evento registrato.</div>'}</div></div>`;
 }
 async function poll(){

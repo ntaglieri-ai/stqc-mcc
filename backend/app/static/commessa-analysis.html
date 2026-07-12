@@ -365,6 +365,36 @@
       .file-grid { grid-template-columns: 1fr; }
       .revision-form { grid-template-columns: 1fr; }
     }
+    .scan-test-box {
+      border:1px solid rgba(96,165,250,.28);
+      background:linear-gradient(135deg, rgba(30,64,175,.20), rgba(15,23,42,.94));
+    }
+    .scan-test-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-top:16px; }
+    .scan-test-card {
+      border:1px solid rgba(148,163,184,.18); border-radius:16px; padding:12px;
+      background:rgba(15,23,42,.72); min-height:210px;
+    }
+    .scan-test-card.clickable { cursor:pointer; }
+    .scan-test-card.clickable:hover { border-color:rgba(147,197,253,.45); background:rgba(59,130,246,.09); }
+    .scan-test-step { font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; color:#93c5fd; }
+    .scan-test-title { margin-top:6px; font-size:14px; font-weight:950; color:#e5edff; }
+    .scan-test-sub { margin-top:4px; font-size:11px; color:rgba(255,255,255,.45); min-height:28px; }
+    .scan-test-qr { width:96px; height:96px; background:#fff; border-radius:12px; padding:6px; margin-top:12px; object-fit:contain; }
+    .scan-test-payload {
+      margin-top:9px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10px;
+      color:rgba(219,234,254,.62); word-break:break-all; line-height:1.35;
+    }
+    .scan-test-tools { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+    .scan-test-empty { color:#fca5a5; font-size:12px; padding:16px; border:1px dashed rgba(248,113,113,.25); border-radius:14px; }
+    .scan-test-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .scan-test-scan {
+      border:1px solid rgba(74,222,128,.32); background:rgba(34,197,94,.16); color:#86efac;
+      border-radius:10px; padding:7px 12px; font-size:12px; font-weight:900; cursor:pointer;
+    }
+    .scan-test-scan:hover { background:rgba(34,197,94,.25); color:#dcfce7; }
+    .scan-test-result { margin-top:12px; padding:11px 13px; border-radius:13px; border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.68); font-size:12px; color:#cbd5e1; }
+    .scan-test-result.ok { border-color:rgba(74,222,128,.28); color:#bbf7d0; }
+    .scan-test-result.err { border-color:rgba(248,113,113,.28); color:#fecaca; }
     @media (max-width: 620px) {
       .page { padding: 24px 14px 50px; }
       .header { flex-direction: column; }
@@ -512,6 +542,7 @@ function renderPage() {
 
     ${r.predistinta ? renderPredistintaWarning(r) : ""}
     ${renderFileWarnings(r)}
+    ${renderScanTestSection()}
 
     <section class="section">
       <div class="section-head">
@@ -585,6 +616,174 @@ function renderPage() {
 
   renderFabbisognoRows("");
   renderAssemblyRows("");
+  loadScanTestKit();
+}
+
+function renderScanTestSection() {
+  return `<section class="section scan-test-box" id="scan-test-section">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Test temporaneo scansioni</div>
+        <div class="section-sub">Pre-produzione: grezzo ↔ pezzi. Officina: postazione INIZIO → pezzi → postazione FINE.</div>
+      </div>
+      <button class="btn secondary" onclick="loadScanTestKit()">Aggiorna QR test</button>
+    </div>
+    <div id="scan-test-body"><div class="loader"><div class="spinner"></div><span>Preparazione QR test…</span></div></div>
+  </section>`;
+}
+
+function scanTestCard(item) {
+  const click = item.drawer ? `onclick="QrDrawer.open('${jsArg(item.drawer)}')"` : "";
+  const preprodButton = item.preprod ? `<button class="scan-test-scan" onclick="event.stopPropagation(); mousePreproductionScanTest('${jsArg(item.payload)}')">Pre-produzione</button>` : "";
+  const workshopButton = item.workshop ? `<button class="scan-test-scan" onclick="event.stopPropagation(); mouseScanTest('${jsArg(item.payload)}')">Officina</button>` : "";
+  return `<div class="scan-test-card ${item.drawer ? "clickable" : ""}" ${click}>
+    <div class="scan-test-step">${esc(item.step)}</div>
+    <div class="scan-test-title">${esc(item.title)}</div>
+    <div class="scan-test-sub">${esc(item.sub || "")}</div>
+    ${item.qr ? `<img class="scan-test-qr" src="${esc(item.qr)}" alt="${esc(item.title)}">` : ""}
+    <div class="scan-test-payload">${esc(item.payload || "—")}</div>
+    <div class="scan-test-actions">
+      ${preprodButton}${workshopButton}
+      ${item.drawer ? `<button class="btn secondary" style="padding:7px 12px;font-size:12px" onclick="event.stopPropagation(); QrDrawer.open('${jsArg(item.drawer)}')">Info</button>` : ""}
+    </div>
+  </div>`;
+}
+
+async function loadScanTestKit() {
+  const body = document.getElementById("scan-test-body");
+  if (!body) return;
+  body.innerHTML = `<div class="loader"><div class="spinner"></div><span>Preparazione QR test…</span></div>`;
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/scan-test-kit`, { headers: auth() });
+    const kit = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(kit.detail || "Kit test non disponibile");
+    const ws = kit.workstation;
+    const cards = [];
+    if (ws) {
+      cards.push({ step:"1", title:`${ws.name} · INIZIO`, sub:"QR postazione officina", payload:ws.start_payload, qr:ws.start_qr_image_url, workshop:true });
+    }
+    if (kit.warehouse_item) {
+      cards.push({ step:"2", title:"Grezzo magazzino", sub:`${kit.warehouse_item.label} · ${kit.warehouse_item.status}`, payload:kit.warehouse_item.payload, qr:kit.warehouse_item.qr_image_url, drawer:kit.warehouse_item.uuid, preprod:true });
+    }
+    (kit.pieces || []).forEach((piece, index) => {
+      cards.push({ step:String(3 + index), title:piece.qr_code, sub:`Pezzo distinta · ${piece.stato || "—"}`, payload:piece.payload, qr:piece.qr_image_url, drawer:piece.uuid, preprod:true, workshop:true });
+    });
+    if (ws) {
+      cards.push({ step:"6", title:`${ws.name} · FINE`, sub:"QR postazione officina", payload:ws.end_payload, qr:ws.end_qr_image_url, workshop:true });
+    }
+    const missing = [];
+    if (!ws) missing.push("nessuna postazione attiva");
+    if (!kit.warehouse_item) missing.push("nessun QR magazzino disponibile");
+    if ((kit.pieces || []).length < 3) missing.push("meno di 3 QR pezzi distinta disponibili");
+    body.innerHTML = `
+      ${missing.length ? `<div class="scan-test-empty">Attenzione: ${esc(missing.join(", "))}</div>` : ""}
+      <div class="scan-test-grid">${cards.map(scanTestCard).join("")}</div>
+      <div class="scan-test-tools">
+        <button class="btn cta" onclick="copyScanTestSequence()">Copia sequenza payload</button>
+        <button class="btn secondary" onclick="resetScanTest()">Reset test</button>
+        <button class="btn secondary" onclick="loadScanTestKit()">Ricarica</button>
+      </div>`;
+    body.insertAdjacentHTML("beforeend", `<div class="scan-test-result" id="scan-test-result">Usa Pre-produzione per grezzo/pezzi. Usa Officina per postazione/pezzi/fine.</div>`);
+    window.__scanTestPayloads = cards.map(c => c.payload).filter(Boolean);
+  } catch (error) {
+    body.innerHTML = `<div class="scan-test-empty">${esc(error.message || error)}</div>`;
+  }
+}
+
+async function mouseScanTest(payload) {
+  const box = document.getElementById("scan-test-result");
+  if (box) {
+    box.className = "scan-test-result";
+    box.textContent = "Scan officina in corso…";
+  }
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/scan-test`, {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ payload }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Scan non riuscito");
+    if (box) {
+      box.className = `scan-test-result ${data.ok === false ? "err" : "ok"}`;
+      box.textContent = data.msg || "Scan registrato";
+    }
+    if (document.getElementById("qrd-backdrop")?.classList.contains("open") && window.QrDrawer?.refresh) {
+      QrDrawer.refresh();
+    }
+  } catch (error) {
+    if (box) {
+      box.className = "scan-test-result err";
+      box.textContent = error.message || String(error);
+    }
+  }
+}
+
+async function mousePreproductionScanTest(payload) {
+  const box = document.getElementById("scan-test-result");
+  if (box) {
+    box.className = "scan-test-result";
+    box.textContent = "Scan pre-produzione in corso…";
+  }
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/preproduction-scan-test`, {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ payload }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Scan pre-produzione non riuscito");
+    if (box) {
+      box.className = `scan-test-result ${data.ok === false ? "err" : "ok"}`;
+      box.textContent = data.msg || "Scan pre-produzione registrato";
+    }
+    if (document.getElementById("qrd-backdrop")?.classList.contains("open") && window.QrDrawer?.refresh) {
+      QrDrawer.refresh();
+    }
+  } catch (error) {
+    if (box) {
+      box.className = "scan-test-result err";
+      box.textContent = error.message || String(error);
+    }
+  }
+}
+
+async function copyScanTestSequence() {
+  const text = (window.__scanTestPayloads || []).join("\\n");
+  if (!text) return alert("Nessun payload disponibile.");
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Sequenza copiata.");
+  } catch {
+    prompt("Sequenza payload", text);
+  }
+}
+
+async function resetScanTest() {
+  if (!confirm("Resettare il test scan di questa commessa?")) return;
+  const box = document.getElementById("scan-test-result");
+  if (box) {
+    box.className = "scan-test-result";
+    box.textContent = "Reset in corso…";
+  }
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/scan-test/reset`, {
+      method: "POST",
+      headers: auth(),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Reset non riuscito");
+    if (box) {
+      box.className = "scan-test-result ok";
+      box.textContent = `Reset completato: ${data.pieces_reset || 0} pezzi ripristinati.`;
+    }
+    await loadScanTestKit();
+  } catch (error) {
+    if (box) {
+      box.className = "scan-test-result err";
+      box.textContent = error.message || String(error);
+    }
+  }
 }
 
 function stateLabel(value) {

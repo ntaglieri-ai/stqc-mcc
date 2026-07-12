@@ -18,9 +18,9 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaBulloneria, CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PezzoPercorso, PezzoStato,
+    Commessa, CommessaBulloneria, CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
-from backend.app.models.warehouse import DistintaImport, DistintaItem
+from backend.app.models.warehouse import DistintaImport, DistintaItem, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
 from backend.app.services.distinta import (
     ALIASES,
@@ -34,6 +34,8 @@ from backend.app.services.bulloneria import parse_bulloneria_file
 from backend.app.services.fasi_operative import parse_fasi_operative
 from backend.app.services.commessa_analysis import classify_commessa_materials
 from backend.app.services.qr import generate_qr_for_payload
+from backend.app.services.preproduction_scan import process_preproduction_scan
+from backend.app.services.workshop_scan import process_workshop_scan
 
 router = APIRouter()
 
@@ -45,6 +47,10 @@ class PieceManualUpdate(BaseModel):
     assemblato: Optional[str] = None
     stato: Optional[str] = None
     nota: Optional[str] = None
+
+
+class MouseScanRequest(BaseModel):
+    payload: str
 
 
 def _piece_qr_read(item: Piece) -> dict:
@@ -123,6 +129,70 @@ def _create_piece_from_item(
     )
     db.add(piece)
     return piece
+
+
+def _ensure_revision_qr_consistency(db: Session, revisione: CommessaRevisione, *, force: bool = False) -> int:
+    """Rende sempre coerenti i QR già generati per la revisione.
+
+    Regola: se lo step QR è completato, ogni Piece della revisione deve avere
+    QR attivo, payload scansionabile e status ACTIVE.
+    """
+    if revisione.step51_completed_at is None and not force:
+        return 0
+    now = datetime.utcnow()
+    if revisione.step51_completed_at is None and force:
+        revisione.step51_completed_at = now
+    existing_by_item_id = {
+        piece.distinta_item_id: piece
+        for piece in db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
+        if piece.distinta_item_id
+    }
+    source_items = (
+        db.query(DistintaItem)
+        .filter(
+            DistintaItem.revisione_id == revisione.id,
+            DistintaItem.invalidato.is_(False),
+        )
+        .order_by(DistintaItem.part_number, DistintaItem.instance_number, DistintaItem.id)
+        .all()
+    )
+    changed = 0
+    for item in source_items:
+        if item.id not in existing_by_item_id:
+            piece = _create_piece_from_item(db, item, revisione.commessa_id, revisione.id)
+            db.flush()
+            existing_by_item_id[item.id] = piece
+            changed += 1
+    pieces = db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
+    item_ids = [piece.distinta_item_id for piece in pieces if piece.distinta_item_id]
+    items_by_id = {
+        item.id: item
+        for item in db.query(DistintaItem).filter(DistintaItem.id.in_(item_ids)).all()
+    } if item_ids else {}
+    for piece in pieces:
+        expected_payload = piece.uuid
+        if (
+            not piece.qr_attivo
+            or piece.qr_status != "ACTIVE"
+            or piece.qr_payload != expected_payload
+        ):
+            piece.qr_attivo = True
+            piece.qr_status = "ACTIVE"
+            piece.qr_payload = expected_payload
+            if not piece.stato_attuale or piece.stato_attuale == "NON_GENERATO":
+                piece.stato_attuale = "DA_PRODURRE"
+            piece.updated_at = now
+            changed += 1
+        item = items_by_id.get(piece.distinta_item_id)
+        if item and (not item.qr_attivo or item.stato_tracciamento in (None, "NON_GENERATO") or not item.qr_code):
+            item.qr_attivo = True
+            if not item.stato_tracciamento or item.stato_tracciamento == "NON_GENERATO":
+                item.stato_tracciamento = "DA_PRODURRE"
+            item.qr_code = generate_qr_for_payload(piece.uuid)
+            changed += 1
+    if changed:
+        db.commit()
+    return changed
 
 
 @router.post("", response_model=CommessaRead, status_code=201)
@@ -1022,6 +1092,7 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
     if revisione.step51_completed_at is None:
         revisione.step51_completed_at = now
     db.commit()
+    _ensure_revision_qr_consistency(db, revisione)
     return {
         "commessa_id": commessa_id,
         "revisione_id": revisione.id,
@@ -1046,6 +1117,7 @@ def list_commessa_item_qr(
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
     if revisione.step51_completed_at is None:
         raise HTTPException(409, "Lo Step 5.1 non è ancora stato completato")
+    _ensure_revision_qr_consistency(db, revisione)
 
     query = db.query(Piece).filter(
         Piece.revisione_id == revisione.id,
@@ -1081,6 +1153,229 @@ def list_commessa_item_qr(
             {**_piece_qr_read(item), "commessa": commessa.codice if commessa else str(commessa_id)}
             for item in items
         ],
+    }
+
+
+@router.get("/{commessa_id}/scan-test-kit")
+def commessa_scan_test_kit(
+    commessa_id: int,
+    db: Session = Depends(get_db),
+):
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    _ensure_revision_qr_consistency(db, revisione, force=True)
+
+    workstations = (
+        db.query(Workstation)
+        .filter(Workstation.active.is_(True))
+        .order_by(Workstation.code)
+        .all()
+    )
+    workstation = next(
+        (
+            row for row in workstations
+            if not row.code.upper().startswith(("ASSEMBLAGGIO", "SALDATURA"))
+        ),
+        workstations[0] if workstations else None,
+    )
+    warehouse_item = (
+        db.query(WarehouseItem)
+        .filter(WarehouseItem.status.in_(["AVAILABLE", "RESERVED"]))
+        .order_by(WarehouseItem.status, WarehouseItem.id)
+        .first()
+    )
+    pieces = (
+        db.query(Piece)
+        .filter(
+            Piece.revisione_id == revisione.id,
+            Piece.qr_attivo.is_(True),
+        )
+        .order_by(Piece.marca_pos, Piece.progressivo, Piece.id)
+        .limit(3)
+        .all()
+    )
+    return {
+        "commessa_id": commessa_id,
+        "revisione_id": revisione.id,
+        "workstation": None if not workstation else {
+            "id": workstation.id,
+            "code": workstation.code,
+            "name": workstation.name,
+            "start_payload": workstation.start_qr_code,
+            "start_qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(workstation.start_qr_code)}",
+            "end_payload": workstation.end_qr_code,
+            "end_qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(workstation.end_qr_code)}",
+        },
+        "warehouse_item": None if not warehouse_item else {
+            "id": warehouse_item.id,
+            "uuid": warehouse_item.uuid,
+            "payload": warehouse_item.uuid,
+            "qr_image_url": f"/qr-image/{warehouse_item.uuid}.png",
+            "label": getattr(warehouse_item.material, "code", None) or warehouse_item.uuid,
+            "status": warehouse_item.status,
+        },
+        "pieces": [
+            {
+                "id": piece.id,
+                "uuid": piece.uuid,
+                "payload": piece.qr_payload,
+                "qr_code": piece.qr_code,
+                "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(piece.qr_payload)}",
+                "profilo": piece.profilo,
+                "stato": piece.stato_attuale,
+            }
+            for piece in pieces
+        ],
+    }
+
+
+@router.post("/{commessa_id}/scan-test")
+def commessa_mouse_scan_test(
+    commessa_id: int,
+    body: MouseScanRequest,
+    db: Session = Depends(get_db),
+):
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    _ensure_revision_qr_consistency(db, revisione)
+
+    scanner = db.query(ScannerDevice).filter(ScannerDevice.scanner_code == "MOUSE_TEST").first()
+    if scanner is None:
+        scanner = ScannerDevice(
+            scanner_code="MOUSE_TEST",
+            name="Test mouse",
+            device_token="mouse-test",
+            active=True,
+        )
+        db.add(scanner)
+        db.flush()
+    scanner.active = True
+
+    payload = (body.payload or "").strip()
+    workstation = db.query(Workstation).filter(
+        or_(Workstation.start_qr_code == payload, Workstation.end_qr_code == payload)
+    ).first()
+    if workstation:
+        scanner.postazione_id = workstation.id
+    elif scanner.postazione_id is None:
+        first_workstation = db.query(Workstation).filter(Workstation.active.is_(True)).order_by(Workstation.code).first()
+        if first_workstation:
+            scanner.postazione_id = first_workstation.id
+    db.flush()
+    return process_workshop_scan(db, scanner, payload, f"MOUSE-{datetime.utcnow().timestamp()}")
+
+
+@router.post("/{commessa_id}/preproduction-scan-test")
+def commessa_mouse_preproduction_scan_test(
+    commessa_id: int,
+    body: MouseScanRequest,
+    db: Session = Depends(get_db),
+):
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    _ensure_revision_qr_consistency(db, revisione)
+
+    scanner = db.query(ScannerDevice).filter(ScannerDevice.scanner_code == "MOUSE_PREPROD_TEST").first()
+    if scanner is None:
+        scanner = ScannerDevice(
+            scanner_code="MOUSE_PREPROD_TEST",
+            name="Test mouse pre-produzione",
+            device_token="mouse-preprod-test",
+            active=True,
+        )
+        db.add(scanner)
+        db.flush()
+    scanner.active = True
+    payload = (body.payload or "").strip()
+    db.flush()
+    return process_preproduction_scan(db, scanner, payload, f"MOUSE-PREPROD-{datetime.utcnow().timestamp()}")
+
+
+@router.post("/{commessa_id}/scan-test/reset")
+def reset_commessa_mouse_scan_test(
+    commessa_id: int,
+    db: Session = Depends(get_db),
+):
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    scanners = db.query(ScannerDevice).filter(
+        ScannerDevice.scanner_code.in_(["MOUSE_TEST", "MOUSE_PREPROD_TEST"])
+    ).all()
+    scanner_ids = [scanner.id for scanner in scanners]
+
+    pieces = db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
+    piece_ids = [piece.id for piece in pieces]
+
+    deleted_events = 0
+    deleted_sessions = 0
+    if piece_ids:
+        deleted_events = (
+            db.query(PieceScanEvent)
+            .filter(PieceScanEvent.piece_id.in_(piece_ids))
+            .delete(synchronize_session=False)
+        )
+        deleted_sessions = (
+            db.query(PieceWorkSession)
+            .filter(PieceWorkSession.piece_id.in_(piece_ids))
+            .delete(synchronize_session=False)
+        )
+
+    deleted_attempts = deleted_blocks = 0
+    if scanner_ids:
+        warehouse_items = (
+            db.query(WarehouseItem)
+            .filter(WarehouseItem.reserved_by_scanner_id.in_(scanner_ids))
+            .all()
+        )
+        for item in warehouse_items:
+            item.status = "AVAILABLE"
+            item.reserved_at = None
+            item.reserved_by_scanner_id = None
+            item.reserved_for_commessa = None
+        deleted_attempts = (
+            db.query(WorkshopScanAttempt)
+            .filter(WorkshopScanAttempt.scanner_device_id.in_(scanner_ids))
+            .delete(synchronize_session=False)
+        )
+        deleted_blocks = (
+            db.query(WorkshopScanBlock)
+            .filter(WorkshopScanBlock.scanner_device_id.in_(scanner_ids))
+            .delete(synchronize_session=False)
+        )
+    for scanner in scanners:
+        scanner.current_warehouse_item_id = None
+        scanner.current_warehouse_item_set_at = None
+        scanner.postazione_id = None
+
+    for piece in pieces:
+        piece.materiale_origine_status = "VUOTO"
+        piece.materiale_origine_id = None
+        piece.materiale_origine_assigned_at = None
+        piece.materiale_origine_scanner_id = None
+        piece.stato_attuale = "DA_PRODURRE"
+        piece.ultima_postazione = None
+        piece.ultimo_lavoro = None
+        piece.ultimo_evento = None
+        piece.ultimo_evento_at = None
+        piece.lavorazione_aperta_id = None
+        piece.updated_at = datetime.utcnow()
+        if piece.distinta_item_id:
+            item = db.get(DistintaItem, piece.distinta_item_id)
+            if item:
+                item.stato_tracciamento = "DA_PRODURRE"
+
+    db.commit()
+    return {
+        "ok": True,
+        "pieces_reset": len(pieces),
+        "events_deleted": deleted_events,
+        "sessions_deleted": deleted_sessions,
+        "attempts_deleted": deleted_attempts,
+        "blocks_deleted": deleted_blocks,
     }
 
 

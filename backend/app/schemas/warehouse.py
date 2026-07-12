@@ -230,6 +230,16 @@ class WarehousePhysicalItemRead(BaseModel):
     posizione: Optional[str] = None
 
 
+class WarehouseLinkedPieceRead(BaseModel):
+    id: int
+    uuid: str
+    qr_code: str
+    commessa_id: int
+    assemblato_id: Optional[str] = None
+    profilo: Optional[str] = None
+    stato_attuale: Optional[str] = None
+
+
 class WarehouseItemDetailRead(WarehousePhysicalItemRead):
     material_code: str
     description: Optional[str] = None
@@ -253,6 +263,8 @@ class WarehouseItemDetailRead(WarehousePhysicalItemRead):
     notes: Optional[str] = None
     manual_overrides: List[str] = Field(default_factory=list)
     custom_fields: dict[str, str] = Field(default_factory=dict)
+    linked_pieces_count: int = 0
+    linked_pieces: List[WarehouseLinkedPieceRead] = Field(default_factory=list)
 
 
 class WarehouseCustomFieldRead(BaseModel):

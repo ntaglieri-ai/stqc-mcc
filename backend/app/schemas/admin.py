@@ -163,6 +163,7 @@ class ScannerDeviceRead(BaseModel):
     scanner_code: str
     name: str
     description: Optional[str]
+    scan_mode: str = "OFFICINA"
     postazione_id: Optional[int]
     ip_address: Optional[str]
     serial_number: Optional[str]
@@ -179,6 +180,7 @@ class ScannerDeviceCreate(BaseModel):
     scanner_code: str
     name: str
     description: Optional[str] = None
+    scan_mode: str = "OFFICINA"
     postazione_id: Optional[int] = None
     ip_address: Optional[str] = None
     serial_number: Optional[str] = None
@@ -190,6 +192,7 @@ class ScannerDeviceUpdate(BaseModel):
     scanner_code: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
+    scan_mode: Optional[str] = None
     postazione_id: Optional[int] = None
     ip_address: Optional[str] = None
     serial_number: Optional[str] = None

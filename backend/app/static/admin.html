@@ -141,6 +141,20 @@
     .scan-conn-line { display:grid; grid-template-columns:58px minmax(0,1fr); gap:8px; align-items:center; }
     .scan-conn-label { color:rgba(255,255,255,.34); font-family:inherit; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
     .scan-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .ctx-menu {
+      position:fixed; z-index:1000; min-width:220px; display:none;
+      padding:8px; border-radius:14px; background:#111827;
+      border:1px solid rgba(148,163,184,.25); box-shadow:0 18px 50px rgba(0,0,0,.5);
+    }
+    .ctx-menu.open { display:block; }
+    .ctx-item {
+      width:100%; border:0; background:transparent; color:rgba(255,255,255,.78);
+      padding:9px 10px; border-radius:10px; text-align:left; cursor:pointer;
+      font-size:12px; font-weight:800;
+    }
+    .ctx-item:hover { background:rgba(59,130,246,.15); color:#fff; }
+    .ctx-item.danger { color:#fca5a5; }
+    .ctx-item.danger:hover { background:rgba(239,68,68,.14); color:#fecaca; }
     .station-code-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
     .station-code-card { border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.72); border-radius:16px; padding:14px; }
     .station-code-title { font-weight:900; color:#dbeafe; letter-spacing:.02em; }
@@ -506,7 +520,7 @@
       <div class="section-header">
         <div class="section-eyebrow">Configurazione officina</div>
         <div class="section-title">Postazioni &amp; Scanner</div>
-        <div class="section-sub">Scanner identificato dal token: legge QR postazione inizio/fine e QR pezzi. Ogni lettura viene registrata e resa visibile al capo officina.</div>
+        <div class="section-sub">Scanner identificato dal token: scegli se è pistola MAGAZZINO o OFFICINA. Lo stesso URL scan applica la logica corretta.</div>
       </div>
 
       <div class="table-wrap" style="padding:22px 24px;margin-bottom:22px">
@@ -557,7 +571,7 @@
         <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
           <div>
             <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Scanner fisici</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">La pistola è identificata dal suo URL/token. Poi scannerizza: postazione INIZIO, pezzi lavorati, postazione FINE; oppure QR pezzi in sola lettura.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">MAGAZZINO gestisce pre-produzione grezzi/pezzi. OFFICINA gestisce postazioni, fasi e tempi.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input id="sc-new-code" placeholder="SCN-TAGLIO-01"
@@ -565,6 +579,11 @@
               oninput="this.value=this.value.toUpperCase()" />
             <input id="sc-new-name" placeholder="Nome scanner"
               style="width:190px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none" />
+            <select id="sc-new-mode"
+              style="width:150px;padding:8px 11px;border-radius:9px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none">
+              <option value="OFFICINA">OFFICINA</option>
+              <option value="MAGAZZINO">MAGAZZINO</option>
+            </select>
             <select id="sc-new-workstation"
               style="width:190px;padding:8px 11px;border-radius:9px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none"></select>
             <button class="btn btn-primary" onclick="createScannerDevice()">+ Scanner</button>
@@ -576,6 +595,7 @@
               <tr>
                 <th>Scanner</th>
                 <th>Nome</th>
+                <th>Tipo</th>
                 <th>Postazione</th>
                 <th>Connessioni</th>
                 <th>IP</th>
@@ -584,7 +604,7 @@
               </tr>
             </thead>
             <tbody id="scanner-tbody">
-              <tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
+              <tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
             </tbody>
           </table>
         </div>
@@ -957,6 +977,7 @@
 
 <!-- Toast -->
 <div id="toast"></div>
+<div class="ctx-menu" id="scanner-context-menu"></div>
 
 <script>
 function getAuth() { return 'Bearer ' + sessionStorage.getItem('stqc_token'); }
@@ -1537,10 +1558,11 @@ function renderWorkstations() {
 function renderScannerDevices() {
   const tbody = document.getElementById('scanner-tbody');
   if (!_scannerDevices.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuno scanner configurato</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuno scanner configurato</td></tr>';
     return;
   }
   tbody.innerHTML = _scannerDevices.map(s => {
+    const scanMode = (s.scan_mode || 'OFFICINA').toUpperCase();
     const options = '<option value="">— Nessuna —</option>' + _workstations.filter(w => w.active).map(w =>
       `<option value="${w.id}" ${s.postazione_id === w.id ? 'selected' : ''}>${esc(w.code)}</option>`
     ).join('');
@@ -1549,13 +1571,19 @@ function renderScannerDevices() {
     const readApiUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read` : '—';
     const readPageUrl = token ? `${location.origin}/scanner-view/${encodeURIComponent(token)}` : '—';
     return `
-    <tr style="${s.active ? '' : 'opacity:.42'}">
+    <tr style="${s.active ? '' : 'opacity:.42'}" oncontextmenu="openScannerContextMenu(event, ${s.id})">
       <td style="font-weight:800;color:#dbeafe">${esc(s.scanner_code)}</td>
       <td>${esc(s.name || '—')}</td>
+      <td>
+        <select onchange="assignScannerMode(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:800">
+          <option value="OFFICINA" ${scanMode === 'OFFICINA' ? 'selected' : ''}>OFFICINA</option>
+          <option value="MAGAZZINO" ${scanMode === 'MAGAZZINO' ? 'selected' : ''}>MAGAZZINO</option>
+        </select>
+      </td>
       <td><select onchange="assignScannerWorkstation(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px">${options}</select></td>
       <td class="mono-cell">
         <div class="scan-conn">
-          <div class="scan-conn-line"><span class="scan-conn-label">Scan</span><span class="scan-url" title="${esc(scanUrl)}">${esc(scanUrl)}</span></div>
+          <div class="scan-conn-line"><span class="scan-conn-label">${scanMode}</span><span class="scan-url" title="${esc(scanUrl)}">${esc(scanUrl)}</span></div>
           <div class="scan-conn-line"><span class="scan-conn-label">Read</span><span class="scan-url" title="${esc(readApiUrl)}">${esc(readApiUrl)}</span></div>
           <div class="scan-conn-line"><span class="scan-conn-label">Pagina</span><span class="scan-url" title="${esc(readPageUrl)}">${esc(readPageUrl)}</span></div>
         </div>
@@ -1569,11 +1597,41 @@ function renderScannerDevices() {
           <button class="btn btn-success btn-sm" onclick="testScannerScan('${esc(token)}')">Test</button>
           <button class="btn btn-ghost btn-sm" onclick="editScannerDevice(${s.id})">Modifica</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleScannerDevice(${s.id}, ${!s.active})">${s.active ? 'Disattiva' : 'Attiva'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteScannerDevice(${s.id})">Elimina</button>
         </div>
       </td>
     </tr>`;
   }).join('');
 }
+
+function openScannerContextMenu(event, id) {
+  event.preventDefault();
+  const s = _scannerDevices.find(x => x.id === id);
+  if (!s) return;
+  const token = s.device_token || '';
+  const menu = document.getElementById('scanner-context-menu');
+  menu.innerHTML = `
+    <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','scan');closeScannerContextMenu()">Copia URL scan</button>
+    <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','read');closeScannerContextMenu()">Copia URL lettura</button>
+    <button class="ctx-item" onclick="testScannerScan('${esc(token)}');closeScannerContextMenu()">Test scan</button>
+    <button class="ctx-item" onclick="editScannerDevice(${s.id});closeScannerContextMenu()">Modifica</button>
+    <button class="ctx-item" onclick="toggleScannerDevice(${s.id}, ${!s.active});closeScannerContextMenu()">${s.active ? 'Disattiva' : 'Attiva'}</button>
+    <button class="ctx-item danger" onclick="deleteScannerDevice(${s.id});closeScannerContextMenu()">Elimina scanner</button>
+  `;
+  menu.classList.add('open');
+  const margin = 12;
+  const x = Math.min(event.clientX, window.innerWidth - 240 - margin);
+  const y = Math.min(event.clientY, window.innerHeight - 260 - margin);
+  menu.style.left = `${Math.max(margin, x)}px`;
+  menu.style.top = `${Math.max(margin, y)}px`;
+}
+
+function closeScannerContextMenu() {
+  document.getElementById('scanner-context-menu')?.classList.remove('open');
+}
+
+document.addEventListener('click', closeScannerContextMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeScannerContextMenu(); });
 
 async function copyScannerUrl(token, mode) {
   if (!token) return toast('Token scanner mancante', 'err');
@@ -1679,12 +1737,14 @@ async function toggleWorkstation(id, active) {
 async function createScannerDevice() {
   const scanner_code = document.getElementById('sc-new-code').value.trim().toUpperCase();
   const name = document.getElementById('sc-new-name').value.trim();
+  const scan_mode = document.getElementById('sc-new-mode').value || 'OFFICINA';
   const postazione_id = Number(document.getElementById('sc-new-workstation').value) || null;
   if (!scanner_code || !name) return toast('Codice e nome scanner obbligatori', 'err');
   try {
-    await api('POST', '/scanner-devices', { scanner_code, name, postazione_id, active: true });
+    await api('POST', '/scanner-devices', { scanner_code, name, scan_mode, postazione_id, active: true });
     document.getElementById('sc-new-code').value = '';
     document.getElementById('sc-new-name').value = '';
+    document.getElementById('sc-new-mode').value = 'OFFICINA';
     document.getElementById('sc-new-workstation').value = '';
     toast('Scanner creato', 'ok');
     await loadWorkstationsConfig();
@@ -1700,9 +1760,22 @@ async function editScannerDevice(id) {
   if (ip_address === null) return;
   const serial_number = prompt('Seriale scanner (opzionale)', s.serial_number || '');
   if (serial_number === null) return;
+  const scan_mode = prompt('Tipo pistola: OFFICINA o MAGAZZINO', s.scan_mode || 'OFFICINA');
+  if (scan_mode === null) return;
   try {
-    await api('PATCH', `/scanner-devices/${id}`, { name, ip_address: ip_address || null, serial_number: serial_number || null });
+    await api('PATCH', `/scanner-devices/${id}`, { name, scan_mode, ip_address: ip_address || null, serial_number: serial_number || null });
     toast('Scanner aggiornato', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function deleteScannerDevice(id) {
+  const s = _scannerDevices.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm(`Eliminare lo scanner "${s.scanner_code}"?\n\nI log storici restano nel sistema, ma lo scanner non potrà più inviare scan con questo token.`)) return;
+  try {
+    await api('DELETE', `/scanner-devices/${id}`);
+    toast('Scanner eliminato', 'ok');
     await loadWorkstationsConfig();
   } catch(e) { toast(e.message, 'err'); }
 }
@@ -1711,6 +1784,14 @@ async function assignScannerWorkstation(id, value) {
   try {
     await api('PATCH', `/scanner-devices/${id}`, { postazione_id: Number(value) || null });
     toast('Associazione scanner aggiornata', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function assignScannerMode(id, value) {
+  try {
+    await api('PATCH', `/scanner-devices/${id}`, { scan_mode: value });
+    toast(value === 'MAGAZZINO' ? 'Pistola impostata su magazzino' : 'Pistola impostata su officina', 'ok');
     await loadWorkstationsConfig();
   } catch(e) { toast(e.message, 'err'); }
 }

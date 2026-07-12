@@ -192,6 +192,7 @@ class ScannerDevice(Base):
     scanner_code = Column(String(80), nullable=False, unique=True, index=True)
     name = Column(String(160), nullable=False)
     description = Column(Text, nullable=True)
+    scan_mode = Column(String(30), nullable=False, default="OFFICINA", index=True)
     postazione_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
     ip_address = Column(String(80), nullable=True, index=True)
     serial_number = Column(String(120), nullable=True, index=True)

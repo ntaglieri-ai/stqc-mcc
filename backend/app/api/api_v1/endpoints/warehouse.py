@@ -14,11 +14,12 @@ from tempfile import NamedTemporaryFile
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from fpdf import FPDF
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from backend.app.crud import warehouse as crud
 from backend.app.db.session import get_db
+from backend.app.models.commessa import Commessa, Piece
 from backend.app.models.warehouse import (
     Batch,
     Certificate,
@@ -763,6 +764,12 @@ def _item_value(item: WarehouseItem, material: Material, field: str):
 def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
     material = item.material
     peso_1_pz = _item_value(item, material, "peso_1_pz")
+    linked_pieces = (
+        db.query(Piece)
+        .filter(Piece.materiale_origine_id == item.id)
+        .order_by(Piece.qr_code)
+        .all()
+    )
     manual_fields = [
         field
         for field in (
@@ -806,6 +813,19 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
         "notes": item.notes,
         "manual_overrides": manual_fields,
         "custom_fields": _custom_fields_for_material_ids(db, [material.id]).get(material.id, {}),
+        "linked_pieces_count": len(linked_pieces),
+        "linked_pieces": [
+            {
+                "id": piece.id,
+                "uuid": piece.uuid,
+                "qr_code": piece.qr_code,
+                "commessa_id": piece.commessa_id,
+                "assemblato_id": piece.assemblato_id,
+                "profilo": piece.profilo,
+                "stato_attuale": piece.stato_attuale,
+            }
+            for piece in linked_pieces
+        ],
     }
 
 
@@ -884,6 +904,83 @@ def get_warehouse_item(item_uuid: str, db: Session = Depends(get_db)):
     if item is None:
         raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
     return _item_detail_read(item, db)
+
+
+@router.get("/mapped-grezzi")
+def list_mapped_grezzi(db: Session = Depends(get_db)):
+    rows = (
+        db.query(
+            WarehouseItem,
+            Material,
+            Commessa.codice.label("commessa_codice"),
+            func.count(Piece.id).label("piece_count"),
+        )
+        .join(Material, WarehouseItem.material_id == Material.id)
+        .join(Piece, Piece.materiale_origine_id == WarehouseItem.id)
+        .join(Commessa, Commessa.id == Piece.commessa_id)
+        .filter(WarehouseItem.status.in_(["AVAILABLE", "RESERVED"]))
+        .group_by(WarehouseItem.id, Material.id, Commessa.codice)
+        .order_by(Commessa.codice, Material.code, WarehouseItem.ordinal)
+        .all()
+    )
+    items = [
+        {
+            "uuid": item.uuid,
+            "material_id": item.material_id,
+            "material_code": material.code,
+            "label": f"{material.code} · #{item.ordinal:04d}",
+            "tipo": item.tipo or material.tipo,
+            "profilo": item.profilo or material.profilo,
+            "dimensioni": item.dimensioni or material.dimensioni,
+            "qualita": item.qualita or material.qualita,
+            "status": item.status,
+            "commessa": commessa_codice,
+            "pieces_count": int(piece_count or 0),
+            "reserved_for_commessa": item.reserved_for_commessa,
+        }
+        for item, material, commessa_codice, piece_count in rows
+    ]
+    return {"count": len(items), "items": items}
+
+
+@router.post("/mapped-grezzi/{item_uuid}/outgoing")
+def mapped_grezzo_outgoing(item_uuid: str, db: Session = Depends(get_db)):
+    item = db.scalar(
+        select(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .where(WarehouseItem.uuid == item_uuid.lower())
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Grezzo non trovato")
+    if item.status not in ("AVAILABLE", "RESERVED"):
+        raise HTTPException(status_code=409, detail=f"Grezzo già movimentato: {item.status}")
+    linked_count = db.query(Piece).filter(Piece.materiale_origine_id == item.id).count()
+    if linked_count <= 0:
+        raise HTTPException(status_code=409, detail="Nessun pezzo appeso a questo grezzo")
+
+    movement = StockMovement(
+        material_id=item.material_id,
+        quantity=1,
+        movement_type=MovementType.OUTGOING,
+        reason="Uscita pre-produzione grezzo mappato",
+        destination_commessa=item.reserved_for_commessa,
+        reference=item.uuid,
+    )
+    db.add(movement)
+    db.flush()
+    now = datetime.utcnow()
+    item.status = "OUT"
+    item.exited_at = now
+    item.exit_movement_id = movement.id
+    item.updated_at = now
+    db.commit()
+    return {
+        "ok": True,
+        "uuid": item.uuid,
+        "status": item.status,
+        "movement_id": movement.id,
+        "pieces_count": linked_count,
+    }
 
 
 @router.patch(
