@@ -137,6 +137,7 @@ class WorkstationRead(BaseModel):
     name: str
     description: Optional[str]
     active: bool
+    progress_mode: str = "BLOCCO"
     start_qr_code: str
     end_qr_code: str
     created_at: Optional[datetime]
@@ -149,6 +150,7 @@ class WorkstationCreate(BaseModel):
     name: str
     description: Optional[str] = None
     active: bool = True
+    progress_mode: str = "BLOCCO"
 
 
 class WorkstationUpdate(BaseModel):
@@ -156,6 +158,7 @@ class WorkstationUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     active: Optional[bool] = None
+    progress_mode: Optional[str] = None
 
 
 class ScannerDeviceRead(BaseModel):

@@ -70,6 +70,90 @@ def _response(ply: int, message: str, **details) -> dict:
     return {"ply": ply, "msg": message, **details}
 
 
+def _recent_piece_reads_without_phase(
+    db: Session,
+    scanner: ScannerDevice,
+    now: datetime,
+    *,
+    since: datetime | None = None,
+) -> list[PieceScanEvent]:
+    if since is None:
+        last_closed = (
+            db.query(WorkshopScanBlock)
+            .filter(
+                WorkshopScanBlock.scanner_device_id == scanner.id,
+                WorkshopScanBlock.status == "CLOSED",
+            )
+            .order_by(WorkshopScanBlock.closed_at.desc(), WorkshopScanBlock.id.desc())
+            .first()
+        )
+        since = max(
+            now - timedelta(minutes=30),
+            last_closed.closed_at if last_closed and last_closed.closed_at else now - timedelta(minutes=30),
+        )
+    reads = (
+        db.query(PieceScanEvent)
+        .filter(
+            PieceScanEvent.scanner_device_id == scanner.id,
+            PieceScanEvent.event_type == "PIECE_READ",
+            PieceScanEvent.scan_block_id.is_(None),
+            PieceScanEvent.timestamp >= since,
+        )
+        .order_by(PieceScanEvent.timestamp, PieceScanEvent.id)
+        .all()
+    )
+    unique: dict[int, PieceScanEvent] = {}
+    for event in reads:
+        unique.setdefault(event.piece_id, event)
+    return list(unique.values())
+
+
+def _mark_reads_done_on_workstation(
+    db: Session,
+    scanner: ScannerDevice,
+    reads: list[PieceScanEvent],
+    workstation: Workstation,
+    block: WorkshopScanBlock,
+    now: datetime,
+) -> int:
+    count = 0
+    for read in reads:
+        piece = db.get(Piece, read.piece_id)
+        if piece is None:
+            continue
+        read.scan_block_id = block.id
+        read.postazione_id = workstation.id
+        read.postazione_code = workstation.code
+        event = PieceScanEvent(
+            piece_id=piece.id,
+            qr_code=piece.qr_code,
+            commessa_id=piece.commessa_id,
+            revisione_id=piece.revisione_id,
+            assemblato_id=piece.assemblato_id,
+            postazione_id=workstation.id,
+            postazione_code=workstation.code,
+            event_type="PHASE_DONE",
+            timestamp=now,
+            scanner_device_id=scanner.id,
+            scan_block_id=block.id,
+            metadata_json={"source": "NETUM", "progress_mode": "DEDUCED_FROM_PIECE_READ"},
+            note=f"{workstation.name} fatto da lettura pezzo",
+        )
+        db.add(event)
+        piece.stato_attuale = "FASE_COMPLETATA"
+        piece.ultima_postazione = workstation.code
+        piece.ultimo_evento = "PHASE_DONE"
+        piece.ultimo_evento_at = now
+        piece.updated_at = now
+        if piece.distinta_item_id:
+            distinta_item = db.get(DistintaItem, piece.distinta_item_id)
+            if distinta_item:
+                distinta_item.stato_tracciamento = "FASE_COMPLETATA"
+        count += 1
+    block.piece_count = int(block.piece_count or 0) + count
+    return count
+
+
 def _failure(
     db: Session,
     scanner: ScannerDevice,
@@ -123,12 +207,7 @@ def process_workshop_scan(
             db, scanner, external_id, raw_payload, "UNKNOWN",
             "SCANNER_INACTIVE", "Scanner non attivo",
         )
-    if not assigned_workstation:
-        return _failure(
-            db, scanner, external_id, raw_payload, "UNKNOWN",
-            "SCANNER_WITHOUT_WORKSTATION", "Scanner senza postazione",
-        )
-    if not assigned_workstation.active:
+    if assigned_workstation and not assigned_workstation.active:
         return _failure(
             db, scanner, external_id, raw_payload, "UNKNOWN",
             "WORKSTATION_INACTIVE", "Postazione assegnata non attiva",
@@ -157,7 +236,9 @@ def process_workshop_scan(
             db, scanner, external_id, raw_payload, "WORKSHOP_WAREHOUSE_ITEM",
             "WAREHOUSE_QR_NOT_ALLOWED_IN_WORKSHOP",
             "QR grezzo: usare Pre-produzione, non Officina",
-            workstation=assigned_workstation, block=open_block, warning=True,
+            workstation=db.get(Workstation, open_block.workstation_id) if open_block else assigned_workstation,
+            block=open_block,
+            warning=True,
         )
 
     if workstation:
@@ -168,12 +249,6 @@ def process_workshop_scan(
                 db, scanner, external_id, raw_payload, kind,
                 "WORKSTATION_INACTIVE", "Postazione non attiva", workstation=workstation, block=open_block,
             )
-        if scanner.postazione_id != workstation.id:
-            return _failure(
-                db, scanner, external_id, raw_payload, kind,
-                "WRONG_WORKSTATION", "QR di una postazione diversa", workstation=workstation, block=open_block,
-            )
-
         if is_start:
             if open_block:
                 return _failure(
@@ -195,18 +270,49 @@ def process_workshop_scan(
             db.flush()
             _attempt(
                 db, scanner, external_id, raw_payload, kind, "OK",
-                f"Inizio {workstation.name}", workstation=workstation, block=block,
+                f"INIZIO registrato · {workstation.name}", workstation=workstation, block=block,
             )
             db.commit()
             return _response(
-                1, f"Inizio {workstation.name}", ok=True, scan_kind=kind,
+                1, f"INIZIO registrato · {workstation.name}", ok=True, scan_kind=kind,
                 block_id=block.id, workstation=workstation.code,
             )
 
+        now = datetime.utcnow()
         if not open_block:
-            return _failure(
-                db, scanner, external_id, raw_payload, kind,
-                "NO_OPEN_BLOCK", "Nessuna lavorazione aperta", workstation=workstation,
+            pending_reads = _recent_piece_reads_without_phase(db, scanner, now)
+            if not pending_reads:
+                return _failure(
+                    db, scanner, external_id, raw_payload, kind,
+                    "NO_OPEN_BLOCK", "Nessuna lavorazione aperta", workstation=workstation,
+                )
+            block = WorkshopScanBlock(
+                scanner_device_id=scanner.id,
+                workstation_id=workstation.id,
+                workstation_code=workstation.code,
+                status="CLOSED",
+                started_at=pending_reads[0].timestamp or now,
+                closed_at=now,
+                start_payload="AUTO_FROM_PIECE_READ",
+                end_payload=raw_payload,
+                piece_count=0,
+            )
+            db.add(block)
+            db.flush()
+            closed_count = _mark_reads_done_on_workstation(
+                db, scanner, pending_reads, workstation, block, now
+            )
+            _attempt(
+                db, scanner, external_id, raw_payload, kind, "OK",
+                f"FINE registrata · {workstation.name}: {closed_count} pezzi",
+                workstation=workstation, block=block,
+            )
+            db.commit()
+            return _response(
+                1, f"FINE registrata · {workstation.name}: {closed_count} pezzi",
+                ok=True, scan_kind=kind, block_id=block.id,
+                workstation=workstation.code, closed_pieces=closed_count,
+                inferred_from_piece_reads=True,
             )
         if open_block.workstation_id != workstation.id:
             return _failure(
@@ -224,13 +330,19 @@ def process_workshop_scan(
             .order_by(PieceWorkSession.id)
             .all()
         )
-        if not sessions:
+        pending_reads = _recent_piece_reads_without_phase(
+            db, scanner, datetime.utcnow(), since=open_block.started_at
+        )
+        if not sessions and not pending_reads and workstation.progress_mode != "CHECK":
             return _failure(
                 db, scanner, external_id, raw_payload, kind,
                 "EMPTY_BLOCK", "Nessun pezzo nel blocco", workstation=workstation, block=open_block,
             )
 
         now = datetime.utcnow()
+        inferred_count = _mark_reads_done_on_workstation(
+            db, scanner, pending_reads, workstation, open_block, now
+        )
         for session in sessions:
             piece = db.get(Piece, session.piece_id)
             session.closed_at = now
@@ -269,16 +381,17 @@ def process_workshop_scan(
         open_block.status = "CLOSED"
         open_block.closed_at = now
         open_block.end_payload = raw_payload
+        closed_count = len(sessions) + inferred_count or int(open_block.piece_count or 0)
         _attempt(
             db, scanner, external_id, raw_payload, kind, "OK",
-            f"Fine {workstation.name}: {len(sessions)} pezzi",
+            f"FINE registrata · {workstation.name}: {closed_count} pezzi",
             workstation=workstation, block=open_block,
         )
         db.commit()
         return _response(
-            1, f"Fine {workstation.name}: {len(sessions)} pezzi",
+            1, f"FINE registrata · {workstation.name}: {closed_count} pezzi",
             ok=True, scan_kind=kind, block_id=open_block.id,
-            workstation=workstation.code, closed_pieces=len(sessions),
+            workstation=workstation.code, closed_pieces=closed_count,
         )
 
     piece_matches = db.query(Piece).filter(
@@ -302,17 +415,93 @@ def process_workshop_scan(
     now = datetime.utcnow()
 
     if not open_block:
-        return _failure(
-            db, scanner, external_id, raw_payload, "PIECE",
-            "NO_OPEN_BLOCK", "Scansiona prima il QR INIZIO della postazione",
-            workstation=assigned_workstation, piece=piece,
+        event = PieceScanEvent(
+            piece_id=piece.id,
+            qr_code=piece.qr_code,
+            commessa_id=piece.commessa_id,
+            revisione_id=piece.revisione_id,
+            assemblato_id=piece.assemblato_id,
+            event_type="PIECE_READ",
+            timestamp=now,
+            scanner_device_id=scanner.id,
+            metadata_json={"source": "NETUM", "context": "NO_OPEN_WORKSTATION"},
+            note="Lettura pezzo senza contesto postazione",
+        )
+        db.add(event)
+        piece.ultimo_evento = "PIECE_READ"
+        piece.ultimo_evento_at = now
+        piece.updated_at = now
+        _attempt(
+            db, scanner, external_id, raw_payload, "PIECE_READ", "OK",
+            f"Pezzo {piece.qr_code} letto",
+            workstation=assigned_workstation,
+            piece=piece,
+        )
+        db.commit()
+        return _response(
+            1,
+            f"Pezzo {piece.qr_code} letto",
+            ok=True,
+            scan_kind="PIECE_READ",
+            piece_id=piece.id,
+            qr_code=piece.qr_code,
         )
 
     workstation = db.get(Workstation, open_block.workstation_id)
+    progress_mode = (workstation.progress_mode or "BLOCCO").upper()
     duplicate = db.query(PieceWorkSession).filter(
         PieceWorkSession.scan_block_id == open_block.id,
         PieceWorkSession.piece_id == piece.id,
     ).first()
+    if progress_mode == "CHECK":
+        duplicate_event = db.query(PieceScanEvent).filter(
+            PieceScanEvent.scan_block_id == open_block.id,
+            PieceScanEvent.piece_id == piece.id,
+            PieceScanEvent.event_type == "PHASE_DONE",
+        ).first()
+        if duplicate_event:
+            return _failure(
+                db, scanner, external_id, raw_payload, "PIECE",
+                "PIECE_ALREADY_IN_BLOCK", "Pezzo già acquisito",
+                workstation=workstation, block=open_block, piece=piece, warning=True,
+            )
+        event = PieceScanEvent(
+            piece_id=piece.id,
+            qr_code=piece.qr_code,
+            commessa_id=piece.commessa_id,
+            revisione_id=piece.revisione_id,
+            assemblato_id=piece.assemblato_id,
+            postazione_id=workstation.id,
+            postazione_code=workstation.code,
+            event_type="PHASE_DONE",
+            timestamp=now,
+            scanner_device_id=scanner.id,
+            scan_block_id=open_block.id,
+            metadata_json={"source": "NETUM", "progress_mode": progress_mode},
+            note=f"{workstation.name} fatto",
+        )
+        db.add(event)
+        open_block.piece_count = int(open_block.piece_count or 0) + 1
+        piece.stato_attuale = "FASE_COMPLETATA"
+        piece.ultima_postazione = workstation.code
+        piece.ultimo_evento = "PHASE_DONE"
+        piece.ultimo_evento_at = now
+        piece.updated_at = now
+        if piece.distinta_item_id:
+            distinta_item = db.get(DistintaItem, piece.distinta_item_id)
+            if distinta_item:
+                distinta_item.stato_tracciamento = "FASE_COMPLETATA"
+        _attempt(
+            db, scanner, external_id, raw_payload, "PIECE", "OK",
+            f"Pezzo {piece.qr_code} fatto",
+            workstation=workstation, block=open_block, piece=piece,
+        )
+        db.commit()
+        return _response(
+            1, f"Pezzo {piece.qr_code} fatto", ok=True, scan_kind="PIECE",
+            block_id=open_block.id, piece_id=piece.id, qr_code=piece.qr_code,
+            workstation=workstation.code, progress_mode=progress_mode,
+        )
     if duplicate:
         return _failure(
             db, scanner, external_id, raw_payload, "PIECE",
@@ -362,6 +551,7 @@ def process_workshop_scan(
         scan_block_id=open_block.id,
         metadata_json={
             "source": "NETUM",
+            "progress_mode": progress_mode,
         },
     )
     db.add(event)

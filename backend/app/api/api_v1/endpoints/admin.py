@@ -335,12 +335,20 @@ def group_users(name: str, db: Session = Depends(get_db)):
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
 SCANNER_SCAN_MODES = {"OFFICINA", "MAGAZZINO"}
+WORKSTATION_PROGRESS_MODES = {"BLOCCO", "PEZZO_SINGOLO", "CHECK"}
 
 
 def _normalize_scanner_scan_mode(value: str | None) -> str:
     mode = (value or "OFFICINA").strip().upper()
     if mode not in SCANNER_SCAN_MODES:
         raise HTTPException(400, "Tipo pistola non valido")
+    return mode
+
+
+def _normalize_workstation_progress_mode(value: str | None) -> str:
+    mode = (value or "BLOCCO").strip().upper()
+    if mode not in WORKSTATION_PROGRESS_MODES:
+        raise HTTPException(400, "Modalità postazione non valida")
     return mode
 
 
@@ -403,6 +411,7 @@ def create_workstation(body: WorkstationCreate, db: Session = Depends(get_db)):
         name=body.name.strip() or code,
         description=body.description,
         active=body.active,
+        progress_mode=_normalize_workstation_progress_mode(body.progress_mode),
         start_qr_code=start_qr_code,
         end_qr_code=end_qr_code,
     )
@@ -435,6 +444,8 @@ def update_workstation(workstation_id: int, body: WorkstationUpdate, db: Session
         ws.description = data["description"]
     if "active" in data and data["active"] is not None:
         ws.active = data["active"]
+    if "progress_mode" in data and data["progress_mode"] is not None:
+        ws.progress_mode = _normalize_workstation_progress_mode(data["progress_mode"])
 
     write_audit_log(db, "UPDATE_WORKSTATION", details=f"id={workstation_id}, code={ws.code}")
     db.commit()
@@ -444,7 +455,7 @@ def update_workstation(workstation_id: int, body: WorkstationUpdate, db: Session
 
 @router.get("/scanner-devices", response_model=list[ScannerDeviceRead])
 def list_scanner_devices(include_inactive: bool = True, db: Session = Depends(get_db)):
-    q = db.query(ScannerDevice)
+    q = db.query(ScannerDevice).filter(~ScannerDevice.scanner_code.like("MOUSE_%"))
     if not include_inactive:
         q = q.filter(ScannerDevice.active == True)
     return q.order_by(ScannerDevice.active.desc(), ScannerDevice.scanner_code).all()

@@ -469,23 +469,25 @@ def parse_commessa_files(
     }
 
     errors = list(report.get("errors", []))
-    warnings = list(report.get("warnings", [])) + hierarchy_warnings
+    warnings = list(report.get("warnings", []))
+    notes = list(report.get("notes", [])) + hierarchy_warnings
     if unmatched_hierarchy:
-        errors.append(
-            f"La gerarchia contiene {unmatched_hierarchy} pezzi non presenti nella Lista pezzi"
+        notes.append(
+            f"{unmatched_hierarchy} riferimenti del file assemblati non sono presenti nella Lista pezzi"
         )
     if missing_hierarchy:
-        errors.append(
-            f"{missing_hierarchy} pezzi della Lista pezzi non hanno un assemblato associato"
+        notes.append(
+            f"{missing_hierarchy} pezzi senza assemblato: saranno gestiti come pezzi sciolti"
         )
     report["errors"] = errors
     report["warnings"] = warnings
+    report["notes"] = notes
     report["ok"] = not errors
     report["summary"] = (
-        f"Analisi {'OK' if report['ok'] else 'CON ERRORI'} — "
+        f"Import {'OK' if report['ok'] else 'CON ERRORI'} — "
         f"{len(items)} pezzi fisici · {report['positions']} posizioni · "
         f"{len(assembly_headers)} assemblaggi · "
-        f"{len(errors)} errori · {len(warnings)} warning"
+        f"{len(errors)} errori · {len(warnings)} warning · {len(notes)} note"
     )
     return items, report
 

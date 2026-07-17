@@ -177,6 +177,7 @@ class Workstation(Base):
     name = Column(String(160), nullable=False)
     description = Column(Text, nullable=True)
     active = Column(Boolean, nullable=False, default=True, index=True)
+    progress_mode = Column(String(30), nullable=False, default="BLOCCO", index=True)
     start_qr_code = Column(String(120), nullable=False, unique=True, index=True)
     end_qr_code = Column(String(120), nullable=False, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -53,6 +53,11 @@ class MouseScanRequest(BaseModel):
     payload: str
 
 
+class ManualWarehouseMappingRequest(BaseModel):
+    piece_uuids: list[str]
+    warehouse_item_uuid: str
+
+
 def _piece_qr_read(item: Piece) -> dict:
     return {
         "id": item.id,
@@ -85,6 +90,7 @@ def _piece_qr_read(item: Piece) -> dict:
         "ultimo_aggiornamento": item.ultimo_evento_at,
         "nota": item.note_materiale,
         "materiale_origine_status": item.materiale_origine_status,
+        "materiale_origine_id": item.materiale_origine_id,
         "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
         "resolve_url": f"/p/{item.uuid}",
         "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
@@ -1156,6 +1162,100 @@ def list_commessa_item_qr(
     }
 
 
+@router.post("/{commessa_id}/step-5-1/map-warehouse")
+def map_commessa_qr_to_warehouse_item(
+    commessa_id: int,
+    request: ManualWarehouseMappingRequest,
+    db: Session = Depends(get_db),
+):
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    if revisione.step51_completed_at is None:
+        raise HTTPException(409, "I QR della commessa non sono ancora stati generati")
+
+    piece_uuids = [value.strip().lower() for value in request.piece_uuids if value and value.strip()]
+    if not piece_uuids:
+        raise HTTPException(422, "Seleziona almeno un QR pezzo")
+
+    pieces = (
+        db.query(Piece)
+        .filter(
+            Piece.commessa_id == commessa_id,
+            Piece.revisione_id == revisione.id,
+            Piece.uuid.in_(piece_uuids),
+            Piece.qr_attivo.is_(True),
+        )
+        .order_by(Piece.qr_code)
+        .all()
+    )
+    if len(pieces) != len(set(piece_uuids)):
+        raise HTTPException(404, "Uno o più QR selezionati non appartengono alla commessa corrente")
+
+    warehouse_item = (
+        db.query(WarehouseItem)
+        .filter(WarehouseItem.uuid == request.warehouse_item_uuid.strip().lower())
+        .first()
+    )
+    if warehouse_item is None:
+        raise HTTPException(404, "Pezzo di magazzino non trovato")
+    if warehouse_item.status not in ("AVAILABLE", "RESERVED"):
+        raise HTTPException(409, f"Pezzo di magazzino non disponibile: {warehouse_item.status}")
+
+    material = warehouse_item.material
+    material_code = getattr(material, "code", None) or warehouse_item.uuid
+    now = datetime.utcnow()
+    commessa = db.get(Commessa, commessa_id)
+    already = 0
+    mapped = 0
+    for piece in pieces:
+        if piece.materiale_origine_id and piece.materiale_origine_id != warehouse_item.id:
+            raise HTTPException(409, f"{piece.qr_code} è già collegato a un altro grezzo")
+        if piece.materiale_origine_id == warehouse_item.id and piece.materiale_origine_status == "ASSEGNATO":
+            already += 1
+            continue
+        piece.materiale_origine_id = warehouse_item.id
+        piece.materiale_origine_status = "ASSEGNATO"
+        piece.materiale_origine_assigned_at = now
+        piece.colata = warehouse_item.colata or getattr(material, "colata", None)
+        piece.lotto = warehouse_item.commessa_ref or piece.lotto
+        piece.materiale = piece.materiale or getattr(material, "qualita", None)
+        piece.materiale_descrizione = piece.materiale_descrizione or material_code
+        piece.ultimo_evento = "MATERIAL_ASSIGNED"
+        piece.ultimo_evento_at = now
+        piece.updated_at = now
+        db.add(PieceScanEvent(
+            piece_id=piece.id,
+            qr_code=piece.qr_code,
+            commessa_id=piece.commessa_id,
+            revisione_id=piece.revisione_id,
+            assemblato_id=piece.assemblato_id,
+            event_type="MATERIAL_ASSIGNED",
+            timestamp=now,
+            metadata_json={
+                "source": "PRE_PRODUZIONE_MANUALE",
+                "warehouse_item_uuid": warehouse_item.uuid,
+                "warehouse_material_code": material_code,
+            },
+            note="Mapping manuale da registro QR distinta",
+        ))
+        mapped += 1
+
+    warehouse_item.status = "RESERVED"
+    warehouse_item.reserved_at = warehouse_item.reserved_at or now
+    if commessa and not warehouse_item.reserved_for_commessa:
+        warehouse_item.reserved_for_commessa = commessa.codice
+    db.commit()
+    return {
+        "ok": True,
+        "mapped": mapped,
+        "already": already,
+        "warehouse_item_uuid": warehouse_item.uuid,
+        "warehouse_material_code": material_code,
+        "message": f"{mapped} QR collegati a {material_code}" if mapped else "QR già collegati al grezzo selezionato",
+    }
+
+
 @router.get("/{commessa_id}/scan-test-kit")
 def commessa_scan_test_kit(
     commessa_id: int,
@@ -1246,6 +1346,7 @@ def commessa_mouse_scan_test(
         scanner = ScannerDevice(
             scanner_code="MOUSE_TEST",
             name="Test mouse",
+            scan_mode="OFFICINA",
             device_token="mouse-test",
             active=True,
         )
@@ -1283,6 +1384,7 @@ def commessa_mouse_preproduction_scan_test(
         scanner = ScannerDevice(
             scanner_code="MOUSE_PREPROD_TEST",
             name="Test mouse pre-produzione",
+            scan_mode="MAGAZZINO",
             device_token="mouse-preprod-test",
             active=True,
         )
@@ -1426,7 +1528,7 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
 
     pieces = (
         db.query(Piece)
-        .options(joinedload(Piece.work_sessions))
+        .options(joinedload(Piece.work_sessions), joinedload(Piece.scan_events))
         .filter(Piece.revisione_id == revisione.id)
         .order_by(Piece.assemblato_id, Piece.marca_pos, Piece.progressivo, Piece.id)
         .all()
@@ -1466,14 +1568,24 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
             session for session in piece.work_sessions
             if _is_assembly_station(session.postazione_code)
         ]
-        entered = bool(assembly_sessions) or _is_assembly_station(piece.ultima_postazione)
-        completed = any(session.closed_at for session in assembly_sessions)
+        assembly_events = [
+            event for event in piece.scan_events
+            if _is_assembly_station(event.postazione_code)
+            and event.event_type in {"PHASE_START", "PHASE_DONE", "PHASE_END"}
+        ]
+        entered = bool(assembly_sessions) or bool(assembly_events) or _is_assembly_station(piece.ultima_postazione)
+        completed = any(session.closed_at for session in assembly_sessions) or any(
+            event.event_type in {"PHASE_DONE", "PHASE_END"}
+            for event in assembly_events
+        )
         if entered:
             row["pezzi_entrati"] += 1
         if completed:
             row["pezzi_completati"] += 1
 
-        timestamps = [session.started_at for session in assembly_sessions if session.started_at]
+        timestamps = [session.started_at for session in assembly_sessions if session.started_at] + [
+            event.timestamp for event in assembly_events if event.timestamp
+        ]
         if timestamps:
             first_start = min(timestamps)
             if row["started_at"] is None or first_start < row["started_at"]:

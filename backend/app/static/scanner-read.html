@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Lettura QR · Officina</title>
-  <link rel="stylesheet" href="/static/qr-drawer.css">
+  <link rel="stylesheet" href="/static/qr-drawer.css?v=scan4">
   <style>
     *{box-sizing:border-box}body{margin:0;background:#09111f;color:#dce8fa;font-family:Inter,system-ui,sans-serif}.read-head{position:sticky;top:0;z-index:2;padding:15px 18px;background:#101827;border-bottom:1px solid rgba(125,160,220,.17)}.read-title{font-size:19px;font-weight:950}.read-meta{font-size:11px;color:#7890ad;margin-top:4px}.read-body{padding:16px;max-width:1050px;margin:auto}.read-wait{margin-top:20vh;text-align:center;color:#8297b1}.read-code{font-size:clamp(24px,7vw,44px);font-weight:950;word-break:break-word;margin:8px 0}.read-hero{display:grid;gap:18px}.read-qr{width:min(68vw,280px);height:min(68vw,280px);padding:12px;background:white;border-radius:18px;justify-self:center}.qrd-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(min-width:800px){.read-hero{grid-template-columns:300px 1fr}.qrd-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
   </style>
@@ -15,23 +15,43 @@
 <script>
 const token=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop());
 const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const val=v=>v===null||v===undefined||v===''?'—':typeof v==='string'&&/T\\d\\d:/.test(v)?new Date(v).toLocaleString('it-IT'):String(v);
+const val=v=>{
+  if(v===null||v===undefined||v==='')return'—';
+  if(typeof v==='string'&&/T\d\d:/.test(v)){
+    const normalized=/Z$|[+-]\d\d:?\d\d$/.test(v)?v:v+'Z';
+    return new Date(normalized).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }
+  return String(v);
+};
 let lastRead=null;
+function statusText(x){return x.status_label||x.status||'—'}
 function phaseLabel(event){
-  const map={PHASE_START:'START',PHASE_END:'END',MATERIAL_ASSIGNED:'MATERIALE ASSEGNATO',MATERIAL_PENDING:'ATTESA GREZZO'};
+  const map={
+    PIECE_READ:'PEZZO LETTO',
+    PHASE_START:'FASE INIZIATA',
+    PHASE_DONE:'FASE COMPLETATA',
+    PHASE_END:'FASE FINITA',
+    MATERIAL_ASSIGNED:'GREZZO COLLEGATO',
+    MATERIAL_PENDING:'PEZZO IN ATTESA GREZZO'
+  };
   return map[event]||event||'EVENTO';
 }
 function render(d){
   const fields=Object.entries(d.fields||{}).map(([k,v])=>`<div class="qrd-field"><div class="qrd-label">${esc(k)}</div><div class="qrd-value">${esc(val(v))}</div></div>`).join('');
-  const deps=(d.dependencies||[]).map(x=>`<div class="qrd-row"><div><div class="qrd-row-main">${esc(x.code)}</div><div class="qrd-row-sub">${esc(x.status||'—')}</div></div></div>`).join('');
-  const timeline=(d.timeline||[]).map(x=>`<div class="qrd-row"><div><div class="qrd-row-main phase">${esc(x.workstation_label||x.workstation||'Postazione non indicata')}</div><div class="qrd-row-sub phase">${esc(phaseLabel(x.event))}</div></div><div class="qrd-time">${esc(val(x.timestamp))}</div></div>`).join('');
-  document.getElementById('root').innerHTML=`<div class="qrd-kicker">${esc(d.entity_label)}</div><div class="read-code">${esc(d.code)}</div><div class="qrd-status">${esc(d.status||'—')}</div><div class="read-hero"><img class="read-qr" src="${esc(d.qr_image_url)}"><div class="qrd-grid">${fields}</div></div>${d.origin?`<div class="qrd-section"><h3>Origine</h3><div class="qrd-row"><div class="qrd-row-main">${esc(d.origin.code)}</div><div class="qrd-time">${esc(d.origin.status)}</div></div></div>`:''}${deps?`<div class="qrd-section"><h3>Dipendenze</h3><div class="qrd-list">${deps}</div></div>`:''}<div class="qrd-section"><h3>Aggiornamenti da scansione</h3><div class="qrd-list">${timeline||'<div class="qrd-empty">Nessun evento registrato.</div>'}</div></div>`;
+  const deps=(d.dependencies||[]).map(x=>`<div class="qrd-row"><div><div class="qrd-row-main">${esc(x.code)}</div><div class="qrd-row-sub">${esc(x.subtitle||statusText(x))}</div></div></div>`).join('');
+  const timeline=(d.timeline||[]).map(x=>{
+    const isPreprod=['MATERIAL_ASSIGNED','MATERIAL_PENDING'].includes(x.event);
+    const main=isPreprod?'Pre-produzione':(x.workstation_label||x.workstation||'Postazione non indicata');
+    const extra=isPreprod&&x.origin_code?`<div class="qrd-row-note">Origine: ${esc(x.origin_code)}${x.origin_status?' · '+esc(x.origin_status):''}</div>`:'';
+    return `<div class="qrd-row ${isPreprod?'preprod':''}"><div><div class="qrd-row-main phase">${esc(main)}</div><div class="qrd-row-sub phase">${esc(phaseLabel(x.event))}</div>${extra}</div><div class="qrd-time">${esc(val(x.timestamp))}</div></div>`;
+  }).join('');
+  document.getElementById('root').innerHTML=`<div class="qrd-kicker">${esc(d.entity_label)}</div><div class="read-code">${esc(d.code)}</div><div class="qrd-status">${esc(d.status_label||d.status||'—')}</div>${d.subtitle?`<div class="qrd-entity-subtitle">${esc(d.subtitle)}</div>`:''}<div class="read-hero"><img class="read-qr" src="${esc(d.qr_image_url)}"><div class="qrd-grid">${fields}</div></div>${d.origin?`<div class="qrd-section"><h3>Origine materiale</h3><div class="qrd-row qrd-origin"><div><div class="qrd-row-main">${esc(d.origin.code)}</div><div class="qrd-row-sub">${esc(d.origin.subtitle||('Grezzo collegato · '+statusText(d.origin)))}</div></div></div></div>`:''}${deps?`<div class="qrd-section"><h3>Dipendenze</h3><div class="qrd-list">${deps}</div></div>`:''}<div class="qrd-section"><h3>Aggiornamenti officina</h3><div class="qrd-list">${timeline||'<div class="qrd-empty">Nessun aggiornamento officina registrato.</div>'}</div></div>`;
 }
 async function poll(){
   try{
     const r=await fetch(`/api/v1/scanner/netum/${encodeURIComponent(token)}/latest-read`);
     const data=await r.json(); if(!r.ok)throw new Error(data.detail||'Scanner non disponibile');
-    document.getElementById('scanner-name').textContent=data.scanner+(data.read_at?' · '+new Date(data.read_at).toLocaleString('it-IT'):'');
+    document.getElementById('scanner-name').textContent=data.scanner+(data.read_at?' · '+val(data.read_at):'');
     if(data.detail&&data.read_at!==lastRead){lastRead=data.read_at;render(data.detail)}
   }catch(e){document.getElementById('scanner-name').textContent=e.message}
 }

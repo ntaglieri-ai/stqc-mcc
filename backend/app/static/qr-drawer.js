@@ -1,6 +1,13 @@
 (function(){
   const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const display=v=>v===null||v===undefined||v===""?"—":typeof v==="string"&&/T\\d\\d:/.test(v)?new Date(v).toLocaleString("it-IT"):String(v);
+  const display=v=>{
+    if(v===null||v===undefined||v==="")return"—";
+    if(typeof v==="string"&&/T\d\d:/.test(v)){
+      const normalized=/Z$|[+-]\d\d:?\d\d$/.test(v)?v:v+"Z";
+      return new Date(normalized).toLocaleString("it-IT",{dateStyle:"short",timeStyle:"medium"});
+    }
+    return String(v);
+  };
   let history=[], currentValues=[], collection=[];
   function ensure(){
     if(document.getElementById("qrd-backdrop"))return;
@@ -30,25 +37,35 @@
     count.textContent=`${rows.length} codici`;
     list.innerHTML=rows.slice(0,500).map(x=>`<button class="qrd-nav-item ${currentValues.length===1&&currentValues[0]===x.uuid?"active":""}" onclick="QrDrawer.open('${esc(x.uuid)}')"><div class="qrd-nav-code">${esc(x.code)}</div><div class="qrd-nav-meta">${esc(x.profilo||"—")}${x.assemblato?" · "+esc(x.assemblato):""}</div></button>`).join("")||'<div class="qrd-empty">Nessun codice.</div>';
   }
-  function rowLink(x){return `<div class="qrd-row click" onclick="QrDrawer.open('${esc(x.uuid)}',true)"><div><div class="qrd-row-main">${esc(x.code)}</div><div class="qrd-row-sub">${esc(x.type||"")} · ${esc(x.status||"—")}</div></div><div class="qrd-time">Apri →</div></div>`}
+  function statusText(x){return x.status_label||x.status||"—"}
+  function rowLink(x){return `<div class="qrd-row click" onclick="QrDrawer.open('${esc(x.uuid)}',true)"><div><div class="qrd-row-main">${esc(x.code)}</div><div class="qrd-row-sub">${esc(x.subtitle||statusText(x))}</div></div><div class="qrd-time">Apri →</div></div>`}
   function phaseLabel(event){
-    const map={PHASE_START:"START",PHASE_END:"END",MATERIAL_ASSIGNED:"MATERIALE ASSEGNATO",MATERIAL_PENDING:"ATTESA GREZZO"};
+    const map={
+      PIECE_READ:"PEZZO LETTO",
+      PHASE_START:"FASE INIZIATA",
+      PHASE_DONE:"FASE COMPLETATA",
+      PHASE_END:"FASE FINITA",
+      MATERIAL_ASSIGNED:"GREZZO COLLEGATO",
+      MATERIAL_PENDING:"PEZZO IN ATTESA GREZZO"
+    };
     return map[event]||event||"EVENTO";
   }
   function timelineRow(x){
-    const main=x.workstation_label||x.workstation||"Postazione non indicata";
+    const isPreprod=["MATERIAL_ASSIGNED","MATERIAL_PENDING"].includes(x.event);
+    const main=isPreprod?"Pre-produzione":(x.workstation_label||x.workstation||"Postazione non indicata");
     const sub=phaseLabel(x.event);
-    return `<div class="qrd-row"><div><div class="qrd-row-main phase">${esc(main)}</div><div class="qrd-row-sub phase">${esc(sub)}</div></div><div class="qrd-time">${esc(display(x.timestamp))}${x.duration_seconds!=null?`<br>${esc(x.duration_seconds)} s`:""}</div></div>`;
+    const extra=isPreprod&&x.origin_code?`<div class="qrd-row-note">Origine: ${esc(x.origin_code)}${x.origin_status?" · "+esc(x.origin_status):""}</div>`:"";
+    return `<div class="qrd-row ${isPreprod?"preprod":""}"><div><div class="qrd-row-main phase">${esc(main)}</div><div class="qrd-row-sub phase">${esc(sub)}</div>${extra}</div><div class="qrd-time">${esc(display(x.timestamp))}${x.duration_seconds!=null?`<br>${esc(x.duration_seconds)} s`:""}</div></div>`;
   }
   function render(d){
     document.getElementById("qrd-kicker").textContent=d.entity_label||"Scheda QR";
     document.getElementById("qrd-title").textContent=d.code||d.uuid;
     document.getElementById("qrd-back").style.display=history.length?"":"none";
     const fields=Object.entries(d.fields||{}).map(([k,v])=>`<div class="qrd-field"><div class="qrd-label">${esc(k)}</div><div class="qrd-value">${esc(display(v))}</div></div>`).join("");
-    const origin=d.origin?`<div class="qrd-section"><h3>Origine</h3><div class="qrd-list">${rowLink({...d.origin,type:"WAREHOUSE_ITEM"})}</div></div>`:"";
+    const origin=d.origin?`<div class="qrd-section"><h3>Origine materiale</h3><div class="qrd-list"><div class="qrd-row qrd-origin click" onclick="QrDrawer.open('${esc(d.origin.uuid)}',true)"><div><div class="qrd-row-main">${esc(d.origin.code)}</div><div class="qrd-row-sub">${esc(d.origin.subtitle||("Grezzo collegato · "+statusText(d.origin)))}</div></div><div class="qrd-time">Apri →</div></div></div></div>`:"";
     const deps=(d.dependencies||[]).length?`<div class="qrd-section"><h3>Dipendenze e componenti collegati</h3><div class="qrd-list">${d.dependencies.map(rowLink).join("")}</div></div>`:"";
-    const timeline=(d.timeline||[]).length?`<div class="qrd-section"><h3>Aggiornamenti da scansione</h3><div class="qrd-list">${d.timeline.map(timelineRow).join("")}</div></div>`:"<div class='qrd-section'><h3>Aggiornamenti da scansione</h3><div class='qrd-empty'>Nessun aggiornamento operativo registrato.</div></div>";
-    document.getElementById("qrd-body").innerHTML=`<div class="qrd-hero"><img class="qrd-qr" src="${esc(d.qr_image_url)}" alt="QR"><div><div class="qrd-status">${esc(d.status||"—")}</div><div class="qrd-grid">${fields}</div></div></div>${origin}${deps}${timeline}`;
+    const timeline=(d.timeline||[]).length?`<div class="qrd-section"><h3>Aggiornamenti officina</h3><div class="qrd-list">${d.timeline.map(timelineRow).join("")}</div></div>`:"<div class='qrd-section'><h3>Aggiornamenti officina</h3><div class='qrd-empty'>Nessun aggiornamento officina registrato.</div></div>";
+    document.getElementById("qrd-body").innerHTML=`<div class="qrd-hero"><img class="qrd-qr" src="${esc(d.qr_image_url)}" alt="QR"><div><div class="qrd-status">${esc(d.status_label||d.status||"—")}</div>${d.subtitle?`<div class="qrd-entity-subtitle">${esc(d.subtitle)}</div>`:""}<div class="qrd-grid">${fields}</div></div></div>${origin}${deps}${timeline}`;
   }
   async function open(value,fromLink=false){
     ensure(); if(fromLink&&currentValues.length)history.push([...currentValues]); currentValues=[value]; setupNavFilters();
@@ -60,7 +77,7 @@
     document.getElementById("qrd-kicker").textContent="Selezione multipla"; document.getElementById("qrd-title").textContent=currentValues.length+" QR selezionati"; document.getElementById("qrd-back").style.display="none";
     document.getElementById("qrd-body").innerHTML="<div class='qrd-loading'>Caricamento elementi dal DB…</div>";
     const r=await fetch("/api/v1/qr/details",{method:"POST",headers:headers(),body:JSON.stringify({values:currentValues})}); const d=await r.json();
-    document.getElementById("qrd-body").innerHTML=`<div class="qrd-cards">${(d.items||[]).map(x=>`<div class="qrd-card" onclick="QrDrawer.open('${esc(x.uuid)}',true)"><div class="qrd-kicker">${esc(x.entity_label||x.entity)}</div><div class="qrd-title" style="font-size:18px;margin-top:7px">${esc(x.code)}</div><div class="qrd-status">${esc(x.status||"—")}</div>${x.error?`<div class="qrd-error">${esc(x.error)}</div>`:""}</div>`).join("")}</div>`;
+    document.getElementById("qrd-body").innerHTML=`<div class="qrd-cards">${(d.items||[]).map(x=>`<div class="qrd-card" onclick="QrDrawer.open('${esc(x.uuid)}',true)"><div class="qrd-kicker">${esc(x.entity_label||x.entity)}</div><div class="qrd-title" style="font-size:18px;margin-top:7px">${esc(x.code)}</div>${x.subtitle?`<div class="qrd-row-sub">${esc(x.subtitle)}</div>`:""}<div class="qrd-status">${esc(x.status_label||x.status||"—")}</div>${x.error?`<div class="qrd-error">${esc(x.error)}</div>`:""}</div>`).join("")}</div>`;
   }
   function back(){const values=history.pop(); if(values)openMany(values)}
   function refresh(){currentValues.length>1?openMany(currentValues):currentValues[0]&&open(currentValues[0])}

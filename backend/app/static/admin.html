@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Admin · MCC STQC</title>
+  <link rel="stylesheet" href="/static/qr-drawer.css?v=scan5">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { min-height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #fff; }
@@ -126,19 +127,21 @@
     .badge-on       { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
     .badge-off      { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
     .badge-locked   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-    .mono-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; color:rgba(219,234,254,.78); word-break:break-all; }
-    .scan-url { display:block; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .scan-table-scroll { width:100%; overflow-x:auto; padding-bottom:6px; }
-    .scan-table { min-width:980px; table-layout:fixed; }
-    .scan-table th:nth-child(1), .scan-table td:nth-child(1) { width:130px; }
-    .scan-table th:nth-child(2), .scan-table td:nth-child(2) { width:130px; }
-    .scan-table th:nth-child(3), .scan-table td:nth-child(3) { width:210px; }
-    .scan-table th:nth-child(4), .scan-table td:nth-child(4) { width:360px; }
-    .scan-table th:nth-child(5), .scan-table td:nth-child(5) { width:70px; }
-    .scan-table th:nth-child(6), .scan-table td:nth-child(6) { width:85px; }
-    .scan-table th:nth-child(7), .scan-table td:nth-child(7) { width:210px; }
+    .mono-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; color:rgba(219,234,254,.78); word-break:break-word; }
+    .scan-url { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .scan-table-scroll { width:100%; overflow-x:auto; padding-bottom:8px; }
+    .scan-table { min-width:1480px; table-layout:fixed; }
+    .scan-table th, .scan-table td { vertical-align:middle; }
+    .scan-table th:nth-child(1), .scan-table td:nth-child(1) { width:165px; }
+    .scan-table th:nth-child(2), .scan-table td:nth-child(2) { width:210px; }
+    .scan-table th:nth-child(3), .scan-table td:nth-child(3) { width:150px; }
+    .scan-table th:nth-child(4), .scan-table td:nth-child(4) { width:220px; }
+    .scan-table th:nth-child(5), .scan-table td:nth-child(5) { width:420px; }
+    .scan-table th:nth-child(6), .scan-table td:nth-child(6) { width:90px; }
+    .scan-table th:nth-child(7), .scan-table td:nth-child(7) { width:105px; }
+    .scan-table th:nth-child(8), .scan-table td:nth-child(8) { width:320px; }
     .scan-conn { display:grid; gap:6px; }
-    .scan-conn-line { display:grid; grid-template-columns:58px minmax(0,1fr); gap:8px; align-items:center; }
+    .scan-conn-line { display:grid; grid-template-columns:82px minmax(0,1fr); gap:8px; align-items:center; min-width:0; }
     .scan-conn-label { color:rgba(255,255,255,.34); font-family:inherit; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
     .scan-actions { display:flex; gap:6px; flex-wrap:wrap; }
     .ctx-menu {
@@ -167,6 +170,38 @@
     .station-code-payload { margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9px; color:rgba(219,234,254,.52); word-break:break-all; }
     .scan-row-error td { background:rgba(239,68,68,.055); }
     .scan-row-warning td { background:rgba(251,191,36,.045); }
+    .admin-scan-test-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+    .admin-scan-test-toolbar select {
+      min-width:280px; padding:9px 11px; border-radius:10px;
+      background:rgba(30,41,59,1); border:1px solid rgba(255,255,255,.12);
+      color:#fff; font-size:12px; outline:none;
+    }
+    .scan-test-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-top:16px; }
+    .scan-test-card {
+      border:1px solid rgba(148,163,184,.18); border-radius:16px;
+      background:rgba(15,23,42,.72); padding:14px; min-width:0;
+    }
+    .scan-test-card.clickable { cursor:pointer; }
+    .scan-test-card.clickable:hover { border-color:rgba(147,197,253,.45); background:rgba(59,130,246,.09); }
+    .scan-test-step { font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; color:#93c5fd; }
+    .scan-test-title { margin-top:6px; font-size:15px; font-weight:950; color:#e5edff; line-height:1.1; }
+    .scan-test-sub { margin-top:5px; font-size:11px; color:rgba(255,255,255,.45); min-height:30px; }
+    .scan-test-qr { width:104px; height:104px; background:#fff; border-radius:12px; padding:6px; margin-top:12px; object-fit:contain; }
+    .scan-test-payload {
+      margin-top:10px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-size:10px; color:rgba(219,234,254,.55); word-break:break-all;
+    }
+    .scan-test-tools { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+    .scan-test-empty { color:#fca5a5; font-size:12px; padding:16px; border:1px dashed rgba(248,113,113,.25); border-radius:14px; }
+    .scan-test-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .scan-test-scan {
+      border:1px solid rgba(34,197,94,.36); color:#86efac; background:rgba(34,197,94,.12);
+      border-radius:10px; padding:7px 12px; font-weight:900; cursor:pointer; font-size:12px;
+    }
+    .scan-test-scan:hover { background:rgba(34,197,94,.25); color:#dcfce7; }
+    .scan-test-result { margin-top:12px; padding:11px 13px; border-radius:13px; border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.68); font-size:12px; color:#cbd5e1; }
+    .scan-test-result.ok { border-color:rgba(74,222,128,.28); color:#bbf7d0; }
+    .scan-test-result.err { border-color:rgba(248,113,113,.28); color:#fecaca; }
     /* Audit log */
     .audit-stream { background:#070e1d; border-radius:12px; border:1px solid rgba(255,255,255,.06);
       max-height:380px; overflow-y:auto; font-size:12px; }
@@ -527,7 +562,7 @@
         <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
           <div>
             <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Postazioni operative</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Sono configurabili: codice, nome, descrizione e stato attivo.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Sono configurabili: codice, nome, modalità avanzamento, descrizione e stato attivo.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input id="ws-new-code" placeholder="CODICE"
@@ -535,6 +570,12 @@
               oninput="this.value=this.value.toUpperCase()" />
             <input id="ws-new-name" placeholder="Nome postazione"
               style="width:220px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none" />
+            <select id="ws-new-progress-mode"
+              style="width:170px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:700;outline:none">
+              <option value="BLOCCO">Blocco</option>
+              <option value="PEZZO_SINGOLO">Pezzo singolo</option>
+              <option value="CHECK">Check/fatto</option>
+            </select>
             <button class="btn btn-primary" onclick="createWorkstation()">+ Postazione</button>
           </div>
         </div>
@@ -543,6 +584,7 @@
             <tr>
               <th>Codice</th>
               <th>Nome</th>
+              <th>Modalità</th>
               <th>Descrizione</th>
               <th>Stato</th>
               <th>Azioni</th>
@@ -607,6 +649,24 @@
               <tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="padding:22px 24px;margin-top:22px">
+        <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap">
+          <div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Test QR scanner</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">Area tecnica admin: prova QR magazzino/officina senza sporcare la pagina commessa.</div>
+          </div>
+          <button class="btn btn-ghost" onclick="adminLoadScanTestKit()">↻ Aggiorna QR test</button>
+        </div>
+        <div class="admin-scan-test-toolbar">
+          <select id="admin-scan-test-commessa" onchange="adminLoadScanTestKit()">
+            <option value="">Caricamento commesse…</option>
+          </select>
+        </div>
+        <div id="admin-scan-test-body">
+          <div style="color:rgba(255,255,255,.25);padding:16px 0">Seleziona una commessa per preparare i QR test.</div>
         </div>
       </div>
 
@@ -1454,6 +1514,7 @@ let _workstations = [];
 let _scannerDevices = [];
 let _scannerAttempts = [];
 let _stationQrCodes = [];
+let _adminScanTestPayloads = [];
 
 async function loadWorkstationsConfig() {
   const wsBody = document.getElementById('workstations-tbody');
@@ -1472,6 +1533,7 @@ async function loadWorkstationsConfig() {
     renderScannerWorkstationSelect();
     loadStationQrCodes();
     loadScannerAttempts();
+    loadAdminScanTestCommesse();
   } catch(e) {
     wsBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
     scBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#f87171;padding:24px">${esc(e.message)}</td></tr>`;
@@ -1539,13 +1601,20 @@ function workstationName(id) {
 function renderWorkstations() {
   const tbody = document.getElementById('workstations-tbody');
   if (!_workstations.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuna postazione configurata</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Nessuna postazione configurata</td></tr>';
     return;
   }
   tbody.innerHTML = _workstations.map(w => `
     <tr style="${w.active ? '' : 'opacity:.42'}">
       <td style="font-weight:800;color:#dbeafe">${esc(w.code)}</td>
       <td>${esc(w.name || '—')}</td>
+      <td>
+        <select onchange="updateWorkstationProgressMode(${w.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px">
+          <option value="BLOCCO" ${(w.progress_mode || 'BLOCCO') === 'BLOCCO' ? 'selected' : ''}>Blocco</option>
+          <option value="PEZZO_SINGOLO" ${w.progress_mode === 'PEZZO_SINGOLO' ? 'selected' : ''}>Pezzo singolo</option>
+          <option value="CHECK" ${w.progress_mode === 'CHECK' ? 'selected' : ''}>Check/fatto</option>
+        </select>
+      </td>
       <td style="color:rgba(255,255,255,.48)">${esc(w.description || '—')}</td>
       <td><span class="badge ${w.active ? 'badge-on' : 'badge-off'}">${w.active ? 'Attiva' : 'Disattiva'}</span></td>
       <td>
@@ -1664,6 +1733,164 @@ async function testScannerScan(token) {
   }
 }
 
+function jsArg(value) {
+  return String(value || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "");
+}
+
+async function loadAdminScanTestCommesse() {
+  const select = document.getElementById('admin-scan-test-commessa');
+  if (!select) return;
+  try {
+    const res = await fetch('/api/v1/commesse?limit=200', { headers: { Authorization: getAuth() } });
+    if (!res.ok) throw new Error('Commesse non disponibili');
+    const commesse = await res.json();
+    if (!commesse.length) {
+      select.innerHTML = '<option value="">Nessuna commessa disponibile</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">— Seleziona commessa —</option>' + commesse.map(c =>
+      `<option value="${c.id}">${esc(c.codice || ('Commessa ' + c.id))}${c.cliente ? ' · ' + esc(c.cliente) : ''}</option>`
+    ).join('');
+  } catch(e) {
+    select.innerHTML = `<option value="">${esc(e.message)}</option>`;
+  }
+}
+
+function adminSelectedScanTestCommessa() {
+  return document.getElementById('admin-scan-test-commessa')?.value || '';
+}
+
+function adminScanTestCard(item) {
+  const click = item.drawer && window.QrDrawer ? `onclick="QrDrawer.open('${jsArg(item.drawer)}')"` : "";
+  const preprodButton = item.preprod ? `<button class="scan-test-scan" onclick="event.stopPropagation(); adminMousePreproductionScanTest('${jsArg(item.payload)}')">Pre-produzione</button>` : "";
+  const workshopButton = item.workshop ? `<button class="scan-test-scan" onclick="event.stopPropagation(); adminMouseScanTest('${jsArg(item.payload)}')">Officina</button>` : "";
+  const infoButton = item.drawer && window.QrDrawer
+    ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); QrDrawer.open('${jsArg(item.drawer)}')">Info</button>`
+    : "";
+  return `<div class="scan-test-card ${item.drawer ? "clickable" : ""}" ${click}>
+    <div class="scan-test-step">${esc(item.step)}</div>
+    <div class="scan-test-title">${esc(item.title)}</div>
+    <div class="scan-test-sub">${esc(item.sub || "")}</div>
+    ${item.qr ? `<img class="scan-test-qr" src="${esc(item.qr)}" alt="${esc(item.title)}">` : ""}
+    <div class="scan-test-payload">${esc(item.payload || "—")}</div>
+    <div class="scan-test-actions">${preprodButton}${workshopButton}${infoButton}</div>
+  </div>`;
+}
+
+async function adminLoadScanTestKit() {
+  const body = document.getElementById('admin-scan-test-body');
+  const commessaId = adminSelectedScanTestCommessa();
+  if (!body) return;
+  if (!commessaId) {
+    body.innerHTML = '<div style="color:rgba(255,255,255,.25);padding:16px 0">Seleziona una commessa per preparare i QR test.</div>';
+    return;
+  }
+  body.innerHTML = '<div style="color:rgba(255,255,255,.35);padding:16px 0">Preparazione QR test…</div>';
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/scan-test-kit`, { headers: { Authorization: getAuth() } });
+    const kit = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(kit.detail || 'Kit test non disponibile');
+    const ws = kit.workstation;
+    const cards = [];
+    if (ws) cards.push({ step:'1', title:`${ws.name} · INIZIO`, sub:'QR postazione officina', payload:ws.start_payload, qr:ws.start_qr_image_url, workshop:true });
+    if (kit.warehouse_item) cards.push({ step:'2', title:'Grezzo magazzino', sub:`${kit.warehouse_item.label} · ${kit.warehouse_item.status}`, payload:kit.warehouse_item.payload, qr:kit.warehouse_item.qr_image_url, drawer:kit.warehouse_item.uuid, preprod:true });
+    (kit.pieces || []).forEach((piece, index) => {
+      cards.push({ step:String(3 + index), title:piece.qr_code, sub:`Pezzo distinta · ${piece.stato || '—'}`, payload:piece.payload, qr:piece.qr_image_url, drawer:piece.uuid, preprod:true, workshop:true });
+    });
+    if (ws) cards.push({ step:'6', title:`${ws.name} · FINE`, sub:'QR postazione officina', payload:ws.end_payload, qr:ws.end_qr_image_url, workshop:true });
+    const missing = [];
+    if (!ws) missing.push('nessuna postazione attiva');
+    if (!kit.warehouse_item) missing.push('nessun QR magazzino disponibile');
+    if ((kit.pieces || []).length < 3) missing.push('meno di 3 QR pezzi distinta disponibili');
+    _adminScanTestPayloads = cards.map(c => c.payload).filter(Boolean);
+    body.innerHTML = `
+      ${missing.length ? `<div class="scan-test-empty">Attenzione: ${esc(missing.join(', '))}</div>` : ''}
+      <div class="scan-test-grid">${cards.map(adminScanTestCard).join('')}</div>
+      <div class="scan-test-tools">
+        <button class="btn btn-primary" onclick="adminCopyScanTestSequence()">Copia sequenza payload</button>
+        <button class="btn btn-ghost" onclick="adminResetScanTest()">Reset test</button>
+        <button class="btn btn-ghost" onclick="adminLoadScanTestKit()">Ricarica</button>
+      </div>
+      <div class="scan-test-result" id="admin-scan-test-result">Area test admin. Usa Pre-produzione per grezzo/pezzi; Officina per postazione/pezzi/fine.</div>`;
+  } catch(e) {
+    body.innerHTML = `<div class="scan-test-empty">${esc(e.message || e)}</div>`;
+  }
+}
+
+async function adminMouseScanTest(payload) {
+  const commessaId = adminSelectedScanTestCommessa();
+  const box = document.getElementById('admin-scan-test-result');
+  if (!commessaId) return toast('Seleziona una commessa', 'err');
+  if (box) { box.className = 'scan-test-result'; box.textContent = 'Scan officina in corso…'; }
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/scan-test`, {
+      method: 'POST',
+      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'Scan non riuscito');
+    if (box) { box.className = `scan-test-result ${data.ok === false ? 'err' : 'ok'}`; box.textContent = data.msg || 'Scan registrato'; }
+    loadScannerAttempts();
+    if (document.getElementById('qrd-backdrop')?.classList.contains('open') && window.QrDrawer?.refresh) QrDrawer.refresh();
+  } catch(e) {
+    if (box) { box.className = 'scan-test-result err'; box.textContent = e.message || String(e); }
+  }
+}
+
+async function adminMousePreproductionScanTest(payload) {
+  const commessaId = adminSelectedScanTestCommessa();
+  const box = document.getElementById('admin-scan-test-result');
+  if (!commessaId) return toast('Seleziona una commessa', 'err');
+  if (box) { box.className = 'scan-test-result'; box.textContent = 'Scan pre-produzione in corso…'; }
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/preproduction-scan-test`, {
+      method: 'POST',
+      headers: { Authorization: getAuth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'Scan pre-produzione non riuscito');
+    if (box) { box.className = `scan-test-result ${data.ok === false ? 'err' : 'ok'}`; box.textContent = data.msg || 'Scan pre-produzione registrato'; }
+    loadScannerAttempts();
+    if (document.getElementById('qrd-backdrop')?.classList.contains('open') && window.QrDrawer?.refresh) QrDrawer.refresh();
+  } catch(e) {
+    if (box) { box.className = 'scan-test-result err'; box.textContent = e.message || String(e); }
+  }
+}
+
+async function adminCopyScanTestSequence() {
+  const text = (_adminScanTestPayloads || []).join('\n');
+  if (!text) return toast('Nessun payload disponibile', 'err');
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Sequenza copiata', 'ok');
+  } catch {
+    prompt('Sequenza payload', text);
+  }
+}
+
+async function adminResetScanTest() {
+  const commessaId = adminSelectedScanTestCommessa();
+  const box = document.getElementById('admin-scan-test-result');
+  if (!commessaId) return toast('Seleziona una commessa', 'err');
+  if (!confirm('Resettare il test scan di questa commessa?')) return;
+  if (box) { box.className = 'scan-test-result'; box.textContent = 'Reset in corso…'; }
+  try {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/scan-test/reset`, {
+      method: 'POST',
+      headers: { Authorization: getAuth() },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'Reset non riuscito');
+    if (box) { box.className = 'scan-test-result ok'; box.textContent = `Reset completato: ${data.pieces_reset || 0} pezzi ripristinati.`; }
+    await adminLoadScanTestKit();
+    await loadScannerAttempts();
+  } catch(e) {
+    if (box) { box.className = 'scan-test-result err'; box.textContent = e.message || String(e); }
+  }
+}
+
 async function loadScannerAttempts() {
   const tbody = document.getElementById('scanner-attempts-tbody');
   if (!tbody) return;
@@ -1702,11 +1929,13 @@ function renderScannerAttempts() {
 async function createWorkstation() {
   const code = document.getElementById('ws-new-code').value.trim().toUpperCase();
   const name = document.getElementById('ws-new-name').value.trim();
+  const progress_mode = document.getElementById('ws-new-progress-mode').value || 'BLOCCO';
   if (!code || !name) return toast('Codice e nome postazione obbligatori', 'err');
   try {
-    await api('POST', '/workstations', { code, name, active: true });
+    await api('POST', '/workstations', { code, name, progress_mode, active: true });
     document.getElementById('ws-new-code').value = '';
     document.getElementById('ws-new-name').value = '';
+    document.getElementById('ws-new-progress-mode').value = 'BLOCCO';
     toast('Postazione creata', 'ok');
     await loadWorkstationsConfig();
   } catch(e) { toast(e.message, 'err'); }
@@ -1730,6 +1959,14 @@ async function toggleWorkstation(id, active) {
   try {
     await api('PATCH', `/workstations/${id}`, { active });
     toast(active ? 'Postazione attivata' : 'Postazione disattivata', 'ok');
+    await loadWorkstationsConfig();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function updateWorkstationProgressMode(id, progress_mode) {
+  try {
+    await api('PATCH', `/workstations/${id}`, { progress_mode });
+    toast('Modalità postazione aggiornata', 'ok');
     await loadWorkstationsConfig();
   } catch(e) { toast(e.message, 'err'); }
 }
@@ -2202,5 +2439,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeAuditModal(); }
 });
 </script>
+<script src="/static/qr-drawer.js?v=scan5"></script>
 </body>
 </html>

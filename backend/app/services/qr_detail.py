@@ -31,6 +31,35 @@ def _plain(value):
     return value
 
 
+def _event_label(value: str | None) -> str | None:
+    labels = {
+        "PIECE_READ": "Pezzo letto",
+        "PHASE_START": "Fase iniziata",
+        "PHASE_DONE": "Fase completata",
+        "PHASE_END": "Fase finita",
+        "MATERIAL_ASSIGNED": "Grezzo collegato",
+        "MATERIAL_PENDING": "Pezzo in attesa grezzo",
+    }
+    return labels.get(value or "", value)
+
+
+def _status_label(value: str | None) -> str:
+    labels = {
+        "DA_PRODURRE": "Da produrre",
+        "IN_LAVORAZIONE": "In lavorazione",
+        "COMPLETATO": "Completato",
+        "AVAILABLE": "Disponibile",
+        "RESERVED": "Prenotato",
+        "OUT": "Uscito",
+        "CONSUMED": "Consumato",
+    }
+    return labels.get(value or "", value or "—")
+
+
+def _join_parts(*parts) -> str:
+    return " · ".join(str(part) for part in parts if part not in (None, ""))
+
+
 def build_qr_detail(db: Session, raw: str) -> dict:
     value = _value(raw)
     warehouse = db.query(WarehouseItem).filter(WarehouseItem.uuid == value.lower()).first()
@@ -42,6 +71,10 @@ def build_qr_detail(db: Session, raw: str) -> dict:
             .order_by(Piece.qr_code)
             .all()
         )
+        derived_commesse = {
+            row.id: row
+            for row in db.query(Commessa).filter(Commessa.id.in_({piece.commessa_id for piece in derived})).all()
+        } if derived else {}
         fields = {
             "UUID": warehouse.uuid,
             "Codice": material.code,
@@ -59,6 +92,13 @@ def build_qr_detail(db: Session, raw: str) -> dict:
             "Peso unitario kg": warehouse.peso_1_pz or material.peso_1_pz,
             "Note": warehouse.notes,
         }
+        warehouse_subtitle = _join_parts(
+            "Grezzo magazzino",
+            _status_label(warehouse.status),
+            warehouse.tipo or material.tipo,
+            warehouse.profilo or material.profilo,
+            warehouse.qualita or material.qualita,
+        )
         return {
             "entity": "WAREHOUSE_ITEM",
             "entity_label": "Grezzo di magazzino",
@@ -66,11 +106,24 @@ def build_qr_detail(db: Session, raw: str) -> dict:
             "uuid": warehouse.uuid,
             "code": f"{material.code} · #{warehouse.ordinal:04d}",
             "status": warehouse.status,
+            "status_label": _status_label(warehouse.status),
+            "subtitle": warehouse_subtitle,
             "qr_image_url": f"/qr-image/{warehouse.uuid}.png",
             "fields": {key: _plain(val) for key, val in fields.items()},
             "origin": None,
             "dependencies": [
-                {"uuid": row.uuid, "code": row.qr_code, "type": "PIECE", "status": row.stato_attuale}
+                {
+                    "uuid": row.uuid,
+                    "code": row.qr_code,
+                    "status": row.stato_attuale,
+                    "status_label": _status_label(row.stato_attuale),
+                    "subtitle": _join_parts(
+                        _status_label(row.stato_attuale),
+                        derived_commesse.get(row.commessa_id).codice if derived_commesse.get(row.commessa_id) else None,
+                        row.assemblato_id,
+                        row.profilo,
+                    ),
+                }
                 for row in derived
             ],
             "timeline": [],
@@ -95,11 +148,12 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         .order_by(PieceScanEvent.timestamp.desc(), PieceScanEvent.id.desc())
         .all()
     )
+    workshop_events = [row for row in events if row.event_type not in ("MATERIAL_ASSIGNED", "MATERIAL_PENDING")]
     sessions = {
         row.id: row
         for row in db.query(PieceWorkSession).filter(PieceWorkSession.piece_id == piece.id).all()
     }
-    workstation_codes = sorted({row.postazione_code for row in events if row.postazione_code})
+    workstation_codes = sorted({row.postazione_code for row in workshop_events if row.postazione_code})
     workstation_names = {
         row.code: row.name
         for row in db.query(Workstation).filter(Workstation.code.in_(workstation_codes)).all()
@@ -126,9 +180,15 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         "Fornitore": piece.fornitore,
         "Stato": piece.stato_attuale,
         "Ultima postazione": piece.ultima_postazione,
-        "Ultimo evento": piece.ultimo_evento,
+        "Ultimo evento": _event_label(piece.ultimo_evento),
         "Ultimo aggiornamento": piece.ultimo_evento_at,
     }
+    piece_subtitle = _join_parts(
+        _status_label(piece.stato_attuale),
+        commessa.codice if commessa else None,
+        piece.assemblato_id,
+        piece.profilo,
+    )
     return {
         "entity": "PIECE",
         "entity_label": "Pezzo da distinta",
@@ -136,10 +196,20 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         "uuid": piece.uuid,
         "code": piece.qr_code,
         "status": piece.stato_attuale,
+        "status_label": _status_label(piece.stato_attuale),
+        "subtitle": piece_subtitle,
         "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(piece.qr_payload)}",
         "fields": {key: _plain(val) for key, val in fields.items()},
         "origin": (
-            {"uuid": origin.uuid, "code": origin.material.code, "status": origin.status}
+            {
+                "uuid": origin.uuid,
+                "code": origin.material.code,
+                "status": origin.status,
+                "status_label": _status_label(origin.status),
+                "commessa": origin.reserved_for_commessa,
+                "reserved_at": origin.reserved_at,
+                "subtitle": _join_parts("Grezzo collegato", origin.material.code, _status_label(origin.status), origin.reserved_for_commessa),
+            }
             if origin else None
         ),
         "dependencies": [],
@@ -154,6 +224,6 @@ def build_qr_detail(db: Session, raw: str) -> dict:
                     if row.session_id in sessions and row.event_type == "PHASE_END" else None
                 ),
             }
-            for row in events
+            for row in workshop_events
         ],
     }

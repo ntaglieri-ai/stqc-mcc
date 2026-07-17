@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from backend.app.models.commessa import Commessa, Piece, PieceScanEvent, ScannerDevice, WorkshopScanAttempt
 from backend.app.models.warehouse import WarehouseItem
+
+CURRENT_WAREHOUSE_TTL = timedelta(minutes=2)
 
 
 def _scan_value(raw: str) -> str:
@@ -102,6 +104,16 @@ def _pending_mapping_pieces(db: Session, scanner: ScannerDevice) -> list[Piece]:
     )
 
 
+def _current_warehouse_item(db: Session, scanner: ScannerDevice, now: datetime) -> WarehouseItem | None:
+    if not scanner.current_warehouse_item_id:
+        return None
+    if scanner.current_warehouse_item_set_at and now - scanner.current_warehouse_item_set_at > CURRENT_WAREHOUSE_TTL:
+        scanner.current_warehouse_item_id = None
+        scanner.current_warehouse_item_set_at = None
+        return None
+    return db.get(WarehouseItem, scanner.current_warehouse_item_id)
+
+
 def _assign_warehouse_origin(
     db: Session,
     scanner: ScannerDevice,
@@ -111,9 +123,24 @@ def _assign_warehouse_origin(
     *,
     raw_payload: str,
     external_id: str | None,
-) -> str:
+) -> dict:
     material = warehouse_item.material
     commessa = db.get(Commessa, piece.commessa_id)
+    material_code = getattr(material, "code", None) or warehouse_item.uuid
+
+    if piece.materiale_origine_id == warehouse_item.id and piece.materiale_origine_status == "ASSEGNATO":
+        message = f"Pezzo {piece.qr_code} già collegato a questo grezzo"
+        _attempt(
+            db,
+            scanner,
+            external_id,
+            raw_payload,
+            "PREPROD_PIECE_ALREADY_ASSIGNED",
+            "OK",
+            message,
+            piece=piece,
+        )
+        return {"material": material_code, "assigned": False, "message": message, "already": True}
 
     piece.materiale_origine_id = warehouse_item.id
     piece.materiale_origine_status = "ASSEGNATO"
@@ -159,7 +186,12 @@ def _assign_warehouse_origin(
         f"Pezzo {piece.qr_code} associato a grezzo",
         piece=piece,
     )
-    return getattr(material, "code", None) or warehouse_item.uuid
+    return {
+        "material": material_code,
+        "assigned": True,
+        "message": f"Pezzo {piece.qr_code} associato a grezzo",
+        "already": False,
+    }
 
 
 def _mark_piece_pending(
@@ -230,13 +262,12 @@ def process_preproduction_scan(
                 f"Grezzo magazzino non disponibile: {warehouse_item.status}",
             )
         pending_pieces = _pending_mapping_pieces(db, scanner)
-        scanner.current_warehouse_item_id = warehouse_item.id
-        scanner.current_warehouse_item_set_at = now
         warehouse_item.status = "RESERVED"
         warehouse_item.reserved_at = warehouse_item.reserved_at or now
         warehouse_item.reserved_by_scanner_id = scanner.id
+        linked_pieces = 0
         for piece in pending_pieces:
-            _assign_warehouse_origin(
+            result = _assign_warehouse_origin(
                 db,
                 scanner,
                 piece,
@@ -245,6 +276,16 @@ def process_preproduction_scan(
                 raw_payload=raw_payload,
                 external_id=external_id,
             )
+            if result.get("assigned"):
+                linked_pieces += 1
+        if pending_pieces:
+            scanner.current_warehouse_item_id = None
+            scanner.current_warehouse_item_set_at = None
+            message = f"Grezzo collegato a {linked_pieces} pezzi"
+        else:
+            scanner.current_warehouse_item_id = warehouse_item.id
+            scanner.current_warehouse_item_set_at = now
+            message = "Grezzo selezionato: ora scansiona i pezzi da collegare"
         _attempt(
             db,
             scanner,
@@ -252,17 +293,17 @@ def process_preproduction_scan(
             raw_payload,
             "PREPROD_WAREHOUSE_ITEM",
             "OK",
-            f"Grezzo acquisito: {warehouse_item.uuid} · collegati {len(pending_pieces)} pezzi",
+            message,
         )
         db.commit()
         return _response(
             1,
-            f"Grezzo acquisito: {warehouse_item.uuid} · collegati {len(pending_pieces)} pezzi",
+            message,
             ok=True,
             scan_kind="PREPROD_WAREHOUSE_ITEM",
             warehouse_item_id=warehouse_item.id,
             warehouse_item_uuid=warehouse_item.uuid,
-            linked_pieces=len(pending_pieces),
+            linked_pieces=linked_pieces,
         )
 
     piece_matches = db.query(Piece).filter(
@@ -278,9 +319,20 @@ def process_preproduction_scan(
         return _failure(db, scanner, external_id, raw_payload, "PREPROD_PIECE", "AMBIGUOUS_PIECE_QR", "QR associato a più pezzi attivi")
 
     piece = candidates[0]
-    current_warehouse_item = db.get(WarehouseItem, scanner.current_warehouse_item_id) if scanner.current_warehouse_item_id else None
+    current_warehouse_item = _current_warehouse_item(db, scanner, now)
     if current_warehouse_item and current_warehouse_item.status in ("AVAILABLE", "RESERVED"):
-        material = _assign_warehouse_origin(
+        if piece.materiale_origine_id and piece.materiale_origine_id != current_warehouse_item.id:
+            return _failure(
+                db,
+                scanner,
+                external_id,
+                raw_payload,
+                "PREPROD_PIECE",
+                "PIECE_ALREADY_MAPPED",
+                f"Pezzo {piece.qr_code} già collegato a un altro grezzo",
+                piece=piece,
+            )
+        result = _assign_warehouse_origin(
             db,
             scanner,
             piece,
@@ -292,12 +344,45 @@ def process_preproduction_scan(
         db.commit()
         return _response(
             1,
-            f"Pezzo {piece.qr_code} associato a grezzo",
+            result["message"],
             ok=True,
-            scan_kind="PREPROD_PIECE_ASSIGNED",
+            scan_kind="PREPROD_PIECE_ASSIGNED" if result.get("assigned") else "PREPROD_PIECE_ALREADY_ASSIGNED",
             piece_id=piece.id,
             qr_code=piece.qr_code,
-            warehouse_material=material,
+            warehouse_material=result["material"],
+        )
+
+    if piece.materiale_origine_id:
+        return _failure(
+            db,
+            scanner,
+            external_id,
+            raw_payload,
+            "PREPROD_PIECE",
+            "PIECE_ALREADY_MAPPED",
+            f"Pezzo {piece.qr_code} già collegato a un grezzo",
+            piece=piece,
+        )
+    if piece.materiale_origine_status == "IN_ATTESA_GREZZO" and piece.materiale_origine_scanner_id == scanner.id:
+        message = f"Pezzo {piece.qr_code} già in attesa grezzo"
+        _attempt(
+            db,
+            scanner,
+            external_id,
+            raw_payload,
+            "PREPROD_PIECE_ALREADY_PENDING",
+            "OK",
+            message,
+            piece=piece,
+        )
+        db.commit()
+        return _response(
+            1,
+            message,
+            ok=True,
+            scan_kind="PREPROD_PIECE_ALREADY_PENDING",
+            piece_id=piece.id,
+            qr_code=piece.qr_code,
         )
 
     _mark_piece_pending(db, scanner, piece, now, raw_payload=raw_payload, external_id=external_id)
