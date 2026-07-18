@@ -761,6 +761,57 @@ def _item_value(item: WarehouseItem, material: Material, field: str):
     return getattr(material, field, None)
 
 
+def _item_list_read(item: WarehouseItem, custom_fields: dict[str, str] | None = None) -> dict:
+    material = item.material
+    peso_1_pz = _item_value(item, material, "peso_1_pz")
+    manual_fields = [
+        field
+        for field in (
+            "tipo",
+            "profilo",
+            "dimensioni",
+            "norma_uni",
+            "qualita",
+            "colata",
+            "uso_materiale",
+            "posizione",
+            "commessa_ref",
+            "reserved_for_commessa",
+            "peso_u_kg",
+            "peso_1_pz",
+            "notes",
+        )
+        if getattr(item, field, None) is not None
+    ]
+    return {
+        **_physical_item_read(item),
+        "material_code": material.code,
+        "description": material.description,
+        "n_pezzi": 1,
+        "tipo": _item_value(item, material, "tipo"),
+        "profilo": _item_value(item, material, "profilo"),
+        "dimensioni": _item_value(item, material, "dimensioni"),
+        "norma_uni": _item_value(item, material, "norma_uni"),
+        "qualita": _item_value(item, material, "qualita"),
+        "colata": _item_value(item, material, "colata"),
+        "uso_materiale": _item_value(item, material, "uso_materiale"),
+        "posizione": _item_value(item, material, "posizione"),
+        "commessa_ref": _item_value(item, material, "commessa_ref"),
+        "reserved_for_commessa": item.reserved_for_commessa,
+        "peso_u_kg": _decimal_or_none(_item_value(item, material, "peso_u_kg")),
+        "peso_1_pz": _decimal_or_none(peso_1_pz),
+        "peso_kg": _decimal_or_none(peso_1_pz),
+        "unit": material.unit,
+        "source_movement_id": item.source_movement_id,
+        "exit_movement_id": item.exit_movement_id,
+        "notes": item.notes,
+        "manual_overrides": manual_fields,
+        "custom_fields": custom_fields or {},
+        "linked_pieces_count": 0,
+        "linked_pieces": [],
+    }
+
+
 def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
     material = item.material
     peso_1_pz = _item_value(item, material, "peso_1_pz")
@@ -888,7 +939,8 @@ def list_warehouse_items(
             | WarehouseItem.reserved_for_commessa.ilike(like)
         )
     items = db.scalars(stmt.offset(skip).limit(limit)).all()
-    return [_item_detail_read(item, db) for item in items]
+    custom_by_material = _custom_fields_for_material_ids(db, list({item.material_id for item in items}))
+    return [_item_list_read(item, custom_by_material.get(item.material_id, {})) for item in items]
 
 
 @router.get(

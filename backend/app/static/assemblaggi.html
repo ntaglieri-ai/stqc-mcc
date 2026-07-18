@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Assemblaggi · MCC</title>
+  <link rel="stylesheet" href="/static/qr-drawer.css?v=scan4">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#09111f;color:#dce8fa;font-family:Inter,system-ui,sans-serif}.top{min-height:104px;display:flex;align-items:center;gap:18px;padding:18px 32px;border-bottom:1px solid #1c2a40;background:linear-gradient(180deg,#111d2e,#0b1320)}.top a{color:#9db1ca;text-decoration:none;font-weight:800}.path{display:flex;gap:10px;align-items:center;color:#8fa4bf}.title{font-size:42px;font-weight:950;letter-spacing:-.05em}.sub{margin-top:4px;color:#98aec9;font-size:16px}.spacer{flex:1}.btn{border:1px solid #2c4161;background:#16243a;color:#dce8fa;border-radius:13px;padding:12px 16px;font-weight:900;cursor:pointer}.btn.primary{background:linear-gradient(135deg,#2d67d7,#6d55f2);border-color:#78a6ff;color:white}.wrap{max-width:1880px;margin:0 auto;padding:28px 32px 42px}.macro-flow{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px;margin:8px 0 28px;padding-top:32px}.macro-flow:before{content:"";position:absolute;left:7%;right:7%;top:17px;height:2px;background:linear-gradient(90deg,rgba(74,222,128,.75),rgba(251,191,36,.75),rgba(147,197,253,.22));border-radius:999px}.macro-card{position:relative;min-height:86px;padding:18px;border-radius:19px;border:1px solid rgba(147,197,253,.12);background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(8,13,24,.52));color:#dce8fa;text-decoration:none}.macro-card:before{content:"";position:absolute;left:24px;top:-23px;width:14px;height:14px;border-radius:50%;background:#1d2a3f;border:2px solid rgba(147,197,253,.28);box-shadow:0 0 0 6px #09111f}.macro-card.progress{border-color:rgba(251,191,36,.46);background:radial-gradient(circle at 88% 12%,rgba(251,191,36,.18),transparent 34%),linear-gradient(180deg,rgba(35,31,19,.72),rgba(8,13,24,.52))}.macro-card.progress:before{background:#fbbf24;border-color:#fde68a;box-shadow:0 0 0 6px #09111f,0 0 22px rgba(251,191,36,.42)}.macro-card.done{border-color:rgba(74,222,128,.36);background:radial-gradient(circle at 88% 12%,rgba(74,222,128,.15),transparent 34%),linear-gradient(180deg,rgba(16,38,28,.72),rgba(8,13,24,.52))}.macro-card.done:before{background:#4ade80;border-color:#bbf7d0;box-shadow:0 0 0 6px #09111f,0 0 22px rgba(74,222,128,.36)}.macro-kicker{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#7187a2;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.macro-kicker>span:first-child{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(147,197,253,.08);color:#93c5fd;border:1px solid rgba(147,197,253,.12)}.macro-state{border-radius:999px;padding:5px 8px;border:1px solid rgba(255,255,255,.09);color:#7187a2;background:rgba(255,255,255,.025);letter-spacing:.06em;white-space:nowrap}.macro-card.progress .macro-state{color:#fcd34d;border-color:rgba(251,191,36,.32);background:rgba(251,191,36,.08)}.macro-card.done .macro-state{color:#86efac;border-color:rgba(74,222,128,.28);background:rgba(74,222,128,.075)}.macro-title{margin-top:13px;font-size:19px;font-weight:950;letter-spacing:-.025em}.macro-sub{margin-top:6px;color:#91a6c2;font-size:12px;line-height:1.35}.hero{display:grid;grid-template-columns:1.15fr repeat(3,minmax(180px,.33fr));gap:16px;margin-bottom:22px}.hero-card{border:1px solid #263d5d;background:radial-gradient(circle at 88% 10%,rgba(59,130,246,.16),transparent 32%),linear-gradient(135deg,#111f34,#0d1726);border-radius:24px;padding:22px;min-height:132px}.hero-card.main{border-color:rgba(96,165,250,.36)}.kicker{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#8eb6ee;font-weight:950}.hero-card h2{margin:8px 0 0;font-size:34px;letter-spacing:-.045em}.big-num{font-size:44px;font-weight:950;letter-spacing:-.05em}.muted{color:#91a6c2}.progress-track{height:12px;border-radius:999px;background:#26364f;border:1px solid rgba(255,255,255,.08);overflow:hidden;margin-top:14px}.progress-fill{height:100%;background:linear-gradient(90deg,#4ade80,#60a5fa);border-radius:999px}.toolbar{display:flex;gap:12px;align-items:center;margin:18px 0;flex-wrap:wrap}.search{flex:1;min-width:280px;background:#0a101b;border:1px solid #20334f;border-radius:14px;color:#dce8fa;padding:14px 16px;font-size:15px}.assemblies{display:grid;gap:18px}.assembly-card{border:1px solid #284061;border-radius:28px;background:radial-gradient(circle at 92% 10%,rgba(96,165,250,.18),transparent 34%),linear-gradient(135deg,#101d31,#0b1423);overflow:hidden}.assembly-head{display:grid;grid-template-columns:240px 1fr auto;gap:24px;align-items:center;padding:24px}.assembly-qr{width:220px;height:220px;background:white;border-radius:20px;padding:12px}.assembly-code{font-size:42px;font-weight:950;letter-spacing:-.05em}.assembly-sub{margin-top:10px;color:#91a6c2;font-size:16px}.state{display:inline-flex;align-items:center;gap:8px;margin-top:16px;border-radius:999px;padding:8px 12px;border:1px solid #2c4161;color:#aac0dd;background:#16243a;font-weight:900}.state.done{border-color:rgba(74,222,128,.32);color:#86efac;background:rgba(74,222,128,.09)}.state.progress{border-color:rgba(251,191,36,.32);color:#fcd34d;background:rgba(251,191,36,.08)}.assembly-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.piece-panel{display:none;border-top:1px solid #263d5d;padding:20px 24px 24px;background:rgba(8,14,24,.42)}.assembly-card.open .piece-panel{display:block}.pieces{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}.piece{border:1px solid #243a58;background:#101b2d;border-radius:18px;padding:14px;cursor:pointer}.piece:hover{border-color:#6fa0ff}.piece-top{display:flex;justify-content:space-between;gap:12px;align-items:start}.piece-code{font-size:18px;font-weight:950}.piece-meta{margin-top:6px;color:#91a6c2;font-size:12px;line-height:1.45}.mounted{display:inline-flex;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;border:1px solid rgba(148,163,184,.2);color:#9fb2cc;background:rgba(148,163,184,.06)}.mounted.ok{color:#86efac;border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.08)}.empty{border:1px dashed #2b405f;border-radius:20px;padding:40px;text-align:center;color:#91a6c2}.right{text-align:right}@media(max-width:1100px){.macro-flow,.hero{grid-template-columns:repeat(2,minmax(0,1fr))}.assembly-head{grid-template-columns:1fr}.assembly-actions{justify-content:flex-start}.assembly-qr{width:180px;height:180px}}@media(max-width:680px){.top{padding:16px;align-items:flex-start}.title{font-size:34px}.wrap{padding:18px 14px}.macro-flow,.hero{grid-template-columns:1fr}.assembly-code{font-size:32px}.pieces{grid-template-columns:1fr}}
+  
+    /* Premium dense assemblaggi layout */
+    body{height:100vh;overflow:hidden}.top{min-height:88px;padding:14px 28px}.title{font-size:36px}.sub{font-size:13px}.wrap{height:calc(100vh - 88px);max-width:none;padding:16px 28px 14px;display:flex;flex-direction:column;gap:12px;overflow:hidden}.macro-flow{margin:0 0 8px;gap:10px;padding-top:24px}.macro-flow:before{top:11px}.macro-card{min-height:78px;padding:13px 15px;border-radius:17px}.macro-card:before{top:-19px;width:13px;height:13px}.macro-title{font-size:17px;margin-top:11px}.macro-sub{font-size:11px}.hero{grid-template-columns:1.4fr repeat(3,180px);gap:12px;margin:0}.hero-card{min-height:104px;border-radius:20px;padding:15px 17px;background:radial-gradient(circle at 88% 8%,rgba(96,165,250,.14),transparent 31%),linear-gradient(135deg,#101f35,#0a1423)}.hero-card h2{font-size:26px}.hero-card .muted{font-size:12px;line-height:1.38}.big-num{font-size:34px}.progress-track{height:9px;margin-top:10px}.assembly-workbench{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid rgba(96,165,250,.25);border-radius:26px;background:radial-gradient(circle at 0 0,rgba(59,130,246,.18),transparent 30%),radial-gradient(circle at 100% 12%,rgba(109,85,242,.12),transparent 28%),linear-gradient(145deg,#102342,#081321 60%,#070f1b);box-shadow:0 24px 70px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.045);overflow:hidden}.workbench-head{display:grid;grid-template-columns:minmax(300px,1fr) auto;gap:18px;align-items:end;padding:18px 22px 14px;border-bottom:1px solid rgba(147,197,253,.12)}.workbench-head h2{margin:4px 0 0;font-size:29px;letter-spacing:-.045em}.workbench-head p{margin:5px 0 0;color:#9eb2ce;font-size:12px;max-width:860px}.workbench-tools{display:flex;gap:9px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.workbench-tools .search{width:340px;min-width:260px;flex:0 1 340px;margin:0;padding:11px 13px}.limit-label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#8fa4bf;font-weight:950}.limit-select{min-height:40px;border-radius:12px;border:1px solid #2c4161;background:#132237;color:#dce8fa;padding:0 12px;font-weight:900}.assembly-panel-frame{flex:1;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(5,12,22,.52),rgba(5,12,22,.92))}.assembly-scroll-window{flex:1;min-height:0;overflow:auto;padding:0;scrollbar-width:auto;scrollbar-color:#6fa0ff #0b1423}.assembly-scroll-window::-webkit-scrollbar{width:20px}.assembly-scroll-window::-webkit-scrollbar-track{background:#08101d;border-left:1px solid rgba(96,165,250,.16)}.assembly-scroll-window::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#7da9ff,#3f6ee8);border:5px solid #08101d;border-radius:999px}.assemblies{display:block}.assembly-card{border:0;border-radius:0;margin:0;background:transparent;box-shadow:none}.assembly-head{grid-template-columns:120px minmax(0,1fr) auto;gap:16px;padding:13px 20px;background:linear-gradient(90deg,rgba(22,42,72,.88),rgba(9,18,32,.70));border-bottom:1px solid rgba(96,165,250,.16)}.assembly-card:nth-child(even) .assembly-head{background:linear-gradient(90deg,rgba(17,34,59,.88),rgba(8,17,30,.70))}.assembly-card:hover .assembly-head{background:linear-gradient(90deg,rgba(32,59,96,.98),rgba(14,29,50,.86))}.assembly-qr{width:104px;height:104px;border-radius:14px;padding:7px}.assembly-code{font-size:30px}.assembly-sub{font-size:13px;margin-top:5px}.state{margin-top:9px;padding:6px 10px;font-size:11px}.assembly-actions .btn{padding:9px 12px}.piece-panel{border-top:0;border-bottom:1px solid rgba(96,165,250,.12);padding:14px 20px;background:rgba(5,12,22,.55)}.pieces{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}.piece{border-radius:13px;padding:12px;background:rgba(15,26,43,.82);border-color:rgba(96,165,250,.16)}.piece-code{font-size:16px}.piece-meta{font-size:11px}.assembly-footer{min-height:54px;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-top:1px solid rgba(96,165,250,.24);background:linear-gradient(180deg,rgba(10,21,38,.98),rgba(6,13,24,1));box-shadow:0 -16px 34px rgba(2,6,12,.45)}.assembly-footer strong{display:block;font-size:14px;color:#e9f2ff}.assembly-footer span{display:block;margin-top:2px;color:#8fa4bf;font-size:11px}.btn.primary{background:linear-gradient(135deg,#3b82f6,#7c3aed);box-shadow:0 10px 24px rgba(59,130,246,.24)}@media(max-width:1100px){body{height:auto;overflow:auto}.wrap{height:auto;overflow:visible}.hero,.workbench-head{grid-template-columns:1fr}.assembly-panel-frame{min-height:65vh}.workbench-tools{justify-content:flex-start}.assembly-head{grid-template-columns:1fr}.assembly-qr{width:150px;height:150px}.assembly-code{font-size:28px}}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <div class="path"><a href="/">← Home</a><span>/</span><a id="analysis-link" href="#">Analisi commessa</a><span>/</span><a id="office-link" href="#">In officina</a></div>
+      <div class="title">Assemblaggi</div>
+      <div class="sub" id="subtitle">Controllo montaggio per assemblato</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" onclick="load()">↻ Aggiorna</button>
+  </header>
+  <main class="wrap">
+    <div id="macro-flow"></div>
+    <section class="hero">
+      <div class="hero-card main">
+        <div class="kicker">Assemblaggi commessa</div>
+        <h2>QR assemblato e pezzi montati</h2>
+        <div class="muted">La pagina legge gli scan delle postazioni di assemblaggio. Ogni pezzo resta singolo: quando passa dalla fase viene marcato come “Montato”.</div>
+        <div class="progress-track"><div class="progress-fill" id="overall-progress" style="width:0%"></div></div>
+      </div>
+      <div class="hero-card"><div class="kicker">Assemblati</div><div class="big-num" id="k-total">0</div><div class="muted">totali</div></div>
+      <div class="hero-card"><div class="kicker">In corso</div><div class="big-num" id="k-progress">0</div><div class="muted">con scan assemblaggio</div></div>
+      <div class="hero-card"><div class="kicker">Completati</div><div class="big-num" id="k-done">0</div><div class="muted">tutti i pezzi montati</div></div>
+    </section>
+    <section class="assembly-workbench">
+      <div class="workbench-head">
+        <div>
+          <div class="kicker">Controllo assemblati</div>
+          <h2>QR assemblati e pezzi montati</h2>
+          <p>Vista operativa dagli scan: ogni assemblato mostra avanzamento e pezzi collegati. La pagina resta ferma, scorrono solo gli assemblati.</p>
+        </div>
+        <div class="workbench-tools">
+          <input class="search" id="search" placeholder="Cerca assemblato, pezzo, profilo..." oninput="render()">
+          <label class="limit-label" for="assembly-limit">Assemblati mostrati</label>
+          <select class="limit-select" id="assembly-limit" onchange="setAssemblyLimit(this.value)">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="all">Tutti</option>
+          </select>
+          <button class="btn primary" onclick="expandAll()">Scopri tutti</button>
+          <button class="btn" onclick="collapseAll()">Comprimi</button>
+        </div>
+      </div>
+      <div class="assembly-panel-frame">
+        <div class="assembly-scroll-window"><section class="assemblies" id="assemblies"><div class="empty">Caricamento assemblaggi…</div></section></div>
+        <div class="assembly-footer" id="assembly-footer"><strong>Caricamento assemblati…</strong><span>Scorri nel riquadro.</span></div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/qr-drawer.js?v=scan4"></script>
+  <script>
+    const parts=location.pathname.split('/').filter(Boolean);
+    const commessaRef=decodeURIComponent(parts[1]||'');
+    let commessaId=null,commessaCode=commessaRef;
+    const token=sessionStorage.getItem('stqc_token');
+    const auth=()=>({Authorization:'Bearer '+token});
+    let data={summary:{},assemblati:[]};
+    const opened=new Set();
+    let assemblyLimit=localStorage.getItem('stqc_assembly_limit')==='all'?Infinity:Number(localStorage.getItem('stqc_assembly_limit')||20);
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const fmt=v=>Number(v||0).toLocaleString('it-IT',{maximumFractionDigits:1});
+    const jsArg=v=>JSON.stringify(String(v??''));
+    function commessaUrl(page){return `/commesse/${encodeURIComponent(commessaCode||commessaRef)}/${page}`}
+    async function resolveCommessa(){if(commessaId)return;const r=await fetch(`/api/v1/commesse/resolve/${encodeURIComponent(commessaRef)}`,{headers:auth()});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Commessa non trovata');commessaId=d.id;commessaCode=d.codice||commessaRef}
+    function pct(v){return Math.max(0,Math.min(100,Number(v||0)))}
+    function setAssemblyLimit(value){assemblyLimit=value==='all'?Infinity:Number(value||20);localStorage.setItem('stqc_assembly_limit',value);render()}
+    function syncAssemblyLimit(){const el=document.getElementById('assembly-limit');if(el)el.value=assemblyLimit===Infinity?'all':String(assemblyLimit)}
+    function stateClass(state){return state==='COMPLETO'?'done':state==='IN_ASSEMBLAGGIO'?'progress':''}
+    function stateLabel(state){return state==='COMPLETO'?'Completato':state==='IN_ASSEMBLAGGIO'?'In assemblaggio':'Da montare'}
+    function macroStateClass(state){return state==='COMPLETATA'?'done':state==='IN_CORSO'?'progress':'idle'}
+    function macroStateLabel(state){return state==='COMPLETATA'?'Completata':state==='IN_CORSO'?'In corso':'Non iniziata'}
+    function renderMacroFlow(){
+      const s=data.summary||{};
+      const assemblyProgress=Number(s.progress||0);
+      const cards=[
+        {title:'Analisi commessa',state:'COMPLETATA',sub:'File acquisiti e distinta pronta',href:commessaUrl('analisi')},
+        {title:'Officina',state:Number(s.pezzi_previsti||0)>0?'IN_CORSO':'NON_INIZIATA',sub:`${fmt(s.pezzi_previsti)} QR pezzi`,href:commessaUrl('officina')},
+        {title:'Assemblaggio',state:assemblyProgress>=100?'COMPLETATA':Number(s.pezzi_entrati||0)>0?'IN_CORSO':'NON_INIZIATA',sub:assemblyProgress>0?`${fmt(assemblyProgress)}% pezzi montati`:'In attesa scan assemblaggio',href:commessaUrl('assemblaggi')},
+        {title:'Lavorazioni',state:'NON_INIZIATA',sub:'Post-officina e lavorazioni esterne'},
+        {title:'Cantiere',state:'NON_INIZIATA',sub:'Spedizione finale e chiusura'},
+      ];
+      document.getElementById('macro-flow').innerHTML=`<div class="macro-flow">${cards.map((card,index)=>`<a class="macro-card ${macroStateClass(card.state)}" ${card.href?`href="${esc(card.href)}"`:''}><div class="macro-kicker"><span>${index+1}</span><span class="macro-state">${macroStateLabel(card.state)}</span></div><div class="macro-title">${esc(card.title)}</div><div class="macro-sub">${esc(card.sub)}</div></a>`).join('')}</div>`;
+    }
+    function mountedLabel(piece){
+      const mounted=piece.entered_assembly||piece.completed_assembly;
+      return `<span class="mounted ${mounted?'ok':''}">${mounted?'Montato':'Da montare'}</span>`;
+    }
+    function pieceCard(piece){
+      return `<article class="piece" onclick="QrDrawer.open('${esc(piece.uuid||'')}')">
+        <div class="piece-top"><div class="piece-code">${esc(piece.qr_code||piece.marca_pos||'Pezzo')}</div>${mountedLabel(piece)}</div>
+        <div class="piece-meta">${esc(piece.profilo||'—')} · ${esc(piece.qualita||'—')}<br>${esc(piece.ultima_postazione||'Nessuna postazione')} · ${esc(piece.ultimo_evento||'nessuno scan')}</div>
+      </article>`;
+    }
+    function assemblyCard(row){
+      const open=opened.has(row.assemblato);
+      const mounted=(row.pieces||[]).filter(p=>p.entered_assembly||p.completed_assembly).length;
+      return `<article class="assembly-card ${open?'open':''}">
+        <div class="assembly-head">
+          <img class="assembly-qr" src="${esc(row.qr_image_url||'')}" alt="QR assemblato ${esc(row.assemblato)}">
+          <div>
+            <div class="kicker">QR assemblato</div>
+            <div class="assembly-code">${esc(row.assemblato)}</div>
+            <div class="assembly-sub">${fmt(row.pezzi_previsti)} pezzi compresi · ${fmt(mounted)} montati · ${fmt(row.progress)}%</div>
+            <span class="state ${stateClass(row.stato)}">${stateLabel(row.stato)}</span>
+            <div class="progress-track"><div class="progress-fill" style="width:${pct(row.progress)}%"></div></div>
+          </div>
+          <div class="assembly-actions">
+            <button class="btn primary" onclick='toggleAssembly(${jsArg(row.assemblato)})'>${open?'Nascondi pezzi':'Pezzi compresi'}</button>
+          </div>
+        </div>
+        <div class="piece-panel">
+          <div class="pieces">${(row.pieces||[]).map(pieceCard).join('')||'<div class="empty">Nessun pezzo collegato a questo assemblato.</div>'}</div>
+        </div>
+      </article>`;
+    }
+    function render(){
+      const s=data.summary||{};
+      document.getElementById('k-total').textContent=fmt(s.totali);
+      document.getElementById('k-progress').textContent=fmt(s.in_assemblaggio);
+      document.getElementById('k-done').textContent=fmt(s.completi);
+      document.getElementById('overall-progress').style.width=pct(s.progress)+'%';
+      renderMacroFlow();
+      const q=document.getElementById('search').value.trim().toLowerCase();
+      syncAssemblyLimit();
+      const rows=(data.assemblati||[]).filter(row=>{
+        const text=[row.assemblato,row.stato,...(row.pieces||[]).flatMap(p=>[p.qr_code,p.marca_pos,p.profilo,p.qualita,p.ultima_postazione,p.ultimo_evento])].join(' ').toLowerCase();
+        return !q||text.includes(q);
+      });
+      const shown=assemblyLimit===Infinity?rows:rows.slice(0,assemblyLimit);
+      document.getElementById('assemblies').innerHTML=shown.map(assemblyCard).join('')||'<div class="empty">Nessun assemblato trovato.</div>';
+      const footer=document.getElementById('assembly-footer');
+      if(footer)footer.innerHTML=`<div><strong>${fmt(shown.length)} assemblati mostrati su ${fmt(rows.length)}</strong><span>${fmt(s.pezzi_previsti)} pezzi previsti · ${fmt(s.pezzi_entrati)} entrati · ${fmt(s.completi)} assemblati completi</span></div>${rows.length>shown.length?'<button class="btn" onclick="setAssemblyLimit(\'all\')">Mostra tutti</button>':''}`;
+    }
+    function toggleAssembly(code){opened.has(code)?opened.delete(code):opened.add(code);render()}
+    function expandAll(){(data.assemblati||[]).forEach(row=>opened.add(row.assemblato));render()}
+    function collapseAll(){opened.clear();render()}
+    async function load(){
+      try{await resolveCommessa()}catch(error){document.getElementById('assemblies').innerHTML=`<div class="empty">${esc(error.message||error)}</div>`;return}
+      const r=await fetch(`/api/v1/commesse/${commessaId}/analisi/assemblati`,{headers:auth()});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok){document.getElementById('assemblies').innerHTML=`<div class="empty">${esc(d.detail||'Errore caricamento assemblaggi')}</div>`;return}
+      data=d;
+      document.getElementById('analysis-link').href=commessaUrl('analisi');
+      document.getElementById('office-link').href=commessaUrl('officina');
+      document.getElementById('subtitle').textContent=`${fmt(d.summary?.totali)} assemblati · ${fmt(d.summary?.pezzi_previsti)} pezzi`;
+      render();
+    }
+    load();
+  </script>
+</body>
+</html>

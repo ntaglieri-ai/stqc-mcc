@@ -626,7 +626,7 @@ async function handleSubmit(event) {
       throw new Error(analysisResponse.status === 422 ? parserErrorMessage(detail) : detail);
     }
 
-    location.replace(`/commesse/${commessa.id}/analisi`);
+    location.replace(`/commesse/${encodeURIComponent(commessa.codice)}/analisi`);
   } catch (error) {
     if (commessa?.id) {
       await fetch(`/api/v1/commesse/${commessa.id}`, {

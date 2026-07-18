@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -53,9 +54,36 @@ class MouseScanRequest(BaseModel):
     payload: str
 
 
-class ManualWarehouseMappingRequest(BaseModel):
-    piece_uuids: list[str]
-    warehouse_item_uuid: str
+def _warehouse_item_mapping_read(item: WarehouseItem, pieces: list[Piece]) -> dict:
+    material = item.material
+    material_code = getattr(material, "code", None) or item.uuid
+    return {
+        "uuid": item.uuid,
+        "material_code": material_code,
+        "label": f"{material_code} · #{item.ordinal:04d}",
+        "tipo": item.tipo or getattr(material, "tipo", None),
+        "profilo": item.profilo or getattr(material, "profilo", None),
+        "dimensioni": item.dimensioni or getattr(material, "dimensioni", None),
+        "qualita": item.qualita or getattr(material, "qualita", None),
+        "status": item.status,
+        "reserved_for_commessa": item.reserved_for_commessa,
+        "reserved_at": item.reserved_at,
+        "pieces_count": len(pieces),
+        "pieces": [
+            {
+                "uuid": piece.uuid,
+                "qr_code": piece.qr_code,
+                "marca_pos": piece.marca_pos,
+                "progressivo": piece.progressivo,
+                "profilo": piece.profilo,
+                "materiale": piece.materiale,
+                "assemblato": piece.assemblato_id,
+                "stato": piece.stato_attuale,
+                "assigned_at": piece.materiale_origine_assigned_at,
+            }
+            for piece in pieces
+        ],
+    }
 
 
 def _piece_qr_read(item: Piece) -> dict:
@@ -70,6 +98,7 @@ def _piece_qr_read(item: Piece) -> dict:
         "progressivo": item.progressivo,
         "commessa_id": item.commessa_id,
         "revisione": item.revisione_id,
+        "categoria": _piece_category_from_qr_piece(item),
         "tipo": item.tipo_profilo,
         "profilo": item.profilo,
         "qualita": item.materiale,
@@ -91,10 +120,35 @@ def _piece_qr_read(item: Piece) -> dict:
         "nota": item.note_materiale,
         "materiale_origine_status": item.materiale_origine_status,
         "materiale_origine_id": item.materiale_origine_id,
-        "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(item.qr_payload)}",
+        "qr_image_url": f"/piece-qr-image/{item.uuid}.png",
         "resolve_url": f"/p/{item.uuid}",
         "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
     }
+
+
+def _piece_category_from_qr_piece(item: Piece) -> str:
+    text = " ".join(str(value or "") for value in (
+        item.tipo_profilo,
+        item.profilo,
+        item.materiale_descrizione,
+        item.marca_pos,
+    )).upper()
+    if any(token in text for token in ("DADO", "RONDELL", "VITE", "BULL", "BOLT", "TIRAFON", "BARRA FILETTATA", "PIOLO")):
+        return "Bulloneria"
+    if any(token in text for token in ("LAMIERA", "PIATTO", "PIATTI", "PL")):
+        return "Lamiere / piatti"
+    if any(token in text for token in ("TRAVE", "IPE", "HEA", "HEB", "UPN")):
+        return "Travi"
+    if any(token in text for token in ("TUBO", "RHS", "SHS", "TUBE", "SCATOL")):
+        return "Tubolari / scatolati"
+    profile = str(item.profilo or "").upper().strip()
+    if "ANGOL" in text or profile.startswith("L"):
+        return "Angolari"
+    if "TONDO" in text:
+        return "Tondi"
+    if "QUADRO" in text:
+        return "Quadri"
+    return item.tipo_profilo or "Altro"
 
 
 def _piece_qr_code(part_number: str | None, instance_number: int | None, fallback_id: int | None = None) -> str:
@@ -218,6 +272,18 @@ def list_commesse(
     db: Session = Depends(get_db),
 ):
     return crud.get_commesse(db=db, skip=skip, limit=limit, status=status, q=q)
+
+
+@router.get("/resolve/{commessa_ref}")
+def resolve_commessa_ref(commessa_ref: str, db: Session = Depends(get_db)):
+    commessa = None
+    if commessa_ref.isdigit():
+        commessa = crud.get_commessa(db=db, commessa_id=int(commessa_ref))
+    if commessa is None:
+        commessa = crud.get_commessa_by_codice(db=db, codice=commessa_ref)
+    if commessa is None:
+        raise HTTPException(status_code=404, detail="Commessa non trovata")
+    return {"id": commessa.id, "codice": commessa.codice}
 
 
 @router.post("/validate-files")
@@ -1162,98 +1228,52 @@ def list_commessa_item_qr(
     }
 
 
-@router.post("/{commessa_id}/step-5-1/map-warehouse")
-def map_commessa_qr_to_warehouse_item(
+@router.get("/{commessa_id}/step-5-1/warehouse-mapping")
+def get_commessa_warehouse_mapping(
     commessa_id: int,
-    request: ManualWarehouseMappingRequest,
     db: Session = Depends(get_db),
 ):
     revisione = _latest_revision(db, commessa_id)
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
-    if revisione.step51_completed_at is None:
-        raise HTTPException(409, "I QR della commessa non sono ancora stati generati")
-
-    piece_uuids = [value.strip().lower() for value in request.piece_uuids if value and value.strip()]
-    if not piece_uuids:
-        raise HTTPException(422, "Seleziona almeno un QR pezzo")
 
     pieces = (
         db.query(Piece)
         .filter(
             Piece.commessa_id == commessa_id,
             Piece.revisione_id == revisione.id,
-            Piece.uuid.in_(piece_uuids),
-            Piece.qr_attivo.is_(True),
+            Piece.materiale_origine_id.isnot(None),
         )
-        .order_by(Piece.qr_code)
+        .order_by(Piece.materiale_origine_id, Piece.qr_code)
         .all()
     )
-    if len(pieces) != len(set(piece_uuids)):
-        raise HTTPException(404, "Uno o più QR selezionati non appartengono alla commessa corrente")
+    item_ids = sorted({piece.materiale_origine_id for piece in pieces if piece.materiale_origine_id})
+    if not item_ids:
+        return {"count": 0, "items": []}
 
-    warehouse_item = (
+    warehouse_items = (
         db.query(WarehouseItem)
-        .filter(WarehouseItem.uuid == request.warehouse_item_uuid.strip().lower())
-        .first()
+        .options(joinedload(WarehouseItem.material))
+        .filter(WarehouseItem.id.in_(item_ids))
+        .all()
     )
-    if warehouse_item is None:
-        raise HTTPException(404, "Pezzo di magazzino non trovato")
-    if warehouse_item.status not in ("AVAILABLE", "RESERVED"):
-        raise HTTPException(409, f"Pezzo di magazzino non disponibile: {warehouse_item.status}")
-
-    material = warehouse_item.material
-    material_code = getattr(material, "code", None) or warehouse_item.uuid
-    now = datetime.utcnow()
-    commessa = db.get(Commessa, commessa_id)
-    already = 0
-    mapped = 0
+    warehouse_by_id = {item.id: item for item in warehouse_items}
+    pieces_by_item: dict[int, list[Piece]] = defaultdict(list)
     for piece in pieces:
-        if piece.materiale_origine_id and piece.materiale_origine_id != warehouse_item.id:
-            raise HTTPException(409, f"{piece.qr_code} è già collegato a un altro grezzo")
-        if piece.materiale_origine_id == warehouse_item.id and piece.materiale_origine_status == "ASSEGNATO":
-            already += 1
-            continue
-        piece.materiale_origine_id = warehouse_item.id
-        piece.materiale_origine_status = "ASSEGNATO"
-        piece.materiale_origine_assigned_at = now
-        piece.colata = warehouse_item.colata or getattr(material, "colata", None)
-        piece.lotto = warehouse_item.commessa_ref or piece.lotto
-        piece.materiale = piece.materiale or getattr(material, "qualita", None)
-        piece.materiale_descrizione = piece.materiale_descrizione or material_code
-        piece.ultimo_evento = "MATERIAL_ASSIGNED"
-        piece.ultimo_evento_at = now
-        piece.updated_at = now
-        db.add(PieceScanEvent(
-            piece_id=piece.id,
-            qr_code=piece.qr_code,
-            commessa_id=piece.commessa_id,
-            revisione_id=piece.revisione_id,
-            assemblato_id=piece.assemblato_id,
-            event_type="MATERIAL_ASSIGNED",
-            timestamp=now,
-            metadata_json={
-                "source": "PRE_PRODUZIONE_MANUALE",
-                "warehouse_item_uuid": warehouse_item.uuid,
-                "warehouse_material_code": material_code,
-            },
-            note="Mapping manuale da registro QR distinta",
-        ))
-        mapped += 1
+        if piece.materiale_origine_id in warehouse_by_id:
+            pieces_by_item[piece.materiale_origine_id].append(piece)
 
-    warehouse_item.status = "RESERVED"
-    warehouse_item.reserved_at = warehouse_item.reserved_at or now
-    if commessa and not warehouse_item.reserved_for_commessa:
-        warehouse_item.reserved_for_commessa = commessa.codice
-    db.commit()
-    return {
-        "ok": True,
-        "mapped": mapped,
-        "already": already,
-        "warehouse_item_uuid": warehouse_item.uuid,
-        "warehouse_material_code": material_code,
-        "message": f"{mapped} QR collegati a {material_code}" if mapped else "QR già collegati al grezzo selezionato",
-    }
+    items = [
+        _warehouse_item_mapping_read(item, pieces_by_item[item_id])
+        for item_id, item in sorted(
+            warehouse_by_id.items(),
+            key=lambda pair: (
+                getattr(pair[1].material, "code", "") or "",
+                pair[1].ordinal or 0,
+            ),
+        )
+    ]
+    return {"count": len(items), "items": items}
 
 
 @router.get("/{commessa_id}/scan-test-kit")
@@ -1321,7 +1341,7 @@ def commessa_scan_test_kit(
                 "uuid": piece.uuid,
                 "payload": piece.qr_payload,
                 "qr_code": piece.qr_code,
-                "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(piece.qr_payload)}",
+                "qr_image_url": f"/piece-qr-image/{piece.uuid}.png",
                 "profilo": piece.profilo,
                 "stato": piece.stato_attuale,
             }
@@ -1547,6 +1567,7 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
             continue
         row = groups.setdefault(piece.assemblato_id, {
             "assemblato": piece.assemblato_id,
+            "qr_image_url": f"/assembly-qr-image/{commessa_id}/{quote(str(piece.assemblato_id), safe='')}.png",
             "pezzi_previsti": 0,
             "qr_attivi": 0,
             "pezzi_entrati": 0,
@@ -1597,6 +1618,7 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
 
         row["pieces"].append({
             "id": piece.id,
+            "uuid": piece.uuid,
             "qr_code": piece.qr_code,
             "marca_pos": piece.marca_pos,
             "progressivo": piece.progressivo,
@@ -1617,6 +1639,7 @@ def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
             continue
         row = groups.setdefault(bolt.assemblato, {
             "assemblato": bolt.assemblato,
+            "qr_image_url": f"/assembly-qr-image/{commessa_id}/{quote(str(bolt.assemblato), safe='')}.png",
             "pezzi_previsti": 0,
             "qr_attivi": 0,
             "pezzi_entrati": 0,
