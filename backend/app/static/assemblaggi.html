@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
+  <script src="/static/commessa-embed.js?v=commessa-shell1"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Assemblaggi · MCC</title>
@@ -10,6 +11,22 @@
   
     /* Premium dense assemblaggi layout */
     body{height:100vh;overflow:hidden}.top{min-height:88px;padding:14px 28px}.title{font-size:36px}.sub{font-size:13px}.wrap{height:calc(100vh - 88px);max-width:none;padding:16px 28px 14px;display:flex;flex-direction:column;gap:12px;overflow:hidden}.macro-flow{margin:0 0 8px;gap:10px;padding-top:24px}.macro-flow:before{top:11px}.macro-card{min-height:78px;padding:13px 15px;border-radius:17px}.macro-card:before{top:-19px;width:13px;height:13px}.macro-title{font-size:17px;margin-top:11px}.macro-sub{font-size:11px}.hero{grid-template-columns:1.4fr repeat(3,180px);gap:12px;margin:0}.hero-card{min-height:104px;border-radius:20px;padding:15px 17px;background:radial-gradient(circle at 88% 8%,rgba(96,165,250,.14),transparent 31%),linear-gradient(135deg,#101f35,#0a1423)}.hero-card h2{font-size:26px}.hero-card .muted{font-size:12px;line-height:1.38}.big-num{font-size:34px}.progress-track{height:9px;margin-top:10px}.assembly-workbench{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid rgba(96,165,250,.25);border-radius:26px;background:radial-gradient(circle at 0 0,rgba(59,130,246,.18),transparent 30%),radial-gradient(circle at 100% 12%,rgba(109,85,242,.12),transparent 28%),linear-gradient(145deg,#102342,#081321 60%,#070f1b);box-shadow:0 24px 70px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.045);overflow:hidden}.workbench-head{display:grid;grid-template-columns:minmax(300px,1fr) auto;gap:18px;align-items:end;padding:18px 22px 14px;border-bottom:1px solid rgba(147,197,253,.12)}.workbench-head h2{margin:4px 0 0;font-size:29px;letter-spacing:-.045em}.workbench-head p{margin:5px 0 0;color:#9eb2ce;font-size:12px;max-width:860px}.workbench-tools{display:flex;gap:9px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.workbench-tools .search{width:340px;min-width:260px;flex:0 1 340px;margin:0;padding:11px 13px}.limit-label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#8fa4bf;font-weight:950}.limit-select{min-height:40px;border-radius:12px;border:1px solid #2c4161;background:#132237;color:#dce8fa;padding:0 12px;font-weight:900}.assembly-panel-frame{flex:1;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(5,12,22,.52),rgba(5,12,22,.92))}.assembly-scroll-window{flex:1;min-height:0;overflow:auto;padding:0;scrollbar-width:auto;scrollbar-color:#6fa0ff #0b1423}.assembly-scroll-window::-webkit-scrollbar{width:20px}.assembly-scroll-window::-webkit-scrollbar-track{background:#08101d;border-left:1px solid rgba(96,165,250,.16)}.assembly-scroll-window::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#7da9ff,#3f6ee8);border:5px solid #08101d;border-radius:999px}.assemblies{display:block}.assembly-card{border:0;border-radius:0;margin:0;background:transparent;box-shadow:none}.assembly-head{grid-template-columns:120px minmax(0,1fr) auto;gap:16px;padding:13px 20px;background:linear-gradient(90deg,rgba(22,42,72,.88),rgba(9,18,32,.70));border-bottom:1px solid rgba(96,165,250,.16)}.assembly-card:nth-child(even) .assembly-head{background:linear-gradient(90deg,rgba(17,34,59,.88),rgba(8,17,30,.70))}.assembly-card:hover .assembly-head{background:linear-gradient(90deg,rgba(32,59,96,.98),rgba(14,29,50,.86))}.assembly-qr{width:104px;height:104px;border-radius:14px;padding:7px}.assembly-code{font-size:30px}.assembly-sub{font-size:13px;margin-top:5px}.state{margin-top:9px;padding:6px 10px;font-size:11px}.assembly-actions .btn{padding:9px 12px}.piece-panel{border-top:0;border-bottom:1px solid rgba(96,165,250,.12);padding:14px 20px;background:rgba(5,12,22,.55)}.pieces{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}.piece{border-radius:13px;padding:12px;background:rgba(15,26,43,.82);border-color:rgba(96,165,250,.16)}.piece-code{font-size:16px}.piece-meta{font-size:11px}.assembly-footer{min-height:54px;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-top:1px solid rgba(96,165,250,.24);background:linear-gradient(180deg,rgba(10,21,38,.98),rgba(6,13,24,1));box-shadow:0 -16px 34px rgba(2,6,12,.45)}.assembly-footer strong{display:block;font-size:14px;color:#e9f2ff}.assembly-footer span{display:block;margin-top:2px;color:#8fa4bf;font-size:11px}.btn.primary{background:linear-gradient(135deg,#3b82f6,#7c3aed);box-shadow:0 10px 24px rgba(59,130,246,.24)}@media(max-width:1100px){body{height:auto;overflow:auto}.wrap{height:auto;overflow:visible}.hero,.workbench-head{grid-template-columns:1fr}.assembly-panel-frame{min-height:65vh}.workbench-tools{justify-content:flex-start}.assembly-head{grid-template-columns:1fr}.assembly-qr{width:150px;height:150px}.assembly-code{font-size:28px}}
+    .layout{display:grid;grid-template-columns:330px minmax(0,1fr);height:calc(100vh - 88px);overflow:hidden}
+    .filter-side{height:calc(100vh - 88px);overflow:auto;padding:18px 16px;background:linear-gradient(180deg,rgba(13,27,45,.96),rgba(8,18,31,.96));border-right:1px solid #203653;scrollbar-width:auto;scrollbar-color:#4d84ff #08111f}
+    .filter-side::-webkit-scrollbar{width:16px}.filter-side::-webkit-scrollbar-track{background:#08111f}.filter-side::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#6fa0ff,#3268df);border:4px solid #08111f;border-radius:999px}
+    .filter-title{font-size:18px;font-weight:950;letter-spacing:.16em;text-transform:uppercase;color:#9fc2ff;margin:0 0 18px}
+    .filter-group{border:1px solid #27415f;background:#0d1b2d;border-radius:18px;margin-bottom:14px;overflow:hidden}
+    .filter-group summary{list-style:none;cursor:pointer;padding:15px 16px;font-size:14px;font-weight:950;letter-spacing:.13em;text-transform:uppercase;color:#cfe0f8}
+    .filter-group summary::-webkit-details-marker{display:none}.filter-group summary:before{content:"▸";margin-right:5px;color:#9fc2ff}.filter-group[open] summary:before{content:"▾"}
+    .filter-body{display:grid;gap:12px;padding:0 16px 16px}.filter-label{display:block;color:#8fa4bf;font-size:12px;font-weight:950;letter-spacing:.12em;text-transform:uppercase;margin-bottom:7px}
+    .filter-control{width:100%;min-height:48px;border:1px solid #294564;border-radius:14px;background:#102033;color:#e5eefb;padding:0 14px;font-size:15px;font-weight:760;outline:none}
+    .filter-control:focus{border-color:#69a0ff;box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+    .filter-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+    .filter-kpis div{border:1px solid #27415f;border-radius:16px;background:#102033;padding:14px}
+    .filter-kpis strong{display:block;font-size:24px;font-weight:950;color:#eaf2ff}.filter-kpis span{display:block;margin-top:4px;color:#8fa4bf;text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:900}
+    .layout .wrap{height:calc(100vh - 88px);max-width:none;margin:0;padding:18px 24px 18px;overflow:hidden}
+    .workbench-tools .search{display:none}
+    @media(max-width:1100px){.layout{grid-template-columns:1fr;height:auto;overflow:visible}.filter-side{height:auto}.layout .wrap{height:auto;overflow:visible}}
 </style>
 </head>
 <body>
@@ -22,6 +39,29 @@
     <div class="spacer"></div>
     <button class="btn" onclick="load()">↻ Aggiorna</button>
   </header>
+  <div class="layout">
+  <aside class="filter-side">
+    <h2 class="filter-title">Filtri assemblaggi</h2>
+    <details class="filter-group" open>
+      <summary>Identità</summary>
+      <div class="filter-body">
+        <label><span class="filter-label">Cerca</span><input class="filter-control" id="search" placeholder="Assemblato, pezzo, profilo..." oninput="render()"></label>
+        <label><span class="filter-label">Assemblato</span><select class="filter-control" id="assemblyFilter" onchange="render()"><option value="">Tutti</option></select></label>
+      </div>
+    </details>
+    <details class="filter-group" open>
+      <summary>Caratteristiche</summary>
+      <div class="filter-body">
+        <label><span class="filter-label">Profilo</span><select class="filter-control" id="profileFilter" onchange="render()"><option value="">Tutti</option></select></label>
+        <label><span class="filter-label">Stato</span><select class="filter-control" id="statusFilter" onchange="render()"><option value="">Tutti</option></select></label>
+      </div>
+    </details>
+    <div class="filter-kpis">
+      <div><strong id="sideVisible">0</strong><span>Visibili</span></div>
+      <div><strong id="sideTotal">0</strong><span>Totali</span></div>
+    </div>
+    <button class="btn" style="width:100%;min-height:50px" onclick="resetFilters()">Reset filtri</button>
+  </aside>
   <main class="wrap">
     <div id="macro-flow"></div>
     <section class="hero">
@@ -43,7 +83,6 @@
           <p>Vista operativa dagli scan: ogni assemblato mostra avanzamento e pezzi collegati. La pagina resta ferma, scorrono solo gli assemblati.</p>
         </div>
         <div class="workbench-tools">
-          <input class="search" id="search" placeholder="Cerca assemblato, pezzo, profilo..." oninput="render()">
           <label class="limit-label" for="assembly-limit">Assemblati mostrati</label>
           <select class="limit-select" id="assembly-limit" onchange="setAssemblyLimit(this.value)">
             <option value="10">10</option>
@@ -62,6 +101,7 @@
       </div>
     </section>
   </main>
+  </div>
   <script src="/static/qr-drawer.js?v=scan4"></script>
   <script>
     const parts=location.pathname.split('/').filter(Boolean);
@@ -80,6 +120,18 @@
     function pct(v){return Math.max(0,Math.min(100,Number(v||0)))}
     function setAssemblyLimit(value){assemblyLimit=value==='all'?Infinity:Number(value||20);localStorage.setItem('stqc_assembly_limit',value);render()}
     function syncAssemblyLimit(){const el=document.getElementById('assembly-limit');if(el)el.value=assemblyLimit===Infinity?'all':String(assemblyLimit)}
+    function unique(values){return [...new Set(values.map(v=>String(v??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it',{numeric:true}))}
+    function populateSelect(id,values,label='Tutti'){const el=document.getElementById(id);if(!el)return;const current=el.value;el.innerHTML=`<option value="">${label}</option>`+unique(values).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if([...el.options].some(o=>o.value===current))el.value=current}
+    function populateFilters(){
+      const rows=data.assemblati||[];
+      populateSelect('assemblyFilter',rows.map(r=>r.assemblato));
+      populateSelect('statusFilter',rows.map(r=>stateLabel(r.stato)));
+      populateSelect('profileFilter',rows.flatMap(r=>(r.pieces||[]).map(p=>p.profilo)));
+    }
+    function resetFilters(){
+      ['search','assemblyFilter','statusFilter','profileFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+      render();
+    }
     function stateClass(state){return state==='COMPLETO'?'done':state==='IN_ASSEMBLAGGIO'?'progress':''}
     function stateLabel(state){return state==='COMPLETO'?'Completato':state==='IN_ASSEMBLAGGIO'?'In assemblaggio':'Da montare'}
     function macroStateClass(state){return state==='COMPLETATA'?'done':state==='IN_CORSO'?'progress':'idle'}
@@ -91,8 +143,8 @@
         {title:'Analisi commessa',state:'COMPLETATA',sub:'File acquisiti e distinta pronta',href:commessaUrl('analisi')},
         {title:'Officina',state:Number(s.pezzi_previsti||0)>0?'IN_CORSO':'NON_INIZIATA',sub:`${fmt(s.pezzi_previsti)} QR pezzi`,href:commessaUrl('officina')},
         {title:'Assemblaggio',state:assemblyProgress>=100?'COMPLETATA':Number(s.pezzi_entrati||0)>0?'IN_CORSO':'NON_INIZIATA',sub:assemblyProgress>0?`${fmt(assemblyProgress)}% pezzi montati`:'In attesa scan assemblaggio',href:commessaUrl('assemblaggi')},
-        {title:'Lavorazioni',state:'NON_INIZIATA',sub:'Post-officina e lavorazioni esterne'},
-        {title:'Cantiere',state:'NON_INIZIATA',sub:'Spedizione finale e chiusura'},
+        {title:'Lavorazioni',state:'NON_INIZIATA',sub:'Post-officina e lavorazioni esterne',href:commessaUrl('lavorazioni')},
+        {title:'In cantiere',state:'NON_INIZIATA',sub:'Spedizione finale e chiusura',href:commessaUrl('in-cantiere')},
       ];
       document.getElementById('macro-flow').innerHTML=`<div class="macro-flow">${cards.map((card,index)=>`<a class="macro-card ${macroStateClass(card.state)}" ${card.href?`href="${esc(card.href)}"`:''}><div class="macro-kicker"><span>${index+1}</span><span class="macro-state">${macroStateLabel(card.state)}</span></div><div class="macro-title">${esc(card.title)}</div><div class="macro-sub">${esc(card.sub)}</div></a>`).join('')}</div>`;
     }
@@ -135,14 +187,23 @@
       document.getElementById('k-done').textContent=fmt(s.completi);
       document.getElementById('overall-progress').style.width=pct(s.progress)+'%';
       renderMacroFlow();
-      const q=document.getElementById('search').value.trim().toLowerCase();
+      const q=document.getElementById('search')?.value.trim().toLowerCase()||'';
+      const assemblyFilter=document.getElementById('assemblyFilter')?.value||'';
+      const statusFilter=document.getElementById('statusFilter')?.value||'';
+      const profileFilter=document.getElementById('profileFilter')?.value||'';
       syncAssemblyLimit();
       const rows=(data.assemblati||[]).filter(row=>{
         const text=[row.assemblato,row.stato,...(row.pieces||[]).flatMap(p=>[p.qr_code,p.marca_pos,p.profilo,p.qualita,p.ultima_postazione,p.ultimo_evento])].join(' ').toLowerCase();
-        return !q||text.includes(q);
+        if(q&&!text.includes(q))return false;
+        if(assemblyFilter&&row.assemblato!==assemblyFilter)return false;
+        if(statusFilter&&stateLabel(row.stato)!==statusFilter)return false;
+        if(profileFilter&&!(row.pieces||[]).some(p=>String(p.profilo||'')===profileFilter))return false;
+        return true;
       });
       const shown=assemblyLimit===Infinity?rows:rows.slice(0,assemblyLimit);
       document.getElementById('assemblies').innerHTML=shown.map(assemblyCard).join('')||'<div class="empty">Nessun assemblato trovato.</div>';
+      const sideVisible=document.getElementById('sideVisible');if(sideVisible)sideVisible.textContent=fmt(rows.length);
+      const sideTotal=document.getElementById('sideTotal');if(sideTotal)sideTotal.textContent=fmt((data.assemblati||[]).length);
       const footer=document.getElementById('assembly-footer');
       if(footer)footer.innerHTML=`<div><strong>${fmt(shown.length)} assemblati mostrati su ${fmt(rows.length)}</strong><span>${fmt(s.pezzi_previsti)} pezzi previsti · ${fmt(s.pezzi_entrati)} entrati · ${fmt(s.completi)} assemblati completi</span></div>${rows.length>shown.length?'<button class="btn" onclick="setAssemblyLimit(\'all\')">Mostra tutti</button>':''}`;
     }
@@ -155,6 +216,7 @@
       const d=await r.json().catch(()=>({}));
       if(!r.ok){document.getElementById('assemblies').innerHTML=`<div class="empty">${esc(d.detail||'Errore caricamento assemblaggi')}</div>`;return}
       data=d;
+      populateFilters();
       document.getElementById('analysis-link').href=commessaUrl('analisi');
       document.getElementById('office-link').href=commessaUrl('officina');
       document.getElementById('subtitle').textContent=`${fmt(d.summary?.totali)} assemblati · ${fmt(d.summary?.pezzi_previsti)} pezzi`;

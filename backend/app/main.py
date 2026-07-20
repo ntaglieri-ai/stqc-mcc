@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -17,7 +17,7 @@ from backend.app.models.user import GROUP_DEFAULTS, GROUP_POSTAZIONI_DEFAULTS
 from backend.app.api.api_v1.api import api_router, public_router
 from backend.app.core.log_collector import log_collector  # noqa: F401 — initialises log capture
 from backend.app.db.session import SessionLocal
-from backend.app.models.commessa import Commessa, Piece
+from backend.app.models.commessa import Commessa, CommessaPostOfficinaItem, Piece
 from backend.app.services.qr import generate_qr_for_payload, generate_qr_for_uuid
 from backend.app.services.workstations import ensure_default_workstations, normalize_existing_workstation_qr_codes
 
@@ -96,6 +96,29 @@ def create_app() -> FastAPI:
             media_type="image/png",
             headers={"Cache-Control": "public, max-age=31536000, immutable"},
         )
+
+    @app.get("/post-officina-qr-image/{commessa_id:int}/{codice}.png", include_in_schema=False)
+    def post_officina_qr_image(commessa_id: int, codice: str):
+        db = SessionLocal()
+        try:
+            row = (
+                db.query(CommessaPostOfficinaItem)
+                .filter(
+                    CommessaPostOfficinaItem.commessa_id == commessa_id,
+                    CommessaPostOfficinaItem.codice == codice,
+                )
+                .order_by(CommessaPostOfficinaItem.revisione_id.desc(), CommessaPostOfficinaItem.id.desc())
+                .first()
+            )
+            payload = f"STQC:POST:{commessa_id}:{row.revisione_id if row else 'NA'}:{codice}"
+            png = base64.b64decode(generate_qr_for_payload(payload))
+            return Response(
+                content=png,
+                media_type="image/png",
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        finally:
+            db.close()
 
     app.include_router(public_router, prefix="/api/v1")
     app.include_router(api_router, prefix="/api/v1")
@@ -220,11 +243,12 @@ def create_app() -> FastAPI:
         return FileResponse(STATIC_DIR / "commesse-nuova.html", headers=_NO_CACHE)
 
     @app.get("/commesse/{commessa_ref}/analisi", include_in_schema=False)
-    def commessa_analysis_page(commessa_ref: str):
+    def commessa_analysis_page(commessa_ref: str, request: Request):
         commessa = _find_commessa_by_ref(commessa_ref)
         if commessa and str(commessa_ref).isdigit():
             return RedirectResponse(url=_commessa_path(commessa, "analisi"), status_code=307, headers=_NO_CACHE)
-        return FileResponse(STATIC_DIR / "commessa-analysis.html", headers=_NO_CACHE)
+        page = "commessa-analysis.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
 
     @app.get("/commesse/{commessa_id:int}/qr-registry", include_in_schema=False)
     def legacy_commessa_qr_registry_page(commessa_id: int):
@@ -234,18 +258,36 @@ def create_app() -> FastAPI:
         return RedirectResponse(url="/commesse", status_code=307, headers=_NO_CACHE)
 
     @app.get("/commesse/{commessa_ref}/officina", include_in_schema=False)
-    def commessa_officina_page(commessa_ref: str):
+    def commessa_officina_page(commessa_ref: str, request: Request):
         commessa = _find_commessa_by_ref(commessa_ref)
         if commessa and str(commessa_ref).isdigit():
             return RedirectResponse(url=_commessa_path(commessa, "officina"), status_code=307, headers=_NO_CACHE)
-        return FileResponse(STATIC_DIR / "qr-registry.html", headers=_NO_CACHE)
+        page = "qr-registry.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
 
     @app.get("/commesse/{commessa_ref}/assemblaggi", include_in_schema=False)
-    def commessa_assemblaggi_page(commessa_ref: str):
+    def commessa_assemblaggi_page(commessa_ref: str, request: Request):
         commessa = _find_commessa_by_ref(commessa_ref)
         if commessa and str(commessa_ref).isdigit():
             return RedirectResponse(url=_commessa_path(commessa, "assemblaggi"), status_code=307, headers=_NO_CACHE)
-        return FileResponse(STATIC_DIR / "assemblaggi.html", headers=_NO_CACHE)
+        page = "assemblaggi.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
+
+    @app.get("/commesse/{commessa_ref}/lavorazioni", include_in_schema=False)
+    def commessa_lavorazioni_page(commessa_ref: str, request: Request):
+        commessa = _find_commessa_by_ref(commessa_ref)
+        if commessa and str(commessa_ref).isdigit():
+            return RedirectResponse(url=_commessa_path(commessa, "lavorazioni"), status_code=307, headers=_NO_CACHE)
+        page = "lavorazioni.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
+
+    @app.get("/commesse/{commessa_ref}/in-cantiere", include_in_schema=False)
+    def commessa_in_cantiere_page(commessa_ref: str, request: Request):
+        commessa = _find_commessa_by_ref(commessa_ref)
+        if commessa and str(commessa_ref).isdigit():
+            return RedirectResponse(url=_commessa_path(commessa, "in-cantiere"), status_code=307, headers=_NO_CACHE)
+        page = "in-cantiere.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
 
     @app.get("/commesse/{commessa_ref}", include_in_schema=False)
     def commessa_detail_page(commessa_ref: str):

@@ -19,7 +19,7 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaBulloneria, CommessaDocumento, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
+    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
@@ -468,6 +468,7 @@ async def create_analisi_commessa(
     spedizione_dest = None
     bulloneria_dest = None
     bulloneria_items: list[dict] = []
+    spedizione_items: list[dict] = []
 
     try:
         lista_suffix = Path(lista_pezzi.filename or "lista_pezzi.xls").suffix.lower() or ".xls"
@@ -499,9 +500,11 @@ async def create_analisi_commessa(
         with spedizione_dest.open("wb") as f:
             f.write(await spedizione.read())
         try:
-            report["spedizione"] = _validate_spedizione_file(spedizione_dest)
+            spedizione_items, spedizione_report = _parse_spedizione_file(spedizione_dest)
+            report["spedizione"] = spedizione_report
         except Exception as exc:
             _logger.warning("Lista spedizione non validata per revisione %s commessa %d: %s", codice_rev, commessa_id, exc)
+            spedizione_items = []
             report["spedizione"] = {"ok": False, "summary": str(exc)}
             report["file_warnings"].append({
                 "file": "Lista spedizione",
@@ -630,6 +633,8 @@ async def create_analisi_commessa(
     db.flush()
     for di in inserted_items:
         _create_piece_from_item(db, di, commessa_id, revisione.id)
+
+    _populate_post_officina_items(db, commessa_id, revisione.id, spedizione_items)
 
     for row in bulloneria_items:
         db.add(CommessaBulloneria(
@@ -841,34 +846,189 @@ def _fabbisogno_group(rows: list[dict]) -> dict:
     return {"summary": summary_rows, "detail": detail}
 
 
-def _validate_spedizione_file(path: Path) -> dict:
+def _norm_header(value) -> str:
+    text = str(value or "").strip().lower()
+    for src, dst in (("à", "a"), ("è", "e"), ("é", "e"), ("ì", "i"), ("ò", "o"), ("ù", "u")):
+        text = text.replace(src, dst)
+    return "".join(ch for ch in text if ch.isalnum())
+
+
+def _num_or_none(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    text = str(value).strip()
+    if not text or text in {"-", "—"}:
+        return None
+    text = text.replace(" ", "")
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif text.count(".") > 1:
+        text = text.replace(".", "")
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _find_first_col(headers: list, candidates: set[str]) -> int | None:
+    normalized = [_norm_header(value) for value in headers]
+    for idx, value in enumerate(normalized):
+        if value in candidates:
+            return idx
+    for idx, value in enumerate(normalized):
+        if any(candidate in value for candidate in candidates):
+            return idx
+    return None
+
+
+def _cell(row: list, idx: int | None):
+    if idx is None or idx >= len(row):
+        return None
+    value = row[idx]
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text if text else None
+
+
+def _parse_spedizione_file(path: Path) -> tuple[list[dict], dict]:
     rows = _extract_rows(path)
-    nonempty = [
-        [str(cell).strip() for cell in row if str(cell).strip()]
-        for row in rows
-        if any(str(cell).strip() for cell in row)
-    ]
-    if not nonempty:
+    if not rows:
         raise ValueError("nessuna riga leggibile trovata")
+
+    trattamento = None
+    for raw in rows[:30]:
+        cells = [str(cell).strip() for cell in raw if str(cell).strip()]
+        for idx, cell in enumerate(cells):
+            if _norm_header(cell) == "trattamento":
+                trattamento = cells[idx + 1] if idx + 1 < len(cells) else None
+                break
+        if trattamento:
+            break
+
     header_idx = None
-    for idx, row in enumerate(nonempty[:30]):
-        normalized = {cell.lower() for cell in row}
-        if any(cell in normalized for cell in {"assemb.", "assemb", "assemblato"}) and any("q.t" in cell or cell in {"qty", "quantita", "quantità"} for cell in normalized):
+    for idx, row in enumerate(rows[:40]):
+        normalized = {_norm_header(cell) for cell in row}
+        if normalized.intersection({"assemb", "assemblato", "codice"}) and normalized.intersection({"qta", "quantita", "qty"}):
             header_idx = idx
             break
     if header_idx is None:
         raise ValueError("intestazione spedizione non riconosciuta")
-    data_rows = [
-        row for row in nonempty[header_idx + 1:]
-        if row and row[0] and not row[0].lower().startswith("totale")
-    ]
-    if not data_rows:
+
+    header = rows[header_idx]
+    idx_code = _find_first_col(header, {"assemb", "assemblato", "codice"})
+    idx_desc = _find_first_col(header, {"descrizione", "descr"})
+    idx_profile = _find_first_col(header, {"profilo", "profile"})
+    idx_qty = _find_first_col(header, {"qta", "quantita", "qty"})
+    idx_length = _find_first_col(header, {"lunghmm", "lunghezzamm", "lungh", "lunghezza"})
+    idx_width = _find_first_col(header, {"larghmm", "larghezzamm", "largh", "larghezza"})
+    idx_height = _find_first_col(header, {"altmm", "altezzamm", "alt", "altezza"})
+    idx_unit_weight = _find_first_col(header, {"pesokgun", "pesounitario", "pesounitariokg"})
+    idx_total_weight = _find_first_col(header, {"pesokgtot", "pesototale", "pesototalekg"})
+    idx_area = _find_first_col(header, {"areaverniciabilemq", "area"})
+
+    if idx_code is None or idx_qty is None:
+        raise ValueError("colonne codice/quantità spedizione non riconosciute")
+
+    parsed: list[dict] = []
+    for row_number, row in enumerate(rows[header_idx + 1:], start=1):
+        code = _cell(row, idx_code)
+        if not code or code.lower().startswith("totale"):
+            continue
+        parsed.append({
+            "row_index": row_number,
+            "codice": code,
+            "descrizione": _cell(row, idx_desc),
+            "profilo": _cell(row, idx_profile),
+            "quantita": _num_or_none(_cell(row, idx_qty)) or 0,
+            "lunghezza_mm": _num_or_none(_cell(row, idx_length)),
+            "larghezza_mm": _num_or_none(_cell(row, idx_width)),
+            "altezza_mm": _num_or_none(_cell(row, idx_height)),
+            "peso_unitario_kg": _num_or_none(_cell(row, idx_unit_weight)),
+            "peso_totale_kg": _num_or_none(_cell(row, idx_total_weight)),
+            "area_verniciabile_mq": _num_or_none(_cell(row, idx_area)),
+            "trattamento": trattamento,
+            "source_file": path.name,
+        })
+
+    if not parsed:
         raise ValueError("nessuna riga spedizione valida trovata")
-    return {
+    report = {
         "ok": True,
-        "summary": f"Lista spedizione leggibile: {len(data_rows)} righe rilevate",
-        "righe": len(data_rows),
+        "summary": f"Lista spedizione leggibile: {len(parsed)} righe rilevate",
+        "righe": len(parsed),
+        "quantita": sum(float(row["quantita"] or 0) for row in parsed),
     }
+    return parsed, report
+
+
+def _validate_spedizione_file(path: Path) -> dict:
+    _, report = _parse_spedizione_file(path)
+    return report
+
+
+def _populate_post_officina_items(
+    db: Session,
+    commessa_id: int,
+    revisione_id: int,
+    spedizione_items: list[dict],
+) -> int:
+    if not spedizione_items:
+        return 0
+
+    db.query(CommessaPostOfficinaItem).filter(
+        CommessaPostOfficinaItem.revisione_id == revisione_id
+    ).delete(synchronize_session=False)
+
+    distinta_items = (
+        db.query(DistintaItem)
+        .filter(DistintaItem.revisione_id == revisione_id)
+        .all()
+    )
+    assembly_codes = {
+        str(item.parent_assembly).strip()
+        for item in distinta_items
+        if item.parent_assembly and str(item.parent_assembly).strip()
+    }
+    loose_piece_codes = {
+        str(item.part_number).strip()
+        for item in distinta_items
+        if item.part_number and str(item.part_number).strip()
+    }
+
+    inserted = 0
+    for idx, row in enumerate(spedizione_items, start=1):
+        code = str(row.get("codice") or "").strip()
+        if not code:
+            continue
+        if code in assembly_codes:
+            tipo_unita = "ASSEMBLATO"
+        elif code in loose_piece_codes:
+            tipo_unita = "PEZZO_SCIOLTO"
+        else:
+            tipo_unita = "NON_CLASSIFICATO"
+        db.add(CommessaPostOfficinaItem(
+            commessa_id=commessa_id,
+            revisione_id=revisione_id,
+            row_index=int(row.get("row_index") or idx),
+            codice=code,
+            descrizione=row.get("descrizione"),
+            profilo=row.get("profilo"),
+            quantita=row.get("quantita") or 0,
+            lunghezza_mm=row.get("lunghezza_mm"),
+            larghezza_mm=row.get("larghezza_mm"),
+            altezza_mm=row.get("altezza_mm"),
+            peso_unitario_kg=row.get("peso_unitario_kg"),
+            peso_totale_kg=row.get("peso_totale_kg"),
+            area_verniciabile_mq=row.get("area_verniciabile_mq"),
+            trattamento=row.get("trattamento"),
+            tipo_unita=tipo_unita,
+            source_file=row.get("source_file"),
+        ))
+        inserted += 1
+    return inserted
 
 
 def _validate_lista_pezzi_file(path: Path) -> dict:
@@ -1119,6 +1279,109 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
         },
         "fabbisogno": _build_fabbisogno_commessa(items, bulloneria_rows),
         "positions": position_rows,
+    }
+
+
+def _post_officina_item_read(row: CommessaPostOfficinaItem) -> dict:
+    return {
+        "id": row.id,
+        "commessa_id": row.commessa_id,
+        "revisione_id": row.revisione_id,
+        "row_index": row.row_index,
+        "codice": row.codice,
+        "descrizione": row.descrizione,
+        "profilo": row.profilo,
+        "quantita": float(row.quantita or 0),
+        "lunghezza_mm": float(row.lunghezza_mm) if row.lunghezza_mm is not None else None,
+        "larghezza_mm": float(row.larghezza_mm) if row.larghezza_mm is not None else None,
+        "altezza_mm": float(row.altezza_mm) if row.altezza_mm is not None else None,
+        "peso_unitario_kg": float(row.peso_unitario_kg) if row.peso_unitario_kg is not None else None,
+        "peso_totale_kg": float(row.peso_totale_kg) if row.peso_totale_kg is not None else None,
+        "area_verniciabile_mq": float(row.area_verniciabile_mq) if row.area_verniciabile_mq is not None else None,
+        "trattamento": row.trattamento,
+        "tipo_unita": row.tipo_unita,
+        "lavorazioni_status": row.lavorazioni_status,
+        "cantiere_status": row.cantiere_status,
+        "source_file": row.source_file,
+        "qr_image_url": f"/post-officina-qr-image/{row.commessa_id}/{quote(row.codice, safe='')}.png",
+        "qr_payload": f"STQC:POST:{row.commessa_id}:{row.revisione_id}:{row.codice}",
+    }
+
+
+@router.get("/{commessa_id}/post-officina")
+def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    rows = (
+        db.query(CommessaPostOfficinaItem)
+        .filter(CommessaPostOfficinaItem.revisione_id == revisione.id)
+        .order_by(CommessaPostOfficinaItem.row_index, CommessaPostOfficinaItem.id)
+        .all()
+    )
+    if not rows:
+        spedizione_doc = _spedizione_doc(revisione)
+        if spedizione_doc and spedizione_doc.storage_path:
+            spedizione_path = settings.upload_dir.parent / spedizione_doc.storage_path
+            if spedizione_path.exists():
+                try:
+                    spedizione_items, _ = _parse_spedizione_file(spedizione_path)
+                    _populate_post_officina_items(db, commessa.id, revisione.id, spedizione_items)
+                    db.commit()
+                    rows = (
+                        db.query(CommessaPostOfficinaItem)
+                        .filter(CommessaPostOfficinaItem.revisione_id == revisione.id)
+                        .order_by(CommessaPostOfficinaItem.row_index, CommessaPostOfficinaItem.id)
+                        .all()
+                    )
+                except Exception as exc:
+                    _logger.warning(
+                        "Backfill post-officina non riuscito per revisione %s commessa %d: %s",
+                        revisione.codice,
+                        commessa_id,
+                        exc,
+                    )
+    summary_by_type: dict[str, dict] = {}
+    summary_by_treatment: dict[str, dict] = {}
+    for row in rows:
+        tipo = row.tipo_unita or "NON_CLASSIFICATO"
+        type_bucket = summary_by_type.setdefault(tipo, {"tipo": tipo, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
+        type_bucket["righe"] += 1
+        type_bucket["quantita"] += float(row.quantita or 0)
+        type_bucket["peso_kg"] += float(row.peso_totale_kg or 0)
+
+        trattamento = row.trattamento or "Non indicato"
+        treatment_bucket = summary_by_treatment.setdefault(trattamento, {"trattamento": trattamento, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
+        treatment_bucket["righe"] += 1
+        treatment_bucket["quantita"] += float(row.quantita or 0)
+        treatment_bucket["peso_kg"] += float(row.peso_totale_kg or 0)
+
+    return {
+        "commessa": {
+            "id": commessa.id,
+            "codice": commessa.codice,
+            "cliente": commessa.cliente,
+            "status": commessa.status,
+        },
+        "revisione": {
+            "id": revisione.id,
+            "codice": revisione.codice,
+            "imported_at": revisione.imported_at,
+        },
+        "summary": {
+            "righe": len(rows),
+            "quantita": sum(float(row.quantita or 0) for row in rows),
+            "peso_kg": sum(float(row.peso_totale_kg or 0) for row in rows),
+            "assemblati": sum(1 for row in rows if row.tipo_unita == "ASSEMBLATO"),
+            "pezzi_sciolti": sum(1 for row in rows if row.tipo_unita == "PEZZO_SCIOLTO"),
+            "non_classificati": sum(1 for row in rows if row.tipo_unita == "NON_CLASSIFICATO"),
+            "by_type": sorted(summary_by_type.values(), key=lambda item: item["tipo"]),
+            "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
+        },
+        "items": [_post_officina_item_read(row) for row in rows],
     }
 
 

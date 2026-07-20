@@ -59,6 +59,7 @@ class CommessaRevisione(Base):
     items    = relationship("DistintaItem", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
     documenti = relationship("CommessaDocumento", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
     pieces = relationship("Piece", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
+    post_officina_items = relationship("CommessaPostOfficinaItem", back_populates="revisione", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class CommessaDocumento(Base):
@@ -100,6 +101,47 @@ class CommessaBulloneria(Base):
     note = Column(Text, nullable=True)
     source_file = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CommessaPostOfficinaItem(Base):
+    """Righe operative lette dalla Lista spedizione.
+
+    La lista spedizione è il master per lavorazioni post-officina e uscita
+    verso cantiere. Qui non facciamo validazioni bloccanti: salviamo ciò che
+    il file dichiara e classifichiamo il codice solo per rendere leggibile la
+    vista direttore.
+    """
+    __tablename__ = "commessa_post_officina_items"
+    __table_args__ = (
+        UniqueConstraint("revisione_id", "row_index", name="uq_post_officina_revision_row"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
+    row_index = Column(Integer, nullable=False)
+
+    codice = Column(String(200), nullable=False, index=True)
+    descrizione = Column(String(500), nullable=True)
+    profilo = Column(String(250), nullable=True, index=True)
+    quantita = Column(Numeric(18, 6), nullable=False, default=0)
+    lunghezza_mm = Column(Numeric(12, 2), nullable=True)
+    larghezza_mm = Column(Numeric(12, 2), nullable=True)
+    altezza_mm = Column(Numeric(12, 2), nullable=True)
+    peso_unitario_kg = Column(Numeric(12, 4), nullable=True)
+    peso_totale_kg = Column(Numeric(12, 4), nullable=True)
+    area_verniciabile_mq = Column(Numeric(12, 4), nullable=True)
+    trattamento = Column(String(160), nullable=True, index=True)
+
+    tipo_unita = Column(String(40), nullable=False, default="NON_CLASSIFICATO", index=True)
+    lavorazioni_status = Column(String(40), nullable=False, default="NON_PRONTO", index=True)
+    cantiere_status = Column(String(40), nullable=False, default="NON_PRONTO", index=True)
+    source_file = Column(String(500), nullable=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    revisione = relationship("CommessaRevisione", back_populates="post_officina_items")
 
 
 class Piece(Base):

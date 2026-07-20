@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <script src="/static/commessa-embed.js?v=commessa-shell1"></script>
   <link rel="stylesheet" href="/static/qr-drawer.css?v=scan4">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -28,10 +29,23 @@
     .nav-sep { color: var(--muted); }
     .nav-current { font-size: 12px; font-weight: 700; }
     .nav-user { margin-left: auto; font-size: 11px; color: var(--muted); }
-    .page { max-width: 1320px; margin: 0 auto; padding: 38px 32px 70px; }
+    .page { width: min(1760px, calc(100vw - 72px)); max-width: none; margin: 0 auto; padding: 38px 0 70px; }
     .header {
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: 24px; margin-bottom: 28px;
+    }
+    .header-actions {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+      min-width: 230px;
+    }
+    .header-status-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .header-office-btn {
+      width: 100%; min-height: 50px; justify-content: center;
+      border-radius: 16px; box-shadow: 0 16px 42px rgba(59,130,246,.24);
+    }
+    .header-office-btn small {
+      display: block; margin-top: 3px; color: rgba(255,255,255,.74);
+      font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase;
     }
     .eyebrow {
       color: var(--muted); font-size: 10px; font-weight: 800;
@@ -596,8 +610,8 @@ function renderMacroFlow() {
     { title: "Analisi commessa", state: "COMPLETATA", sub: "File acquisiti e distinta pronta", href: commessaUrl("analisi") },
     { title: "Officina", state: officeState, sub: `${fmt(summary.n_qr_attivi || 0)} QR pezzi attivi`, href: commessaUrl("officina") },
     { title: "Assemblaggio", state: assemblyState, sub: assemblyProgress > 0 ? `${fmt(assemblyProgress)}% avanzamento assemblati` : "In attesa scan assemblaggio", href: commessaUrl("assemblaggi") },
-    { title: "Lavorazioni", state: "NON_INIZIATA", sub: "Post-officina e lavorazioni esterne" },
-    { title: "Cantiere", state: "NON_INIZIATA", sub: "Spedizione finale e chiusura" },
+    { title: "Lavorazioni", state: "NON_INIZIATA", sub: "Post-officina e lavorazioni esterne", href: commessaUrl("lavorazioni") },
+    { title: "In cantiere", state: "NON_INIZIATA", sub: "Spedizione finale e chiusura", href: commessaUrl("in-cantiere") },
   ];
   return `<div class="macro-flow">${cards.map((card, index) => `
     <${card.href ? `a href="${esc(card.href)}"` : "div"} class="macro-card ${macroStateClass(card.state)}">
@@ -622,11 +636,19 @@ function renderPage() {
         <h1>Analisi ${esc(c.codice)}</h1>
         <div class="subtitle">${esc(c.cliente || "Cliente non specificato")} · Distinta acquisita</div>
       </div>
-      <div>
-        <span class="status ${r.stato_analisi === "PRONTA" ? "ok" : "warn"}">
-          ${r.stato_analisi === "PRONTA" ? "✓ Analisi coerente" : "⚠ Da verificare"}
-        </span>
-        ${r.predistinta ? '<span class="status pre">Pre-distinta</span>' : ""}
+      <div class="header-actions">
+        <div class="header-status-row">
+          <span class="status ${r.stato_analisi === "PRONTA" ? "ok" : "warn"}">
+            ${r.stato_analisi === "PRONTA" ? "✓ Analisi coerente" : "⚠ Da verificare"}
+          </span>
+          ${r.predistinta ? '<span class="status pre">Pre-distinta</span>' : ""}
+        </div>
+        ${r.step51_completato ? `
+          <button class="btn cta header-office-btn" onclick="openQrRegistry()">
+            Apri In officina
+            <small>${fmt(s.n_qr_attivi)} QR pezzi attivi</small>
+          </button>
+        ` : ""}
       </div>
     </header>
 
@@ -667,26 +689,13 @@ function renderPage() {
 
     ${renderFabbisognoSection()}
 
-    <section class="section production-section" id="step-5-1">
-      <div class="section-head">
-        <div><div class="section-title">In officina</div>
-        <div class="section-sub">QR operativi dei pezzi fisici in produzione. Gli scan aggiornano stato, fasi e avanzamento reale.</div></div>
-      </div>
-      <div class="workflow-card ${r.step51_completato ? "" : "qr-cta"}">
-        ${r.step51_completato ? `
-          <div class="qr-summary-card">
-            <div>
-              <div class="workflow-title">Pezzi in officina</div>
-              <div class="workflow-copy">
-                ${fmt(s.n_qr_attivi)} pezzi sono identificati. Apri la vista officina per consultare, stampare, selezionare o verificare i singoli QR.
-              </div>
-            </div>
-            <div class="qr-summary-actions">
-              <div class="qr-summary-number">${fmt(s.n_qr_attivi)}</div>
-              <button class="btn cta" onclick="openQrRegistry()">Apri In officina</button>
-            </div>
-          </div>
-        ` : `
+    ${r.step51_completato ? "" : `
+      <section class="section production-section" id="step-5-1">
+        <div class="section-head">
+          <div><div class="section-title">In officina</div>
+          <div class="section-sub">Genera i QR operativi dei pezzi fisici in produzione.</div></div>
+        </div>
+        <div class="workflow-card qr-cta">
           <div class="workflow-head">
             <div>
               <div class="qr-cta-title">Genera QR commessa</div>
@@ -694,10 +703,10 @@ function renderPage() {
             </div>
             <button class="btn cta" id="generate-qr-btn" onclick="generateStep51()" ${r.stato_analisi !== "PRONTA" ? "disabled" : ""}>Genera QR commessa</button>
           </div>
-        `}
-        <div id="step51-feedback" class="feedback"></div>
-      </div>
-    </section>
+          <div id="step51-feedback" class="feedback"></div>
+        </div>
+      </section>
+    `}
 
     ${renderAssemblatiSection()}
 
@@ -978,6 +987,7 @@ async function changeQrPage(delta) {
 }
 
 function openQrRegistry() {
+  if (window.stqcNavigate) return window.stqcNavigate(commessaUrl("officina"));
   location.href = commessaUrl("officina");
 }
 
