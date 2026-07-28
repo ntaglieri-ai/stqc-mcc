@@ -222,6 +222,66 @@
       font-size: 20px;
       background: rgba(255,255,255,.14);
     }
+    .dashboard-overview { display: none; }
+    body.dashboard-mode .dashboard-overview { display: block; margin: -10px 0 32px; }
+    .dashboard-kpis {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .dashboard-kpi {
+      min-height: 132px;
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: 24px;
+      padding: 20px 22px;
+      background:
+        radial-gradient(circle at 86% 12%, rgba(59,130,246,.18), transparent 38%),
+        linear-gradient(145deg, rgba(17,34,60,.86), rgba(9,16,29,.9));
+      box-shadow: 0 24px 70px rgba(0,0,0,.18);
+    }
+    .dashboard-kpi.hot {
+      border-color: rgba(251,191,36,.34);
+      background:
+        radial-gradient(circle at 88% 12%, rgba(251,191,36,.16), transparent 36%),
+        linear-gradient(145deg, rgba(40,32,16,.74), rgba(9,16,29,.9));
+    }
+    .dashboard-kpi.good {
+      border-color: rgba(74,222,128,.24);
+      background:
+        radial-gradient(circle at 88% 12%, rgba(74,222,128,.13), transparent 38%),
+        linear-gradient(145deg, rgba(10,39,32,.72), rgba(9,16,29,.9));
+    }
+    .dashboard-kpi-label {
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #93a9c7;
+    }
+    .dashboard-kpi-value {
+      margin-top: 12px;
+      font-size: 42px;
+      line-height: .95;
+      font-weight: 950;
+      letter-spacing: -.06em;
+      color: #eaf2ff;
+    }
+    .dashboard-kpi-sub {
+      margin-top: 12px;
+      color: rgba(219,234,254,.58);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 650;
+    }
+    @media (max-width: 1180px) {
+      .dashboard-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      body.dashboard-mode .page { padding-left: 18px; padding-right: 18px; }
+      .dashboard-kpis { grid-template-columns: 1fr; }
+      body.dashboard-mode .grid { grid-template-columns: 1fr; }
+    }
     .c-delete {
       position: absolute; top: 14px; right: 14px;
       width: 27px; height: 27px; border-radius: 50%;
@@ -316,6 +376,8 @@
     <div class="page-sub" id="page-sub">Caricamento…</div>
   </div>
 
+  <section class="dashboard-overview" id="dashboard-overview" aria-live="polite"></section>
+
   <div class="ops-box">
     <div>
       <div class="ops-title">Codici postazione officina</div>
@@ -358,12 +420,22 @@
 <script>
 const DASHBOARD_MODE = location.pathname === '/dashboard';
 
-function getAuth() { return 'Bearer ' + sessionStorage.getItem('stqc_token'); }
+function getAuth() { return 'Bearer ' + (sessionStorage.getItem('stqc_token') || ''); }
 function logout() {
   sessionStorage.removeItem('stqc_token');
   sessionStorage.removeItem('stqc_profilo');
   sessionStorage.removeItem('stqc_nome');
   window.location.replace('/login');
+}
+
+function handleUnauthorized() {
+  logout();
+  throw new Error('Sessione scaduta');
+}
+
+function assertAuthorized(res) {
+  if (res.status === 401) handleUnauthorized();
+  return res;
 }
 
 const BG_IMGS = [
@@ -378,6 +450,7 @@ const BG_IMGS = [
 let allCommesse = [];
 let currentFilter = 'ALL';
 let stationCodes = [];
+let dashboardData = null;
 
 function applyPageMode() {
   if (!DASHBOARD_MODE) return;
@@ -390,7 +463,7 @@ function applyPageMode() {
   if (header && !header.querySelector('.dashboard-intro')) {
     document.querySelector('.page-title').insertAdjacentHTML(
       'afterend',
-      '<div class="dashboard-intro">Seleziona una commessa per controllare avanzamento, magazzino, officina e prossime fasi operative.</div>'
+      '<div class="dashboard-intro">Seleziona una commessa. La dashboard mostra solo conteggi diretti da DB: scan, magazzino e movimenti.</div>'
     );
   }
 }
@@ -413,7 +486,7 @@ async function loadStationCodes() {
   const grid = document.getElementById('station-grid');
   grid.innerHTML = '<div class="state-msg">Caricamento postazioni…</div>';
   try {
-    const r = await fetch('/api/v1/admin/workstations/qr-codes', { headers: { Authorization: getAuth() } });
+    const r = assertAuthorized(await fetch('/api/v1/admin/workstations/qr-codes', { headers: { Authorization: getAuth() } }));
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'Errore caricamento postazioni');
     stationCodes = d.items || [];
@@ -482,6 +555,59 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function fmtNum(n) {
+  return Number(n || 0).toLocaleString('it-IT');
+}
+
+function fmtKg(n) {
+  return Number(n || 0).toLocaleString('it-IT', { maximumFractionDigits: 1 });
+}
+
+function renderDashboardOverview() {
+  if (!DASHBOARD_MODE) return;
+  const box = document.getElementById('dashboard-overview');
+  if (!box || !dashboardData) return;
+  const s = dashboardData.summary || {};
+  box.innerHTML = `
+    <div class="dashboard-kpis">
+      <div class="dashboard-kpi good">
+        <div class="dashboard-kpi-label">Commesse aperte</div>
+        <div class="dashboard-kpi-value">${fmtNum(s.commesse_aperte)}</div>
+        <div class="dashboard-kpi-sub">commesse attualmente aperte</div>
+      </div>
+      <div class="dashboard-kpi hot">
+        <div class="dashboard-kpi-label">Commesse in produzione</div>
+        <div class="dashboard-kpi-value">${fmtNum(s.commesse_in_produzione)}</div>
+        <div class="dashboard-kpi-sub">con scan officina o assemblaggi</div>
+      </div>
+      <div class="dashboard-kpi">
+        <div class="dashboard-kpi-label">Scan produzione oggi</div>
+        <div class="dashboard-kpi-value">${fmtNum(s.scan_officina_oggi)}</div>
+        <div class="dashboard-kpi-sub">officina e assemblaggi registrati oggi</div>
+      </div>
+      <div class="dashboard-kpi">
+        <div class="dashboard-kpi-label">Pezzi scansionati</div>
+        <div class="dashboard-kpi-value">${fmtNum(s.scan_produzione_totali)}</div>
+        <div class="dashboard-kpi-sub">conteggio letture officina + assemblaggi, non avanzamento</div>
+      </div>
+      <div class="dashboard-kpi">
+        <div class="dashboard-kpi-label">Materiali a magazzino</div>
+        <div class="dashboard-kpi-value">${fmtNum(s.materiali_magazzino)}</div>
+        <div class="dashboard-kpi-sub">anagrafiche materiale presenti</div>
+      </div>
+      <div class="dashboard-kpi">
+        <div class="dashboard-kpi-label">Movimenti magazzino oggi</div>
+        <div class="dashboard-kpi-value">${fmtNum(s.movimenti_magazzino_oggi)}</div>
+        <div class="dashboard-kpi-sub">ingressi e uscite registrati oggi</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCardMetrics(c) {
+  return '';
+}
+
 function setFilter(status) {
   currentFilter = status;
   document.querySelectorAll('.filter-chip').forEach(btn => {
@@ -491,6 +617,7 @@ function setFilter(status) {
 }
 
 function renderGrid() {
+  renderDashboardOverview();
   const grid = document.getElementById('comm-grid');
   const sub  = document.getElementById('page-sub');
 
@@ -541,14 +668,15 @@ function renderGrid() {
             </div>
             <div class="c-progress-pct">${pct}% avanzamento</div>
           ` : ''}
+          ${renderCardMetrics(c)}
         </div>
       </div>`;
   }).join('');
 }
 
-async function enterCommessa(codice) {
-  window.location.href = `/commesse/${encodeURIComponent(codice)}/analisi`;
-}
+    async function enterCommessa(codice) {
+      window.location.href = `/commesse/${encodeURIComponent(codice)}`;
+    }
 
 async function deleteCommessa(id, codice) {
   if (!confirm(`Eliminare definitivamente la commessa "${codice}"?\n\nQuesta azione è irreversibile.`)) return;
@@ -568,9 +696,21 @@ async function deleteCommessa(id, codice) {
 async function loadCommesse() {
   const grid = document.getElementById('comm-grid');
   try {
-    const res = await fetch('/api/v1/commesse?limit=500', { headers: { Authorization: getAuth() } });
+    const [resRaw, dashboardResRaw] = await Promise.all([
+      fetch('/api/v1/commesse?limit=500', { headers: { Authorization: getAuth() } }),
+      DASHBOARD_MODE
+        ? fetch('/api/v1/commesse/dashboard', { headers: { Authorization: getAuth() } })
+        : Promise.resolve(null),
+    ]);
+    const res = assertAuthorized(resRaw);
+    const dashboardRes = dashboardResRaw ? assertAuthorized(dashboardResRaw) : null;
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allCommesse = await res.json();
+    if (dashboardRes && dashboardRes.ok) {
+      dashboardData = await dashboardRes.json();
+    } else {
+      dashboardData = null;
+    }
 
     // Sort: scadute → in scadenza → OK → sospese → chiuse
     const order = { '#f87171': 0, '#fbbf24': 1, '#4ade80': 2, '#9ca3af': 3 };

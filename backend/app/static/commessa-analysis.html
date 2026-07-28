@@ -708,8 +708,6 @@ function renderPage() {
       </section>
     `}
 
-    ${renderAssemblatiSection()}
-
     <div class="footer-note">
       La commessa viene aggiornata dagli eventi reali generati dagli scan in officina.
     </div>`;
@@ -835,32 +833,6 @@ function renderFabbisognoRows(query) {
       <td><span class="origin-pill">${esc(row.origine_label || row.origine || "—")}</span></td>
       <td><span class="qr-pill ${row.qr_scope === "NESSUN_QR" ? "no" : ""}">${row.qr_scope === "NESSUN_QR" ? "No QR" : "QR pezzo"}</span></td>
     </tr>`).join("") || '<tr><td colspan="9">Nessun fabbisogno trovato</td></tr>';
-}
-
-function renderAssemblatiSection() {
-  const data = assemblyData || { summary: {}, assemblati: [] };
-  const s = data.summary || {};
-  return `<section class="section assembly-section" id="assemblati-section">
-    <div class="section-head">
-      <div><div class="section-title">Assemblaggio</div>
-      <div class="section-sub">Vista sintetica. L’analisi dettagliata degli assemblati sarà nella pagina Assemblati.</div></div>
-    </div>
-    <div class="assembly-overview">
-      <div class="assembly-progress-card">
-        <div class="assembly-card-label">Avanzamento complessivo</div>
-        <div class="assembly-card-value">${fmt(s.progress)}%</div>
-        <div class="assembly-card-sub">${fmt(s.pezzi_completati)} / ${fmt(s.pezzi_previsti)} pezzi completati in assemblaggio</div>
-        <div class="progress-track"><div class="progress-fill" style="width:${Math.max(0, Math.min(100, Number(s.progress || 0)))}%"></div></div>
-      </div>
-      <div class="assembly-progress-card"><div class="assembly-card-label">Assemblati</div><div class="assembly-card-value">${fmt(s.totali)}</div><div class="assembly-card-sub">totali da distinta</div></div>
-      <div class="assembly-progress-card"><div class="assembly-card-label">Da produrre</div><div class="assembly-card-value">${fmt(s.da_produrre)}</div><div class="assembly-card-sub">nessuno scan assemblaggio</div></div>
-      <div class="assembly-progress-card"><div class="assembly-card-label">In assemblaggio</div><div class="assembly-card-value">${fmt(s.in_assemblaggio)}</div><div class="assembly-card-sub">almeno un pezzo entrato</div></div>
-      <div class="assembly-progress-card"><div class="assembly-card-label">Completi</div><div class="assembly-card-value">${fmt(s.completi)}</div><div class="assembly-card-sub">pezzi completati</div></div>
-    </div>
-    <div class="explanation">
-      <strong>Nota:</strong> qui resta solo il quadro sintetico. La tabella di dettaglio degli assemblati viene separata dalla pagina Analisi commessa per non mischiare fabbisogno, QR e avanzamento.
-    </div>
-  </section>`;
 }
 
 function renderAssemblyRows(query) {

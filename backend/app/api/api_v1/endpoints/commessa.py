@@ -2,7 +2,7 @@ import logging
 import shutil
 import tempfile
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import quote
@@ -21,7 +21,7 @@ _logger = logging.getLogger("stqc.commessa")
 from backend.app.models.commessa import (
     Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
-from backend.app.models.warehouse import DistintaImport, DistintaItem, WarehouseItem
+from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
 from backend.app.services.distinta import (
     ALIASES,
@@ -272,6 +272,59 @@ def list_commesse(
     db: Session = Depends(get_db),
 ):
     return crud.get_commesse(db=db, skip=skip, limit=limit, status=status, q=q)
+
+
+@router.get("/dashboard")
+def get_dashboard_commesse(db: Session = Depends(get_db)):
+    commesse = crud.get_commesse(db=db, skip=0, limit=1000)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    workshop_event_types = {"PIECE_READ", "PHASE_START", "PHASE_DONE", "PHASE_END"}
+
+    commesse_in_produzione = (
+        db.query(PieceScanEvent.commessa_id)
+        .filter(
+            PieceScanEvent.event_type.in_(workshop_event_types),
+            PieceScanEvent.commessa_id.isnot(None),
+        )
+        .distinct()
+        .count()
+    )
+
+    summary = {
+        "commesse_total": len(commesse),
+        "commesse_aperte": sum(1 for c in commesse if c.status == CommessaStatus.APERTA),
+        "commesse_in_produzione": commesse_in_produzione,
+        "scan_officina_oggi": (
+            db.query(PieceScanEvent)
+            .filter(
+                PieceScanEvent.event_type.in_(workshop_event_types),
+                PieceScanEvent.timestamp >= today_start,
+                PieceScanEvent.timestamp < tomorrow_start,
+            )
+            .count()
+        ),
+        "scan_produzione_totali": (
+            db.query(PieceScanEvent)
+            .filter(PieceScanEvent.event_type.in_(workshop_event_types))
+            .count()
+        ),
+        "materiali_magazzino": db.query(Material).count(),
+        "movimenti_magazzino_oggi": (
+            db.query(StockMovement)
+            .filter(
+                StockMovement.movement_type.in_([MovementType.INCOMING, MovementType.OUTGOING]),
+                StockMovement.occurred_at >= today_start,
+                StockMovement.occurred_at < tomorrow_start,
+            )
+            .count()
+        ),
+    }
+
+    return {
+        "summary": summary,
+        "commesse": {},
+    }
 
 
 @router.get("/resolve/{commessa_ref}")
