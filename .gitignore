@@ -42,3 +42,5 @@ htmlcov/
 # Alembic (mantieni le versioni, escludi solo cache)
 alembic/__pycache__/
 alembic/versions/__pycache__/
+__pycache__/
+*.pyc
