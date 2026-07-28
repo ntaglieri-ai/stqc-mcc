@@ -144,7 +144,7 @@
         {title:'Officina',state:Number(s.pezzi_previsti||0)>0?'IN_CORSO':'NON_INIZIATA',sub:`${fmt(s.pezzi_previsti)} QR pezzi`,href:commessaUrl('officina')},
         {title:'Assemblaggio',state:assemblyProgress>=100?'COMPLETATA':Number(s.pezzi_entrati||0)>0?'IN_CORSO':'NON_INIZIATA',sub:assemblyProgress>0?`${fmt(assemblyProgress)}% pezzi montati`:'In attesa scan assemblaggio',href:commessaUrl('assemblaggi')},
         {title:'Lavorazioni',state:'NON_INIZIATA',sub:'Post-officina e lavorazioni esterne',href:commessaUrl('lavorazioni')},
-        {title:'In cantiere',state:'NON_INIZIATA',sub:'Spedizione finale e chiusura',href:commessaUrl('in-cantiere')},
+        {title:'Spedizione',state:'NON_INIZIATA',sub:'Uscita finale',href:commessaUrl('in-cantiere')},
       ];
       document.getElementById('macro-flow').innerHTML=`<div class="macro-flow">${cards.map((card,index)=>`<a class="macro-card ${macroStateClass(card.state)}" ${card.href?`href="${esc(card.href)}"`:''}><div class="macro-kicker"><span>${index+1}</span><span class="macro-state">${macroStateLabel(card.state)}</span></div><div class="macro-title">${esc(card.title)}</div><div class="macro-sub">${esc(card.sub)}</div></a>`).join('')}</div>`;
     }

@@ -38,6 +38,7 @@ class CommessaUpdate(BaseModel):
 class CommessaRead(CommessaBase):
     id: int
     created_at: datetime
+    spedizione_ad_hoc: bool = False
 
     class Config:
         from_attributes = True

@@ -611,7 +611,7 @@ function renderMacroFlow() {
     { title: "Officina", state: officeState, sub: `${fmt(summary.n_qr_attivi || 0)} QR pezzi attivi`, href: commessaUrl("officina") },
     { title: "Assemblaggio", state: assemblyState, sub: assemblyProgress > 0 ? `${fmt(assemblyProgress)}% avanzamento assemblati` : "In attesa scan assemblaggio", href: commessaUrl("assemblaggi") },
     { title: "Lavorazioni", state: "NON_INIZIATA", sub: "Post-officina e lavorazioni esterne", href: commessaUrl("lavorazioni") },
-    { title: "In cantiere", state: "NON_INIZIATA", sub: "Spedizione finale e chiusura", href: commessaUrl("in-cantiere") },
+    { title: "Spedizione", state: "NON_INIZIATA", sub: "Uscita finale", href: commessaUrl("in-cantiere") },
   ];
   return `<div class="macro-flow">${cards.map((card, index) => `
     <${card.href ? `a href="${esc(card.href)}"` : "div"} class="macro-card ${macroStateClass(card.state)}">

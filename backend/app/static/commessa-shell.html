@@ -10,7 +10,7 @@
     .shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
     .shell-head{position:relative;z-index:3;background:linear-gradient(180deg,#0d1829 0%,#091321 100%);border-bottom:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.18)}
     .bar{height:56px;display:flex;align-items:center;gap:12px;padding:0 30px;border-bottom:1px solid rgba(147,197,253,.1)}
-    .back{color:#a9bbd2;text-decoration:none;font-weight:800;font-size:14px}.crumb{color:#637b98}.name{color:#dce8fa;font-weight:900}.view-name{color:#a8c4ef;font-weight:850}.spacer{flex:1}.hint{font-size:12px;color:#7890ad}
+    .back,.section-link{color:#a9bbd2;text-decoration:none;font-weight:800;font-size:14px}.section-link{color:#dce8fa}.back:hover,.section-link:hover{color:#fff}.crumb{color:#637b98}.name{color:#dce8fa;font-weight:900}.view-name{color:#a8c4ef;font-weight:850}.spacer{flex:1}.hint{font-size:12px;color:#7890ad}
     .timeline{max-width:1900px;margin:0 auto;padding:16px 30px 18px;display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:12px;position:relative}
     .timeline:before{content:"";position:absolute;left:9%;right:9%;top:32px;height:2px;background:linear-gradient(90deg,rgba(74,222,128,.8),rgba(96,165,250,.25));border-radius:999px}
     .stage{position:relative;min-height:76px;padding:13px 15px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(16,31,52,.88),rgba(9,18,32,.85));color:var(--text);text-align:left;cursor:pointer;transition:.18s transform,.18s border-color,.18s background}
@@ -23,22 +23,25 @@
 <body>
   <div class="shell">
     <header class="shell-head">
-      <div class="bar"><a class="back" href="/dashboard">← Dashboard</a><span class="crumb">/</span><span class="name">Commessa</span><span class="crumb">/</span><span class="view-name" id="current-view">Analisi commessa</span><span class="spacer"></span><span class="hint">Vista di gestione e controllo</span></div>
+      <div class="bar"><a class="back" href="/">← Home</a><span class="crumb">/</span><a class="section-link" id="section-link" href="/commesse">Gestione commesse</a><span class="crumb">/</span><span class="name" id="commessa-name">Commessa</span><span class="crumb">/</span><span class="view-name" id="current-view">Analisi commessa</span><span class="spacer"></span><span class="hint">Vista di gestione e controllo</span></div>
       <nav class="timeline" aria-label="Fasi commessa">
         <button class="stage done" data-view="analisi"><span class="number">01</span><span class="label">Analisi commessa</span><span class="sub">Dati e fabbisogno</span></button>
         <button class="stage" data-view="officina"><span class="number">02</span><span class="label">Officina</span><span class="sub">QR pezzi e lavorazioni</span></button>
         <button class="stage" data-view="assemblaggi"><span class="number">03</span><span class="label">Assemblaggi</span><span class="sub">Montaggio e avanzamento</span></button>
         <button class="stage" data-view="lavorazioni"><span class="number">04</span><span class="label">Lavorazioni</span><span class="sub">Interne ed esterne</span></button>
-        <button class="stage" data-view="in-cantiere"><span class="number">05</span><span class="label">In cantiere</span><span class="sub">Spedizione finale</span></button>
+        <button class="stage" data-view="in-cantiere"><span class="number">05</span><span class="label">Spedizione</span><span class="sub">Uscita finale</span></button>
       </nav>
     </header>
     <main class="frame-area"><iframe id="commessa-frame" title="Contenuto commessa"></iframe><div class="loader" id="loader"><span>Caricamento vista…</span></div></main>
   </div>
   <script>
-    const views={analisi:'Analisi commessa',officina:'In officina',assemblaggi:'Assemblaggi',lavorazioni:'Lavorazioni','in-cantiere':'In cantiere'};
+    const views={analisi:'Analisi commessa',officina:'In officina',assemblaggi:'Assemblaggi',lavorazioni:'Lavorazioni','in-cantiere':'Spedizione'};
     const valid=new Set(Object.keys(views)); const frame=document.getElementById('commessa-frame'); const loader=document.getElementById('loader');
+    const breadcrumbSource=(()=>{try{const ref=new URL(document.referrer);return ref.origin===location.origin&&ref.pathname.startsWith('/dashboard')?'dashboard':'commesse'}catch{return 'commesse'}})();
     const parse=()=>{const parts=location.pathname.split('/').filter(Boolean);return {ref:parts[1]||'',view:valid.has(parts[2])?parts[2]:'analisi'};};
-    function renderChrome(view){document.getElementById('current-view').textContent=views[view];document.title=`${views[view]} · MCC`;document.querySelectorAll('.stage').forEach(el=>el.classList.toggle('active',el.dataset.view===view));}
+    function renderBreadcrumbSource(){const el=document.getElementById('section-link');if(!el)return;if(breadcrumbSource==='dashboard'){el.textContent='Dashboard';el.href='/dashboard'}else{el.textContent='Gestione commesse';el.href='/commesse'}}
+    function updateCommessaName(ref){const el=document.getElementById('commessa-name');const decoded=decodeURIComponent(ref||'');el.textContent=decoded||'Commessa';fetch(`/api/v1/commesse/resolve/${encodeURIComponent(decoded)}`,{headers:{Authorization:'Bearer '+(sessionStorage.getItem('stqc_token')||'')}}).then(r=>r.ok?r.json():null).then(d=>{if(d?.codice)el.textContent=d.codice}).catch(()=>{});}
+    function renderChrome(view){const {ref}=parse();renderBreadcrumbSource();updateCommessaName(ref);document.getElementById('current-view').textContent=views[view];document.title=`${views[view]} · MCC`;document.querySelectorAll('.stage').forEach(el=>el.classList.toggle('active',el.dataset.view===view));}
     function navigate(url,push=true){const parsed=new URL(url,location.origin);const parts=parsed.pathname.split('/').filter(Boolean);const view=valid.has(parts[2])?parts[2]:parse().view;if(parts[0]!=='commesse'||!parts[1])return;const clean=`/commesse/${encodeURIComponent(decodeURIComponent(parts[1]))}/${view}`;if(push&&location.pathname!==clean)history.pushState({},'',clean);renderChrome(view);loader.classList.add('show');frame.src=`${clean}?embed=1`;}
     document.querySelectorAll('.stage').forEach(button=>button.addEventListener('click',()=>{const {ref}=parse();navigate(`/commesse/${encodeURIComponent(ref)}/${button.dataset.view}`)}));
     frame.addEventListener('load',()=>loader.classList.remove('show'));window.addEventListener('popstate',()=>navigate(location.pathname,false));

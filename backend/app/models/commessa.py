@@ -34,6 +34,11 @@ class Commessa(Base):
 
     fasi      = relationship("FaseOperativa", back_populates="commessa", cascade="all, delete-orphan", passive_deletes=True)
     revisioni = relationship("CommessaRevisione", back_populates="commessa", cascade="all, delete-orphan", passive_deletes=True, order_by="CommessaRevisione.id")
+    spedizioni_ad_hoc = relationship("SpedizioneAdHoc", back_populates="commessa", cascade="all, delete-orphan", passive_deletes=True)
+
+    @property
+    def spedizione_ad_hoc(self) -> bool:
+        return bool(self.spedizioni_ad_hoc) or any(bool((rev.report_analisi or {}).get("spedizione_ad_hoc")) for rev in self.revisioni)
 
 
 class CommessaRevisione(Base):
@@ -142,6 +147,71 @@ class CommessaPostOfficinaItem(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
     revisione = relationship("CommessaRevisione", back_populates="post_officina_items")
+
+
+class SpedizioneAdHoc(Base):
+    """Spedizione libera caricata da file spedizione, separata dal flusso post-officina.
+
+    Serve per gestire spedizioni già codificate fuori dal tool: salviamo le righe
+    del file e le marchiamo come trovate quando una pistola dedicata legge ID,
+    Marca, Assemb. o equivalenti.
+    """
+    __tablename__ = "spedizioni_ad_hoc"
+
+    id = Column(Integer, primary_key=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=True, index=True)
+    titolo = Column(String(200), nullable=False, index=True)
+    source_file = Column(String(500), nullable=True)
+    stato = Column(String(40), nullable=False, default="APERTA", index=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    commessa = relationship("Commessa", back_populates="spedizioni_ad_hoc")
+    items = relationship("SpedizioneAdHocItem", back_populates="spedizione", cascade="all, delete-orphan", passive_deletes=True)
+
+
+class SpedizioneAdHocItem(Base):
+    """Riga singola di una spedizione ad hoc.
+
+    Non ha QR generato dal tool. Lo stato diventa TROVATO quando uno scanner
+    SPEDIZIONE_AD_HOC legge un payload con ID/Marca corrispondente al codice.
+    """
+    __tablename__ = "spedizione_ad_hoc_items"
+    __table_args__ = (
+        UniqueConstraint("spedizione_id", "row_index", name="uq_spedizione_ad_hoc_row"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    spedizione_id = Column(Integer, ForeignKey("spedizioni_ad_hoc.id", ondelete="CASCADE"), nullable=False, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=True, index=True)
+    row_index = Column(Integer, nullable=False)
+
+    codice = Column(String(200), nullable=False, index=True)
+    descrizione = Column(String(500), nullable=True)
+    profilo = Column(String(250), nullable=True, index=True)
+    quantita = Column(Numeric(18, 6), nullable=False, default=0)
+    lunghezza_mm = Column(Numeric(12, 2), nullable=True)
+    larghezza_mm = Column(Numeric(12, 2), nullable=True)
+    altezza_mm = Column(Numeric(12, 2), nullable=True)
+    peso_unitario_kg = Column(Numeric(12, 4), nullable=True)
+    peso_totale_kg = Column(Numeric(12, 4), nullable=True)
+    area_verniciabile_mq = Column(Numeric(12, 4), nullable=True)
+    trattamento = Column(String(160), nullable=True, index=True)
+
+    tipo_unita = Column(String(40), nullable=False, default="SPEDIZIONE_AD_HOC", index=True)
+    stato = Column(String(40), nullable=False, default="DA_TROVARE", index=True)
+    trovato_at = Column(DateTime, nullable=True, index=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    raw_payload = Column(Text, nullable=True)
+    source_file = Column(String(500), nullable=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    spedizione = relationship("SpedizioneAdHoc", back_populates="items")
 
 
 class Piece(Base):

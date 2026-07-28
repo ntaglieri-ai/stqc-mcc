@@ -613,7 +613,7 @@
         <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
           <div>
             <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Scanner fisici</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">MAGAZZINO gestisce pre-produzione grezzi/pezzi. OFFICINA gestisce postazioni, fasi e tempi.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">MAGAZZINO gestisce pre-produzione. OFFICINA gestisce postazioni e fasi. SPEDIZIONE AD HOC legge codici esterni e marca le righe spedizione come trovate.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input id="sc-new-code" placeholder="SCN-TAGLIO-01"
@@ -625,6 +625,7 @@
               style="width:150px;padding:8px 11px;border-radius:9px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none">
               <option value="OFFICINA">OFFICINA</option>
               <option value="MAGAZZINO">MAGAZZINO</option>
+              <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
             </select>
             <select id="sc-new-workstation"
               style="width:190px;padding:8px 11px;border-radius:9px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none"></select>
@@ -1647,6 +1648,7 @@ function renderScannerDevices() {
         <select onchange="assignScannerMode(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:800">
           <option value="OFFICINA" ${scanMode === 'OFFICINA' ? 'selected' : ''}>OFFICINA</option>
           <option value="MAGAZZINO" ${scanMode === 'MAGAZZINO' ? 'selected' : ''}>MAGAZZINO</option>
+          <option value="SPEDIZIONE_AD_HOC" ${scanMode === 'SPEDIZIONE_AD_HOC' ? 'selected' : ''}>SPEDIZIONE AD HOC</option>
         </select>
       </td>
       <td><select onchange="assignScannerWorkstation(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px">${options}</select></td>
@@ -1997,7 +1999,7 @@ async function editScannerDevice(id) {
   if (ip_address === null) return;
   const serial_number = prompt('Seriale scanner (opzionale)', s.serial_number || '');
   if (serial_number === null) return;
-  const scan_mode = prompt('Tipo pistola: OFFICINA o MAGAZZINO', s.scan_mode || 'OFFICINA');
+  const scan_mode = prompt('Tipo pistola: OFFICINA, MAGAZZINO o SPEDIZIONE_AD_HOC', s.scan_mode || 'OFFICINA');
   if (scan_mode === null) return;
   try {
     await api('PATCH', `/scanner-devices/${id}`, { name, scan_mode, ip_address: ip_address || null, serial_number: serial_number || null });
@@ -2028,7 +2030,12 @@ async function assignScannerWorkstation(id, value) {
 async function assignScannerMode(id, value) {
   try {
     await api('PATCH', `/scanner-devices/${id}`, { scan_mode: value });
-    toast(value === 'MAGAZZINO' ? 'Pistola impostata su magazzino' : 'Pistola impostata su officina', 'ok');
+    const labels = {
+      MAGAZZINO: 'Pistola impostata su magazzino',
+      OFFICINA: 'Pistola impostata su officina',
+      SPEDIZIONE_AD_HOC: 'Pistola impostata su spedizione ad hoc',
+    };
+    toast(labels[value] || 'Tipo pistola aggiornato', 'ok');
     await loadWorkstationsConfig();
   } catch(e) { toast(e.message, 'err'); }
 }

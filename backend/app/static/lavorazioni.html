@@ -37,7 +37,7 @@
   <main class="wrap">
     <section class="header">
       <div><div class="eyebrow">Post-officina</div><h1>Lavorazioni</h1><div class="sub" id="subtitle">Gestione da scan delle lavorazioni interne, esterne e dei passaggi intermedi.</div></div>
-      <button class="btn primary" onclick="window.stqcNavigate ? stqcNavigate(commessaUrl('in-cantiere')) : location.href=commessaUrl('in-cantiere')">Vai a In cantiere</button>
+      <button class="btn primary" onclick="window.stqcNavigate ? stqcNavigate(commessaUrl('in-cantiere')) : location.href=commessaUrl('in-cantiere')">Vai a Spedizione</button>
     </section>
     <div id="macro"></div>
     <section class="hero">
@@ -71,7 +71,7 @@
     function commessaUrl(page){return `/commesse/${encodeURIComponent(commessaCode||commessaRef)}/${page}`}
     async function resolve(){if(commessaId)return;const r=await fetch(`/api/v1/commesse/resolve/${encodeURIComponent(commessaRef)}`,{headers:auth()});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Commessa non trovata');commessaId=d.id;commessaCode=d.codice||commessaRef;analysisLink.href=commessaUrl('analisi')}
     function macroCard(title,state,sub,page,i){const cls=state==='COMPLETATA'?'done':state==='CORRENTE'?'current':'';const label=state==='COMPLETATA'?'Completata':state==='CORRENTE'?'Pagina corrente':'Non iniziata';return `<a class="macro-card ${cls}" href="${commessaUrl(page)}"><div class="macro-k"><span>${i}</span><span class="pill">${label}</span></div><div class="macro-title">${esc(title)}</div><div class="macro-sub">${esc(sub)}</div></a>`}
-    function renderMacro(){macro.innerHTML=`<div class="macro-flow">${macroCard('Analisi commessa','COMPLETATA','Distinta acquisita','analisi',1)}${macroCard('Officina','COMPLETATA','QR pezzi e scan officina','officina',2)}${macroCard('Assemblaggio','NON_INIZIATA','Montaggio assemblati','assemblaggi',3)}${macroCard('Lavorazioni','CORRENTE','Lavorazioni interne ed esterne','lavorazioni',4)}${macroCard('In cantiere','NON_INIZIATA','Spedizione finale','in-cantiere',5)}</div>`}
+    function renderMacro(){macro.innerHTML=`<div class="macro-flow">${macroCard('Analisi commessa','COMPLETATA','Distinta acquisita','analisi',1)}${macroCard('Officina','COMPLETATA','QR pezzi e scan officina','officina',2)}${macroCard('Assemblaggio','NON_INIZIATA','Montaggio assemblati','assemblaggi',3)}${macroCard('Lavorazioni','CORRENTE','Lavorazioni interne ed esterne','lavorazioni',4)}${macroCard('Spedizione','NON_INIZIATA','Uscita finale','in-cantiere',5)}</div>`}
     function tag(row){const t=row.tipo_unita||'NON_CLASSIFICATO';const label=t==='ASSEMBLATO'?'Assemblato':t==='PEZZO_SCIOLTO'?'Pezzo sciolto':'Non classificato';const cls=t==='ASSEMBLATO'?'assembly':t==='PEZZO_SCIOLTO'?'loose':'';return `<span class="tag ${cls}">${label}</span>`}
     function unique(values){return [...new Set(values.map(v=>String(v??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it',{numeric:true,sensitivity:'base'}))}
     function populateSelect(id,values,label='Tutti'){const el=document.getElementById(id);if(!el)return;const current=el.value;el.innerHTML=`<option value="">${esc(label)}</option>`+unique(values).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if([...el.options].some(o=>o.value===current))el.value=current}

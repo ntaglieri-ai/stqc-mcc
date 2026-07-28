@@ -88,6 +88,40 @@
       font-size: 14px; color: rgba(255,255,255,.35);
       margin-bottom: 40px; line-height: 1.5;
     }
+    .quick-action {
+      display: flex; align-items: center; justify-content: space-between; gap: 18px;
+      margin: -18px 0 34px; padding: 18px 20px;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 92% 20%, rgba(20,184,166,.18), transparent 36%),
+        linear-gradient(135deg, rgba(15,118,110,.18), rgba(30,64,175,.10));
+      border: 1px solid rgba(45,212,191,.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 18px 50px rgba(0,0,0,.18);
+    }
+    .quick-action-kicker {
+      font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+      color: #67e8f9; margin-bottom: 6px;
+    }
+    .quick-action-title {
+      font-size: 18px; font-weight: 900; color: rgba(255,255,255,.94);
+      letter-spacing: -.02em; margin-bottom: 3px;
+    }
+    .quick-action-text { font-size: 13px; color: rgba(226,232,240,.55); line-height: 1.45; }
+    .quick-action-btn {
+      flex: 0 0 auto; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 210px; padding: 13px 18px; border-radius: 13px;
+      background: linear-gradient(135deg, #14b8a6, #2563eb);
+      border: 1px solid rgba(125,211,252,.52);
+      color: #fff; font-size: 14px; font-weight: 900;
+      box-shadow: 0 12px 34px rgba(37,99,235,.28);
+      transition: transform .18s, box-shadow .18s, filter .18s;
+    }
+    .quick-action-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+      box-shadow: 0 16px 44px rgba(37,99,235,.38);
+    }
     .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
     .field-label {
       font-size: 12px; font-weight: 700; color: rgba(255,255,255,.45);
@@ -231,6 +265,8 @@
       .split { min-height: 100vh; height: auto; }
       .left { display: none; }
       .form-wrap { padding: 36px 24px; }
+      .quick-action { flex-direction: column; align-items: stretch; margin-top: -18px; }
+      .quick-action-btn { width: 100%; min-width: 0; }
     }
     @media (max-width: 680px) {
       .upload-row { grid-template-columns: 1fr; }
@@ -278,13 +314,22 @@
     <div class="form-wrap">
       <nav class="bc">
         <a href="/">Home</a><span class="bc-sep">/</span>
-        <a href="/commesse">In corso</a><span class="bc-sep">/</span>
+        <a href="/commesse">Gestione commesse</a><span class="bc-sep">/</span>
         <span class="bc-cur">Nuova Commessa</span>
       </nav>
 
       <div class="form-eyebrow">Nuova Commessa</div>
       <div class="form-title">Crea il progetto</div>
       <div class="form-subtitle">Inserisci i dati generali e carica i documenti disponibili.</div>
+
+      <div class="quick-action">
+        <div>
+          <div class="quick-action-kicker">Percorso rapido</div>
+          <div class="quick-action-title">Spedizione ad hoc</div>
+          <div class="quick-action-text">Per gestire una spedizione già codificata fuori dal tool: carichi solo titolo e file spedizione, senza generare QR.</div>
+        </div>
+        <a class="quick-action-btn" href="/spedizione-ad-hoc">Apri spedizione ad hoc</a>
+      </div>
 
       <form id="nuova-form" onsubmit="handleSubmit(event)">
         <div class="field">

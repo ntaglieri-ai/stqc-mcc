@@ -20,7 +20,7 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
+    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, SpedizioneAdHoc, SpedizioneAdHocItem, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
@@ -502,7 +502,10 @@ async def create_spedizione_ad_hoc(
     db.add(commessa)
     db.flush()
 
-    codice_rev = "r01"
+    existing = db.query(CommessaRevisione).filter(
+        CommessaRevisione.commessa_id == commessa.id
+    ).count()
+    codice_rev = f"r{existing + 1:02d}"
     rev_dir = settings.upload_dir / f"commessa_{commessa.id}" / codice_rev
     rev_dir.mkdir(parents=True, exist_ok=True)
     suffix = Path(spedizione.filename or "spedizione.xls").suffix.lower() or ".xls"
@@ -542,13 +545,22 @@ async def create_spedizione_ad_hoc(
             storage_path=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
             mime_type=spedizione.content_type,
         ))
-        inserted = _populate_post_officina_items(
+        spedizione_ad_hoc = SpedizioneAdHoc(
+            commessa_id=commessa.id,
+            revisione_id=revisione.id,
+            titolo=title,
+            source_file=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
+            stato="APERTA",
+            note=note,
+        )
+        db.add(spedizione_ad_hoc)
+        db.flush()
+        inserted = _populate_spedizione_ad_hoc_items(
             db,
+            spedizione_ad_hoc.id,
             commessa.id,
             revisione.id,
             spedizione_items,
-            classify=False,
-            default_tipo_unita="SPEDIZIONE",
         )
         db.commit()
     except HTTPException:
@@ -1204,6 +1216,49 @@ def _populate_post_officina_items(
     return inserted
 
 
+def _populate_spedizione_ad_hoc_items(
+    db: Session,
+    spedizione_id: int,
+    commessa_id: int,
+    revisione_id: int,
+    spedizione_items: list[dict],
+) -> int:
+    if not spedizione_items:
+        return 0
+
+    db.query(SpedizioneAdHocItem).filter(
+        SpedizioneAdHocItem.spedizione_id == spedizione_id
+    ).delete(synchronize_session=False)
+
+    inserted = 0
+    for idx, row in enumerate(spedizione_items, start=1):
+        code = str(row.get("codice") or "").strip()
+        if not code:
+            continue
+        db.add(SpedizioneAdHocItem(
+            spedizione_id=spedizione_id,
+            commessa_id=commessa_id,
+            revisione_id=revisione_id,
+            row_index=int(row.get("row_index") or idx),
+            codice=code,
+            descrizione=row.get("descrizione"),
+            profilo=row.get("profilo"),
+            quantita=row.get("quantita") or 0,
+            lunghezza_mm=row.get("lunghezza_mm"),
+            larghezza_mm=row.get("larghezza_mm"),
+            altezza_mm=row.get("altezza_mm"),
+            peso_unitario_kg=row.get("peso_unitario_kg"),
+            peso_totale_kg=row.get("peso_totale_kg"),
+            area_verniciabile_mq=row.get("area_verniciabile_mq"),
+            trattamento=row.get("trattamento"),
+            tipo_unita="SPEDIZIONE_AD_HOC",
+            stato="DA_TROVARE",
+            source_file=row.get("source_file"),
+        ))
+        inserted += 1
+    return inserted
+
+
 def _validate_lista_pezzi_file(path: Path) -> dict:
     rows = _extract_rows(path)
     if not rows:
@@ -1481,6 +1536,35 @@ def _post_officina_item_read(row: CommessaPostOfficinaItem) -> dict:
     }
 
 
+def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
+    return {
+        "id": row.id,
+        "commessa_id": row.commessa_id,
+        "revisione_id": row.revisione_id,
+        "spedizione_id": row.spedizione_id,
+        "row_index": row.row_index,
+        "codice": row.codice,
+        "descrizione": row.descrizione,
+        "profilo": row.profilo,
+        "quantita": float(row.quantita or 0),
+        "lunghezza_mm": float(row.lunghezza_mm) if row.lunghezza_mm is not None else None,
+        "larghezza_mm": float(row.larghezza_mm) if row.larghezza_mm is not None else None,
+        "altezza_mm": float(row.altezza_mm) if row.altezza_mm is not None else None,
+        "peso_unitario_kg": float(row.peso_unitario_kg) if row.peso_unitario_kg is not None else None,
+        "peso_totale_kg": float(row.peso_totale_kg) if row.peso_totale_kg is not None else None,
+        "area_verniciabile_mq": float(row.area_verniciabile_mq) if row.area_verniciabile_mq is not None else None,
+        "trattamento": row.trattamento,
+        "tipo_unita": row.tipo_unita,
+        "lavorazioni_status": None,
+        "cantiere_status": row.stato,
+        "trovato_at": row.trovato_at,
+        "source_file": row.source_file,
+        "qr_image_url": "",
+        "qr_payload": "",
+        "spedizione_ad_hoc": True,
+    }
+
+
 @router.get("/{commessa_id}/post-officina")
 def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
@@ -1490,6 +1574,64 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
     is_ad_hoc_spedizione = bool((revisione.report_analisi or {}).get("spedizione_ad_hoc"))
+    spedizione_ad_hoc = (
+        db.query(SpedizioneAdHoc)
+        .filter(SpedizioneAdHoc.commessa_id == commessa_id)
+        .order_by(SpedizioneAdHoc.id.desc())
+        .first()
+    )
+    if spedizione_ad_hoc:
+        ad_hoc_rows = (
+            db.query(SpedizioneAdHocItem)
+            .filter(SpedizioneAdHocItem.spedizione_id == spedizione_ad_hoc.id)
+            .order_by(SpedizioneAdHocItem.row_index, SpedizioneAdHocItem.id)
+            .all()
+        )
+        summary_by_type: dict[str, dict] = {}
+        summary_by_treatment: dict[str, dict] = {}
+        for row in ad_hoc_rows:
+            tipo = row.tipo_unita or "SPEDIZIONE_AD_HOC"
+            type_bucket = summary_by_type.setdefault(tipo, {"tipo": tipo, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
+            type_bucket["righe"] += 1
+            type_bucket["quantita"] += float(row.quantita or 0)
+            type_bucket["peso_kg"] += float(row.peso_totale_kg or 0)
+
+            trattamento = row.trattamento or "Non indicato"
+            treatment_bucket = summary_by_treatment.setdefault(trattamento, {"trattamento": trattamento, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
+            treatment_bucket["righe"] += 1
+            treatment_bucket["quantita"] += float(row.quantita or 0)
+            treatment_bucket["peso_kg"] += float(row.peso_totale_kg or 0)
+
+        return {
+            "commessa": {
+                "id": commessa.id,
+                "codice": commessa.codice,
+                "descrizione": commessa.descrizione,
+                "cliente": commessa.cliente,
+                "status": commessa.status,
+            },
+            "revisione": {
+                "id": revisione.id,
+                "codice": revisione.codice,
+                "imported_at": revisione.imported_at,
+                "spedizione_ad_hoc": True,
+                "spedizione_ad_hoc_id": spedizione_ad_hoc.id,
+            },
+            "summary": {
+                "righe": len(ad_hoc_rows),
+                "quantita": sum(float(row.quantita or 0) for row in ad_hoc_rows),
+                "peso_kg": sum(float(row.peso_totale_kg or 0) for row in ad_hoc_rows),
+                "assemblati": 0,
+                "pezzi_sciolti": 0,
+                "spedizione": len(ad_hoc_rows),
+                "non_classificati": 0,
+                "trovati": sum(1 for row in ad_hoc_rows if row.stato == "TROVATO"),
+                "da_trovare": sum(1 for row in ad_hoc_rows if row.stato != "TROVATO"),
+                "by_type": sorted(summary_by_type.values(), key=lambda item: item["tipo"]),
+                "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
+            },
+            "items": [_spedizione_ad_hoc_item_read(row) for row in ad_hoc_rows],
+        }
     rows = (
         db.query(CommessaPostOfficinaItem)
         .filter(CommessaPostOfficinaItem.revisione_id == revisione.id)
