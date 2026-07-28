@@ -222,6 +222,7 @@ def create_app() -> FastAPI:
     def login_page():
         return FileResponse(STATIC_DIR / "login.html", headers=_NO_CACHE)
 
+    @app.head("/", include_in_schema=False)
     @app.get("/", include_in_schema=False)
     def root():
         return FileResponse(STATIC_DIR / "home.html", headers=_NO_CACHE)
