@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Spedizione ad hoc · MCC</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 70% 0%,rgba(37,99,235,.16),transparent 34%),#07111f;color:#e6eefb;font-family:Inter,system-ui,sans-serif}
+    .top{height:72px;display:flex;align-items:center;gap:14px;padding:0 32px;border-bottom:1px solid #1f314b;background:rgba(8,16,29,.92);backdrop-filter:blur(18px)}
+    .top a{color:#9fb4cf;text-decoration:none;font-weight:850}.wrap{max-width:1180px;margin:0 auto;padding:54px 28px}
+    .hero{border:1px solid rgba(96,165,250,.34);border-radius:34px;background:linear-gradient(135deg,#11233e,#091525 64%,#07101d);box-shadow:0 28px 90px rgba(0,0,0,.32);padding:42px}
+    .eyebrow{font-size:13px;text-transform:uppercase;letter-spacing:.24em;color:#8fb7f7;font-weight:950}
+    h1{margin:10px 0 10px;font-size:64px;line-height:.95;letter-spacing:-.07em}
+    .sub{max-width:760px;color:#a9b8cd;font-size:21px;line-height:1.35}
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;margin-top:34px}
+    .card{border:1px solid #263d5f;border-radius:26px;background:rgba(13,27,45,.72);padding:26px}
+    .card h2{margin:0 0 10px;font-size:30px;letter-spacing:-.045em}.muted{color:#98abc4;line-height:1.45}
+    label{display:block;margin-top:18px}.label{display:block;margin-bottom:8px;color:#8fa4bf;font-size:12px;font-weight:950;letter-spacing:.14em;text-transform:uppercase}
+    input,textarea{width:100%;border:1px solid #2b496d;border-radius:17px;background:#0a1322;color:#eef5ff;min-height:58px;padding:0 16px;font-size:17px;font-weight:750;outline:none}
+    textarea{padding:14px 16px;min-height:110px;resize:vertical}input:focus,textarea:focus{border-color:#70a3ff;box-shadow:0 0 0 4px rgba(59,130,246,.14)}
+    input[type=file]{padding:15px;background:#0b1525}
+    .actions{display:flex;gap:14px;align-items:center;margin-top:24px}.btn{border:1px solid #2c4568;background:#15253c;color:#dce8fa;border-radius:16px;padding:15px 20px;font-weight:950;cursor:pointer;text-decoration:none}
+    .btn.primary{background:linear-gradient(135deg,#2f70ea,#7157f4);border-color:#83aaff;color:white;box-shadow:0 18px 45px rgba(59,130,246,.22)}
+    .btn[disabled]{opacity:.55;cursor:not-allowed}.notice{margin-top:18px;border-radius:18px;padding:15px 16px;font-weight:850;display:none}.notice.ok{display:block;border:1px solid rgba(74,222,128,.36);background:rgba(34,197,94,.10);color:#86efac}.notice.err{display:block;border:1px solid rgba(248,113,113,.42);background:rgba(127,29,29,.22);color:#fecaca}
+    .steps{display:grid;gap:14px}.step{display:flex;gap:14px;align-items:flex-start;padding:16px;border:1px solid rgba(147,197,253,.14);border-radius:18px;background:rgba(255,255,255,.025)}.num{min-width:30px;height:30px;display:grid;place-items:center;border-radius:999px;background:#15335a;color:#93c5fd;font-weight:950}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}h1{font-size:46px}.wrap{padding:30px 16px}.hero{padding:26px}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a href="/">← Home</a><span>/</span><a href="/dashboard">Dashboard</a><span>/</span><strong>Spedizione ad hoc</strong>
+  </header>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Spedizione</div>
+      <h1>Spedizione ad hoc</h1>
+      <p class="sub">Crea una spedizione partendo solo dal file spedizione: il sistema importa tutte le righe così come sono, senza controlli su assemblati, pezzi sciolti o distinta. Non genera QR.</p>
+      <div class="grid">
+        <form class="card" id="form">
+          <h2>Dati spedizione</h2>
+          <div class="muted">Usala quando MCC ha già preparato i codici o quando devi gestire una spedizione fuori dal flusso completo commessa.</div>
+          <label>
+            <span class="label">Titolo commessa / spedizione</span>
+            <input id="titolo" name="titolo" autocomplete="off" placeholder="es. Spedizione MCC 25/07" required>
+          </label>
+          <label>
+            <span class="label">File spedizione</span>
+            <input id="spedizione" name="spedizione" type="file" accept=".xls,.xlsx,.xlsm" required>
+          </label>
+          <label>
+            <span class="label">Note</span>
+            <textarea id="note" name="note" placeholder="opzionale"></textarea>
+          </label>
+          <div class="actions">
+            <button class="btn primary" id="submit" type="submit">Crea spedizione</button>
+            <a class="btn" href="/dashboard">Annulla</a>
+          </div>
+          <div id="message" class="notice"></div>
+        </form>
+        <aside class="card">
+          <h2>Cosa succede</h2>
+          <div class="steps">
+            <div class="step"><div class="num">1</div><div><strong>Carichi il file spedizione</strong><div class="muted">Il parser legge le righe operative del file.</div></div></div>
+            <div class="step"><div class="num">2</div><div><strong>Nasce una spedizione libera</strong><div class="muted">Viene creata una voce distinta dal flusso analisi commessa.</div></div></div>
+            <div class="step"><div class="num">3</div><div><strong>Apri la pagina Spedizione</strong><div class="muted">Trovi tutte le righe importate, senza QR e senza classificazioni forzate.</div></div></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <script>
+    const token=sessionStorage.getItem('stqc_token'); if(!token) location.href='/login';
+    const msg=document.getElementById('message'); const submit=document.getElementById('submit');
+    function show(type,text){msg.className='notice '+type;msg.textContent=text}
+    document.getElementById('form').addEventListener('submit',async e=>{
+      e.preventDefault(); msg.className='notice'; msg.textContent=''; submit.disabled=true; submit.textContent='Import in corso...';
+      const fd=new FormData(); fd.append('titolo',document.getElementById('titolo').value.trim()); fd.append('spedizione',document.getElementById('spedizione').files[0]); fd.append('note',document.getElementById('note').value.trim());
+      try{
+        const r=await fetch('/api/v1/commesse/spedizione-ad-hoc',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
+        const data=await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(data.detail||'Import non riuscito');
+        show('ok',`Spedizione creata: ${data.righe||0} righe importate.`);
+        setTimeout(()=>location.href=data.redirect_url||'/dashboard',450);
+      }catch(err){show('err',err.message||'Errore import spedizione');submit.disabled=false;submit.textContent='Crea spedizione'}
+    });
+  </script>
+</body>
+</html>

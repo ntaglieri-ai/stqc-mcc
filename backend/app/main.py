@@ -242,6 +242,10 @@ def create_app() -> FastAPI:
     def commesse_nuova_page():
         return FileResponse(STATIC_DIR / "commesse-nuova.html", headers=_NO_CACHE)
 
+    @app.get("/spedizione-ad-hoc", include_in_schema=False)
+    def spedizione_ad_hoc_page():
+        return FileResponse(STATIC_DIR / "spedizione-ad-hoc.html", headers=_NO_CACHE)
+
     @app.get("/commesse/{commessa_ref}/analisi", include_in_schema=False)
     def commessa_analysis_page(commessa_ref: str, request: Request):
         commessa = _find_commessa_by_ref(commessa_ref)

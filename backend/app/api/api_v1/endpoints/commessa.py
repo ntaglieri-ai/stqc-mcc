@@ -1,4 +1,5 @@
 import logging
+import re
 import shutil
 import tempfile
 from collections import defaultdict
@@ -149,6 +150,22 @@ def _piece_category_from_qr_piece(item: Piece) -> str:
     if "QUADRO" in text:
         return "Quadri"
     return item.tipo_profilo or "Altro"
+
+
+def _unique_commessa_code(db: Session, title: str, *, prefix: str = "SPED") -> str:
+    base = re.sub(r"[^A-Za-z0-9_-]+", "-", (title or "").strip()).strip("-").upper()
+    if not base:
+        base = prefix
+    if not base.startswith(prefix):
+        base = f"{prefix}-{base}"
+    base = base[:72].strip("-") or prefix
+    candidate = base
+    counter = 2
+    while db.query(Commessa.id).filter(Commessa.codice == candidate).first():
+        suffix = f"-{counter}"
+        candidate = f"{base[:100 - len(suffix)]}{suffix}"
+        counter += 1
+    return candidate
 
 
 def _piece_qr_code(part_number: str | None, instance_number: int | None, fallback_id: int | None = None) -> str:
@@ -456,6 +473,101 @@ async def validate_commessa_files(
     result["can_upload"] = not result["errors"] and result["files"]["lista_pezzi"]["status"] == "ok" and result["files"]["assemblaggi"]["status"] == "ok"
     result["ok"] = result["can_upload"] and not result["warnings"]
     return result
+
+
+@router.post("/spedizione-ad-hoc", status_code=201)
+async def create_spedizione_ad_hoc(
+    titolo: str = Form(...),
+    spedizione: UploadFile = File(..., description="Lista spedizione"),
+    note: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Crea una spedizione libera partendo solo dal file spedizione.
+
+    Non confronta con assemblati, pezzi sciolti o distinta. Non genera QR.
+    """
+    title = (titolo or "").strip()
+    if not title:
+        raise HTTPException(422, "Inserisci un titolo commessa/spedizione")
+    if not spedizione or not spedizione.filename:
+        raise HTTPException(422, "Carica il file spedizione")
+
+    codice = _unique_commessa_code(db, title)
+    commessa = Commessa(
+        codice=codice,
+        descrizione=title,
+        status=CommessaStatus.IN_PRODUZIONE,
+        notes=note,
+    )
+    db.add(commessa)
+    db.flush()
+
+    codice_rev = "r01"
+    rev_dir = settings.upload_dir / f"commessa_{commessa.id}" / codice_rev
+    rev_dir.mkdir(parents=True, exist_ok=True)
+    suffix = Path(spedizione.filename or "spedizione.xls").suffix.lower() or ".xls"
+    spedizione_dest = rev_dir / f"spedizione{suffix}"
+
+    try:
+        with spedizione_dest.open("wb") as f:
+            f.write(await spedizione.read())
+        spedizione_items, spedizione_report = _parse_spedizione_file(spedizione_dest)
+
+        report = {
+            "ok": True,
+            "summary": f"Spedizione ad hoc importata: {len(spedizione_items)} righe",
+            "spedizione_ad_hoc": True,
+            "spedizione": spedizione_report,
+            "file_warnings": [],
+        }
+        revisione = CommessaRevisione(
+            commessa_id=commessa.id,
+            codice=codice_rev,
+            file_assemblaggi=None,
+            file_lavorazioni=None,
+            predistinta=False,
+            corrente=True,
+            stato_analisi="PRONTA",
+            report_analisi=report,
+            step4_completed_at=datetime.utcnow(),
+            note=note,
+        )
+        db.add(revisione)
+        db.flush()
+        db.add(CommessaDocumento(
+            commessa_id=commessa.id,
+            revisione_id=revisione.id,
+            categoria="SPEDIZIONE",
+            filename=Path(spedizione.filename or spedizione_dest.name).name,
+            storage_path=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
+            mime_type=spedizione.content_type,
+        ))
+        inserted = _populate_post_officina_items(
+            db,
+            commessa.id,
+            revisione.id,
+            spedizione_items,
+            classify=False,
+            default_tipo_unita="SPEDIZIONE",
+        )
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        shutil.rmtree(settings.upload_dir / f"commessa_{commessa.id}", ignore_errors=True)
+        raise
+    except Exception as exc:
+        db.rollback()
+        shutil.rmtree(settings.upload_dir / f"commessa_{commessa.id}", ignore_errors=True)
+        _logger.exception("Import spedizione ad hoc non riuscito")
+        raise HTTPException(422, f"File spedizione non importabile: {exc}")
+
+    return {
+        "commessa_id": commessa.id,
+        "codice": commessa.codice,
+        "titolo": title,
+        "righe": inserted,
+        "redirect_url": f"/commesse/{quote(commessa.codice, safe='')}/in-cantiere",
+    }
 
 
 @router.get("/{commessa_id}", response_model=CommessaRead)
@@ -1027,6 +1139,9 @@ def _populate_post_officina_items(
     commessa_id: int,
     revisione_id: int,
     spedizione_items: list[dict],
+    *,
+    classify: bool = True,
+    default_tipo_unita: str = "NON_CLASSIFICATO",
 ) -> int:
     if not spedizione_items:
         return 0
@@ -1035,33 +1150,38 @@ def _populate_post_officina_items(
         CommessaPostOfficinaItem.revisione_id == revisione_id
     ).delete(synchronize_session=False)
 
-    distinta_items = (
-        db.query(DistintaItem)
-        .filter(DistintaItem.revisione_id == revisione_id)
-        .all()
-    )
-    assembly_codes = {
-        str(item.parent_assembly).strip()
-        for item in distinta_items
-        if item.parent_assembly and str(item.parent_assembly).strip()
-    }
-    loose_piece_codes = {
-        str(item.part_number).strip()
-        for item in distinta_items
-        if item.part_number and str(item.part_number).strip()
-    }
+    assembly_codes: set[str] = set()
+    loose_piece_codes: set[str] = set()
+    if classify:
+        distinta_items = (
+            db.query(DistintaItem)
+            .filter(DistintaItem.revisione_id == revisione_id)
+            .all()
+        )
+        assembly_codes = {
+            str(item.parent_assembly).strip()
+            for item in distinta_items
+            if item.parent_assembly and str(item.parent_assembly).strip()
+        }
+        loose_piece_codes = {
+            str(item.part_number).strip()
+            for item in distinta_items
+            if item.part_number and str(item.part_number).strip()
+        }
 
     inserted = 0
     for idx, row in enumerate(spedizione_items, start=1):
         code = str(row.get("codice") or "").strip()
         if not code:
             continue
-        if code in assembly_codes:
-            tipo_unita = "ASSEMBLATO"
-        elif code in loose_piece_codes:
-            tipo_unita = "PEZZO_SCIOLTO"
-        else:
-            tipo_unita = "NON_CLASSIFICATO"
+        tipo_unita = default_tipo_unita
+        if classify:
+            if code in assembly_codes:
+                tipo_unita = "ASSEMBLATO"
+            elif code in loose_piece_codes:
+                tipo_unita = "PEZZO_SCIOLTO"
+            else:
+                tipo_unita = "NON_CLASSIFICATO"
         db.add(CommessaPostOfficinaItem(
             commessa_id=commessa_id,
             revisione_id=revisione_id,
@@ -1369,6 +1489,7 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     revisione = _latest_revision(db, commessa_id)
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    is_ad_hoc_spedizione = bool((revisione.report_analisi or {}).get("spedizione_ad_hoc"))
     rows = (
         db.query(CommessaPostOfficinaItem)
         .filter(CommessaPostOfficinaItem.revisione_id == revisione.id)
@@ -1382,7 +1503,14 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             if spedizione_path.exists():
                 try:
                     spedizione_items, _ = _parse_spedizione_file(spedizione_path)
-                    _populate_post_officina_items(db, commessa.id, revisione.id, spedizione_items)
+                    _populate_post_officina_items(
+                        db,
+                        commessa.id,
+                        revisione.id,
+                        spedizione_items,
+                        classify=not is_ad_hoc_spedizione,
+                        default_tipo_unita="SPEDIZIONE" if is_ad_hoc_spedizione else "NON_CLASSIFICATO",
+                    )
                     db.commit()
                     rows = (
                         db.query(CommessaPostOfficinaItem)
@@ -1416,6 +1544,7 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
         "commessa": {
             "id": commessa.id,
             "codice": commessa.codice,
+            "descrizione": commessa.descrizione,
             "cliente": commessa.cliente,
             "status": commessa.status,
         },
@@ -1423,6 +1552,7 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             "id": revisione.id,
             "codice": revisione.codice,
             "imported_at": revisione.imported_at,
+            "spedizione_ad_hoc": is_ad_hoc_spedizione,
         },
         "summary": {
             "righe": len(rows),
@@ -1430,6 +1560,7 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             "peso_kg": sum(float(row.peso_totale_kg or 0) for row in rows),
             "assemblati": sum(1 for row in rows if row.tipo_unita == "ASSEMBLATO"),
             "pezzi_sciolti": sum(1 for row in rows if row.tipo_unita == "PEZZO_SCIOLTO"),
+            "spedizione": sum(1 for row in rows if row.tipo_unita == "SPEDIZIONE"),
             "non_classificati": sum(1 for row in rows if row.tipo_unita == "NON_CLASSIFICATO"),
             "by_type": sorted(summary_by_type.values(), key=lambda item: item["tipo"]),
             "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
