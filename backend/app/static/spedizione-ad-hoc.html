@@ -22,8 +22,10 @@
     input[type=file]{padding:15px;background:#0b1525}
     .actions{display:flex;gap:14px;align-items:center;margin-top:24px}.btn{border:1px solid #2c4568;background:#15253c;color:#dce8fa;border-radius:16px;padding:15px 20px;font-weight:950;cursor:pointer;text-decoration:none}
     .btn.primary{background:linear-gradient(135deg,#2f70ea,#7157f4);border-color:#83aaff;color:white;box-shadow:0 18px 45px rgba(59,130,246,.22)}
+    .btn.empty{background:linear-gradient(135deg,#0f766e,#2563eb);border-color:#5eead4;color:white}
     .btn[disabled]{opacity:.55;cursor:not-allowed}.notice{margin-top:18px;border-radius:18px;padding:15px 16px;font-weight:850;display:none}.notice.ok{display:block;border:1px solid rgba(74,222,128,.36);background:rgba(34,197,94,.10);color:#86efac}.notice.err{display:block;border:1px solid rgba(248,113,113,.42);background:rgba(127,29,29,.22);color:#fecaca}
     .steps{display:grid;gap:14px}.step{display:flex;gap:14px;align-items:flex-start;padding:16px;border:1px solid rgba(147,197,253,.14);border-radius:18px;background:rgba(255,255,255,.025)}.num{min-width:30px;height:30px;display:grid;place-items:center;border-radius:999px;background:#15335a;color:#93c5fd;font-weight:950}
+    .live{margin-top:26px}.live-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.kpi{border:1px solid rgba(147,197,253,.14);border-radius:18px;background:rgba(255,255,255,.025);padding:15px}.kpi strong{display:block;font-size:28px;color:#eef5ff}.kpi span{display:block;margin-top:4px;color:#98abc4;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.table-wrap{overflow:auto;border:1px solid rgba(147,197,253,.14);border-radius:18px}table{width:100%;border-collapse:collapse;min-width:980px}th,td{padding:12px 14px;border-bottom:1px solid rgba(147,197,253,.12);text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#93c5fd;background:#10213a}td{color:#d7e4f6}.code{font-weight:950;color:white}.empty-state{padding:28px;text-align:center;color:#98abc4}
     @media(max-width:900px){.grid{grid-template-columns:1fr}h1{font-size:46px}.wrap{padding:30px 16px}.hero{padding:26px}}
   </style>
 </head>
@@ -48,6 +50,9 @@
             <span class="label">File spedizione</span>
             <input id="spedizione" name="spedizione" type="file" accept=".xls,.xlsx,.xlsm" required>
           </label>
+          <div class="actions">
+            <button class="btn empty" id="create-empty" type="button">Crea spedizione vuota</button>
+          </div>
           <label>
             <span class="label">Note</span>
             <textarea id="note" name="note" placeholder="opzionale"></textarea>
@@ -67,12 +72,35 @@
           </div>
         </aside>
       </div>
+      <section class="card live">
+        <div class="live-head">
+          <div><h2 id="liveTitle">Spedizione vuota</h2><div class="muted" id="liveSub">Crea una spedizione vuota e scannerizza i codici con la pistola SPEDIZIONE AD HOC.</div></div>
+          <button class="btn primary" type="button" onclick="exportCurrentDdt()">Scarica lista DDT</button>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><strong id="kRows">0</strong><span>Righe</span></div>
+          <div class="kpi"><strong id="kQty">0</strong><span>Quantita</span></div>
+          <div class="kpi"><strong id="kWeight">0</strong><span>Kg</span></div>
+        </div>
+        <div class="table-wrap"><table><thead id="scanHead"></thead><tbody id="scanRows"></tbody></table></div>
+      </section>
     </section>
   </main>
   <script>
     const token=sessionStorage.getItem('stqc_token'); if(!token) location.href='/login';
     const msg=document.getElementById('message'); const submit=document.getElementById('submit');
+    const createEmpty=document.getElementById('create-empty');
+    let currentShipping={spedizione:null,summary:{},items:[]};
     function show(type,text){msg.className='notice '+type;msg.textContent=text}
+    const fmt=v=>Number(v||0).toLocaleString('it-IT',{maximumFractionDigits:2});
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    function csvCell(value){if(value===null||value===undefined)return '';const text=String(value).replace(/\r?\n/g,' ').replace(/"/g,'""');return /[;"\r\n]/.test(text)?`"${text}"`:text}
+    function downloadText(filename,text){const blob=new Blob(['\ufeff',text],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+    function renderCurrent(){const items=currentShipping.items||[];const s=currentShipping.summary||{};liveTitle.textContent=currentShipping.spedizione?.titolo||'Spedizione vuota';liveSub.textContent=currentShipping.spedizione?'Righe aggiunte dagli scan della pistola SPEDIZIONE AD HOC.':'Crea una spedizione vuota e scannerizza i codici con la pistola SPEDIZIONE AD HOC.';kRows.textContent=fmt(s.righe);kQty.textContent=fmt(s.quantita);kWeight.textContent=fmt(s.peso_kg);const extra=[...new Set(items.flatMap(x=>Object.keys(x.scan_fields||{})))].filter(k=>!['codice','descrizione','profilo','quantita','peso_totale_kg','trattamento'].includes(k));scanHead.innerHTML=`<tr><th>Codice</th><th>Descrizione</th><th>Profilo</th><th>Q.ta</th><th>Peso kg</th><th>Trattamento</th><th>Data scan</th>${extra.map(k=>`<th>${esc(k)}</th>`).join('')}</tr>`;scanRows.innerHTML=items.map(x=>`<tr><td class="code">${esc(x.codice)}</td><td>${esc(x.descrizione||'')}</td><td>${esc(x.profilo||'')}</td><td>${fmt(x.quantita)}</td><td>${fmt(x.peso_totale_kg)}</td><td>${esc(x.trattamento||'')}</td><td>${esc(x.trovato_at||'')}</td>${extra.map(k=>`<td>${esc((x.scan_fields||{})[k]??'')}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${7+extra.length}"><div class="empty-state">Nessuna riga scannerizzata.</div></td></tr>`}
+    async function loadCurrent(){const r=await fetch('/api/v1/commesse/spedizione-ad-hoc/current',{headers:{Authorization:'Bearer '+token}});currentShipping=await r.json().catch(()=>({spedizione:null,summary:{},items:[]}));renderCurrent()}
+    async function createEmptyShipping(){const title=document.getElementById('titolo').value.trim()||`Spedizione ad hoc ${new Date().toLocaleDateString('it-IT')}`;const note=document.getElementById('note').value.trim();createEmpty.disabled=true;try{const r=await fetch('/api/v1/commesse/spedizione-ad-hoc/create-empty',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({titolo:title,note})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.detail||'Creazione non riuscita');show('ok',`Spedizione vuota creata: ${data.titolo}. Ora puoi scannerizzare.`);await loadCurrent()}catch(err){show('err',err.message||'Errore creazione spedizione vuota')}finally{createEmpty.disabled=false}}
+    function exportCurrentDdt(){const items=currentShipping.items||[];if(!items.length){show('err','Nessuna riga scannerizzata da esportare.');return}const base=[['codice','Codice'],['descrizione','Descrizione'],['profilo','Profilo'],['quantita','Quantita'],['lunghezza_mm','Lunghezza mm'],['larghezza_mm','Larghezza mm'],['altezza_mm','Altezza mm'],['peso_unitario_kg','Peso unitario kg'],['peso_totale_kg','Peso totale kg'],['area_verniciabile_mq','Area verniciabile mq'],['trattamento','Trattamento'],['trovato_at','Data scan']];const extra=[...new Set(items.flatMap(x=>Object.keys(x.scan_fields||{})))].filter(k=>!base.some(([key])=>key===k));const cols=[...base,...extra.map(k=>[`scan:${k}`,k])];const lines=[cols.map(([,label])=>csvCell(label)).join(';'),...items.map(row=>cols.map(([key])=>csvCell(key.startsWith('scan:')?(row.scan_fields||{})[key.slice(5)]:row[key])).join(';'))];const stamp=new Date().toISOString().slice(0,10).replaceAll('-','');downloadText(`DDT_spedizione_ad_hoc_${stamp}.csv`,lines.join('\r\n'))}
+    createEmpty.addEventListener('click',createEmptyShipping);
     document.getElementById('form').addEventListener('submit',async e=>{
       e.preventDefault(); msg.className='notice'; msg.textContent=''; submit.disabled=true; submit.textContent='Import in corso...';
       const fd=new FormData(); fd.append('titolo',document.getElementById('titolo').value.trim()); fd.append('spedizione',document.getElementById('spedizione').files[0]); fd.append('note',document.getElementById('note').value.trim());
@@ -84,6 +112,8 @@
         setTimeout(()=>location.href=data.redirect_url||'/dashboard',450);
       }catch(err){show('err',err.message||'Errore import spedizione');submit.disabled=false;submit.textContent='Crea spedizione'}
     });
+    loadCurrent().catch(()=>{});
+    setInterval(()=>{if(!document.hidden)loadCurrent().catch(()=>{})},3000);
   </script>
 </body>
 </html>

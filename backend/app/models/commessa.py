@@ -88,7 +88,7 @@ class CommessaBulloneria(Base):
     __tablename__ = "commessa_bulloneria"
 
     id = Column(Integer, primary_key=True, index=True)
-    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=True, index=True)
     revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
     assemblato = Column(String(200), nullable=True, index=True)
     codice = Column(String(200), nullable=True, index=True)
@@ -122,7 +122,7 @@ class CommessaPostOfficinaItem(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=True, index=True)
     revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False, index=True)
     row_index = Column(Integer, nullable=False)
 

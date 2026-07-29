@@ -24,6 +24,91 @@ from backend.app.models.commessa import (
 
 
 ID_KEYS = ("id", "codice", "code", "assemb", "assemblato", "marca")
+FIELD_ALIASES = {
+    "codice": ("codice", "code", "id", "qr_code", "assemb", "assemblato", "marca"),
+    "descrizione": ("descrizione", "description", "desc", "materiale_descrizione"),
+    "profilo": ("profilo", "profile", "tipo_profilo"),
+    "quantita": ("quantita", "qta", "qty", "quantity"),
+    "lunghezza_mm": ("lunghezza_mm", "lunghezza", "length_mm", "length"),
+    "larghezza_mm": ("larghezza_mm", "larghezza", "width_mm", "width"),
+    "altezza_mm": ("altezza_mm", "altezza", "height_mm", "height", "spessore_mm", "spessore"),
+    "peso_unitario_kg": ("peso_unitario_kg", "peso_unitario", "peso_1_pz", "unit_weight_kg"),
+    "peso_totale_kg": ("peso_totale_kg", "peso_totale", "peso_kg", "weight_kg", "peso"),
+    "area_verniciabile_mq": ("area_verniciabile_mq", "area_mq", "area"),
+    "trattamento": ("trattamento", "treatment"),
+    "tipo_unita": ("tipo_unita", "tipo", "type", "entity", "entity_label"),
+}
+
+
+def _norm_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+
+
+def _parse_number(value):
+    if value in (None, ""):
+        return None
+    text = str(value).strip().replace(" ", "")
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    else:
+        text = text.replace(",", ".")
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return None
+
+
+def _flatten_payload(data: dict) -> dict:
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, dict) and _norm_key(key) in {"fields", "dati", "info"}:
+            result.update(_flatten_payload(value))
+        elif isinstance(value, (str, int, float, bool)) or value is None:
+            result[str(key)] = value
+    return result
+
+
+def parse_ad_hoc_scan_payload(raw_payload: str) -> dict:
+    value = (raw_payload or "").strip()
+    if not value:
+        return {}
+
+    parsed_fields = {}
+    try:
+        data = json.loads(value)
+        if isinstance(data, dict):
+            if data.get("msg") and len(data) <= 2:
+                return parse_ad_hoc_scan_payload(str(data["msg"]))
+            parsed_fields.update(_flatten_payload(data))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+
+    parsed = urlparse(value)
+    if parsed.query:
+        for key, values in parse_qs(parsed.query).items():
+            if values:
+                parsed_fields[key] = values[0]
+
+    for key, val in re.findall(r"([A-Za-z0-9_. /\-]+)\s*[:=]\s*([^|;\n\r]+)", value):
+        parsed_fields.setdefault(key.strip(), val.strip())
+
+    if not parsed_fields:
+        parsed_fields["codice"] = _extract_shipping_id(value)
+
+    norm = {_norm_key(key): val for key, val in parsed_fields.items()}
+    mapped = {"scan_fields": parsed_fields}
+    for target, aliases in FIELD_ALIASES.items():
+        for alias in aliases:
+            alias_key = _norm_key(alias)
+            if alias_key in norm and norm[alias_key] not in (None, ""):
+                mapped[target] = norm[alias_key]
+                break
+
+    mapped["codice"] = str(mapped.get("codice") or _extract_shipping_id(value) or "").strip()
+    for key in ("quantita", "lunghezza_mm", "larghezza_mm", "altezza_mm", "peso_unitario_kg", "peso_totale_kg", "area_verniciabile_mq"):
+        mapped[key] = _parse_number(mapped.get(key))
+    mapped["quantita"] = mapped["quantita"] if mapped.get("quantita") is not None else 1
+    return mapped
 
 
 def _extract_shipping_id(raw_payload: str) -> str:
@@ -115,6 +200,57 @@ def process_ad_hoc_shipping_scan(
         _attempt(db, scanner, external_id, raw_payload, "ERROR", "QR senza ID spedizione", error_code="EMPTY_SHIPPING_ID")
         db.commit()
         return {"ply": 3, "msg": "QR senza ID spedizione", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "AD_HOC_SHIPPING"}
+
+    empty_spedizione = (
+        db.query(SpedizioneAdHoc)
+        .filter(SpedizioneAdHoc.commessa_id.is_(None))
+        .filter(SpedizioneAdHoc.source_file.is_(None))
+        .filter(SpedizioneAdHoc.stato == "APERTA")
+        .order_by(SpedizioneAdHoc.id.desc())
+        .first()
+    )
+    if empty_spedizione:
+        parsed = parse_ad_hoc_scan_payload(raw_payload)
+        code = str(parsed.get("codice") or shipping_id).strip()
+        if not code:
+            _attempt(db, scanner, external_id, raw_payload, "ERROR", "QR senza codice", error_code="EMPTY_SHIPPING_ID")
+            db.commit()
+            return {"ply": 3, "msg": "QR senza codice", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "AD_HOC_SHIPPING"}
+        next_row_index = (
+            db.query(func.max(SpedizioneAdHocItem.row_index))
+            .filter(SpedizioneAdHocItem.spedizione_id == empty_spedizione.id)
+            .scalar()
+            or 0
+        ) + 1
+        note = json.dumps(parsed.get("scan_fields") or {}, ensure_ascii=False, default=str)
+        db.add(SpedizioneAdHocItem(
+            spedizione_id=empty_spedizione.id,
+            commessa_id=None,
+            revisione_id=None,
+            row_index=next_row_index,
+            codice=code,
+            descrizione=parsed.get("descrizione"),
+            profilo=parsed.get("profilo"),
+            quantita=parsed.get("quantita") or 1,
+            lunghezza_mm=parsed.get("lunghezza_mm"),
+            larghezza_mm=parsed.get("larghezza_mm"),
+            altezza_mm=parsed.get("altezza_mm"),
+            peso_unitario_kg=parsed.get("peso_unitario_kg"),
+            peso_totale_kg=parsed.get("peso_totale_kg"),
+            area_verniciabile_mq=parsed.get("area_verniciabile_mq"),
+            trattamento=parsed.get("trattamento"),
+            tipo_unita=str(parsed.get("tipo_unita") or "SPEDIZIONE_AD_HOC")[:40],
+            stato="TROVATO",
+            trovato_at=now,
+            scanner_device_id=scanner.id,
+            raw_payload=raw_payload[:2000],
+            note=note,
+        ))
+        empty_spedizione.updated_at = now
+        message = f"Aggiunto a spedizione ad hoc · {code}"
+        _attempt(db, scanner, external_id, raw_payload, "OK", message)
+        db.commit()
+        return {"ply": 1, "msg": message, "ok": True, "scan_kind": "AD_HOC_SHIPPING"}
 
     matches = (
         db.query(SpedizioneAdHocItem)

@@ -1,4 +1,5 @@
 import logging
+import json
 import re
 import shutil
 import tempfile
@@ -53,6 +54,11 @@ class PieceManualUpdate(BaseModel):
 
 class MouseScanRequest(BaseModel):
     payload: str
+
+
+class SpedizioneAdHocEmptyCreate(BaseModel):
+    titolo: str
+    note: Optional[str] = None
 
 
 def _warehouse_item_mapping_read(item: WarehouseItem, pieces: list[Piece]) -> dict:
@@ -482,72 +488,25 @@ async def create_spedizione_ad_hoc(
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Crea una spedizione libera partendo solo dal file spedizione.
-
-    Non confronta con assemblati, pezzi sciolti o distinta. Non genera QR.
-    """
+    """Crea una spedizione libera autonoma partendo solo dal file spedizione."""
     title = (titolo or "").strip()
     if not title:
-        raise HTTPException(422, "Inserisci un titolo commessa/spedizione")
+        raise HTTPException(422, "Inserisci un titolo spedizione")
     if not spedizione or not spedizione.filename:
         raise HTTPException(422, "Carica il file spedizione")
 
-    codice = _unique_commessa_code(db, title)
-    commessa = Commessa(
-        codice=codice,
-        descrizione=title,
-        status=CommessaStatus.IN_PRODUZIONE,
-        notes=note,
-    )
-    db.add(commessa)
-    db.flush()
-
-    existing = db.query(CommessaRevisione).filter(
-        CommessaRevisione.commessa_id == commessa.id
-    ).count()
-    codice_rev = f"r{existing + 1:02d}"
-    rev_dir = settings.upload_dir / f"commessa_{commessa.id}" / codice_rev
-    rev_dir.mkdir(parents=True, exist_ok=True)
+    storage_dir = settings.upload_dir / "spedizioni_ad_hoc" / datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+    storage_dir.mkdir(parents=True, exist_ok=True)
     suffix = Path(spedizione.filename or "spedizione.xls").suffix.lower() or ".xls"
-    spedizione_dest = rev_dir / f"spedizione{suffix}"
+    spedizione_dest = storage_dir / f"spedizione{suffix}"
 
     try:
         with spedizione_dest.open("wb") as f:
             f.write(await spedizione.read())
         spedizione_items, spedizione_report = _parse_spedizione_file(spedizione_dest)
-
-        report = {
-            "ok": True,
-            "summary": f"Spedizione ad hoc importata: {len(spedizione_items)} righe",
-            "spedizione_ad_hoc": True,
-            "spedizione": spedizione_report,
-            "file_warnings": [],
-        }
-        revisione = CommessaRevisione(
-            commessa_id=commessa.id,
-            codice=codice_rev,
-            file_assemblaggi=None,
-            file_lavorazioni=None,
-            predistinta=False,
-            corrente=True,
-            stato_analisi="PRONTA",
-            report_analisi=report,
-            step4_completed_at=datetime.utcnow(),
-            note=note,
-        )
-        db.add(revisione)
-        db.flush()
-        db.add(CommessaDocumento(
-            commessa_id=commessa.id,
-            revisione_id=revisione.id,
-            categoria="SPEDIZIONE",
-            filename=Path(spedizione.filename or spedizione_dest.name).name,
-            storage_path=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
-            mime_type=spedizione.content_type,
-        ))
         spedizione_ad_hoc = SpedizioneAdHoc(
-            commessa_id=commessa.id,
-            revisione_id=revisione.id,
+            commessa_id=None,
+            revisione_id=None,
             titolo=title,
             source_file=str(spedizione_dest.relative_to(settings.upload_dir.parent)),
             stato="APERTA",
@@ -558,27 +517,108 @@ async def create_spedizione_ad_hoc(
         inserted = _populate_spedizione_ad_hoc_items(
             db,
             spedizione_ad_hoc.id,
-            commessa.id,
-            revisione.id,
+            None,
+            None,
             spedizione_items,
         )
         db.commit()
     except HTTPException:
         db.rollback()
-        shutil.rmtree(settings.upload_dir / f"commessa_{commessa.id}", ignore_errors=True)
+        shutil.rmtree(storage_dir, ignore_errors=True)
         raise
     except Exception as exc:
         db.rollback()
-        shutil.rmtree(settings.upload_dir / f"commessa_{commessa.id}", ignore_errors=True)
+        shutil.rmtree(storage_dir, ignore_errors=True)
         _logger.exception("Import spedizione ad hoc non riuscito")
         raise HTTPException(422, f"File spedizione non importabile: {exc}")
 
     return {
-        "commessa_id": commessa.id,
-        "codice": commessa.codice,
+        "spedizione_id": spedizione_ad_hoc.id,
         "titolo": title,
         "righe": inserted,
-        "redirect_url": f"/commesse/{quote(commessa.codice, safe='')}/in-cantiere",
+        "summary": spedizione_report,
+        "redirect_url": "/spedizione-ad-hoc",
+    }
+
+
+def _scan_fields_from_note(note: str | None) -> dict:
+    if not note:
+        return {}
+    try:
+        data = json.loads(note)
+        return data if isinstance(data, dict) else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _spedizione_ad_hoc_summary(rows: list[SpedizioneAdHocItem]) -> dict:
+    return {
+        "righe": len(rows),
+        "quantita": sum(float(row.quantita or 0) for row in rows),
+        "peso_kg": sum(float(row.peso_totale_kg or 0) for row in rows),
+        "peso_spedizione_kg": sum(float(row.peso_totale_kg or 0) for row in rows if row.stato == "TROVATO"),
+        "trovati": sum(1 for row in rows if row.stato == "TROVATO"),
+        "da_trovare": sum(1 for row in rows if row.stato != "TROVATO"),
+    }
+
+
+@router.post("/spedizione-ad-hoc/create-empty", status_code=201)
+def create_empty_spedizione_ad_hoc(
+    payload: SpedizioneAdHocEmptyCreate,
+    db: Session = Depends(get_db),
+):
+    title = (payload.titolo or "").strip()
+    if not title:
+        raise HTTPException(422, "Inserisci un titolo spedizione")
+    spedizione = SpedizioneAdHoc(
+        commessa_id=None,
+        revisione_id=None,
+        titolo=title,
+        source_file=None,
+        stato="APERTA",
+        note=payload.note,
+    )
+    db.add(spedizione)
+    db.commit()
+    db.refresh(spedizione)
+    return {
+        "id": spedizione.id,
+        "titolo": spedizione.titolo,
+        "righe": 0,
+        "redirect_url": "/spedizione-ad-hoc",
+    }
+
+
+@router.get("/spedizione-ad-hoc/current")
+def get_current_empty_spedizione_ad_hoc(db: Session = Depends(get_db)):
+    spedizione = (
+        db.query(SpedizioneAdHoc)
+        .filter(SpedizioneAdHoc.commessa_id.is_(None))
+        .filter(SpedizioneAdHoc.stato == "APERTA")
+        .order_by(SpedizioneAdHoc.id.desc())
+        .first()
+    )
+    if not spedizione:
+        return {"spedizione": None, "summary": _spedizione_ad_hoc_summary([]), "items": []}
+    rows = (
+        db.query(SpedizioneAdHocItem)
+        .filter(SpedizioneAdHocItem.spedizione_id == spedizione.id)
+        .order_by(SpedizioneAdHocItem.row_index, SpedizioneAdHocItem.id)
+        .all()
+    )
+    return {
+        "spedizione": {
+            "id": spedizione.id,
+            "titolo": spedizione.titolo,
+            "stato": spedizione.stato,
+            "note": spedizione.note,
+            "source_file": spedizione.source_file,
+            "empty_mode": spedizione.source_file is None,
+            "created_at": spedizione.created_at,
+            "updated_at": spedizione.updated_at,
+        },
+        "summary": _spedizione_ad_hoc_summary(rows),
+        "items": [_spedizione_ad_hoc_item_read(row) for row in rows],
     }
 
 
@@ -1219,8 +1259,8 @@ def _populate_post_officina_items(
 def _populate_spedizione_ad_hoc_items(
     db: Session,
     spedizione_id: int,
-    commessa_id: int,
-    revisione_id: int,
+    commessa_id: int | None,
+    revisione_id: int | None,
     spedizione_items: list[dict],
 ) -> int:
     if not spedizione_items:
@@ -1559,6 +1599,7 @@ def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
         "cantiere_status": row.stato,
         "trovato_at": row.trovato_at,
         "source_file": row.source_file,
+        "scan_fields": _scan_fields_from_note(row.note),
         "qr_image_url": "",
         "qr_payload": "",
         "spedizione_ad_hoc": True,
@@ -1621,6 +1662,11 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
                 "righe": len(ad_hoc_rows),
                 "quantita": sum(float(row.quantita or 0) for row in ad_hoc_rows),
                 "peso_kg": sum(float(row.peso_totale_kg or 0) for row in ad_hoc_rows),
+                "peso_spedizione_kg": sum(
+                    float(row.peso_totale_kg or 0)
+                    for row in ad_hoc_rows
+                    if row.stato == "TROVATO"
+                ),
                 "assemblati": 0,
                 "pezzi_sciolti": 0,
                 "spedizione": len(ad_hoc_rows),
