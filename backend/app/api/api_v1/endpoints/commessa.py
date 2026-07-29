@@ -548,7 +548,17 @@ def _scan_fields_from_note(note: str | None) -> dict:
         data = json.loads(note)
         return data if isinstance(data, dict) else {}
     except (TypeError, ValueError):
-        return {}
+        pass
+    for line in reversed(str(note).splitlines()):
+        line = line.strip()
+        if not line.startswith("SCAN_FIELDS "):
+            continue
+        try:
+            data = json.loads(line.removeprefix("SCAN_FIELDS ").strip())
+            return data if isinstance(data, dict) else {}
+        except (TypeError, ValueError):
+            return {}
+    return {}
 
 
 def _spedizione_ad_hoc_summary(rows: list[SpedizioneAdHocItem]) -> dict:
@@ -1577,6 +1587,7 @@ def _post_officina_item_read(row: CommessaPostOfficinaItem) -> dict:
 
 
 def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
+    scan_fields = _scan_fields_from_note(row.note)
     return {
         "id": row.id,
         "commessa_id": row.commessa_id,
@@ -1599,7 +1610,9 @@ def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
         "cantiere_status": row.stato,
         "trovato_at": row.trovato_at,
         "source_file": row.source_file,
-        "scan_fields": _scan_fields_from_note(row.note),
+        "scan_fields": scan_fields,
+        "peso_scan_kg": scan_fields.get("peso_scan_kg"),
+        "peso_mismatch": bool(scan_fields.get("peso_mismatch")),
         "qr_image_url": "",
         "qr_payload": "",
         "spedizione_ad_hoc": True,
