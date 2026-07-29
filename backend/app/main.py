@@ -328,6 +328,10 @@ def create_app() -> FastAPI:
     def scanner_read_page(device_token: str):
         return FileResponse(STATIC_DIR / "scanner-read.html", headers=_NO_CACHE)
 
+    @app.get("/mobile-scan/{device_token}", include_in_schema=False)
+    def mobile_scan_page(device_token: str):
+        return FileResponse(STATIC_DIR / "mobile-scan.html", headers=_NO_CACHE)
+
     @app.get("/admin", include_in_schema=False)
     def admin_page():
         return FileResponse(STATIC_DIR / "admin.html", headers=_NO_CACHE)

@@ -1640,6 +1640,7 @@ function renderScannerDevices() {
     const scanUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan` : '—';
     const readApiUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read` : '—';
     const readPageUrl = token ? `${location.origin}/scanner-view/${encodeURIComponent(token)}` : '—';
+    const mobilePageUrl = token ? `${location.origin}/mobile-scan/${encodeURIComponent(token)}` : '—';
     return `
     <tr style="${s.active ? '' : 'opacity:.42'}" oncontextmenu="openScannerContextMenu(event, ${s.id})">
       <td style="font-weight:800;color:#dbeafe">${esc(s.scanner_code)}</td>
@@ -1657,6 +1658,7 @@ function renderScannerDevices() {
           <div class="scan-conn-line"><span class="scan-conn-label">${scanMode}</span><span class="scan-url" title="${esc(scanUrl)}">${esc(scanUrl)}</span></div>
           <div class="scan-conn-line"><span class="scan-conn-label">Read</span><span class="scan-url" title="${esc(readApiUrl)}">${esc(readApiUrl)}</span></div>
           <div class="scan-conn-line"><span class="scan-conn-label">Pagina</span><span class="scan-url" title="${esc(readPageUrl)}">${esc(readPageUrl)}</span></div>
+          <div class="scan-conn-line"><span class="scan-conn-label">Mobile</span><span class="scan-url" title="${esc(mobilePageUrl)}">${esc(mobilePageUrl)}</span></div>
         </div>
       </td>
       <td style="color:rgba(255,255,255,.48)">${esc(s.ip_address || '—')}</td>
@@ -1665,6 +1667,7 @@ function renderScannerDevices() {
         <div class="scan-actions">
           <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','scan')">Copia scan</button>
           <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','read')">Copia read</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','mobile')">Copia mobile</button>
           <button class="btn btn-success btn-sm" onclick="testScannerScan('${esc(token)}')">Test</button>
           <button class="btn btn-ghost btn-sm" onclick="editScannerDevice(${s.id})">Modifica</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleScannerDevice(${s.id}, ${!s.active})">${s.active ? 'Disattiva' : 'Attiva'}</button>
@@ -1684,6 +1687,7 @@ function openScannerContextMenu(event, id) {
   menu.innerHTML = `
     <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','scan');closeScannerContextMenu()">Copia URL scan</button>
     <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','read');closeScannerContextMenu()">Copia URL lettura</button>
+    <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','mobile');closeScannerContextMenu()">Copia URL mobile</button>
     <button class="ctx-item" onclick="testScannerScan('${esc(token)}');closeScannerContextMenu()">Test scan</button>
     <button class="ctx-item" onclick="editScannerDevice(${s.id});closeScannerContextMenu()">Modifica</button>
     <button class="ctx-item" onclick="toggleScannerDevice(${s.id}, ${!s.active});closeScannerContextMenu()">${s.active ? 'Disattiva' : 'Attiva'}</button>
@@ -1706,12 +1710,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeScanner
 
 async function copyScannerUrl(token, mode) {
   if (!token) return toast('Token scanner mancante', 'err');
-  const url = mode === 'read'
+  const url = mode === 'mobile'
+    ? `${location.origin}/mobile-scan/${encodeURIComponent(token)}`
+    : mode === 'read'
     ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read`
     : `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan`;
   try {
     await navigator.clipboard.writeText(url);
-    toast(mode === 'read' ? 'URL lettura copiato' : 'URL scan copiato', 'ok');
+    toast(mode === 'mobile' ? 'URL mobile copiato' : mode === 'read' ? 'URL lettura copiato' : 'URL scan copiato', 'ok');
   } catch {
     prompt('Copia URL scanner', url);
   }
