@@ -81,12 +81,27 @@ def _normalize_shipping_code(value: str | None) -> str:
     return str(value or "").strip().upper()
 
 
+def _compact_shipping_code(value: str | None) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())
+
+
 def _payload_contains_shipping_code(raw_payload: str, code: str | None) -> bool:
-    clean_code = str(code or "").strip()
-    if len(clean_code) < 2:
+    clean_code = _normalize_shipping_code(code)
+    compact_code = _compact_shipping_code(code)
+    if len(compact_code) < 2:
         return False
     pattern = rf"(?<![A-Z0-9]){re.escape(clean_code)}(?![A-Z0-9])"
-    return bool(re.search(pattern, str(raw_payload or ""), re.IGNORECASE))
+    if clean_code and bool(re.search(pattern, str(raw_payload or ""), re.IGNORECASE)):
+        return True
+    flexible_pattern = r"(?<![A-Z0-9])" + r"[^A-Z0-9]*".join(re.escape(ch) for ch in compact_code) + r"(?![A-Z0-9])"
+    if bool(re.search(flexible_pattern, str(raw_payload or ""), re.IGNORECASE)):
+        return True
+    payload_tokens = {
+        _compact_shipping_code(token)
+        for token in re.findall(r"[A-Z0-9][A-Z0-9._/\-\s]{1,40}[A-Z0-9]", str(raw_payload or "").upper())
+    }
+    payload_tokens.update(_compact_shipping_code(token) for token in re.findall(r"[A-Z0-9]+", str(raw_payload or "").upper()))
+    return compact_code in payload_tokens
 
 
 def _flatten_payload(data: dict) -> dict:
@@ -255,7 +270,6 @@ def process_ad_hoc_shipping_scan(
             db.query(SpedizioneAdHocItem)
             .join(SpedizioneAdHoc, SpedizioneAdHoc.id == SpedizioneAdHocItem.spedizione_id)
             .filter(SpedizioneAdHoc.stato != "CHIUSA")
-            .filter(SpedizioneAdHoc.source_file.isnot(None))
             .filter(SpedizioneAdHocItem.codice.isnot(None))
             .order_by(
                 SpedizioneAdHocItem.stato.asc(),
@@ -264,17 +278,19 @@ def process_ad_hoc_shipping_scan(
             )
             .all()
         )
-        contained_codes = {
-            _normalize_shipping_code(row.codice)
-            for row in candidates
-            if _payload_contains_shipping_code(raw_payload, row.codice)
-        }
+        contained_codes = {}
+        for row in candidates:
+            normalized_code = _normalize_shipping_code(row.codice)
+            compact_code = _compact_shipping_code(row.codice)
+            if compact_code and _payload_contains_shipping_code(raw_payload, row.codice):
+                contained_codes[compact_code] = normalized_code
         if contained_codes:
-            matched_shipping_id = sorted(contained_codes, key=lambda value: (-len(value), value))[0]
+            matched_shipping_id = sorted(contained_codes.values(), key=lambda value: (-len(_compact_shipping_code(value)), value))[0]
+            matched_compact_id = _compact_shipping_code(matched_shipping_id)
             matches = [
                 row
                 for row in candidates
-                if _normalize_shipping_code(row.codice) == matched_shipping_id
+                if _compact_shipping_code(row.codice) == matched_compact_id
             ]
 
     empty_spedizione = (
@@ -337,7 +353,7 @@ def process_ad_hoc_shipping_scan(
     preferred = next((row for row in matches if row.stato != "TROVATO"), matches[0])
     target_rows = [
         row for row in matches
-        if row.spedizione_id == preferred.spedizione_id and _normalize_shipping_code(row.codice) == matched_shipping_id
+        if row.spedizione_id == preferred.spedizione_id and _compact_shipping_code(row.codice) == _compact_shipping_code(matched_shipping_id)
     ]
     spedizione = preferred.spedizione
     already_found = all(row.stato == "TROVATO" for row in target_rows)
