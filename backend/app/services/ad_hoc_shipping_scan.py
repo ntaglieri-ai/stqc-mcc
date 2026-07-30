@@ -77,6 +77,18 @@ def _same_weight(left, right) -> bool:
     return abs(float(left) - float(right)) < 0.01
 
 
+def _normalize_shipping_code(value: str | None) -> str:
+    return str(value or "").strip().upper()
+
+
+def _payload_contains_shipping_code(raw_payload: str, code: str | None) -> bool:
+    clean_code = str(code or "").strip()
+    if len(clean_code) < 2:
+        return False
+    pattern = rf"(?<![A-Z0-9]){re.escape(clean_code)}(?![A-Z0-9])"
+    return bool(re.search(pattern, str(raw_payload or ""), re.IGNORECASE))
+
+
 def _flatten_payload(data: dict) -> dict:
     result = {}
     for key, value in data.items():
@@ -223,10 +235,11 @@ def process_ad_hoc_shipping_scan(
         db.commit()
         return {"ply": 3, "msg": "QR senza ID spedizione", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "AD_HOC_SHIPPING"}
 
+    exact_shipping_id = _normalize_shipping_code(shipping_id)
     matches = (
         db.query(SpedizioneAdHocItem)
         .join(SpedizioneAdHoc, SpedizioneAdHoc.id == SpedizioneAdHocItem.spedizione_id)
-        .filter(func.upper(func.trim(SpedizioneAdHocItem.codice)) == shipping_id.strip().upper())
+        .filter(func.upper(func.trim(SpedizioneAdHocItem.codice)) == exact_shipping_id)
         .filter(SpedizioneAdHoc.stato != "CHIUSA")
         .order_by(
             SpedizioneAdHocItem.stato.asc(),
@@ -235,6 +248,34 @@ def process_ad_hoc_shipping_scan(
         )
         .all()
     )
+    matched_shipping_id = exact_shipping_id
+
+    if not matches:
+        candidates = (
+            db.query(SpedizioneAdHocItem)
+            .join(SpedizioneAdHoc, SpedizioneAdHoc.id == SpedizioneAdHocItem.spedizione_id)
+            .filter(SpedizioneAdHoc.stato != "CHIUSA")
+            .filter(SpedizioneAdHoc.source_file.isnot(None))
+            .filter(SpedizioneAdHocItem.codice.isnot(None))
+            .order_by(
+                SpedizioneAdHocItem.stato.asc(),
+                SpedizioneAdHocItem.created_at.desc(),
+                SpedizioneAdHocItem.id.desc(),
+            )
+            .all()
+        )
+        contained_codes = {
+            _normalize_shipping_code(row.codice)
+            for row in candidates
+            if _payload_contains_shipping_code(raw_payload, row.codice)
+        }
+        if contained_codes:
+            matched_shipping_id = sorted(contained_codes, key=lambda value: (-len(value), value))[0]
+            matches = [
+                row
+                for row in candidates
+                if _normalize_shipping_code(row.codice) == matched_shipping_id
+            ]
 
     empty_spedizione = (
         db.query(SpedizioneAdHoc)
@@ -288,7 +329,7 @@ def process_ad_hoc_shipping_scan(
         return {"ply": 1, "msg": message, "ok": True, "scan_kind": "AD_HOC_SHIPPING"}
 
     if not matches:
-        message = f"ID spedizione non trovato: {shipping_id}"
+        message = f"ID spedizione non trovato: {matched_shipping_id}"
         _attempt(db, scanner, external_id, raw_payload, "ERROR", message, error_code="SHIPPING_ID_NOT_FOUND")
         db.commit()
         return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_ID_NOT_FOUND", "scan_kind": "AD_HOC_SHIPPING"}
@@ -296,7 +337,7 @@ def process_ad_hoc_shipping_scan(
     preferred = next((row for row in matches if row.stato != "TROVATO"), matches[0])
     target_rows = [
         row for row in matches
-        if row.spedizione_id == preferred.spedizione_id and str(row.codice or "").strip().upper() == shipping_id.strip().upper()
+        if row.spedizione_id == preferred.spedizione_id and _normalize_shipping_code(row.codice) == matched_shipping_id
     ]
     spedizione = preferred.spedizione
     already_found = all(row.stato == "TROVATO" for row in target_rows)
@@ -305,7 +346,7 @@ def process_ad_hoc_shipping_scan(
     scan_fields = dict(parsed_scan.get("scan_fields") or {})
     if scan_weight is not None:
         scan_fields["peso_scan_kg"] = scan_weight
-    note_line = f"[{now.isoformat()}] Spedizione ad hoc: ID {shipping_id} letto da {scanner.scanner_code}."
+    note_line = f"[{now.isoformat()}] Spedizione ad hoc: ID {matched_shipping_id} letto da {scanner.scanner_code}."
     for row in target_rows:
         file_weight = float(row.peso_totale_kg) if row.peso_totale_kg is not None else None
         mismatch = scan_weight is not None and file_weight is not None and not _same_weight(scan_weight, file_weight)
@@ -321,9 +362,9 @@ def process_ad_hoc_shipping_scan(
         row.note = "\n".join(part for part in (row.note, note_line, scan_line) if part)
 
     message = (
-        f"ID già trovato · {shipping_id}"
+        f"ID già trovato · {matched_shipping_id}"
         if already_found
-        else f"Trovato · {shipping_id} · {spedizione.titolo if spedizione else 'spedizione'} · {len(target_rows)} riga/e"
+        else f"Trovato · {matched_shipping_id} · {spedizione.titolo if spedizione else 'spedizione'} · {len(target_rows)} riga/e"
     )
     _attempt(db, scanner, external_id, raw_payload, "OK", message)
     db.commit()
