@@ -71,6 +71,39 @@ def _extract_weight_kg_from_text(value: str):
     return None
 
 
+def _extract_quantity_from_text(value: str) -> dict:
+    text = str(value or "")
+    sequence_patterns = (
+        r"\bq\.?\s*t\.?\s*a'?\.?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*(?:di|/)\s*(\d+(?:[.,]\d+)?)\b",
+        r"\b(\d+(?:[.,]\d+)?)\s*(?:di|/)\s*(\d+(?:[.,]\d+)?)\b",
+    )
+    for pattern in sequence_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            continue
+        current = _parse_number(match.group(1))
+        total = _parse_number(match.group(2))
+        if current is None or total is None:
+            continue
+        return {
+            "quantita": 1,
+            "scan_quantita": 1,
+            "scan_progressivo": current,
+            "scan_totale": total,
+        }
+
+    qty_match = re.search(
+        r"\bq\.?\s*t\.?\s*a'?\.?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\b",
+        text,
+        re.IGNORECASE,
+    )
+    if qty_match:
+        qty = _parse_number(qty_match.group(1))
+        if qty is not None:
+            return {"quantita": qty, "scan_quantita": qty}
+    return {}
+
+
 def _same_weight(left, right) -> bool:
     if left is None or right is None:
         return False
@@ -155,6 +188,10 @@ def parse_ad_hoc_scan_payload(raw_payload: str) -> dict:
         mapped[key] = _parse_number(mapped.get(key))
     if mapped.get("peso_totale_kg") is None:
         mapped["peso_totale_kg"] = _extract_weight_kg_from_text(value)
+    quantity_from_text = _extract_quantity_from_text(value)
+    if quantity_from_text:
+        mapped.update(quantity_from_text)
+        mapped["scan_fields"].update(quantity_from_text)
     mapped["quantita"] = mapped["quantita"] if mapped.get("quantita") is not None else 1
     return mapped
 
@@ -362,12 +399,24 @@ def process_ad_hoc_shipping_scan(
     scan_fields = dict(parsed_scan.get("scan_fields") or {})
     if scan_weight is not None:
         scan_fields["peso_scan_kg"] = scan_weight
+    if parsed_scan.get("scan_quantita") is not None:
+        scan_fields["scan_quantita"] = parsed_scan.get("scan_quantita")
+    if parsed_scan.get("scan_progressivo") is not None:
+        scan_fields["scan_progressivo"] = parsed_scan.get("scan_progressivo")
+    if parsed_scan.get("scan_totale") is not None:
+        scan_fields["scan_totale"] = parsed_scan.get("scan_totale")
     note_line = f"[{now.isoformat()}] Spedizione ad hoc: ID {matched_shipping_id} letto da {scanner.scanner_code}."
     for row in target_rows:
-        file_weight = float(row.peso_totale_kg) if row.peso_totale_kg is not None else None
+        file_weight_total = float(row.peso_totale_kg) if row.peso_totale_kg is not None else None
+        scan_qty = _parse_number(scan_fields.get("scan_quantita")) if scan_fields.get("scan_quantita") is not None else None
+        file_qty = float(row.quantita or 0)
+        file_weight = file_weight_total
+        if scan_qty is not None and file_qty > 0 and file_weight_total is not None:
+            file_weight = file_weight_total / file_qty * scan_qty
         mismatch = scan_weight is not None and file_weight is not None and not _same_weight(scan_weight, file_weight)
         row_scan_fields = dict(scan_fields)
         row_scan_fields["peso_file_kg"] = file_weight
+        row_scan_fields["peso_file_riga_kg"] = file_weight_total
         row_scan_fields["peso_mismatch"] = mismatch
         row.stato = "TROVATO"
         row.trovato_at = row.trovato_at or now

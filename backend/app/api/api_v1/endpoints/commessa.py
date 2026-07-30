@@ -608,12 +608,29 @@ def _scan_fields_from_note(note: str | None) -> dict:
     return {}
 
 
+def _spedizione_ad_hoc_effective_quantity(row: SpedizioneAdHocItem, scan_fields: dict | None = None) -> float:
+    scan_fields = scan_fields if scan_fields is not None else _scan_fields_from_note(row.note)
+    if row.stato == "TROVATO" and scan_fields.get("scan_quantita") is not None:
+        return float(scan_fields.get("scan_quantita") or 0)
+    return float(row.quantita or 0)
+
+
+def _spedizione_ad_hoc_effective_weight(row: SpedizioneAdHocItem, scan_fields: dict | None = None) -> float:
+    scan_fields = scan_fields if scan_fields is not None else _scan_fields_from_note(row.note)
+    if row.stato == "TROVATO" and scan_fields.get("scan_quantita") is not None:
+        file_qty = float(row.quantita or 0)
+        file_weight = float(row.peso_totale_kg or 0)
+        if file_qty > 0:
+            return file_weight / file_qty * float(scan_fields.get("scan_quantita") or 0)
+    return float(row.peso_totale_kg or 0)
+
+
 def _spedizione_ad_hoc_summary(rows: list[SpedizioneAdHocItem]) -> dict:
     return {
         "righe": len(rows),
-        "quantita": sum(float(row.quantita or 0) for row in rows),
+        "quantita": sum(_spedizione_ad_hoc_effective_quantity(row) for row in rows),
         "peso_kg": sum(float(row.peso_totale_kg or 0) for row in rows),
-        "peso_spedizione_kg": sum(float(row.peso_totale_kg or 0) for row in rows if row.stato == "TROVATO"),
+        "peso_spedizione_kg": sum(_spedizione_ad_hoc_effective_weight(row) for row in rows if row.stato == "TROVATO"),
         "trovati": sum(1 for row in rows if row.stato == "TROVATO"),
         "da_trovare": sum(1 for row in rows if row.stato != "TROVATO"),
     }
@@ -1635,6 +1652,8 @@ def _post_officina_item_read(row: CommessaPostOfficinaItem) -> dict:
 
 def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
     scan_fields = _scan_fields_from_note(row.note)
+    effective_quantity = _spedizione_ad_hoc_effective_quantity(row, scan_fields)
+    effective_weight = _spedizione_ad_hoc_effective_weight(row, scan_fields)
     return {
         "id": row.id,
         "commessa_id": row.commessa_id,
@@ -1644,12 +1663,14 @@ def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
         "codice": row.codice,
         "descrizione": row.descrizione,
         "profilo": row.profilo,
-        "quantita": float(row.quantita or 0),
+        "quantita": effective_quantity,
+        "quantita_file": float(row.quantita or 0),
         "lunghezza_mm": float(row.lunghezza_mm) if row.lunghezza_mm is not None else None,
         "larghezza_mm": float(row.larghezza_mm) if row.larghezza_mm is not None else None,
         "altezza_mm": float(row.altezza_mm) if row.altezza_mm is not None else None,
         "peso_unitario_kg": float(row.peso_unitario_kg) if row.peso_unitario_kg is not None else None,
-        "peso_totale_kg": float(row.peso_totale_kg) if row.peso_totale_kg is not None else None,
+        "peso_totale_kg": effective_weight,
+        "peso_file_kg": float(row.peso_totale_kg) if row.peso_totale_kg is not None else None,
         "area_verniciabile_mq": float(row.area_verniciabile_mq) if row.area_verniciabile_mq is not None else None,
         "trattamento": row.trattamento,
         "tipo_unita": row.tipo_unita,
@@ -1691,17 +1712,20 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
         summary_by_type: dict[str, dict] = {}
         summary_by_treatment: dict[str, dict] = {}
         for row in ad_hoc_rows:
+            scan_fields = _scan_fields_from_note(row.note)
+            effective_quantity = _spedizione_ad_hoc_effective_quantity(row, scan_fields)
+            effective_weight = _spedizione_ad_hoc_effective_weight(row, scan_fields)
             tipo = row.tipo_unita or "SPEDIZIONE_AD_HOC"
             type_bucket = summary_by_type.setdefault(tipo, {"tipo": tipo, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
             type_bucket["righe"] += 1
-            type_bucket["quantita"] += float(row.quantita or 0)
-            type_bucket["peso_kg"] += float(row.peso_totale_kg or 0)
+            type_bucket["quantita"] += effective_quantity
+            type_bucket["peso_kg"] += effective_weight
 
             trattamento = row.trattamento or "Non indicato"
             treatment_bucket = summary_by_treatment.setdefault(trattamento, {"trattamento": trattamento, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
             treatment_bucket["righe"] += 1
-            treatment_bucket["quantita"] += float(row.quantita or 0)
-            treatment_bucket["peso_kg"] += float(row.peso_totale_kg or 0)
+            treatment_bucket["quantita"] += effective_quantity
+            treatment_bucket["peso_kg"] += effective_weight
 
         return {
             "commessa": {
@@ -1720,10 +1744,10 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             },
             "summary": {
                 "righe": len(ad_hoc_rows),
-                "quantita": sum(float(row.quantita or 0) for row in ad_hoc_rows),
+                "quantita": sum(_spedizione_ad_hoc_effective_quantity(row) for row in ad_hoc_rows),
                 "peso_kg": sum(float(row.peso_totale_kg or 0) for row in ad_hoc_rows),
                 "peso_spedizione_kg": sum(
-                    float(row.peso_totale_kg or 0)
+                    _spedizione_ad_hoc_effective_weight(row)
                     for row in ad_hoc_rows
                     if row.stato == "TROVATO"
                 ),
