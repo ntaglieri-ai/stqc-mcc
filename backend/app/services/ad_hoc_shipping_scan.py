@@ -410,33 +410,52 @@ def process_ad_hoc_shipping_scan(
         return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_ID_NOT_FOUND", "scan_kind": "AD_HOC_SHIPPING"}
 
     preferred = next((row for row in matches if row.stato != "TROVATO"), matches[0])
-    target_rows = [
-        row for row in matches
-        if row.spedizione_id == preferred.spedizione_id and _compact_shipping_code(row.codice) == _compact_shipping_code(matched_shipping_id)
-    ]
     spedizione = preferred.spedizione
-    already_found = all(row.stato == "TROVATO" for row in target_rows)
     parsed_scan = parsed_payload
     scan_fields = dict(parsed_scan.get("scan_fields") or {})
     scan_fields["codice_trovato"] = matched_shipping_id
     scan_fields["raw_payload"] = raw_payload
-    note_line = f"[{now.isoformat()}] Spedizione ad hoc: ID {matched_shipping_id} letto da {scanner.scanner_code}."
-    for row in target_rows:
-        row_scan_fields = dict(scan_fields)
-        row_scan_fields["peso_mismatch"] = False
-        row.stato = "TROVATO"
-        row.trovato_at = row.trovato_at or now
-        row.scanner_device_id = scanner.id
-        row.raw_payload = raw_payload[:2000]
-        row.updated_at = now
-        scan_line = "SCAN_FIELDS " + json.dumps(row_scan_fields, ensure_ascii=False, default=str)
-        row.note = "\n".join(part for part in (row.note, note_line, scan_line) if part)
+    scan_fields["peso_mismatch"] = False
+    next_row_index = (
+        db.query(func.max(SpedizioneAdHocItem.row_index))
+        .filter(SpedizioneAdHocItem.spedizione_id == preferred.spedizione_id)
+        .scalar()
+        or 0
+    ) + 1
+    file_qty = float(preferred.quantita or 0)
+    file_weight = float(preferred.peso_totale_kg or 0) if preferred.peso_totale_kg is not None else None
+    unit_weight = float(preferred.peso_unitario_kg) if preferred.peso_unitario_kg is not None else None
+    if unit_weight is None and file_weight is not None and file_qty > 0:
+        unit_weight = file_weight / file_qty
+    note = "SCAN_FIELDS " + json.dumps(scan_fields, ensure_ascii=False, default=str)
+    db.add(SpedizioneAdHocItem(
+        spedizione_id=preferred.spedizione_id,
+        commessa_id=preferred.commessa_id,
+        revisione_id=preferred.revisione_id,
+        row_index=next_row_index,
+        codice=matched_shipping_id,
+        descrizione=parsed_scan.get("descrizione") or preferred.descrizione,
+        profilo=parsed_scan.get("profilo") or preferred.profilo,
+        quantita=1,
+        lunghezza_mm=parsed_scan.get("lunghezza_mm") or preferred.lunghezza_mm,
+        larghezza_mm=parsed_scan.get("larghezza_mm") or preferred.larghezza_mm,
+        altezza_mm=parsed_scan.get("altezza_mm") or preferred.altezza_mm,
+        peso_unitario_kg=parsed_scan.get("peso_unitario_kg") or unit_weight,
+        peso_totale_kg=parsed_scan.get("peso_totale_kg") or unit_weight,
+        area_verniciabile_mq=parsed_scan.get("area_verniciabile_mq"),
+        trattamento=parsed_scan.get("trattamento") or preferred.trattamento,
+        tipo_unita=str(parsed_scan.get("tipo_unita") or "SPEDIZIONE_AD_HOC")[:40],
+        stato="TROVATO",
+        trovato_at=now,
+        scanner_device_id=scanner.id,
+        raw_payload=raw_payload[:2000],
+        source_file=preferred.source_file,
+        note=note,
+    ))
+    if spedizione:
+        spedizione.updated_at = now
 
-    message = (
-        f"ID già trovato · {matched_shipping_id}"
-        if already_found
-        else f"Trovato · {matched_shipping_id} · {spedizione.titolo if spedizione else 'spedizione'} · {len(target_rows)} riga/e"
-    )
+    message = f"Trovato - {matched_shipping_id} - scan aggiunto"
     _attempt(db, scanner, external_id, raw_payload, "OK", message)
     db.commit()
     return {"ply": 1, "msg": message, "ok": True, "scan_kind": "AD_HOC_SHIPPING"}
