@@ -74,11 +74,6 @@ const captureBtn=document.getElementById('captureBtn');
 const manualPayload=document.getElementById('manualPayload');
 let scanner=null;
 let running=false;
-let nativeStream=null;
-let nativeDetector=null;
-let nativeLoop=0;
-let nativeVideo=null;
-let scannerEngine='';
 let lastPayload='';
 let lastAt=0;
 let armed=false;
@@ -108,58 +103,6 @@ async function handleDetectedScan(payload){
   if(!clean)return;
   setArmed(false);
   await postScan(clean);
-}
-async function startNativeScanner(){
-  if(!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia)return false;
-  try{
-    const formats=await BarcodeDetector.getSupportedFormats().catch(()=>[]);
-    const wanted=['qr_code','code_128','code_39','code_93','codabar','data_matrix','pdf417','aztec','ean_13','ean_8','itf','upc_a','upc_e'];
-    const selected=wanted.filter(format=>!formats.length||formats.includes(format));
-    nativeDetector=new BarcodeDetector({formats:selected});
-    nativeStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
-      audio:false
-    });
-    const reader=document.getElementById('reader');
-    reader.innerHTML='';
-    nativeVideo=document.createElement('video');
-    nativeVideo.setAttribute('playsinline','');
-    nativeVideo.muted=true;
-    nativeVideo.autoplay=true;
-    nativeVideo.srcObject=nativeStream;
-    reader.appendChild(nativeVideo);
-    await nativeVideo.play();
-    scannerEngine='nativo';
-    running=true;
-    nativeTick();
-    return true;
-  }catch(err){
-    stopNativeScanner();
-    return false;
-  }
-}
-function nativeTick(){
-  nativeLoop=requestAnimationFrame(nativeTick);
-  if(!running||!armed||sending||!nativeDetector||!nativeVideo||nativeVideo.readyState<2)return;
-  nativeDetector.detect(nativeVideo).then(codes=>{
-    if(!armed||sending||!codes?.length)return;
-    const value=String(codes[0].rawValue||'').trim();
-    if(value)handleDetectedScan(value);
-  }).catch(()=>{});
-}
-function stopNativeScanner(){
-  if(nativeLoop)cancelAnimationFrame(nativeLoop);
-  nativeLoop=0;
-  if(nativeStream){
-    nativeStream.getTracks().forEach(track=>track.stop());
-    nativeStream=null;
-  }
-  if(nativeVideo){
-    nativeVideo.srcObject=null;
-    nativeVideo.remove();
-    nativeVideo=null;
-  }
-  nativeDetector=null;
 }
 function html5Formats(){
   const f=window.Html5QrcodeSupportedFormats;
@@ -202,13 +145,8 @@ async function startScanner(){
   if(!token){setStatus('err','Token mancante','Apri la pagina con /mobile-scan/TOKEN.');return}
   if(running)return;
   try{
-    if(await startNativeScanner()){
-      setArmed(false);
-      setStatus('wait','Camera attiva','Lettore nativo. Premi Acquisisci quando vuoi leggere il codice.');
-      return;
-    }
     if(!window.Html5Qrcode){setStatus('err','Libreria scanner non caricata','Controlla connessione internet e HTTPS. Puoi usare input manuale.');return}
-    scanner=scanner||new Html5Qrcode('reader',{verbose:false,formatsToSupport:html5Formats()});
+    scanner=scanner||new Html5Qrcode('reader',false);
     await scanner.start(
       {facingMode:'environment'},
       {fps:12,qrbox:(w,h)=>{const size=Math.floor(Math.min(w,h)*0.82);return{width:size,height:size}},aspectRatio:1,formatsToSupport:html5Formats()},
@@ -216,9 +154,8 @@ async function startScanner(){
       ()=>{}
     );
     running=true;
-    scannerEngine='html5';
     setArmed(false);
-    setStatus('wait','Camera attiva','Lettore fallback. Premi Acquisisci quando vuoi leggere il codice.');
+    setStatus('wait','Camera attiva','Premi Acquisisci quando vuoi leggere il codice.');
   }catch(err){
     setStatus('err','Camera non disponibile',err.message||String(err));
   }
@@ -227,13 +164,10 @@ async function stopScanner(silent=false){
   if(!running)return;
   try{
     setArmed(false);
-    if(scannerEngine==='nativo'){
-      stopNativeScanner();
-    }else if(scanner){
+    if(scanner){
       await scanner.stop();
     }
     running=false;
-    scannerEngine='';
     if(!silent)setStatus('wait','Scanner fermo','Premi Avvia o Acquisisci per ripartire.');
   }catch(err){
     if(!silent)setStatus('err','Stop non riuscito',err.message||String(err))
