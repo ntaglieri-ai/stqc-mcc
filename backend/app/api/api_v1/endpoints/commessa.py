@@ -1645,6 +1645,9 @@ def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
     scan_fields = _scan_fields_from_note(row.note)
     effective_quantity = _spedizione_ad_hoc_effective_quantity(row, scan_fields)
     effective_weight = _spedizione_ad_hoc_effective_weight(row, scan_fields)
+    quantita_scan_label = ""
+    if scan_fields.get("scan_progressivo") is not None and scan_fields.get("scan_totale") is not None:
+        quantita_scan_label = f"{scan_fields.get('scan_progressivo'):g} di {scan_fields.get('scan_totale'):g}"
     return {
         "id": row.id,
         "commessa_id": row.commessa_id,
@@ -1655,6 +1658,7 @@ def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
         "descrizione": row.descrizione,
         "profilo": row.profilo,
         "quantita": effective_quantity,
+        "quantita_scan_label": quantita_scan_label,
         "quantita_file": float(row.quantita or 0),
         "lunghezza_mm": float(row.lunghezza_mm) if row.lunghezza_mm is not None else None,
         "larghezza_mm": float(row.larghezza_mm) if row.larghezza_mm is not None else None,
