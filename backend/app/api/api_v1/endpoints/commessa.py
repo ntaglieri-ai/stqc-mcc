@@ -609,19 +609,10 @@ def _scan_fields_from_note(note: str | None) -> dict:
 
 
 def _spedizione_ad_hoc_effective_quantity(row: SpedizioneAdHocItem, scan_fields: dict | None = None) -> float:
-    scan_fields = scan_fields if scan_fields is not None else _scan_fields_from_note(row.note)
-    if row.stato == "TROVATO" and scan_fields.get("scan_quantita") is not None:
-        return float(scan_fields.get("scan_quantita") or 0)
     return float(row.quantita or 0)
 
 
 def _spedizione_ad_hoc_effective_weight(row: SpedizioneAdHocItem, scan_fields: dict | None = None) -> float:
-    scan_fields = scan_fields if scan_fields is not None else _scan_fields_from_note(row.note)
-    if row.stato == "TROVATO" and scan_fields.get("scan_quantita") is not None:
-        file_qty = float(row.quantita or 0)
-        file_weight = float(row.peso_totale_kg or 0)
-        if file_qty > 0:
-            return file_weight / file_qty * float(scan_fields.get("scan_quantita") or 0)
     return float(row.peso_totale_kg or 0)
 
 

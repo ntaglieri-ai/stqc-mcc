@@ -417,29 +417,13 @@ def process_ad_hoc_shipping_scan(
     spedizione = preferred.spedizione
     already_found = all(row.stato == "TROVATO" for row in target_rows)
     parsed_scan = parsed_payload
-    scan_weight = parsed_scan.get("peso_totale_kg")
     scan_fields = dict(parsed_scan.get("scan_fields") or {})
-    if scan_weight is not None:
-        scan_fields["peso_scan_kg"] = scan_weight
-    if parsed_scan.get("scan_quantita") is not None:
-        scan_fields["scan_quantita"] = parsed_scan.get("scan_quantita")
-    if parsed_scan.get("scan_progressivo") is not None:
-        scan_fields["scan_progressivo"] = parsed_scan.get("scan_progressivo")
-    if parsed_scan.get("scan_totale") is not None:
-        scan_fields["scan_totale"] = parsed_scan.get("scan_totale")
+    scan_fields["codice_trovato"] = matched_shipping_id
+    scan_fields["raw_payload"] = raw_payload
     note_line = f"[{now.isoformat()}] Spedizione ad hoc: ID {matched_shipping_id} letto da {scanner.scanner_code}."
     for row in target_rows:
-        file_weight_total = float(row.peso_totale_kg) if row.peso_totale_kg is not None else None
-        scan_qty = _parse_number(scan_fields.get("scan_quantita")) if scan_fields.get("scan_quantita") is not None else None
-        file_qty = float(row.quantita or 0)
-        file_weight = file_weight_total
-        if scan_qty is not None and file_qty > 0 and file_weight_total is not None:
-            file_weight = file_weight_total / file_qty * scan_qty
-        mismatch = scan_weight is not None and file_weight is not None and not _same_weight(scan_weight, file_weight)
         row_scan_fields = dict(scan_fields)
-        row_scan_fields["peso_file_kg"] = file_weight
-        row_scan_fields["peso_file_riga_kg"] = file_weight_total
-        row_scan_fields["peso_mismatch"] = mismatch
+        row_scan_fields["peso_mismatch"] = False
         row.stato = "TROVATO"
         row.trovato_at = row.trovato_at or now
         row.scanner_device_id = scanner.id
