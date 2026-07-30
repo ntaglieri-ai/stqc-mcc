@@ -76,7 +76,8 @@ let scanner=null;
 let running=false;
 let lastPayload='';
 let lastAt=0;
-let armed=false;
+let pendingPayload='';
+let pausedForConfirm=false;
 let sending=false;
 meta.textContent=token?`Scanner token: ${token}`:'Token mancante';
 
@@ -85,24 +86,40 @@ function setStatus(type,title,msg){
   statusTitle.textContent=title;
   statusMsg.textContent=msg||'';
 }
-function setArmed(value){
-  armed=!!value;
-  captureBtn.disabled=armed||sending;
-  hint.classList.toggle('armed',armed);
-  hint.textContent=armed
-    ? 'Acquisizione attiva: inquadra UN solo codice.'
-    : 'Inquadra il codice e premi Acquisisci solo quando vuoi leggerlo.';
+function setPending(payload){
+  pendingPayload=String(payload||'').trim();
+  captureBtn.disabled=!pendingPayload||sending;
+  hint.classList.toggle('armed',!!pendingPayload);
+  hint.textContent=pendingPayload
+    ? 'Codice riconosciuto. Premi Acquisisci per aggiornare il tool, oppure Avvia per rileggere.'
+    : 'Inquadra il codice. Quando viene riconosciuto, premi Acquisisci.';
 }
 function buzz(ok){
   if(!navigator.vibrate)return;
   navigator.vibrate(ok?[45]:[90,45,90]);
 }
 async function handleDetectedScan(payload){
-  if(!armed||sending)return;
+  if(sending||pendingPayload)return;
   const clean=String(payload||'').trim();
   if(!clean)return;
-  setArmed(false);
-  await postScan(clean);
+  setPending(clean);
+  pauseScannerForConfirm();
+  setStatus('wait','Codice riconosciuto',clean);
+  buzz(true);
+}
+function pauseScannerForConfirm(){
+  if(!scanner||!running||pausedForConfirm)return;
+  try{
+    if(typeof scanner.pause==='function')scanner.pause(true);
+    pausedForConfirm=true;
+  }catch(_){}
+}
+function resumeScanner(){
+  if(!scanner||!running)return;
+  try{
+    if(typeof scanner.resume==='function')scanner.resume();
+    pausedForConfirm=false;
+  }catch(_){}
 }
 function html5Formats(){
   const f=window.Html5QrcodeSupportedFormats;
@@ -131,6 +148,7 @@ async function postScan(payload){
     const data=await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false)throw new Error(data.detail||data.msg||`Errore ${r.status}`);
     setStatus('ok','Acquisito',data.msg||clean);
+    setPending('');
     buzz(true);
   }catch(err){
     setStatus('err','Errore scan',err.message||String(err));
@@ -138,11 +156,17 @@ async function postScan(payload){
   }finally{
     sending=false;
     captureBtn.disabled=false;
-    setArmed(false);
+    setPending('');
   }
 }
 async function startScanner(){
   if(!token){setStatus('err','Token mancante','Apri la pagina con /mobile-scan/TOKEN.');return}
+  if(pausedForConfirm||pendingPayload){
+    setPending('');
+    resumeScanner();
+    setStatus('wait','Camera attiva','Inquadra di nuovo il codice.');
+    return;
+  }
   if(running)return;
   try{
     if(!window.Html5Qrcode){setStatus('err','Libreria scanner non caricata','Controlla connessione internet e HTTPS. Puoi usare input manuale.');return}
@@ -154,8 +178,8 @@ async function startScanner(){
       ()=>{}
     );
     running=true;
-    setArmed(false);
-    setStatus('wait','Camera attiva','Premi Acquisisci quando vuoi leggere il codice.');
+    setPending('');
+    setStatus('wait','Camera attiva','Inquadra il codice. Quando lo riconosce, premi Acquisisci.');
   }catch(err){
     setStatus('err','Camera non disponibile',err.message||String(err));
   }
@@ -163,7 +187,8 @@ async function startScanner(){
 async function stopScanner(silent=false){
   if(!running)return;
   try{
-    setArmed(false);
+    setPending('');
+    pausedForConfirm=false;
     if(scanner){
       await scanner.stop();
     }
@@ -176,14 +201,16 @@ async function stopScanner(silent=false){
 async function captureOnce(){
   if(sending)return;
   if(!running)await startScanner();
-  if(!running)return;
-  setArmed(true);
-  setStatus('wait','Acquisizione attiva','Inquadra un solo codice. Dopo la lettura si ferma da solo.');
+  if(!pendingPayload){
+    setStatus('wait','Nessun codice pronto','Inquadra un codice: quando viene riconosciuto, poi premi Acquisisci.');
+    return;
+  }
+  await postScan(pendingPayload);
 }
 function sendManual(){
   const value=manualPayload.value.trim();
   manualPayload.value='';
-  setArmed(false);
+  setPending('');
   postScan(value);
 }
 window.addEventListener('pagehide',()=>{stopScanner().catch(()=>{})});
