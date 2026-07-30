@@ -20,6 +20,7 @@
     .frame{pointer-events:none;position:absolute;left:50%;top:45%;width:min(78vw,360px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid rgba(96,165,250,.85);border-radius:28px;box-shadow:0 0 0 999px rgba(2,6,23,.28),0 0 34px rgba(59,130,246,.25)}
     .frame:before,.frame:after{content:"";position:absolute;inset:16px;border-radius:18px;border:1px solid rgba(255,255,255,.22)}
     .hint{position:absolute;left:16px;right:16px;bottom:18px;padding:12px 14px;border:1px solid rgba(147,197,253,.18);border-radius:18px;background:rgba(7,17,31,.82);backdrop-filter:blur(16px);color:#c9d8ee;font-size:14px;text-align:center}
+    .hint.pending{border-color:rgba(94,234,212,.45);background:rgba(15,118,110,.28);color:#f0fdfa;font-weight:850}
     .result{min-height:116px;padding:14px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid rgba(147,197,253,.14);background:#0a1424}
     .status{border:1px solid rgba(147,197,253,.16);border-radius:18px;padding:14px;background:#101f35}
     .status.ok{border-color:rgba(74,222,128,.5);background:linear-gradient(135deg,rgba(22,101,52,.85),rgba(6,78,59,.82))}
@@ -27,9 +28,11 @@
     .status.wait{border-color:rgba(250,204,21,.42);background:linear-gradient(135deg,rgba(113,63,18,.78),rgba(66,32,6,.76))}
     .status-title{font-size:18px;font-weight:950}
     .status-msg{margin-top:5px;color:rgba(234,242,255,.82);font-size:14px;line-height:1.35;word-break:break-word}
-    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .controls{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:10px;margin-top:10px}
     button{border:1px solid rgba(147,197,253,.22);background:#13243b;color:#eef5ff;border-radius:16px;min-height:48px;padding:0 14px;font-weight:950;font-size:15px}
     button.primary{background:linear-gradient(135deg,#0f766e,#2563eb);border-color:#5eead4}
+    button.capture{background:linear-gradient(135deg,#16a34a,#2563eb);border-color:#86efac}
+    button:disabled{opacity:.42;filter:saturate(.65);cursor:not-allowed}
     .manual{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
     input{min-width:0;border:1px solid rgba(147,197,253,.22);background:#07111f;color:#eef5ff;border-radius:15px;padding:0 12px;font-size:15px;font-weight:780}
     .hidden{display:none}
@@ -43,7 +46,7 @@
   <main class="stage">
     <div id="reader"></div>
     <div class="frame"></div>
-    <div class="hint" id="hint">Inquadra un QR o barcode. Il telefono invia lo scan come una pistola NETUM.</div>
+    <div class="hint" id="hint">Inquadra un QR o barcode. Quando lo vede, premi Acquisisci.</div>
   </main>
   <footer class="result">
     <div class="status wait" id="status">
@@ -52,6 +55,7 @@
     </div>
     <div class="controls">
       <button class="primary" type="button" onclick="startScanner()">Avvia</button>
+      <button class="capture" id="captureBtn" type="button" onclick="capturePending()" disabled>Acquisisci</button>
       <button type="button" onclick="stopScanner()">Stop</button>
     </div>
     <div class="manual">
@@ -65,11 +69,15 @@ const meta=document.getElementById('meta');
 const statusBox=document.getElementById('status');
 const statusTitle=document.getElementById('statusTitle');
 const statusMsg=document.getElementById('statusMsg');
+const hint=document.getElementById('hint');
+const captureBtn=document.getElementById('captureBtn');
 const manualPayload=document.getElementById('manualPayload');
 let scanner=null;
 let running=false;
 let lastPayload='';
 let lastAt=0;
+let pendingPayload='';
+let pausedForConfirm=false;
 meta.textContent=token?`Scanner token: ${token}`:'Token mancante';
 
 function setStatus(type,title,msg){
@@ -77,9 +85,39 @@ function setStatus(type,title,msg){
   statusTitle.textContent=title;
   statusMsg.textContent=msg||'';
 }
+function setPending(payload){
+  pendingPayload=String(payload||'').trim();
+  captureBtn.disabled=!pendingPayload;
+  hint.classList.toggle('pending',!!pendingPayload);
+  hint.textContent=pendingPayload
+    ? 'Codice letto. Premi Acquisisci per inviarlo, oppure Avvia per ri-inquadrare.'
+    : 'Inquadra un QR o barcode. Quando lo vede, premi Acquisisci.';
+}
 function buzz(ok){
   if(!navigator.vibrate)return;
   navigator.vibrate(ok?[45]:[90,45,90]);
+}
+function pauseForConfirm(){
+  if(!scanner||!running||pausedForConfirm)return;
+  try{
+    if(typeof scanner.pause==='function')scanner.pause(true);
+    pausedForConfirm=true;
+  }catch(_){}
+}
+function resumeCamera(){
+  if(!scanner||!running)return;
+  try{
+    if(typeof scanner.resume==='function')scanner.resume();
+    pausedForConfirm=false;
+  }catch(_){}
+}
+function previewScan(payload){
+  const clean=String(payload||'').trim();
+  if(!clean||clean===pendingPayload)return;
+  setPending(clean);
+  pauseForConfirm();
+  setStatus('wait','Codice rilevato',clean);
+  buzz(true);
 }
 async function postScan(payload){
   const clean=String(payload||'').trim();
@@ -97,6 +135,8 @@ async function postScan(payload){
     const data=await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false)throw new Error(data.detail||data.msg||`Errore ${r.status}`);
     setStatus('ok','Acquisito',data.msg||clean);
+    setPending('');
+    resumeCamera();
     buzz(true);
   }catch(err){
     setStatus('err','Errore scan',err.message||String(err));
@@ -106,28 +146,41 @@ async function postScan(payload){
 async function startScanner(){
   if(!token){setStatus('err','Token mancante','Apri la pagina con /mobile-scan/TOKEN.');return}
   if(!window.Html5Qrcode){setStatus('err','Libreria scanner non caricata','Controlla connessione internet e HTTPS. Puoi usare input manuale.');return}
+  if(pausedForConfirm){
+    setPending('');
+    resumeCamera();
+    setStatus('wait','Camera attiva','Inquadra di nuovo il codice.');
+    return;
+  }
   if(running)return;
   try{
     scanner=scanner||new Html5Qrcode('reader',{verbose:false});
     await scanner.start(
       {facingMode:'environment'},
       {fps:8,qrbox:(w,h)=>{const size=Math.floor(Math.min(w,h)*0.72);return{width:size,height:size}},aspectRatio:1},
-      text=>postScan(text),
+      text=>previewScan(text),
       ()=>{}
     );
     running=true;
-    setStatus('wait','Camera attiva','Inquadra il codice.');
+    setPending('');
+    setStatus('wait','Camera attiva','Inquadra il codice, poi premi Acquisisci.');
   }catch(err){
     setStatus('err','Camera non disponibile',err.message||String(err));
   }
 }
 async function stopScanner(){
   if(!scanner||!running)return;
-  try{await scanner.stop();running=false;setStatus('wait','Scanner fermo','Premi Avvia per ripartire.')}catch(err){setStatus('err','Stop non riuscito',err.message||String(err))}
+  try{await scanner.stop();running=false;pausedForConfirm=false;setPending('');setStatus('wait','Scanner fermo','Premi Avvia per ripartire.')}catch(err){setStatus('err','Stop non riuscito',err.message||String(err))}
+}
+function capturePending(){
+  const value=pendingPayload;
+  if(!value){setStatus('wait','Nessun codice pronto','Inquadra un codice prima di premere Acquisisci.');return}
+  postScan(value);
 }
 function sendManual(){
   const value=manualPayload.value.trim();
   manualPayload.value='';
+  setPending('');
   postScan(value);
 }
 window.addEventListener('pagehide',()=>{stopScanner().catch(()=>{})});
