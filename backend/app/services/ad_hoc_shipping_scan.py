@@ -104,6 +104,25 @@ def _extract_quantity_from_text(value: str) -> dict:
     return {}
 
 
+def _extract_text_code_fields(value: str) -> dict:
+    text = str(value or "").strip()
+    if not text:
+        return {}
+    match = re.search(r"(?<![A-Z0-9])([A-Z]{1,4}[\s._/\-]*\d{2,5})(?![A-Z0-9])", text, re.IGNORECASE)
+    if not match:
+        return {}
+    raw_code = match.group(1).strip()
+    code = re.sub(r"[^A-Z0-9]+", "", raw_code.upper())
+    before = text[: match.start()].strip(" -_./;:,")
+    after = text[match.end() :].strip(" -_./;:,")
+    fields = {"codice": code, "codice_raw": raw_code}
+    if before:
+        fields["descrizione"] = before
+    if after:
+        fields["testo_dopo_codice"] = after
+    return fields
+
+
 def _same_weight(left, right) -> bool:
     if left is None or right is None:
         return False
@@ -171,6 +190,9 @@ def parse_ad_hoc_scan_payload(raw_payload: str) -> dict:
     for key, val in re.findall(r"([A-Za-z0-9_. /\-]+)\s*[:=]\s*([^|;\n\r]+)", value):
         parsed_fields.setdefault(key.strip(), val.strip())
 
+    text_code_fields = _extract_text_code_fields(value)
+    if text_code_fields:
+        parsed_fields.update(text_code_fields)
     if not parsed_fields:
         parsed_fields["codice"] = _extract_shipping_id(value)
 
