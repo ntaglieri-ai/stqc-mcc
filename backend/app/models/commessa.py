@@ -214,6 +214,43 @@ class SpedizioneAdHocItem(Base):
     spedizione = relationship("SpedizioneAdHoc", back_populates="items")
 
 
+class DdtManualItem(Base):
+    """Riga aggiunta manualmente al DDT, senza scan e senza QR."""
+    __tablename__ = "ddt_manual_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=True, index=True)
+    spedizione_ad_hoc_id = Column(Integer, ForeignKey("spedizioni_ad_hoc.id", ondelete="SET NULL"), nullable=True, index=True)
+    row_index = Column(Integer, nullable=False, default=0)
+
+    codice = Column(String(200), nullable=True, index=True)
+    descrizione = Column(String(500), nullable=False)
+    profilo = Column(String(250), nullable=True, index=True)
+    quantita = Column(Numeric(18, 6), nullable=False, default=1)
+    peso_totale_kg = Column(Numeric(12, 4), nullable=True)
+    trattamento = Column(String(160), nullable=True, index=True)
+    note = Column(Text, nullable=True)
+    source_file = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DdtShipment(Base):
+    """Storico dei DDT generati dalla vista spedizione."""
+    __tablename__ = "ddt_shipments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="SET NULL"), nullable=True, index=True)
+    spedizione_ad_hoc_id = Column(Integer, ForeignKey("spedizioni_ad_hoc.id", ondelete="SET NULL"), nullable=True, index=True)
+    numero = Column(Integer, nullable=False)
+    titolo = Column(String(200), nullable=False)
+    righe_count = Column(Integer, nullable=False, default=0)
+    materiali_snapshot = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class Piece(Base):
     """Pezzo fisico tracciabile generato dall'analisi commessa."""
     __tablename__ = "pieces"

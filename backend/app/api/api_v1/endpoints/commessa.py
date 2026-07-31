@@ -1,4 +1,5 @@
 import logging
+import csv
 import json
 import re
 import shutil
@@ -21,7 +22,7 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, SpedizioneAdHoc, SpedizioneAdHocItem, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
+    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, DdtManualItem, DdtShipment, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, SpedizioneAdHoc, SpedizioneAdHocItem, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
@@ -59,6 +60,14 @@ class MouseScanRequest(BaseModel):
 class SpedizioneAdHocEmptyCreate(BaseModel):
     titolo: str
     note: Optional[str] = None
+
+
+class ShippingItemManualFound(BaseModel):
+    source: Optional[str] = None
+
+
+class DdtManualTextCreate(BaseModel):
+    text: str
 
 
 def _warehouse_item_mapping_read(item: WarehouseItem, pieces: list[Piece]) -> dict:
@@ -1251,6 +1260,110 @@ def _validate_spedizione_file(path: Path) -> dict:
     return report
 
 
+def _extract_ddt_table_rows(path: Path) -> list[list]:
+    if path.suffix.lower() != ".csv":
+        return _extract_rows(path)
+    raw = path.read_bytes()
+    for encoding in ("utf-8-sig", "cp1252", "iso-8859-1"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        text = raw.decode("utf-8", errors="replace")
+    sample = text[:2048]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=";,|\t,")
+        return [row for row in csv.reader(text.splitlines(), dialect)]
+    except csv.Error:
+        return [row for row in csv.reader(text.splitlines(), delimiter=";")]
+
+
+def _manual_ddt_rows_from_table(path: Path) -> list[dict]:
+    rows = _extract_ddt_table_rows(path)
+    if not rows:
+        raise ValueError("nessuna riga leggibile trovata")
+    header_idx = None
+    for idx, row in enumerate(rows[:30]):
+        normalized = {_norm_header(cell) for cell in row}
+        if normalized.intersection({"codice", "descrizione", "descr", "profilo", "qta", "quantita", "peso"}):
+            header_idx = idx
+            break
+    if header_idx is None:
+        header_idx = 0
+        header = ["descrizione", "quantita", "peso_totale_kg", "trattamento"]
+        data_rows = rows
+    else:
+        header = rows[header_idx]
+        data_rows = rows[header_idx + 1:]
+
+    idx_code = _find_first_col(header, {"codice", "code", "articolo", "id"})
+    idx_desc = _find_first_col(header, {"descrizione", "descr", "description", "materiale"})
+    idx_profile = _find_first_col(header, {"profilo", "profile"})
+    idx_qty = _find_first_col(header, {"qta", "quantita", "qty"})
+    idx_weight = _find_first_col(header, {"peso", "pesokg", "pesototale", "pesototalekg", "pesokgtot"})
+    idx_treatment = _find_first_col(header, {"trattamento", "finitura"})
+    if idx_desc is None:
+        idx_desc = idx_code if idx_code is not None else 0
+
+    parsed: list[dict] = []
+    for row_number, row in enumerate(data_rows, start=1):
+        code = _cell(row, idx_code)
+        desc = _cell(row, idx_desc)
+        if not code and not desc:
+            continue
+        parsed.append({
+            "row_index": row_number,
+            "codice": code,
+            "descrizione": desc or code,
+            "profilo": _cell(row, idx_profile),
+            "quantita": _num_or_none(_cell(row, idx_qty)) or 1,
+            "peso_totale_kg": _num_or_none(_cell(row, idx_weight)),
+            "trattamento": _cell(row, idx_treatment),
+            "source_file": path.name,
+        })
+    if not parsed:
+        raise ValueError("nessuna riga DDT manuale valida trovata")
+    return parsed
+
+
+def _manual_ddt_rows_from_text(text: str) -> list[dict]:
+    parsed: list[dict] = []
+    for row_number, raw_line in enumerate(str(text or "").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = [part.strip() for part in re.split(r"[;\t|]", line)]
+        if len(parts) >= 2:
+            code = parts[0] or None
+            desc = parts[1] or code
+            qty = _num_or_none(parts[2]) if len(parts) >= 3 else None
+            weight = _num_or_none(parts[3]) if len(parts) >= 4 else None
+            treatment = parts[4] if len(parts) >= 5 and parts[4] else None
+        else:
+            code = None
+            desc = line
+            qty = None
+            weight = None
+            treatment = None
+        if not desc:
+            continue
+        parsed.append({
+            "row_index": row_number,
+            "codice": code,
+            "descrizione": desc,
+            "profilo": None,
+            "quantita": qty or 1,
+            "peso_totale_kg": weight,
+            "trattamento": treatment,
+            "source_file": "manuale",
+        })
+    if not parsed:
+        raise ValueError("inserisci almeno una riga manuale")
+    return parsed
+
+
 def _populate_post_officina_items(
     db: Session,
     commessa_id: int,
@@ -1682,6 +1795,158 @@ def _spedizione_ad_hoc_item_read(row: SpedizioneAdHocItem) -> dict:
     }
 
 
+def _ddt_manual_item_read(row: DdtManualItem) -> dict:
+    return {
+        "id": row.id,
+        "commessa_id": row.commessa_id,
+        "revisione_id": row.revisione_id,
+        "spedizione_ad_hoc_id": row.spedizione_ad_hoc_id,
+        "row_index": row.row_index,
+        "codice": row.codice or "",
+        "descrizione": row.descrizione,
+        "profilo": row.profilo,
+        "quantita": float(row.quantita or 0),
+        "peso_totale_kg": float(row.peso_totale_kg) if row.peso_totale_kg is not None else None,
+        "trattamento": row.trattamento,
+        "tipo_unita": "DDT_MANUALE",
+        "cantiere_status": "DDT_MANUALE",
+        "source_file": row.source_file,
+        "note": row.note,
+        "created_at": row.created_at,
+    }
+
+
+def _ddt_shipment_read(row: DdtShipment) -> dict:
+    return {
+        "id": row.id,
+        "numero": row.numero,
+        "titolo": row.titolo,
+        "created_at": row.created_at,
+        "righe_count": row.righe_count,
+        "materiali": row.materiali_snapshot or [],
+    }
+
+
+def _ddt_context_filters(commessa_id: int, revisione_id: int | None, spedizione_ad_hoc_id: int | None) -> list:
+    filters = [DdtManualItem.commessa_id == commessa_id]
+    if spedizione_ad_hoc_id is not None:
+        filters.append(DdtManualItem.spedizione_ad_hoc_id == spedizione_ad_hoc_id)
+    else:
+        filters.append(DdtManualItem.spedizione_ad_hoc_id.is_(None))
+        filters.append(DdtManualItem.revisione_id == revisione_id)
+    return filters
+
+
+def _ddt_shipment_filters(commessa_id: int, revisione_id: int | None, spedizione_ad_hoc_id: int | None) -> list:
+    filters = [DdtShipment.commessa_id == commessa_id]
+    if spedizione_ad_hoc_id is not None:
+        filters.append(DdtShipment.spedizione_ad_hoc_id == spedizione_ad_hoc_id)
+    else:
+        filters.append(DdtShipment.spedizione_ad_hoc_id.is_(None))
+        filters.append(DdtShipment.revisione_id == revisione_id)
+    return filters
+
+
+def _load_ddt_manual_items(db: Session, commessa_id: int, revisione_id: int | None, spedizione_ad_hoc_id: int | None) -> list[DdtManualItem]:
+    return (
+        db.query(DdtManualItem)
+        .filter(*_ddt_context_filters(commessa_id, revisione_id, spedizione_ad_hoc_id))
+        .order_by(DdtManualItem.row_index, DdtManualItem.id)
+        .all()
+    )
+
+
+def _load_ddt_shipments(db: Session, commessa_id: int, revisione_id: int | None, spedizione_ad_hoc_id: int | None) -> list[DdtShipment]:
+    return (
+        db.query(DdtShipment)
+        .filter(*_ddt_shipment_filters(commessa_id, revisione_id, spedizione_ad_hoc_id))
+        .order_by(DdtShipment.numero, DdtShipment.id)
+        .all()
+    )
+
+
+def _current_ddt_context(db: Session, commessa_id: int) -> tuple[Commessa, CommessaRevisione, SpedizioneAdHoc | None]:
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    spedizione_ad_hoc = (
+        db.query(SpedizioneAdHoc)
+        .filter(SpedizioneAdHoc.commessa_id == commessa_id)
+        .order_by(SpedizioneAdHoc.id.desc())
+        .first()
+    )
+    return commessa, revisione, spedizione_ad_hoc
+
+
+def _insert_ddt_manual_rows(
+    db: Session,
+    commessa_id: int,
+    revisione_id: int | None,
+    spedizione_ad_hoc_id: int | None,
+    rows: list[dict],
+) -> list[DdtManualItem]:
+    latest = (
+        db.query(DdtManualItem)
+        .filter(*_ddt_context_filters(commessa_id, revisione_id, spedizione_ad_hoc_id))
+        .order_by(DdtManualItem.row_index.desc(), DdtManualItem.id.desc())
+        .first()
+    )
+    row_index = int(latest.row_index if latest else 0)
+    inserted: list[DdtManualItem] = []
+    now = datetime.utcnow()
+    for row in rows:
+        desc = str(row.get("descrizione") or row.get("codice") or "").strip()
+        if not desc:
+            continue
+        row_index += 1
+        item = DdtManualItem(
+            commessa_id=commessa_id,
+            revisione_id=revisione_id,
+            spedizione_ad_hoc_id=spedizione_ad_hoc_id,
+            row_index=row_index,
+            codice=(str(row.get("codice")).strip() if row.get("codice") else None),
+            descrizione=desc,
+            profilo=row.get("profilo"),
+            quantita=row.get("quantita") or 1,
+            peso_totale_kg=row.get("peso_totale_kg"),
+            trattamento=row.get("trattamento"),
+            source_file=row.get("source_file"),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(item)
+        inserted.append(item)
+    if not inserted:
+        raise HTTPException(422, "Nessuna riga DDT manuale valida")
+    db.commit()
+    for item in inserted:
+        db.refresh(item)
+    return inserted
+
+
+def _ddt_snapshot_row(row: dict, *, source: str) -> dict:
+    trovato_at = row.get("trovato_at")
+    if isinstance(trovato_at, datetime):
+        trovato_at = trovato_at.isoformat()
+    return {
+        "source": source,
+        "codice": row.get("codice") or "",
+        "tipo_unita": row.get("tipo_unita") or source,
+        "descrizione": row.get("descrizione") or "",
+        "profilo": row.get("profilo") or "",
+        "quantita": row.get("quantita") or 0,
+        "quantita_scan_label": row.get("quantita_scan_label") or "",
+        "peso_totale_kg": row.get("peso_totale_kg") or 0,
+        "trattamento": row.get("trattamento") or "",
+        "cantiere_status": row.get("cantiere_status") or "",
+        "trovato_at": trovato_at,
+        "source_file": row.get("source_file") or "",
+    }
+
+
 @router.get("/{commessa_id}/post-officina")
 def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
@@ -1704,6 +1969,8 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             .order_by(SpedizioneAdHocItem.row_index, SpedizioneAdHocItem.id)
             .all()
         )
+        manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
+        ddt_shipments = _load_ddt_shipments(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
         summary_by_type: dict[str, dict] = {}
         summary_by_treatment: dict[str, dict] = {}
         for row in ad_hoc_rows:
@@ -1756,6 +2023,8 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
                 "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
             },
             "items": [_spedizione_ad_hoc_item_read(row) for row in ad_hoc_rows],
+            "manual_items": [_ddt_manual_item_read(row) for row in manual_rows],
+            "ddt_shipments": [_ddt_shipment_read(row) for row in ddt_shipments],
         }
     rows = (
         db.query(CommessaPostOfficinaItem)
@@ -1794,6 +2063,8 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
                     )
     summary_by_type: dict[str, dict] = {}
     summary_by_treatment: dict[str, dict] = {}
+    manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, None)
+    ddt_shipments = _load_ddt_shipments(db, commessa_id, revisione.id, None)
     for row in rows:
         tipo = row.tipo_unita or "NON_CLASSIFICATO"
         type_bucket = summary_by_type.setdefault(tipo, {"tipo": tipo, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
@@ -1825,15 +2096,202 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             "righe": len(rows),
             "quantita": sum(float(row.quantita or 0) for row in rows),
             "peso_kg": sum(float(row.peso_totale_kg or 0) for row in rows),
+            "peso_spedizione_kg": sum(float(row.peso_totale_kg or 0) for row in rows if row.cantiere_status == "TROVATO"),
             "assemblati": sum(1 for row in rows if row.tipo_unita == "ASSEMBLATO"),
             "pezzi_sciolti": sum(1 for row in rows if row.tipo_unita == "PEZZO_SCIOLTO"),
             "spedizione": sum(1 for row in rows if row.tipo_unita == "SPEDIZIONE"),
             "non_classificati": sum(1 for row in rows if row.tipo_unita == "NON_CLASSIFICATO"),
+            "trovati": sum(1 for row in rows if row.cantiere_status == "TROVATO"),
+            "da_trovare": sum(1 for row in rows if row.cantiere_status != "TROVATO"),
             "by_type": sorted(summary_by_type.values(), key=lambda item: item["tipo"]),
             "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
         },
         "items": [_post_officina_item_read(row) for row in rows],
+        "manual_items": [_ddt_manual_item_read(row) for row in manual_rows],
+        "ddt_shipments": [_ddt_shipment_read(row) for row in ddt_shipments],
     }
+
+
+@router.post("/{commessa_id}/post-officina/ddt-manual-items", status_code=201)
+def add_ddt_manual_items(
+    commessa_id: int,
+    payload: DdtManualTextCreate,
+    db: Session = Depends(get_db),
+):
+    _, revisione, spedizione_ad_hoc = _current_ddt_context(db, commessa_id)
+    try:
+        rows = _manual_ddt_rows_from_text(payload.text)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    inserted = _insert_ddt_manual_rows(
+        db,
+        commessa_id,
+        revisione.id,
+        spedizione_ad_hoc.id if spedizione_ad_hoc else None,
+        rows,
+    )
+    return {"inserted": len(inserted), "items": [_ddt_manual_item_read(row) for row in inserted]}
+
+
+@router.post("/{commessa_id}/post-officina/ddt-manual-items/import", status_code=201)
+def import_ddt_manual_items(
+    commessa_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    _, revisione, spedizione_ad_hoc = _current_ddt_context(db, commessa_id)
+    suffix = Path(file.filename or "").suffix.lower() or ".xlsx"
+    if suffix not in {".xlsx", ".xls", ".xlsm", ".csv"}:
+        raise HTTPException(422, "Formato file non supportato: usa Excel o CSV")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = Path(tmp.name)
+    try:
+        try:
+            rows = _manual_ddt_rows_from_table(tmp_path)
+        except Exception as exc:
+            raise HTTPException(422, f"File DDT manuale non importabile: {exc}")
+        inserted = _insert_ddt_manual_rows(
+            db,
+            commessa_id,
+            revisione.id,
+            spedizione_ad_hoc.id if spedizione_ad_hoc else None,
+            rows,
+        )
+        return {"inserted": len(inserted), "items": [_ddt_manual_item_read(row) for row in inserted]}
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+@router.delete("/{commessa_id}/post-officina/ddt-manual-items/{item_id}", status_code=204)
+def delete_ddt_manual_item(
+    commessa_id: int,
+    item_id: int,
+    db: Session = Depends(get_db),
+):
+    row = (
+        db.query(DdtManualItem)
+        .filter(DdtManualItem.id == item_id, DdtManualItem.commessa_id == commessa_id)
+        .first()
+    )
+    if row is None:
+        raise HTTPException(404, "Riga manuale DDT non trovata")
+    db.delete(row)
+    db.commit()
+
+
+@router.post("/{commessa_id}/post-officina/ddt-shipments", status_code=201)
+def create_ddt_shipment(
+    commessa_id: int,
+    db: Session = Depends(get_db),
+):
+    commessa, revisione, spedizione_ad_hoc = _current_ddt_context(db, commessa_id)
+    if spedizione_ad_hoc:
+        rows = (
+            db.query(SpedizioneAdHocItem)
+            .filter(SpedizioneAdHocItem.spedizione_id == spedizione_ad_hoc.id)
+            .order_by(SpedizioneAdHocItem.row_index, SpedizioneAdHocItem.id)
+            .all()
+        )
+        scanned = [
+            _ddt_snapshot_row(_spedizione_ad_hoc_item_read(row), source="SCAN")
+            for row in rows
+            if row.stato == "TROVATO"
+        ]
+        spedizione_ad_hoc_id = spedizione_ad_hoc.id
+    else:
+        rows = (
+            db.query(CommessaPostOfficinaItem)
+            .filter(CommessaPostOfficinaItem.revisione_id == revisione.id)
+            .order_by(CommessaPostOfficinaItem.row_index, CommessaPostOfficinaItem.id)
+            .all()
+        )
+        scanned = [
+            _ddt_snapshot_row(_post_officina_item_read(row), source="SCAN")
+            for row in rows
+            if row.cantiere_status == "TROVATO"
+        ]
+        spedizione_ad_hoc_id = None
+
+    manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, spedizione_ad_hoc_id)
+    manual = [_ddt_snapshot_row(_ddt_manual_item_read(row), source="MANUALE_DDT") for row in manual_rows]
+    materials = scanned + manual
+    if not materials:
+        raise HTTPException(409, "Nessuna riga trovata o aggiunta manuale da inserire nel DDT")
+
+    latest = (
+        db.query(DdtShipment)
+        .filter(*_ddt_shipment_filters(commessa_id, revisione.id, spedizione_ad_hoc_id))
+        .order_by(DdtShipment.numero.desc(), DdtShipment.id.desc())
+        .first()
+    )
+    numero = int(latest.numero if latest else 0) + 1
+    shipment = DdtShipment(
+        commessa_id=commessa_id,
+        revisione_id=revisione.id,
+        spedizione_ad_hoc_id=spedizione_ad_hoc_id,
+        numero=numero,
+        titolo=f"Spedizione #{numero}",
+        righe_count=len(materials),
+        materiali_snapshot=materials,
+        created_at=datetime.utcnow(),
+    )
+    db.add(shipment)
+    db.commit()
+    db.refresh(shipment)
+    result = _ddt_shipment_read(shipment)
+    result["commessa"] = {"codice": commessa.codice, "descrizione": commessa.descrizione}
+    return result
+
+
+@router.patch("/{commessa_id}/post-officina/items/{item_id}/mark-found")
+def mark_post_officina_item_found(
+    commessa_id: int,
+    item_id: int,
+    payload: ShippingItemManualFound,
+    db: Session = Depends(get_db),
+):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+
+    source = (payload.source or "").strip().upper()
+    now = datetime.utcnow()
+    if source == "AD_HOC":
+        row = (
+            db.query(SpedizioneAdHocItem)
+            .filter(
+                SpedizioneAdHocItem.id == item_id,
+                SpedizioneAdHocItem.commessa_id == commessa_id,
+            )
+            .first()
+        )
+        if row is None:
+            raise HTTPException(404, "Riga spedizione ad hoc non trovata")
+        row.stato = "TROVATO"
+        row.trovato_at = row.trovato_at or now
+        row.updated_at = now
+        if not row.raw_payload:
+            row.raw_payload = "MANUALE"
+        db.commit()
+        db.refresh(row)
+        return _spedizione_ad_hoc_item_read(row)
+
+    row = (
+        db.query(CommessaPostOfficinaItem)
+        .filter(
+            CommessaPostOfficinaItem.id == item_id,
+            CommessaPostOfficinaItem.commessa_id == commessa_id,
+        )
+        .first()
+    )
+    if row is None:
+        raise HTTPException(404, "Riga spedizione non trovata")
+    row.cantiere_status = "TROVATO"
+    row.updated_at = now
+    db.commit()
+    db.refresh(row)
+    return _post_officina_item_read(row)
 
 
 @router.post("/{commessa_id}/step-5-1")
