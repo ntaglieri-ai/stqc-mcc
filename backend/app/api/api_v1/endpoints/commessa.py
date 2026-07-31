@@ -1971,9 +1971,11 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
         )
         manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
         ddt_shipments = _load_ddt_shipments(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
+        master_rows = [row for row in ad_hoc_rows if row.stato != "TROVATO"]
+        scan_rows = [row for row in ad_hoc_rows if row.stato == "TROVATO"]
         summary_by_type: dict[str, dict] = {}
         summary_by_treatment: dict[str, dict] = {}
-        for row in ad_hoc_rows:
+        for row in master_rows:
             scan_fields = _scan_fields_from_note(row.note)
             effective_quantity = _spedizione_ad_hoc_effective_quantity(row, scan_fields)
             effective_weight = _spedizione_ad_hoc_effective_weight(row, scan_fields)
@@ -2005,24 +2007,24 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
                 "spedizione_ad_hoc_id": spedizione_ad_hoc.id,
             },
             "summary": {
-                "righe": len(ad_hoc_rows),
-                "quantita": sum(_spedizione_ad_hoc_effective_quantity(row) for row in ad_hoc_rows),
-                "peso_kg": sum(float(row.peso_totale_kg or 0) for row in ad_hoc_rows),
+                "righe": len(master_rows),
+                "quantita": sum(_spedizione_ad_hoc_effective_quantity(row) for row in master_rows),
+                "peso_kg": sum(float(row.peso_totale_kg or 0) for row in master_rows),
                 "peso_spedizione_kg": sum(
                     _spedizione_ad_hoc_effective_weight(row)
-                    for row in ad_hoc_rows
-                    if row.stato == "TROVATO"
+                    for row in scan_rows
                 ),
                 "assemblati": 0,
                 "pezzi_sciolti": 0,
-                "spedizione": len(ad_hoc_rows),
+                "spedizione": len(master_rows),
                 "non_classificati": 0,
-                "trovati": sum(1 for row in ad_hoc_rows if row.stato == "TROVATO"),
-                "da_trovare": sum(1 for row in ad_hoc_rows if row.stato != "TROVATO"),
+                "trovati": len(scan_rows),
+                "da_trovare": len(master_rows),
                 "by_type": sorted(summary_by_type.values(), key=lambda item: item["tipo"]),
                 "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
             },
-            "items": [_spedizione_ad_hoc_item_read(row) for row in ad_hoc_rows],
+            "items": [_spedizione_ad_hoc_item_read(row) for row in master_rows],
+            "scan_items": [_spedizione_ad_hoc_item_read(row) for row in scan_rows],
             "manual_items": [_ddt_manual_item_read(row) for row in manual_rows],
             "ddt_shipments": [_ddt_shipment_read(row) for row in ddt_shipments],
         }
@@ -2268,14 +2270,64 @@ def mark_post_officina_item_found(
         )
         if row is None:
             raise HTTPException(404, "Riga spedizione ad hoc non trovata")
-        row.stato = "TROVATO"
-        row.trovato_at = row.trovato_at or now
-        row.updated_at = now
-        if not row.raw_payload:
-            row.raw_payload = "MANUALE"
+        previous_scans = (
+            db.query(SpedizioneAdHocItem)
+            .filter(
+                SpedizioneAdHocItem.spedizione_id == row.spedizione_id,
+                SpedizioneAdHocItem.codice == row.codice,
+                SpedizioneAdHocItem.stato == "TROVATO",
+            )
+            .count()
+        )
+        scan_total = float(row.quantita or 0)
+        if scan_total > 0 and previous_scans >= scan_total:
+            raise HTTPException(409, f"Quantità già completata per {row.codice}")
+        next_row_index = (
+            db.query(SpedizioneAdHocItem.row_index)
+            .filter(SpedizioneAdHocItem.spedizione_id == row.spedizione_id)
+            .order_by(SpedizioneAdHocItem.row_index.desc(), SpedizioneAdHocItem.id.desc())
+            .first()
+        )
+        unit_weight = float(row.peso_unitario_kg) if row.peso_unitario_kg is not None else None
+        if unit_weight is None and row.peso_totale_kg is not None and scan_total > 0:
+            unit_weight = float(row.peso_totale_kg) / scan_total
+        scan_fields = {
+            "manuale": True,
+            "codice_trovato": row.codice,
+            "raw_payload": "MANUALE",
+            "peso_mismatch": False,
+            "scan_progressivo": previous_scans + 1,
+            "scan_totale": scan_total,
+        }
+        scan_row = SpedizioneAdHocItem(
+            spedizione_id=row.spedizione_id,
+            commessa_id=row.commessa_id,
+            revisione_id=row.revisione_id,
+            row_index=(int(next_row_index[0]) if next_row_index else 0) + 1,
+            codice=row.codice,
+            descrizione=row.descrizione,
+            profilo=row.profilo,
+            quantita=1,
+            lunghezza_mm=row.lunghezza_mm,
+            larghezza_mm=row.larghezza_mm,
+            altezza_mm=row.altezza_mm,
+            peso_unitario_kg=row.peso_unitario_kg,
+            peso_totale_kg=unit_weight,
+            area_verniciabile_mq=row.area_verniciabile_mq,
+            trattamento=row.trattamento,
+            tipo_unita=row.tipo_unita,
+            stato="TROVATO",
+            trovato_at=now,
+            raw_payload="MANUALE",
+            source_file=row.source_file,
+            note="SCAN_FIELDS " + json.dumps(scan_fields, ensure_ascii=False, default=str),
+        )
+        db.add(scan_row)
+        if row.spedizione:
+            row.spedizione.updated_at = now
         db.commit()
-        db.refresh(row)
-        return _spedizione_ad_hoc_item_read(row)
+        db.refresh(scan_row)
+        return _spedizione_ad_hoc_item_read(scan_row)
 
     row = (
         db.query(CommessaPostOfficinaItem)

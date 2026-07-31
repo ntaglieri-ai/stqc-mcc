@@ -192,7 +192,8 @@ def parse_ad_hoc_scan_payload(raw_payload: str) -> dict:
 
     text_code_fields = _extract_text_code_fields(value)
     if text_code_fields:
-        parsed_fields.update(text_code_fields)
+        for key, val in text_code_fields.items():
+            parsed_fields.setdefault(key, val)
     if not parsed_fields:
         parsed_fields["codice"] = _extract_shipping_id(value)
 
@@ -409,25 +410,64 @@ def process_ad_hoc_shipping_scan(
         db.commit()
         return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_ID_NOT_FOUND", "scan_kind": "AD_HOC_SHIPPING"}
 
-    preferred = next((row for row in matches if row.stato != "TROVATO"), None)
-    if preferred is None:
-        message = f"Già tutto trovato - {matched_shipping_id}"
-        _attempt(db, scanner, external_id, raw_payload, "ERROR", message, error_code="SHIPPING_ID_ALREADY_FOUND")
-        db.commit()
-        return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_ID_ALREADY_FOUND", "scan_kind": "AD_HOC_SHIPPING"}
-
+    preferred = next((row for row in matches if row.stato != "TROVATO"), matches[0])
     spedizione = preferred.spedizione
-    scan_fields = dict(parsed_payload.get("scan_fields") or {})
+    parsed_scan = parsed_payload
+    previous_scans = (
+        db.query(SpedizioneAdHocItem)
+        .filter(
+            SpedizioneAdHocItem.spedizione_id == preferred.spedizione_id,
+            func.upper(func.trim(SpedizioneAdHocItem.codice)) == matched_shipping_id,
+            SpedizioneAdHocItem.stato == "TROVATO",
+        )
+        .count()
+    )
+    scan_total = float(preferred.quantita or 0)
+    if scan_total > 0 and previous_scans >= scan_total:
+        message = f"Quantità già completata - {matched_shipping_id}"
+        _attempt(db, scanner, external_id, raw_payload, "ERROR", message, error_code="SHIPPING_QTY_COMPLETE")
+        db.commit()
+        return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_QTY_COMPLETE", "scan_kind": "AD_HOC_SHIPPING"}
+    scan_fields = dict(parsed_scan.get("scan_fields") or {})
     scan_fields["codice_trovato"] = matched_shipping_id
     scan_fields["raw_payload"] = raw_payload
     scan_fields["peso_mismatch"] = False
+    scan_fields["scan_progressivo"] = previous_scans + 1
+    scan_fields["scan_totale"] = scan_total
+    unit_weight = float(preferred.peso_unitario_kg) if preferred.peso_unitario_kg is not None else None
+    if unit_weight is None and preferred.peso_totale_kg is not None and scan_total > 0:
+        unit_weight = float(preferred.peso_totale_kg) / scan_total
+    next_row_index = (
+        db.query(func.max(SpedizioneAdHocItem.row_index))
+        .filter(SpedizioneAdHocItem.spedizione_id == preferred.spedizione_id)
+        .scalar()
+        or 0
+    ) + 1
     note = "SCAN_FIELDS " + json.dumps(scan_fields, ensure_ascii=False, default=str)
-    preferred.stato = "TROVATO"
-    preferred.trovato_at = preferred.trovato_at or now
-    preferred.scanner_device_id = scanner.id
-    preferred.raw_payload = raw_payload[:2000]
-    preferred.note = note
-    preferred.updated_at = now
+    db.add(SpedizioneAdHocItem(
+        spedizione_id=preferred.spedizione_id,
+        commessa_id=preferred.commessa_id,
+        revisione_id=preferred.revisione_id,
+        row_index=next_row_index,
+        codice=matched_shipping_id,
+        descrizione=parsed_scan.get("descrizione"),
+        profilo=parsed_scan.get("profilo"),
+        quantita=1,
+        lunghezza_mm=parsed_scan.get("lunghezza_mm"),
+        larghezza_mm=parsed_scan.get("larghezza_mm"),
+        altezza_mm=parsed_scan.get("altezza_mm"),
+        peso_unitario_kg=parsed_scan.get("peso_unitario_kg"),
+        peso_totale_kg=parsed_scan.get("peso_totale_kg") or parsed_scan.get("peso_unitario_kg") or unit_weight,
+        area_verniciabile_mq=parsed_scan.get("area_verniciabile_mq"),
+        trattamento=parsed_scan.get("trattamento"),
+        tipo_unita=str(parsed_scan.get("tipo_unita") or "SPEDIZIONE_AD_HOC")[:40],
+        stato="TROVATO",
+        trovato_at=now,
+        scanner_device_id=scanner.id,
+        raw_payload=raw_payload[:2000],
+        source_file=preferred.source_file,
+        note=note,
+    ))
     if spedizione:
         spedizione.updated_at = now
 
