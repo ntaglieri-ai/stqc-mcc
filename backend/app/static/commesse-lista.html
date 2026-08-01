@@ -195,7 +195,6 @@
       z-index: 3;
     }
     body.dashboard-mode .btn-new,
-    body.dashboard-mode .ops-box,
     body.dashboard-mode .c-delete { display: none !important; }
     body.dashboard-mode {
       background:
@@ -399,13 +398,6 @@
     .filter-chip.active { background: #2563eb; color: #fff; }
     .filter-chip:not(.active) { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); }
     .filter-chip:not(.active):hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
-    .ops-box {
-      margin-bottom: 24px; border: 1px solid rgba(96,165,250,.18); border-radius: 18px;
-      background: linear-gradient(135deg, rgba(30,64,175,.18), rgba(15,23,42,.92));
-      padding: 18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
-    }
-    .ops-title { font-size:17px; font-weight:900; color:#e5edff; }
-    .ops-sub { margin-top:4px; font-size:12px; color:rgba(255,255,255,.42); }
     .ops-btn {
       border:1px solid rgba(147,197,253,.35); background:rgba(59,130,246,.18); color:#bfdbfe;
       border-radius:12px; padding:10px 16px; font-size:13px; font-weight:900; cursor:pointer;
@@ -441,7 +433,7 @@
 
 <!-- NAV -->
 <nav class="nav">
-  <a class="nav-back" href="/" onclick="sessionStorage.removeItem('returnPanel')">← Home</a>
+  <a class="nav-back" href="/">← Home</a>
   <span class="nav-sep">/</span>
   <span class="nav-title" id="nav-title">In corso</span>
   <div class="nav-actions" style="display:flex;align-items:center;gap:10px">
@@ -460,14 +452,6 @@
   </div>
 
   <section class="dashboard-overview" id="dashboard-overview" aria-live="polite"></section>
-
-  <div class="ops-box">
-    <div>
-      <div class="ops-title">Codici postazione officina</div>
-      <div class="ops-sub">QR INIZIO e FINE per lavorare con pistola scanner: postazione → pezzi → chiusura fase.</div>
-    </div>
-    <button class="ops-btn" onclick="openStationCodes()">Apri codici postazione</button>
-  </div>
 
   <!-- Filter bar -->
   <div class="filter-bar">

@@ -112,13 +112,13 @@
     }
     .director-mode .right {
       justify-content: center;
-      padding: clamp(30px, 5vh, 56px) clamp(34px, 4vw, 72px);
+      padding: clamp(24px, 3.2vh, 42px) clamp(34px, 4vw, 72px);
       background:
         radial-gradient(circle at 82% 2%, rgba(37,99,235,.08), transparent 29%),
         #0f172a;
     }
     .director-mode .right-header {
-      width: 100%; margin-bottom: clamp(22px, 3vh, 34px);
+      width: 100%; margin-bottom: clamp(14px, 2vh, 22px);
       align-items: center;
     }
     .director-mode .right-title { font-size: clamp(25px, 2.1vw, 32px); letter-spacing: -.035em; }
@@ -126,23 +126,23 @@
     .director-mode .grid {
       flex: 0; width: 100%;
       grid-template-columns: 1fr;
-      gap: clamp(18px, 2.2vh, 24px);
+      gap: clamp(12px, 1.45vh, 16px);
     }
     .director-mode .card {
-      height: clamp(210px, 23vh, 255px);
-      border-radius: 18px;
+      height: clamp(142px, 17.5vh, 178px);
+      border-radius: 16px;
       border-color: rgba(255,255,255,.1);
     }
     .director-mode #card-grid {
       max-width: min(860px, 86%);
       margin: 0 auto;
     }
-    .director-mode .card-content { padding: clamp(20px, 2.2vw, 28px); }
-    .director-mode .card-icon { font-size: 27px; margin-bottom: 9px; }
-    .director-mode .card-title { font-size: clamp(19px, 1.55vw, 23px); }
-    .director-mode .card-desc { font-size: 12px; margin-top: 5px; }
-    .director-mode .card-tag { margin-bottom: 8px; }
-    .director-mode .card-arrow { top: 22px; right: 22px; width: 34px; height: 34px; }
+    .director-mode .card-content { padding: clamp(16px, 1.8vw, 22px); }
+    .director-mode .card-icon { font-size: 22px; margin-bottom: 6px; }
+    .director-mode .card-title { font-size: clamp(17px, 1.35vw, 21px); }
+    .director-mode .card-desc { font-size: 11px; margin-top: 4px; }
+    .director-mode .card-tag { margin-bottom: 5px; }
+    .director-mode .card-arrow { top: 18px; right: 18px; width: 30px; height: 30px; }
     .director-mode .card::after {
       content: ''; position: absolute; inset: 0; pointer-events: none;
       background: linear-gradient(110deg, rgba(255,255,255,.045), transparent 32%);
@@ -269,7 +269,7 @@
     @media (max-width: 1180px) {
       .left { width: 34%; }
       .right { padding-left: 28px; padding-right: 28px; }
-      .director-mode .card { height: clamp(205px, 24vh, 245px); }
+      .director-mode .card { height: clamp(132px, 17vh, 166px); }
       .director-mode #card-grid { max-width: 92%; }
     }
     @media (max-width: 880px) {
@@ -291,7 +291,7 @@
       .right-header { gap: 18px; }
       .grid, .director-mode .grid { grid-template-columns: 1fr; }
       .director-mode #card-grid { max-width: 100%; }
-      .director-mode .card { height: 220px; }
+      .director-mode .card { height: 160px; }
     }
 
     /* ── Commesse side panel ── */
@@ -321,6 +321,45 @@
     }
     .pnl-close:hover { background: rgba(255,255,255,0.13); color: #fff; }
     .pnl-cards { display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; }
+    .scan-settings { display: none; flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+    .scan-settings.open { display: block; }
+    .scan-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .scan-tab {
+      border: 1px solid rgba(147,197,253,.16); background: rgba(255,255,255,.04);
+      color: rgba(255,255,255,.62); border-radius: 999px; padding: 8px 11px;
+      font-size: 11px; font-weight: 800; cursor: pointer;
+    }
+    .scan-tab.active { color: #dbeafe; border-color: rgba(96,165,250,.42); background: rgba(59,130,246,.14); }
+    .scan-mini-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0 0 14px; }
+    .scan-mini-card { border: 1px solid rgba(147,197,253,.14); border-radius: 14px; background: rgba(255,255,255,.035); padding: 13px; }
+    .scan-mini-card strong { display: block; font-size: 20px; color: rgba(255,255,255,.92); letter-spacing: -.03em; }
+    .scan-mini-card span { display: block; margin-top: 4px; font-size: 10px; color: rgba(255,255,255,.38); text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
+    .scan-panel { border: 1px solid rgba(147,197,253,.14); border-radius: 18px; background: linear-gradient(145deg, rgba(16,32,55,.82), rgba(8,15,27,.72)); overflow: hidden; }
+    .scan-panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 15px 16px; border-bottom: 1px solid rgba(147,197,253,.12); }
+    .scan-panel-title { font-size: 15px; font-weight: 900; color: rgba(255,255,255,.9); }
+    .scan-panel-sub { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.38); line-height: 1.4; }
+    .scan-list { display: grid; gap: 10px; padding: 14px; }
+    .scan-row { border: 1px solid rgba(147,197,253,.12); border-radius: 14px; background: rgba(8,15,27,.54); padding: 12px; }
+    .scan-row-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .scan-row-title { font-size: 14px; font-weight: 900; color: #eaf2ff; }
+    .scan-row-sub { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.42); line-height: 1.4; }
+    .scan-badge { display:inline-flex; align-items:center; border-radius:999px; border:1px solid rgba(147,197,253,.16); padding:4px 8px; font-size:9px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:#bfdbfe; background:rgba(59,130,246,.08); white-space:nowrap; }
+    .scan-badge.ok { color:#86efac; border-color:rgba(74,222,128,.28); background:rgba(74,222,128,.09); }
+    .scan-badge.off { color:#fca5a5; border-color:rgba(248,113,113,.24); background:rgba(248,113,113,.08); }
+    .scan-qr-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    .scan-qr { display:flex; gap:10px; align-items:center; border:1px solid rgba(255,255,255,.08); border-radius:13px; background:rgba(255,255,255,.035); padding:9px; cursor:pointer; }
+    .scan-qr:hover { border-color:rgba(96,165,250,.42); background:rgba(59,130,246,.09); }
+    .scan-qr img { width:58px; height:58px; border-radius:8px; background:#fff; padding:4px; flex-shrink:0; }
+    .scan-payload { margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9px; color:rgba(219,234,254,.52); word-break:break-all; }
+    .scan-form { display:grid; gap:9px; padding:14px; }
+    .scan-form input,.scan-form select,.scan-form textarea {
+      width:100%; border:1px solid rgba(147,197,253,.14); border-radius:12px;
+      background:rgba(8,15,27,.72); color:#eaf2ff; padding:10px 11px; font-size:12px; outline:none;
+    }
+    .scan-form textarea { min-height:70px; resize:vertical; }
+    .scan-form-two { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .scan-empty { padding: 26px; text-align:center; color:rgba(255,255,255,.34); font-size:12px; }
+    @media (max-width: 680px) { .scan-mini-grid,.scan-form-two,.scan-qr-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -385,14 +424,13 @@
 <div id="comm-panel">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
     <div>
-      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Gestione Commesse</div>
-      <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Cosa vuoi fare?</div>
+      <div id="comm-panel-eyebrow" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Gestione Commesse</div>
+      <div id="comm-panel-title" style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Cosa vuoi fare?</div>
     </div>
-    <button class="pnl-close" onclick="closeCommessePanel()">✕</button>
+    <button class="pnl-close" id="comm-panel-close" onclick="closeCommessePanel()">✕</button>
   </div>
-  <div class="pnl-cards">
-    <a class="card c-comm" href="/commesse" style="height:auto;flex:1;min-height:190px;display:block;text-decoration:none"
-       onclick="try{sessionStorage.setItem('returnPanel','gestione')}catch(e){}">
+  <div class="pnl-cards" id="comm-menu-view">
+    <a class="card c-comm" href="/commesse" style="height:auto;flex:1;min-height:190px;display:block;text-decoration:none">
       <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=800&q=80')"></div>
       <div class="card-overlay"></div>
       <div class="card-arrow">→</div>
@@ -402,8 +440,7 @@
         <div class="card-desc" style="font-size:13px;margin-top:5px">Visualizza e gestisci le commesse attive</div>
       </div>
     </a>
-    <a class="card c-kpi" href="/commesse/nuova" style="height:auto;flex:1;min-height:190px;display:block;text-decoration:none"
-       onclick="try{sessionStorage.setItem('returnPanel','gestione')}catch(e){}">
+    <a class="card c-kpi" href="/commesse/nuova" style="height:auto;flex:1;min-height:190px;display:block;text-decoration:none">
       <div class="card-bg" style="background-image:url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80')"></div>
       <div class="card-overlay"></div>
       <div class="card-arrow">→</div>
@@ -413,6 +450,30 @@
         <div class="card-desc" style="font-size:13px;margin-top:5px">Crea una commessa e importa la distinta</div>
       </div>
     </a>
+  </div>
+  <div class="scan-settings" id="scanner-settings-view">
+    <div class="scan-toolbar">
+      <button class="scan-tab" onclick="backFromScannerSettings()">← Indietro</button>
+      <button class="scan-tab active" data-scan-tab="codes" onclick="setScannerSettingsTab('codes')">Codici postazione</button>
+      <button class="scan-tab" data-scan-tab="scanners" onclick="setScannerSettingsTab('scanners')">Lista scanner</button>
+      <button class="scan-tab" data-scan-tab="new" onclick="setScannerSettingsTab('new')">Nuovo scanner</button>
+      <button class="scan-tab" data-scan-tab="test" onclick="setScannerSettingsTab('test')">Test</button>
+      <button class="scan-tab" style="margin-left:auto" onclick="loadScannerSettings()">Aggiorna</button>
+    </div>
+    <div class="scan-mini-grid" id="scanner-settings-stats">
+      <div class="scan-mini-card"><strong>—</strong><span>Postazioni</span></div>
+      <div class="scan-mini-card"><strong>—</strong><span>Scanner attivi</span></div>
+      <div class="scan-mini-card"><strong>—</strong><span>Ultimo test</span></div>
+    </div>
+    <div class="scan-panel">
+      <div class="scan-panel-head">
+        <div>
+          <div class="scan-panel-title" id="scanner-settings-heading">Codici postazione</div>
+          <div class="scan-panel-sub" id="scanner-settings-sub">QR INIZIO e FINE per lavorare con pistola scanner.</div>
+        </div>
+      </div>
+      <div id="scanner-settings-body"><div class="scan-empty">Caricamento impostazioni scanner…</div></div>
+    </div>
   </div>
 </div>
 
@@ -545,6 +606,9 @@ const NOME    = sessionStorage.getItem('stqc_nome') || '';
 
 function getAuth() { return 'Bearer ' + TOKEN; }
 function go(url) { window.location.href = url; }
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 function logout() {
@@ -585,6 +649,12 @@ const CARD_DEFS = {
     title: 'Magazzino', desc: 'Stock · arrivi · prelievi per commessa',
     onclick: "go('/magazzino')",
   },
+  director_settings: {
+    cls: 'c-config', img: 'photo-1555066931-4365d14bab8c',
+    tag: 'tag-live', tagLabel: 'Live', icon: '⌁',
+    title: 'Impostazioni', desc: 'Scannerizzazione · postazioni · test letture',
+    onclick: 'openDirectorSettingsPanel()',
+  },
   officina: {
     cls: 'c-off', img: 'photo-1565814636199-ae8133055c1c',
     tag: 'tag-live', tagLabel: 'Live', icon: '🔩',
@@ -619,7 +689,7 @@ const CARD_DEFS = {
 
 // Profile → visible cards
 const PROFILE_CARDS = {
-  Direttore:    ['dashboard', 'commesse', 'magazzino'],
+  Direttore:    ['dashboard', 'commesse', 'magazzino', 'director_settings'],
   'Capo Officina': ['dashboard', 'commesse'],
   Progettazione: ['commesse'],
   Logistica:    ['magazzino'],
@@ -681,14 +751,285 @@ renderCards();
 
 // ── Commesse panel ────────────────────────────────────────────────────────────
 function openCommessePanel() {
+  showCommesseMenu();
   document.getElementById('comm-panel').classList.add('open');
   document.getElementById('comm-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
+
+function openDirectorSettingsPanel() {
+  scannerSettingsOrigin = 'director';
+  document.getElementById('comm-panel').classList.add('open');
+  document.getElementById('comm-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  openScannerSettings();
+}
+
 function closeCommessePanel() {
   document.getElementById('comm-panel').classList.remove('open');
   document.getElementById('comm-backdrop').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+let scannerSettingsLoaded = false;
+let scannerSettingsTab = 'codes';
+let scannerWorkstations = [];
+let scannerQrCodes = [];
+let scannerDevices = [];
+let scannerAttempts = [];
+let scannerSettingsOrigin = 'commesse';
+
+function showCommesseMenu() {
+  scannerSettingsOrigin = 'commesse';
+  document.getElementById('comm-panel-eyebrow').textContent = 'Gestione Commesse';
+  document.getElementById('comm-panel-title').textContent = 'Cosa vuoi fare?';
+  document.getElementById('comm-menu-view').style.display = 'flex';
+  document.getElementById('scanner-settings-view').classList.remove('open');
+}
+
+function openScannerSettings() {
+  document.getElementById('comm-panel-eyebrow').textContent = 'Vista Direttore';
+  document.getElementById('comm-panel-title').textContent = 'Impostazioni';
+  document.getElementById('comm-menu-view').style.display = 'none';
+  document.getElementById('scanner-settings-view').classList.add('open');
+  if (!scannerSettingsLoaded) loadScannerSettings();
+}
+
+function backFromScannerSettings() {
+  if (scannerSettingsOrigin === 'director') return closeCommessePanel();
+  showCommesseMenu();
+}
+
+async function scannerApi(path, options = {}) {
+  const res = await fetch('/api/v1/admin' + path, {
+    ...options,
+    headers: {
+      Authorization: getAuth(),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 401) logout();
+  return res;
+}
+
+function fmtDate(value) {
+  if (!value) return 'Mai';
+  return new Date(value).toLocaleString('it-IT');
+}
+
+function workstationName(id) {
+  const row = scannerWorkstations.find(x => Number(x.id) === Number(id));
+  return row ? `${row.code} · ${row.name}` : 'Nessuna';
+}
+
+async function loadScannerSettings() {
+  const body = document.getElementById('scanner-settings-body');
+  body.innerHTML = '<div class="scan-empty">Caricamento impostazioni scanner…</div>';
+  try {
+    const [wsRes, qrRes, scRes, atRes] = await Promise.all([
+      scannerApi('/workstations?include_inactive=true'),
+      scannerApi('/workstations/qr-codes?include_inactive=false'),
+      scannerApi('/scanner-devices?include_inactive=true'),
+      scannerApi('/scanner-devices/scan-attempts?limit=40'),
+    ]);
+    const wsData = await wsRes.json();
+    const qrData = await qrRes.json();
+    const scData = await scRes.json();
+    const atData = await atRes.json();
+    if (!wsRes.ok) throw new Error(wsData.detail || 'Errore postazioni');
+    if (!qrRes.ok) throw new Error(qrData.detail || 'Errore codici postazione');
+    if (!scRes.ok) throw new Error(scData.detail || 'Errore scanner');
+    if (!atRes.ok) throw new Error(atData.detail || 'Errore test scanner');
+    scannerWorkstations = wsData || [];
+    scannerQrCodes = qrData.items || [];
+    scannerDevices = scData || [];
+    scannerAttempts = atData.items || [];
+    scannerSettingsLoaded = true;
+    renderScannerStats();
+    renderScannerSettingsTab();
+  } catch (err) {
+    body.innerHTML = `<div class="scan-empty" style="color:#fca5a5">${esc(err.message || err)}</div>`;
+  }
+}
+
+function renderScannerStats() {
+  const activeScanners = scannerDevices.filter(x => x.active).length;
+  const activeStations = scannerWorkstations.filter(x => x.active).length;
+  const lastAttempt = scannerAttempts[0]?.created_at ? fmtDate(scannerAttempts[0].created_at) : 'Nessuno';
+  document.getElementById('scanner-settings-stats').innerHTML = `
+    <div class="scan-mini-card"><strong>${activeStations}</strong><span>Postazioni attive</span></div>
+    <div class="scan-mini-card"><strong>${activeScanners}</strong><span>Scanner attivi</span></div>
+    <div class="scan-mini-card"><strong>${esc(lastAttempt)}</strong><span>Ultimo test</span></div>
+  `;
+}
+
+function setScannerSettingsTab(tab) {
+  scannerSettingsTab = tab;
+  renderScannerSettingsTab();
+}
+
+function renderScannerSettingsTab() {
+  document.querySelectorAll('[data-scan-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.scanTab === scannerSettingsTab));
+  if (scannerSettingsTab === 'codes') return renderStationQrSettings();
+  if (scannerSettingsTab === 'scanners') return renderScannerDeviceSettings();
+  if (scannerSettingsTab === 'new') return renderNewScannerSettings();
+  renderScannerTestSettings();
+}
+
+function renderStationQrSettings() {
+  document.getElementById('scanner-settings-heading').textContent = 'Codici postazione';
+  document.getElementById('scanner-settings-sub').textContent = 'QR INIZIO e FINE per lavorare con pistola scanner. Clicca una tessera per stampare.';
+  document.getElementById('scanner-settings-body').innerHTML = `<div class="scan-list">${
+    scannerQrCodes.map((ws, i) => `
+      <div class="scan-row">
+        <div class="scan-row-top">
+          <div>
+            <div class="scan-row-title">${esc(ws.name || ws.code)}</div>
+            <div class="scan-row-sub">${esc(ws.code)}${ws.description ? ' · ' + esc(ws.description) : ''}</div>
+          </div>
+          <span class="scan-badge ${ws.active ? 'ok' : 'off'}">${ws.active ? 'Attiva' : 'Spenta'}</span>
+        </div>
+        <div class="scan-qr-grid">
+          ${(ws.codes || []).map((code, j) => `
+            <div class="scan-qr" onclick="printScannerStationCode(${i},${j})">
+              <img src="${esc(code.qr_image_url)}" alt="${esc(code.label)} ${esc(ws.code)}">
+              <div>
+                <div class="scan-row-title" style="font-size:12px">${esc(code.label)}</div>
+                <div class="scan-payload">${esc(code.payload)}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('') || '<div class="scan-empty">Nessuna postazione attiva.</div>'
+  }</div>`;
+}
+
+function renderScannerDeviceSettings() {
+  document.getElementById('scanner-settings-heading').textContent = 'Lista scanner';
+  document.getElementById('scanner-settings-sub').textContent = 'Scanner fisici configurati, modalità operativa, postazione associata e URL utili.';
+  document.getElementById('scanner-settings-body').innerHTML = `<div class="scan-list">${
+    scannerDevices.map(scanner => `
+      <div class="scan-row">
+        <div class="scan-row-top">
+          <div>
+            <div class="scan-row-title">${esc(scanner.scanner_code)} · ${esc(scanner.name || scanner.scanner_code)}</div>
+            <div class="scan-row-sub">${esc(scanner.scan_mode || 'OFFICINA')} · ${esc(workstationName(scanner.postazione_id))}<br>IP ${esc(scanner.ip_address || '—')} · seriale ${esc(scanner.serial_number || '—')}</div>
+          </div>
+          <span class="scan-badge ${scanner.active ? 'ok' : 'off'}">${scanner.active ? 'Attivo' : 'Disattivo'}</span>
+        </div>
+        <div class="scan-toolbar" style="margin:12px 0 0">
+          <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','scan')">Copia scan</button>
+          <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','read')">Copia read</button>
+          <button class="scan-tab" onclick="testScannerDevice('${esc(scanner.device_token || '')}')">Test ping</button>
+        </div>
+      </div>
+    `).join('') || '<div class="scan-empty">Nessuno scanner configurato.</div>'
+  }</div>`;
+}
+
+function renderNewScannerSettings() {
+  document.getElementById('scanner-settings-heading').textContent = 'Nuovo scanner';
+  document.getElementById('scanner-settings-sub').textContent = 'Crea una pistola scanner e associa subito modalità e postazione predefinita.';
+  const options = '<option value="">Nessuna postazione</option>' + scannerWorkstations.filter(x => x.active).map(x => `<option value="${Number(x.id)}">${esc(x.code)} · ${esc(x.name)}</option>`).join('');
+  document.getElementById('scanner-settings-body').innerHTML = `
+    <form class="scan-form" onsubmit="createScannerFromSettings(event)">
+      <div class="scan-form-two">
+        <input id="scan-new-code" placeholder="SCN-OFF-01" required oninput="this.value=this.value.toUpperCase()">
+        <input id="scan-new-name" placeholder="Nome scanner" required>
+      </div>
+      <div class="scan-form-two">
+        <select id="scan-new-mode">
+          <option value="OFFICINA">OFFICINA</option>
+          <option value="MAGAZZINO">MAGAZZINO</option>
+          <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
+        </select>
+        <select id="scan-new-workstation">${options}</select>
+      </div>
+      <div class="scan-form-two">
+        <input id="scan-new-ip" placeholder="IP opzionale">
+        <input id="scan-new-serial" placeholder="Seriale opzionale">
+      </div>
+      <textarea id="scan-new-desc" placeholder="Note operative opzionali"></textarea>
+      <button class="scan-tab active" type="submit" style="border-radius:12px">Crea scanner</button>
+      <div class="scan-panel-sub" id="scan-new-result"></div>
+    </form>`;
+}
+
+function renderScannerTestSettings() {
+  document.getElementById('scanner-settings-heading').textContent = 'Test scanner';
+  document.getElementById('scanner-settings-sub').textContent = 'Ultimi scan ricevuti: utile per verificare lettura, postazione, errori e payload.';
+  document.getElementById('scanner-settings-body').innerHTML = `<div class="scan-list">${
+    scannerAttempts.map(row => `
+      <div class="scan-row">
+        <div class="scan-row-top">
+          <div>
+            <div class="scan-row-title">${esc(row.scanner)} · ${esc(row.scan_kind || 'SCAN')}</div>
+            <div class="scan-row-sub">${esc(fmtDate(row.created_at))} · postazione ${esc(row.workstation || '—')}<br>${esc(row.message || row.error_code || '—')}</div>
+          </div>
+          <span class="scan-badge ${row.outcome === 'OK' || row.outcome === 'SUCCESS' ? 'ok' : row.error_code ? 'off' : ''}">${esc(row.outcome || '—')}</span>
+        </div>
+        <div class="scan-payload">${esc(row.raw_payload || '—')}</div>
+      </div>
+    `).join('') || '<div class="scan-empty">Nessun tentativo registrato.</div>'
+  }</div>`;
+}
+
+function printScannerStationCode(i, j) {
+  const ws = scannerQrCodes[i];
+  const code = ws?.codes?.[j];
+  if (!ws || !code) return;
+  const win = window.open('', '_blank', 'width=760,height=860');
+  if (!win) return alert('Popup bloccato: abilita le finestre di stampa.');
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(ws.code)} ${esc(code.label)}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;margin:0;color:#101828}.sheet{min-height:calc(100vh - 36mm);display:flex;align-items:center;justify-content:center}.label{text-align:center;border:2px solid #111827;border-radius:18px;padding:28px 34px;max-width:520px}.kicker{font-size:16px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#475467}.name{font-size:34px;font-weight:900;margin-top:10px}.action{font-size:46px;font-weight:950;margin:8px 0 20px}.action.start{color:#047857}.action.end{color:#b42318}img{width:360px;height:360px;image-rendering:pixelated}.payload{margin-top:18px;font-family:monospace;font-size:18px;word-break:break-all}.hint{margin-top:12px;color:#667085;font-size:13px}@media print{button{display:none}}</style></head><body><div class="sheet"><div class="label"><div class="kicker">Codice postazione officina</div><div class="name">${esc(ws.name || ws.code)}</div><div class="action ${String(code.label).toLowerCase().includes('inizio')?'start':'end'}">${esc(code.label).toUpperCase()}</div><img src="${esc(code.qr_image_url)}"><div class="payload">${esc(code.payload)}</div><div class="hint">${esc(ws.code)} · scannerizza questo QR con la pistola</div><button onclick="window.print()" style="margin-top:22px;padding:12px 18px;border-radius:10px;border:1px solid #111827;background:#111827;color:white;font-weight:800">Stampa</button></div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
+  win.document.close();
+}
+
+async function createScannerFromSettings(event) {
+  event.preventDefault();
+  const result = document.getElementById('scan-new-result');
+  const body = {
+    scanner_code: document.getElementById('scan-new-code').value.trim().toUpperCase(),
+    name: document.getElementById('scan-new-name').value.trim(),
+    scan_mode: document.getElementById('scan-new-mode').value,
+    postazione_id: Number(document.getElementById('scan-new-workstation').value) || null,
+    ip_address: document.getElementById('scan-new-ip').value.trim() || null,
+    serial_number: document.getElementById('scan-new-serial').value.trim() || null,
+    description: document.getElementById('scan-new-desc').value.trim() || null,
+    active: true,
+  };
+  result.textContent = 'Creazione scanner…';
+  try {
+    const res = await scannerApi('/scanner-devices', { method: 'POST', body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Creazione non riuscita');
+    result.textContent = `Scanner creato: ${data.scanner_code}`;
+    scannerSettingsTab = 'scanners';
+    scannerSettingsLoaded = false;
+    await loadScannerSettings();
+  } catch (err) {
+    result.textContent = err.message || String(err);
+  }
+}
+
+async function copyScannerUrl(token, mode) {
+  if (!token) return alert('Token scanner mancante.');
+  const path = mode === 'read' ? 'read' : 'scan';
+  const url = `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/${path}`;
+  await navigator.clipboard.writeText(url);
+}
+
+async function testScannerDevice(token) {
+  if (!token) return alert('Token scanner mancante.');
+  const res = await fetch(`/api/v1/scanner/netum/${encodeURIComponent(token)}/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: `TEST-${Date.now()}`, msg: 'STQC_TEST_PAYLOAD' }),
+  });
+  const data = await res.json().catch(() => ({}));
+  alert(data.msg || data.detail || (res.ok ? 'Test inviato' : 'Test non riuscito'));
+  await loadScannerSettings();
 }
 
 // ── Admin sub-panels ──────────────────────────────────────────────────────────
@@ -713,11 +1054,6 @@ document.addEventListener('keydown', e => {
     closeAllAdminPanels();
   }
 });
-if (sessionStorage.getItem('returnPanel') === 'gestione') {
-  sessionStorage.removeItem('returnPanel');
-  openCommessePanel();
-}
-
 // ── Hero ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   document.getElementById('hero-bg').classList.add('loaded');
