@@ -38,7 +38,7 @@
     <section class="hero">
       <div class="eyebrow">Spedizione</div>
       <h1>Spedizione ad hoc</h1>
-      <p class="sub">Crea una spedizione partendo solo dal file spedizione: il sistema importa tutte le righe così come sono, senza controlli su assemblati, pezzi sciolti o distinta. Non genera QR.</p>
+      <p class="sub">Crea una spedizione partendo solo dal file spedizione: il sistema importa le righe, le espande per quantità e genera un QR distinto per ogni pezzo, senza coinvolgere il magazzino.</p>
       <div class="grid">
         <form class="card" id="form">
           <h2>Nuova spedizione</h2>
@@ -70,7 +70,7 @@
           <div class="steps">
             <div class="step"><div class="num">1</div><div><strong>Carichi il file spedizione</strong><div class="muted">Il parser legge le righe operative del file.</div></div></div>
             <div class="step"><div class="num">2</div><div><strong>Nasce una spedizione libera</strong><div class="muted">Viene creata una voce distinta dal flusso analisi commessa.</div></div></div>
-            <div class="step"><div class="num">3</div><div><strong>Apri la pagina Spedizione</strong><div class="muted">Trovi tutte le righe importate, senza QR e senza classificazioni forzate.</div></div></div>
+            <div class="step"><div class="num">3</div><div><strong>Generi etichette e QR</strong><div class="muted">Ogni quantità diventa un pezzo numerato nel formato MCC, senza classificazioni forzate.</div></div></div>
           </div>
         </aside>
       </div>
@@ -111,7 +111,7 @@
         const r=await fetch('/api/v1/commesse/spedizione-ad-hoc',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
         const data=await r.json().catch(()=>({}));
         if(!r.ok) throw new Error(data.detail||'Import non riuscito');
-        show('ok',`Spedizione creata: ${data.righe||0} righe importate.`);
+        show('ok',`Spedizione creata: ${data.righe||0} righe importate, ${data.qr_attivi||0} QR generati.`);
         setTimeout(()=>location.href=data.redirect_url||'/dashboard',450);
       }catch(err){show('err',err.message||'Errore import spedizione');submit.disabled=false;submit.textContent='Importa da file'}
     });

@@ -192,6 +192,29 @@ def _extract_rows(file_path: Path) -> list[list[Any]]:
     return [list(row) for row in sh.iter_rows(values_only=True)]
 
 
+def _extract_project_metadata(file_path: Path) -> dict[str, str]:
+    """Legge Numero/Nome/Data dal riquadro 'Dati Progetto' dei file CAD."""
+    rows = _extract_rows(file_path)
+    result: dict[str, str] = {}
+    labels = {
+        "numero": {"numero", "numero:"},
+        "nome": {"nome", "nome:"},
+        "data": {"data", "data:"},
+    }
+    for row in rows[:30]:
+        for index, cell in enumerate(row):
+            normalized = _norm(cell).replace("\xa0", " ").strip()
+            key = next((name for name, aliases in labels.items() if normalized in aliases), None)
+            if key is None:
+                continue
+            for value in row[index + 1:]:
+                text = str(value).replace("\xa0", " ").strip() if value is not None else ""
+                if text:
+                    result[key] = text
+                    break
+    return result
+
+
 def _find_header_row(rows: list[list[Any]], key_aliases: list[str]) -> int:
     """Trova la riga che contiene almeno uno degli alias forniti."""
     for i, row in enumerate(rows[:20]):
@@ -460,6 +483,11 @@ def parse_commessa_files(
         "lista_pezzi_filename": lista_pezzi_path.name,
         "assemblaggi_filename": assemblaggi_path.name if assemblaggi_path else None,
     }
+    project = _extract_project_metadata(lista_pezzi_path)
+    if assemblaggi_path is not None:
+        for key, value in _extract_project_metadata(assemblaggi_path).items():
+            project.setdefault(key, value)
+    report["project"] = project
     report["positions"] = len({i["part_code"] for i in items if i.get("part_code")})
     report["assemblies"] = len(assembly_headers)
     report["hierarchy"] = {

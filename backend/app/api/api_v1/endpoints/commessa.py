@@ -4,14 +4,16 @@ import json
 import re
 import shutil
 import tempfile
+import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -29,6 +31,7 @@ from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaU
 from backend.app.services.distinta import (
     ALIASES,
     _build_col_map,
+    _extract_project_metadata,
     _extract_rows,
     _find_header_row,
     normalized_to_db_bulk,
@@ -38,6 +41,12 @@ from backend.app.services.bulloneria import parse_bulloneria_file
 from backend.app.services.fasi_operative import parse_fasi_operative
 from backend.app.services.commessa_analysis import classify_commessa_materials
 from backend.app.services.qr import generate_qr_for_payload
+from backend.app.services.label import (
+    commessa_display_name,
+    format_piece_label_payload,
+    generate_piece_label_pdf,
+    generate_piece_labels_pdf,
+)
 from backend.app.services.preproduction_scan import process_preproduction_scan
 from backend.app.services.workshop_scan import process_workshop_scan
 
@@ -51,6 +60,12 @@ class PieceManualUpdate(BaseModel):
     assemblato: Optional[str] = None
     stato: Optional[str] = None
     nota: Optional[str] = None
+
+
+class PieceLabelsRequest(BaseModel):
+    piece_ids: list[int] = Field(..., min_length=1, max_length=2000)
+    width_mm: float = Field(70, ge=40, le=210)
+    height_mm: float = Field(120, ge=40, le=297)
 
 
 class MouseScanRequest(BaseModel):
@@ -138,7 +153,8 @@ def _piece_qr_read(item: Piece) -> dict:
         "materiale_origine_id": item.materiale_origine_id,
         "qr_image_url": f"/piece-qr-image/{item.uuid}.png",
         "resolve_url": f"/p/{item.uuid}",
-        "label_url": f"/api/v1/warehouse/distinta/items/{item.distinta_item_id}/label.pdf" if item.distinta_item_id else "#",
+        "qr_payload": item.qr_payload,
+        "label_url": f"/api/v1/commesse/{item.commessa_id}/step-5-1/items/{item.id}/label.pdf",
     }
 
 
@@ -190,6 +206,23 @@ def _piece_qr_code(part_number: str | None, instance_number: int | None, fallbac
     if instance_number is not None:
         return f"{base}-{int(instance_number):03d}"
     return base
+
+
+def _piece_totals(pieces: list[Piece]) -> dict[str, int]:
+    totals: dict[str, int] = defaultdict(int)
+    for piece in pieces:
+        totals[piece.marca_pos or ""] += 1
+    return totals
+
+
+def _expected_piece_payload(piece: Piece, commessa: Commessa, totals: dict[str, int]) -> str:
+    return format_piece_label_payload(
+        commessa_display_name(commessa),
+        piece.marca_pos,
+        piece.progressivo,
+        totals.get(piece.marca_pos or "", 1),
+        float(piece.peso_kg) if piece.peso_kg is not None else None,
+    )
 
 
 def _create_piece_from_item(
@@ -256,17 +289,22 @@ def _ensure_revision_qr_consistency(db: Session, revisione: CommessaRevisione, *
             existing_by_item_id[item.id] = piece
             changed += 1
     pieces = db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
+    commessa = db.get(Commessa, revisione.commessa_id)
+    if commessa is None:
+        raise ValueError("Commessa della revisione non trovata")
+    totals = _piece_totals(pieces)
     item_ids = [piece.distinta_item_id for piece in pieces if piece.distinta_item_id]
     items_by_id = {
         item.id: item
         for item in db.query(DistintaItem).filter(DistintaItem.id.in_(item_ids)).all()
     } if item_ids else {}
     for piece in pieces:
-        expected_payload = piece.uuid
+        expected_payload = _expected_piece_payload(piece, commessa, totals)
+        payload_changed = piece.qr_payload != expected_payload
         if (
             not piece.qr_attivo
             or piece.qr_status != "ACTIVE"
-            or piece.qr_payload != expected_payload
+            or payload_changed
         ):
             piece.qr_attivo = True
             piece.qr_status = "ACTIVE"
@@ -276,11 +314,11 @@ def _ensure_revision_qr_consistency(db: Session, revisione: CommessaRevisione, *
             piece.updated_at = now
             changed += 1
         item = items_by_id.get(piece.distinta_item_id)
-        if item and (not item.qr_attivo or item.stato_tracciamento in (None, "NON_GENERATO") or not item.qr_code):
+        if item and (payload_changed or not item.qr_attivo or item.stato_tracciamento in (None, "NON_GENERATO") or not item.qr_code):
             item.qr_attivo = True
             if not item.stato_tracciamento or item.stato_tracciamento == "NON_GENERATO":
                 item.stato_tracciamento = "DA_PRODURRE"
-            item.qr_code = generate_qr_for_payload(piece.uuid)
+            item.qr_code = generate_qr_for_payload(expected_payload)
             changed += 1
     if changed:
         db.commit()
@@ -497,10 +535,7 @@ async def create_spedizione_ad_hoc(
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Crea una spedizione libera partendo solo dal file spedizione.
-
-    Non confronta con assemblati, pezzi sciolti o distinta. Non genera QR.
-    """
+    """Crea una spedizione libera e i QR pezzo partendo dal solo file spedizione."""
     title = (titolo or "").strip()
     if not title:
         raise HTTPException(422, "Inserisci un titolo commessa/spedizione")
@@ -520,6 +555,10 @@ async def create_spedizione_ad_hoc(
     existing = db.query(CommessaRevisione).filter(
         CommessaRevisione.commessa_id == commessa.id
     ).count()
+    db.query(CommessaRevisione).filter(
+        CommessaRevisione.commessa_id == commessa.id,
+        CommessaRevisione.corrente.is_(True),
+    ).update({CommessaRevisione.corrente: False}, synchronize_session=False)
     codice_rev = f"r{existing + 1:02d}"
     rev_dir = settings.upload_dir / f"commessa_{commessa.id}" / codice_rev
     rev_dir.mkdir(parents=True, exist_ok=True)
@@ -530,6 +569,9 @@ async def create_spedizione_ad_hoc(
         with spedizione_dest.open("wb") as f:
             f.write(await spedizione.read())
         spedizione_items, spedizione_report = _parse_spedizione_file(spedizione_dest)
+        imported_name = str((spedizione_report.get("project") or {}).get("nome") or "").strip()
+        if imported_name:
+            commessa.descrizione = imported_name
 
         report = {
             "ok": True,
@@ -548,6 +590,7 @@ async def create_spedizione_ad_hoc(
             stato_analisi="PRONTA",
             report_analisi=report,
             step4_completed_at=datetime.utcnow(),
+            step51_completed_at=datetime.utcnow(),
             note=note,
         )
         db.add(revisione)
@@ -577,6 +620,12 @@ async def create_spedizione_ad_hoc(
             revisione.id,
             spedizione_items,
         )
+        qr_created = _populate_spedizione_ad_hoc_pieces(
+            db,
+            commessa,
+            revisione,
+            spedizione_items,
+        )
         db.commit()
     except HTTPException:
         db.rollback()
@@ -593,6 +642,7 @@ async def create_spedizione_ad_hoc(
         "codice": commessa.codice,
         "titolo": title,
         "righe": inserted,
+        "qr_attivi": qr_created,
         "redirect_url": f"/commesse/{quote(commessa.codice, safe='')}/in-cantiere",
     }
 
@@ -776,6 +826,9 @@ async def create_analisi_commessa(
             lista_dest,
             asm_dest,
         )
+        imported_name = str((report.get("project") or {}).get("nome") or "").strip()
+        if imported_name:
+            commessa.descrizione = imported_name
     except Exception as exc:
         shutil.rmtree(rev_dir, ignore_errors=True)
         _logger.exception("Errore nel parsing file obbligatori revisione %s commessa %d", codice_rev, commessa_id)
@@ -1141,6 +1194,7 @@ def _norm_header(value) -> str:
     text = str(value or "").strip().lower()
     for src, dst in (("à", "a"), ("è", "e"), ("é", "e"), ("ì", "i"), ("ò", "o"), ("ù", "u")):
         text = text.replace(src, dst)
+    text = "".join(ch for ch in unicodedata.normalize("NFKD", text) if not unicodedata.combining(ch))
     return "".join(ch for ch in text if ch.isalnum())
 
 
@@ -1202,14 +1256,14 @@ def _parse_spedizione_file(path: Path) -> tuple[list[dict], dict]:
     header_idx = None
     for idx, row in enumerate(rows[:40]):
         normalized = {_norm_header(cell) for cell in row}
-        if normalized.intersection({"assemb", "assemblato", "codice"}) and normalized.intersection({"qta", "quantita", "qty"}):
+        if normalized.intersection({"assemb", "assemblato", "codice", "parte", "marcapos"}) and normalized.intersection({"qta", "quantita", "qty"}):
             header_idx = idx
             break
     if header_idx is None:
         raise ValueError("intestazione spedizione non riconosciuta")
 
     header = rows[header_idx]
-    idx_code = _find_first_col(header, {"assemb", "assemblato", "codice"})
+    idx_code = _find_first_col(header, {"assemb", "assemblato", "codice", "parte", "marcapos"})
     idx_desc = _find_first_col(header, {"descrizione", "descr"})
     idx_profile = _find_first_col(header, {"profilo", "profile"})
     idx_qty = _find_first_col(header, {"qta", "quantita", "qty"})
@@ -1251,6 +1305,7 @@ def _parse_spedizione_file(path: Path) -> tuple[list[dict], dict]:
         "summary": f"Lista spedizione leggibile: {len(parsed)} righe rilevate",
         "righe": len(parsed),
         "quantita": sum(float(row["quantita"] or 0) for row in parsed),
+        "project": _extract_project_metadata(path),
     }
     return parsed, report
 
@@ -1475,6 +1530,58 @@ def _populate_spedizione_ad_hoc_items(
         ))
         inserted += 1
     return inserted
+
+
+def _populate_spedizione_ad_hoc_pieces(
+    db: Session,
+    commessa: Commessa,
+    revisione: CommessaRevisione,
+    spedizione_items: list[dict],
+) -> int:
+    """Espande le righe spedizione in QR pezzo, senza usare il magazzino."""
+    totals: dict[str, int] = defaultdict(int)
+    for row in spedizione_items:
+        code = str(row.get("codice") or "").strip()
+        if code:
+            totals[code] += max(0, int(round(float(row.get("quantita") or 0))))
+
+    counters: dict[str, int] = defaultdict(int)
+    created = 0
+    for row in spedizione_items:
+        code = str(row.get("codice") or "").strip()
+        quantity = max(0, int(round(float(row.get("quantita") or 0))))
+        if not code or quantity <= 0:
+            continue
+        unit_weight = row.get("peso_unitario_kg")
+        if unit_weight is None and row.get("peso_totale_kg") is not None:
+            unit_weight = float(row["peso_totale_kg"]) / quantity
+        for _ in range(quantity):
+            counters[code] += 1
+            progressivo = counters[code]
+            payload = format_piece_label_payload(
+                commessa_display_name(commessa),
+                code,
+                progressivo,
+                totals[code],
+                float(unit_weight) if unit_weight is not None else None,
+            )
+            db.add(Piece(
+                qr_code=_piece_qr_code(code, progressivo),
+                qr_payload=payload,
+                qr_status="ACTIVE",
+                qr_attivo=True,
+                commessa_id=commessa.id,
+                revisione_id=revisione.id,
+                distinta_item_id=None,
+                assemblato_id=code,
+                marca_pos=code,
+                progressivo=progressivo,
+                profilo=row.get("profilo") or row.get("descrizione"),
+                peso_kg=unit_weight,
+                stato_attuale="DA_PRODURRE",
+            ))
+            created += 1
+    return created
 
 
 def _validate_lista_pezzi_file(path: Path) -> dict:
@@ -2373,9 +2480,10 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
         item.id: item
         for item in db.query(DistintaItem).filter(DistintaItem.id.in_(item_ids)).all()
     } if item_ids else {}
+    totals = _piece_totals(pieces)
     now = datetime.utcnow()
     for piece in pieces:
-        piece.qr_payload = piece.uuid
+        piece.qr_payload = _expected_piece_payload(piece, commessa, totals)
         piece.qr_attivo = True
         piece.qr_status = "ACTIVE"
         piece.stato_attuale = "DA_PRODURRE"
@@ -2384,7 +2492,7 @@ def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
         if item:
             item.qr_attivo = True
             item.stato_tracciamento = "DA_PRODURRE"
-            item.qr_code = generate_qr_for_payload(piece.uuid)
+            item.qr_code = generate_qr_for_payload(piece.qr_payload)
     if revisione.step51_completed_at is None:
         revisione.step51_completed_at = now
     db.commit()
@@ -2450,6 +2558,92 @@ def list_commessa_item_qr(
             for item in items
         ],
     }
+
+
+@router.get("/{commessa_id}/step-5-1/items/{piece_id}/label.pdf")
+def download_commessa_piece_label(
+    commessa_id: int,
+    piece_id: int,
+    width_mm: float = Query(70, ge=40, le=210),
+    height_mm: float = Query(120, ge=40, le=297),
+    db: Session = Depends(get_db),
+):
+    """Stampa il QR commessa nel formato MCC; non riguarda il magazzino."""
+    piece = db.query(Piece).filter(
+        Piece.id == piece_id,
+        Piece.commessa_id == commessa_id,
+        Piece.qr_attivo.is_(True),
+    ).first()
+    if piece is None:
+        raise HTTPException(404, "Pezzo commessa non trovato o QR non attivo")
+    commessa = db.get(Commessa, commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    totale = db.query(Piece).filter(
+        Piece.revisione_id == piece.revisione_id,
+        Piece.marca_pos == piece.marca_pos,
+    ).count()
+    pdf_bytes = generate_piece_label_pdf(
+        piece,
+        commessa,
+        totale,
+        width_mm=width_mm,
+        height_mm=height_mm,
+    )
+    filename = f"etichetta_{piece.qr_code}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.post("/{commessa_id}/step-5-1/labels.pdf")
+def download_commessa_piece_labels(
+    commessa_id: int,
+    body: PieceLabelsRequest,
+    db: Session = Depends(get_db),
+):
+    """PDF multipagina delle etichette Piece selezionate, anche ad hoc."""
+    commessa = db.get(Commessa, commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    requested_ids = list(dict.fromkeys(body.piece_ids))
+    pieces = db.query(Piece).filter(
+        Piece.commessa_id == commessa_id,
+        Piece.id.in_(requested_ids),
+        Piece.qr_attivo.is_(True),
+    ).all()
+    by_id = {piece.id: piece for piece in pieces}
+    missing = [piece_id for piece_id in requested_ids if piece_id not in by_id]
+    if missing:
+        raise HTTPException(404, f"{len(missing)} QR selezionati non sono disponibili")
+
+    revision_ids = {piece.revisione_id for piece in pieces}
+    all_revision_pieces = db.query(Piece).filter(
+        Piece.revisione_id.in_(revision_ids),
+    ).all()
+    totals: dict[tuple[int, str], int] = defaultdict(int)
+    for piece in all_revision_pieces:
+        totals[(piece.revisione_id, piece.marca_pos or "")] += 1
+    ordered_labels = [
+        (
+            by_id[piece_id],
+            commessa,
+            totals[(by_id[piece_id].revisione_id, by_id[piece_id].marca_pos or "")],
+        )
+        for piece_id in requested_ids
+    ]
+    pdf_bytes = generate_piece_labels_pdf(
+        ordered_labels,
+        width_mm=body.width_mm,
+        height_mm=body.height_mm,
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="etichette_selezionate.pdf"'},
+    )
 
 
 @router.get("/{commessa_id}/step-5-1/warehouse-mapping")
