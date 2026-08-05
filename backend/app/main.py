@@ -294,6 +294,14 @@ def create_app() -> FastAPI:
         page = "in-cantiere.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
         return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
 
+    @app.get("/commesse/{commessa_ref}/spedizione-qr-registry", include_in_schema=False)
+    def commessa_spedizione_qr_registry_page(commessa_ref: str, request: Request):
+        commessa = _find_commessa_by_ref(commessa_ref)
+        if commessa and str(commessa_ref).isdigit():
+            return RedirectResponse(url=_commessa_path(commessa, "spedizione-qr-registry"), status_code=307, headers=_NO_CACHE)
+        page = "spedizione-qr-registry.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
+
     @app.get("/commesse/{commessa_ref}", include_in_schema=False)
     def commessa_detail_page(commessa_ref: str):
         commessa = _find_commessa_by_ref(commessa_ref)

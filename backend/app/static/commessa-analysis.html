@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <script src="/static/commessa-embed.js?v=commessa-shell1"></script>
+  <script src="/static/commessa-embed.js?v=commessa-shell2"></script>
   <link rel="stylesheet" href="/static/qr-drawer.css?v=scan4">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -156,6 +156,100 @@
     }
     .section-title { font-size: 18px; font-weight: 950; letter-spacing: -.025em; }
     .section-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .input-dashboard {
+      position: relative; overflow: hidden; margin-bottom: 28px; padding: 28px;
+      border-radius: 22px; border: 1px solid rgba(147,197,253,.18);
+      background:
+        radial-gradient(circle at 92% 8%, rgba(45,212,191,.16), transparent 34%),
+        radial-gradient(circle at 48% 0%, rgba(59,130,246,.14), transparent 30%),
+        linear-gradient(180deg, rgba(17,29,52,.96), rgba(11,17,31,.96));
+      box-shadow: 0 24px 80px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .input-dashboard::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(110deg, rgba(255,255,255,.055), transparent 34%);
+    }
+    .input-dashboard > * { position: relative; z-index: 1; }
+    .input-hero {
+      display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(360px, .9fr);
+      gap: 22px; align-items: stretch; margin-bottom: 18px;
+    }
+    .input-kicker {
+      color: #9cc2ff; font-size: 10px; font-weight: 950;
+      letter-spacing: .16em; text-transform: uppercase;
+    }
+    .input-title { margin-top: 8px; font-size: 38px; line-height: 1.05; font-weight: 950; letter-spacing: 0; }
+    .input-copy { margin-top: 10px; max-width: 820px; color: var(--secondary); font-size: 13px; line-height: 1.55; }
+    .input-score {
+      display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 16px;
+      min-height: 150px; padding: 22px; border-radius: 18px;
+      background: rgba(7,13,25,.46); border: 1px solid rgba(147,197,253,.16);
+    }
+    .input-score-label {
+      color: var(--muted); font-size: 10px; font-weight: 950;
+      letter-spacing: .13em; text-transform: uppercase;
+    }
+    .input-score-number { margin-top: 8px; font-size: 56px; line-height: .95; font-weight: 950; letter-spacing: 0; }
+    .input-score-sub { margin-top: 8px; color: var(--secondary); font-size: 12px; line-height: 1.4; }
+    .input-health {
+      min-width: 118px; padding: 10px 12px; border-radius: 999px; text-align: center;
+      color: #bfdbfe; font-size: 10px; font-weight: 950; letter-spacing: .1em; text-transform: uppercase;
+      border: 1px solid rgba(147,197,253,.24); background: rgba(59,130,246,.10);
+    }
+    .input-health.good { color: #bbf7d0; border-color: rgba(74,222,128,.28); background: rgba(74,222,128,.09); }
+    .input-health.warn { color: #fde68a; border-color: rgba(251,191,36,.30); background: rgba(251,191,36,.09); }
+    .input-file-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .input-file-card {
+      min-height: 188px; padding: 18px; border-radius: 16px;
+      border: 1px solid rgba(147,197,253,.14);
+      background:
+        radial-gradient(circle at 85% 10%, rgba(59,130,246,.13), transparent 34%),
+        rgba(10,18,34,.72);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    .input-file-card.missing {
+      border-color: rgba(255,255,255,.075);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.01)),
+        rgba(10,18,34,.48);
+    }
+    .input-file-card.ok {
+      border-color: rgba(74,222,128,.22);
+      background:
+        radial-gradient(circle at 85% 10%, rgba(74,222,128,.13), transparent 34%),
+        rgba(10,18,34,.72);
+    }
+    .input-file-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .input-file-label {
+      color: #9cc2ff; font-size: 10px; font-weight: 950;
+      letter-spacing: .13em; text-transform: uppercase;
+    }
+    .input-pill {
+      padding: 5px 8px; border-radius: 999px; white-space: nowrap;
+      font-size: 9px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase;
+      color: #86efac; border: 1px solid rgba(74,222,128,.24); background: rgba(74,222,128,.08);
+    }
+    .input-file-card.missing .input-pill {
+      color: var(--muted); border-color: rgba(255,255,255,.10); background: rgba(255,255,255,.035);
+    }
+    .input-file-value { margin-top: 22px; font-size: 36px; line-height: 1; font-weight: 950; letter-spacing: 0; }
+    .input-file-card.missing .input-file-value { color: var(--muted); }
+    .input-file-metric { margin-top: 8px; color: var(--secondary); font-size: 12px; line-height: 1.45; min-height: 34px; }
+    .input-file-name {
+      margin-top: 18px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.07);
+      color: var(--text); font-size: 11px; font-weight: 800; overflow-wrap: anywhere;
+    }
+    .input-file-card.missing .input-file-name { color: var(--muted); }
+    .input-mini-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+    .input-mini {
+      padding: 15px; border-radius: 14px; border: 1px solid rgba(147,197,253,.12);
+      background: rgba(7,13,25,.42);
+    }
+    .input-mini-label {
+      color: var(--muted); font-size: 9px; font-weight: 950;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .input-mini-value { margin-top: 6px; font-size: 28px; line-height: 1; font-weight: 950; letter-spacing: 0; }
     .file-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .file-card {
       min-height: 90px; padding: 14px; border-radius: 11px;
@@ -455,6 +549,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 900px) {
       .steps, .macro-flow, .kpis { grid-template-columns: repeat(2, 1fr); }
+      .input-hero { grid-template-columns: 1fr; }
+      .input-file-grid, .input-mini-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .assembly-overview { grid-template-columns: repeat(2, 1fr); }
       .detail-grid { grid-template-columns: repeat(2, 1fr); }
       .qr-summary-card { grid-template-columns: 1fr; }
@@ -464,6 +560,9 @@
     @media (max-width: 620px) {
       .page { padding: 24px 14px 50px; }
       .header { flex-direction: column; }
+      .input-dashboard { padding: 18px; border-radius: 18px; }
+      .input-score { grid-template-columns: 1fr; }
+      .input-file-grid, .input-mini-row { grid-template-columns: 1fr; }
       .steps, .macro-flow, .kpis, .assembly-overview, .detail-grid, .qr-detail, .qr-edit-grid { grid-template-columns: 1fr; }
     }
   </style>
@@ -585,12 +684,90 @@ function jsArg(value) {
   return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
-function fileCard(kind, name, emptyText) {
-  return `<div class="file-card${name ? "" : " empty"}">
-    <div class="file-kind">${kind}</div>
-    <div class="file-name">${esc(name || emptyText)}</div>
-    <div class="file-state">${name ? "✓ Acquisito" : "Non caricato"}</div>
+function inputDashboardCard(item) {
+  const loaded = !!item.name;
+  return `<div class="input-file-card ${loaded ? "ok" : "missing"}">
+    <div class="input-file-top">
+      <div class="input-file-label">${esc(item.label)}</div>
+      <div class="input-pill">${loaded ? "Acquisito" : "Manca"}</div>
+    </div>
+    <div class="input-file-value">${esc(item.value)}</div>
+    <div class="input-file-metric">${item.metric}</div>
+    <div class="input-file-name">${esc(loaded ? item.name : item.empty)}</div>
   </div>`;
+}
+
+function renderInputDashboard() {
+  const r = analysisData.revisione || {};
+  const s = analysisData.summary || {};
+  const report = r.report || {};
+  const files = r.files || {};
+  const spedizioneReport = report.spedizione || {};
+  const assemblaggiReport = report.assemblaggi || {};
+  const bulloneriaReport = report.bulloneria || {};
+  const assemblatiCount = Number(s.n_assemblati || assemblaggiReport.assemblati || report.assemblies || 0);
+  const assemblatiRows = Number(assemblaggiReport.righe || report.assemblies || assemblatiCount || 0);
+  const fileItems = [
+    {
+      label: "Lista pezzi",
+      name: basename(files.lista_pezzi),
+      empty: "Nessuna lista pezzi caricata",
+      value: fmt(s.n_pezzi),
+      metric: `${fmt(s.n_codici_pezzo)} codici distinti · ${fmt(s.n_profili)} profili/qualita`,
+    },
+    {
+      label: "Assemblati",
+      name: basename(files.assemblaggi),
+      empty: "Nessuna lista assemblati caricata",
+      value: fmt(assemblatiCount),
+      metric: `${fmt(assemblatiRows)} riferimenti · gerarchia disponibile per assemblaggio`,
+    },
+    {
+      label: "Spedizione",
+      name: basename(files.spedizione),
+      empty: "Nessuna lista spedizione caricata",
+      value: fmt(spedizioneReport.righe),
+      metric: `${fmt(spedizioneReport.quantita || 0)} unita · pagina Spedizione alimentata dal file`,
+    },
+    {
+      label: "Bulloneria",
+      name: basename(files.bulloneria),
+      empty: "Nessun file bulloneria caricato",
+      value: fmt(s.n_bulloneria_righe || bulloneriaReport.righe),
+      metric: `${fmt(s.n_bulloneria_totale || bulloneriaReport.quantita_totale)} pezzi · senza QR fisico`,
+    },
+  ];
+  const loadedCount = fileItems.filter(item => item.name).length;
+  const missingCount = fileItems.length - loadedCount;
+  const healthClass = missingCount === 0 ? "good" : loadedCount > 0 ? "warn" : "";
+  const healthText = missingCount === 0 ? "Completa" : loadedCount > 0 ? "Parziale" : "Vuota";
+  return `<section class="input-dashboard">
+    <div class="input-hero">
+      <div>
+        <div class="input-kicker">Analisi commessa</div>
+        <div class="input-title">Dashboard file disponibili</div>
+        <div class="input-copy">
+          Stato operativo dei documenti caricati sulla commessa. Ogni file alimenta la propria area:
+          officina, assemblaggi, lavorazioni o spedizione.
+        </div>
+      </div>
+      <div class="input-score">
+        <div>
+          <div class="input-score-label">Copertura input</div>
+          <div class="input-score-number">${loadedCount}/${fileItems.length}</div>
+          <div class="input-score-sub">${missingCount ? `${missingCount} file non ancora caricati` : "Tutti i file previsti sono presenti"}</div>
+        </div>
+        <div class="input-health ${healthClass}">${healthText}</div>
+      </div>
+    </div>
+    <div class="input-file-grid">${fileItems.map(inputDashboardCard).join("")}</div>
+    <div class="input-mini-row">
+      <div class="input-mini"><div class="input-mini-label">QR attivi</div><div class="input-mini-value">${fmt(s.n_qr_attivi)}</div></div>
+      <div class="input-mini"><div class="input-mini-label">Pezzi fisici</div><div class="input-mini-value">${fmt(s.n_pezzi)}</div></div>
+      <div class="input-mini"><div class="input-mini-label">Codici pezzo</div><div class="input-mini-value">${fmt(s.n_codici_pezzo)}</div></div>
+      <div class="input-mini"><div class="input-mini-label">Documenti</div><div class="input-mini-value">${fmt(loadedCount)}</div></div>
+    </div>
+  </section>`;
 }
 
 function macroStateClass(state) {
@@ -634,7 +811,7 @@ function renderPage() {
       <div>
         <div class="eyebrow">Gestione Commesse</div>
         <h1>Analisi ${esc(c.codice)}</h1>
-        <div class="subtitle">${esc(c.cliente || "Cliente non specificato")} · Distinta acquisita</div>
+        <div class="subtitle">${esc(c.cliente || "Cliente non specificato")} · File acquisiti</div>
       </div>
       <div class="header-actions">
         <div class="header-status-row">
@@ -657,56 +834,9 @@ function renderPage() {
     ${r.predistinta ? renderPredistintaWarning(r) : ""}
     ${renderFileWarnings(r)}
 
-    <section class="section">
-      <div class="section-head">
-        <div><div class="section-title">File acquisiti</div>
-        <div class="section-sub">Documenti originali conservati per questa commessa</div></div>
-      </div>
-      <div class="file-grid">
-        ${fileCard("Lista pezzi", basename(r.files.lista_pezzi), "File obbligatorio non disponibile")}
-        ${fileCard("Pezzi e assemblati", basename(r.files.assemblaggi), "Nessuna gerarchia caricata")}
-        ${fileCard("Lista spedizione", basename(r.files.spedizione), "Non caricata · non bloccante")}
-        ${fileCard("Bulloneria", basename(r.files.bulloneria), "Opzionale · nessun QR associato")}
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-head">
-        <div><div class="section-title">Sintesi distinta acquisita</div>
-        <div class="section-sub">Numeri base letti dai file caricati. Il dettaglio materiali è nella sezione Fabbisogno commessa.</div></div>
-      </div>
-      <div class="kpis">
-        <div class="kpi"><div class="kpi-label">Pezzi fisici</div><div class="kpi-value">${fmt(s.n_pezzi)}</div></div>
-        <div class="kpi"><div class="kpi-label">Part number distinti</div><div class="kpi-value">${fmt(s.n_codici_pezzo)}</div></div>
-        <div class="kpi"><div class="kpi-label">Assemblati</div><div class="kpi-value">${fmt(s.n_assemblati)}</div></div>
-        <div class="kpi"><div class="kpi-label">Profili / qualità</div><div class="kpi-value">${fmt(s.n_profili)}</div></div>
-      </div>
-      <div class="explanation">
-        <strong>Nota:</strong> questa è solo una sintesi di controllo. La vista operativa dei materiali necessari,
-        compresa la bulloneria da file dedicato e gli elementi presenti nel file pezzi, è raccolta sotto “Fabbisogno commessa”.
-      </div>
-    </section>
+    ${renderInputDashboard()}
 
     ${renderFabbisognoSection()}
-
-    ${r.step51_completato ? "" : `
-      <section class="section production-section" id="step-5-1">
-        <div class="section-head">
-          <div><div class="section-title">In officina</div>
-          <div class="section-sub">Genera i QR operativi dei pezzi fisici in produzione.</div></div>
-        </div>
-        <div class="workflow-card qr-cta">
-          <div class="workflow-head">
-            <div>
-              <div class="qr-cta-title">Genera QR commessa</div>
-              <div class="qr-cta-copy">Crea i QR dei singoli pezzi fisici e prepara la commessa alla produzione. Non interviene sul magazzino.</div>
-            </div>
-            <button class="btn cta" id="generate-qr-btn" onclick="generateStep51()" ${r.stato_analisi !== "PRONTA" ? "disabled" : ""}>Genera QR commessa</button>
-          </div>
-          <div id="step51-feedback" class="feedback"></div>
-        </div>
-      </section>
-    `}
 
     <div class="footer-note">
       La commessa viene aggiornata dagli eventi reali generati dagli scan in officina.
@@ -859,8 +989,8 @@ function renderFileWarnings(revision) {
   const warnings = revision?.report?.file_warnings || [];
   if (!warnings.length) return "";
   return `<section class="section">
-    <div class="section-head"><div><div class="section-title">Warning file non bloccanti</div>
-    <div class="section-sub">L'analisi commessa è proseguita. Questi file possono essere inviati per verifica parsing/maintenance.</div></div></div>
+    <div class="section-head"><div><div class="section-title">Warning file</div>
+    <div class="section-sub">L'analisi commessa è proseguita. Questi file possono essere verificati a parte.</div></div></div>
     <div class="notice warn">
       ${warnings.map(item => `<div><strong>${esc(item.file || "File")}:</strong> ${esc(item.message || "Verifica file/parsing")}</div>`).join("")}
     </div>
@@ -881,13 +1011,13 @@ function renderPredistintaWarning(revision) {
     </div>
     <div class="revision-list">${chips}</div>
     <form class="revision-form" onsubmit="uploadDefinitive(event)">
-      <div class="upload-field"><label>Lista pezzi definitiva *</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm" required/></div>
-      <div class="upload-field"><label>Pezzi e assemblati *</label><input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm" required/></div>
-      <div class="upload-field"><label>Lista spedizione non bloccante</label><input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm"/></div>
+      <div class="upload-field"><label>Lista pezzi definitiva</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm"/></div>
+      <div class="upload-field"><label>Pezzi e assemblati</label><input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm"/></div>
+      <div class="upload-field"><label>Lista spedizione</label><input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm"/></div>
       <div class="upload-field"><label>Bulloneria senza QR</label><input type="file" id="def-bulloneria" accept=".xls,.xlsx,.xlsm,.csv,.pdf"/></div>
       <div class="revision-actions">
         <span class="feedback" id="revision-feedback"></span>
-        <button class="btn" id="revision-submit" type="submit">Carica distinta definitiva e riesegui Step 4</button>
+        <button class="btn" id="revision-submit" type="submit">Carica file e aggiorna analisi</button>
       </div>
     </form>
   </section>`;
@@ -901,13 +1031,17 @@ async function uploadDefinitive(event) {
   const assemblaggi = document.getElementById("def-assemblaggi").files[0];
   const spedizione = document.getElementById("def-spedizione").files[0];
   const bulloneria = document.getElementById("def-bulloneria").files[0];
-  if (!lista || !assemblaggi) return;
+  if (!lista && !assemblaggi && !spedizione && !bulloneria) {
+    feedback.className = "feedback error";
+    feedback.textContent = "Carica almeno un file.";
+    return;
+  }
   button.disabled = true;
   feedback.className = "feedback";
   feedback.textContent = "Caricamento e nuova analisi in corso…";
   const body = new FormData();
-  body.append("lista_pezzi", lista);
-  body.append("assemblaggi", assemblaggi);
+  if (lista) body.append("lista_pezzi", lista);
+  if (assemblaggi) body.append("assemblaggi", assemblaggi);
   if (spedizione) body.append("spedizione", spedizione);
   if (bulloneria) body.append("bulloneria", bulloneria);
   body.append("predistinta", "false");

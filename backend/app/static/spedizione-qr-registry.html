@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <script src="/static/commessa-embed.js?v=commessa-shell2"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Registro QR spedizione - MCC</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:#07111f;color:#eaf2ff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .top{height:72px;display:flex;align-items:center;gap:12px;padding:0 28px;border-bottom:1px solid rgba(147,197,253,.16);background:linear-gradient(180deg,#0f1b2d,#091321)}
+    .top a{color:#a9bbd2;text-decoration:none;font-weight:850}.top strong{color:#eaf2ff}.spacer{flex:1}
+    .btn{border:1px solid #2c4161;background:#16243a;color:#dce8fa;border-radius:12px;padding:11px 15px;font-weight:900;cursor:pointer;text-decoration:none}
+    .btn.primary{background:linear-gradient(135deg,#2563eb,#14b8a6);border-color:#5eead4;color:white}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}.btn.back{background:#0f1d31;border-color:#335174}
+    .wrap{padding:22px;display:grid;gap:14px}
+    .hero{border:1px solid rgba(96,165,250,.28);border-radius:24px;background:radial-gradient(circle at 92% 10%,rgba(20,184,166,.16),transparent 30%),linear-gradient(145deg,#102342,#071525);padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.24)}
+    .kicker{color:#8fb8ff;font-size:11px;font-weight:950;letter-spacing:.18em;text-transform:uppercase}
+    h1{margin:6px 0 5px;font-size:34px;line-height:1;letter-spacing:-.05em}.muted{color:#9eb2ce}
+    .control-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;margin-top:18px}
+    .filters{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(330px,520px) auto;gap:10px;align-items:end}
+    .field span{display:block;margin:0 0 6px;color:#8fb8ff;font-size:10px;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
+    .search,.select,.number{width:100%;border:1px solid #2b496d;border-radius:13px;background:#091321;color:#eef5ff;min-height:44px;padding:0 13px;font-size:15px;font-weight:750;outline:none}
+    .quick-select{display:flex;gap:8px;align-items:end}
+    .quick-select .number{width:88px;text-align:right}
+    .code-field{position:relative}.code-picker{position:relative}.code-trigger{width:100%;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #2b496d;border-radius:13px;background:#091321;color:#eef5ff;padding:0 13px;text-align:left;cursor:pointer}.code-trigger strong{font-size:15px}.code-trigger small{color:#8fa4bf;font-size:12px;font-weight:850}.code-trigger:after{content:"⌄";color:#8fb8ff;font-weight:950}.code-popover{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 8px);display:none;border:1px solid rgba(96,165,250,.34);border-radius:18px;background:linear-gradient(145deg,#0f1d31,#07111f);box-shadow:0 28px 70px rgba(0,0,0,.48);overflow:hidden}.code-picker.open .code-popover{display:block}.popover-head{padding:12px;border-bottom:1px solid rgba(147,197,253,.14)}.popover-head input{width:100%;min-height:40px;border:1px solid #2b496d;border-radius:12px;background:#07111f;color:#eef5ff;padding:0 12px;font-weight:850;outline:none}.code-list{max-height:310px;overflow:auto;padding:8px;display:grid;gap:6px}.code-option{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;border:1px solid rgba(147,197,253,.12);border-radius:12px;background:rgba(255,255,255,.025);padding:9px 10px;cursor:pointer}.code-option:hover{border-color:rgba(96,165,250,.42);background:rgba(96,165,250,.08)}.code-option.active{border-color:rgba(94,234,212,.55);background:rgba(20,184,166,.12)}.code-option input{width:18px;height:18px;accent-color:#14b8a6}.code-option strong{font-size:14px}.code-option span{color:#8fa4bf;font-size:12px;font-weight:900}.popover-actions{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-top:1px solid rgba(147,197,253,.14);background:rgba(7,17,31,.82)}
+    .action-strip{display:flex;gap:9px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+    .compact-count{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid rgba(147,197,253,.16);border-radius:13px;background:#0d1a2c;color:#cfe0f8;font-weight:950;white-space:nowrap}
+    .panel{border:1px solid rgba(96,165,250,.24);border-radius:24px;background:linear-gradient(145deg,#0d1a2c,#07101d);overflow:hidden}
+    .panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:15px 18px;border-bottom:1px solid rgba(147,197,253,.14)}
+    .group-list{display:grid;gap:10px;padding:12px;max-height:calc(100vh - 270px);overflow:auto}
+    .group{border:1px solid rgba(96,165,250,.18);border-radius:18px;background:rgba(7,17,31,.48);overflow:hidden}
+    .group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:linear-gradient(90deg,rgba(18,35,60,.96),rgba(8,17,30,.82));border-bottom:1px solid rgba(96,165,250,.14)}
+    .group-main{display:flex;gap:11px;align-items:center;min-width:0}.group-check{width:20px;height:20px;accent-color:#14b8a6}.group-title{font-size:16px;font-weight:950}.group-sub{margin-top:3px;color:#8fa4bf;font-size:12px}.group-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;padding:12px}
+    .card{position:relative;display:grid;grid-template-columns:92px 1fr;gap:13px;align-items:center;border:1px solid #223955;border-radius:16px;background:#101b2d;padding:13px;cursor:pointer}
+    .card:hover{border-color:#5d8cff}.card.selected{border-color:#5eead4;box-shadow:0 0 0 1px rgba(94,234,212,.45)}
+    .card img{width:92px;height:92px;border-radius:9px;background:white;padding:5px}.check{position:absolute;right:12px;top:12px;width:18px;height:18px}
+    .code{font-size:16px;font-weight:950;padding-right:22px}.meta{margin-top:7px;color:#91a6c2;font-size:12px;line-height:1.45}.payload{margin-top:7px;color:#6f849e;font-size:10px;word-break:break-all}
+    .empty{padding:56px;text-align:center;color:#91a6c2}.footer{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:13px 18px;border-top:1px solid rgba(147,197,253,.14);background:#091321}
+    .selection-dock{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-top:1px solid rgba(94,234,212,.24);background:linear-gradient(180deg,rgba(9,19,33,.94),rgba(6,13,24,.98));box-shadow:0 -18px 40px rgba(0,0,0,.36)}
+    .dock-title{font-weight:950}.dock-meta{margin-top:3px;color:#8fa4bf;font-size:12px}.dock-actions{display:flex;gap:9px;flex-wrap:wrap}
+    @media(max-width:900px){.control-panel{grid-template-columns:1fr}.filters{grid-template-columns:1fr}.action-strip{justify-content:flex-start}.top{height:auto;min-height:72px;flex-wrap:wrap;padding:14px}.wrap{padding:14px}.group-list{max-height:none}.grid{grid-template-columns:1fr}.footer,.group-head,.selection-dock{flex-direction:column;align-items:stretch}.dock-actions{display:grid;grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a href="/">Home</a><span>/</span><a id="shipping-link" href="#">Spedizione</a><span>/</span><strong>Registro QR spedizione</strong>
+    <span class="spacer"></span>
+    <button class="btn back" onclick="goBack()">Torna alla spedizione</button>
+    <button class="btn" onclick="load()">Aggiorna</button>
+  </header>
+  <main class="wrap">
+    <section class="hero">
+      <div class="kicker">Spedizione</div>
+      <h1>Registro QR spedizione</h1>
+      <div class="muted" id="subtitle">Caricamento...</div>
+      <div class="control-panel">
+        <div class="filters">
+          <label class="field"><span>Cerca</span><input class="search" id="search" placeholder="Codice, profilo, materiale..." oninput="render()"></label>
+          <label class="field code-field"><span>Codici</span><div class="code-picker" id="code-picker"><button class="code-trigger" type="button" onclick="toggleCodePicker()"><strong id="code-trigger-title">Tutti i codici</strong><small id="code-trigger-sub">0 disponibili</small></button><div class="code-popover" id="code-popover"><div class="popover-head"><input id="code-search" placeholder="Cerca codice..." oninput="renderCodePicker()"></div><div class="code-list" id="code-list"></div><div class="popover-actions"><button class="btn" type="button" onclick="selectPickerCodes()">Seleziona visibili</button><button class="btn" type="button" onclick="clearCodeFilters()">Pulisci codici</button></div></div></div></label>
+          <label class="field quick-select"><span>Primi</span><input class="number" id="first-count" type="number" min="1" step="1" value="50"><button class="btn" onclick="selectFirstVisible()">Seleziona</button></label>
+        </div>
+        <div class="action-strip">
+          <span class="compact-count" id="summary-count">0 QR</span>
+          <button class="btn" type="button" onclick="clearCodeFilters()">Pulisci codici</button>
+          <button class="btn" type="button" onclick="resetFilters()">Reset filtri</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><strong>Etichette spedizione</strong><div class="muted">Un QR per ogni pezzo della spedizione.</div></div><div class="muted" id="count-label">0 QR</div></div>
+      <div class="group-list" id="grid"><div class="empty">Caricamento QR...</div></div>
+      <div class="selection-dock">
+        <div><div class="dock-title" id="dock-title">0 selezionati</div><div class="dock-meta" id="dock-meta">Seleziona un gruppo o un risultato filtrato.</div></div>
+        <div class="dock-actions">
+          <button class="btn" type="button" onclick="selectVisible()">Seleziona risultati</button>
+          <button class="btn" type="button" onclick="invertVisible()">Inverti risultati</button>
+          <button class="btn" type="button" onclick="clearVisible()">Deseleziona risultati</button>
+          <button class="btn" type="button" onclick="clearSelected()">Deseleziona tutto</button>
+          <button class="btn primary" type="button" id="print-selected" onclick="printSelected()" disabled>Stampa selezionati</button>
+          <button class="btn primary" type="button" id="print-all" onclick="printAll()" disabled>Stampa tutti</button>
+        </div>
+      </div>
+      <div class="footer"><span class="muted" id="footer-text">Seleziona i QR da stampare.</span><a class="btn" id="back-bottom" href="#">Torna alla spedizione</a></div>
+    </section>
+  </main>
+  <script>
+    const token=sessionStorage.getItem('stqc_token'); if(!token) location.href='/login';
+    const auth=()=>({Authorization:'Bearer '+token});
+    const parts=location.pathname.split('/').filter(Boolean);
+    const commessaRef=decodeURIComponent(parts[1]||'');
+    let commessaId=null, commessaCode=commessaRef, items=[], selected=new Set(), selectedCodeFilters=new Set();
+    const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const fmt=v=>Number(v||0).toLocaleString('it-IT');
+    function commessaUrl(page){return `/commesse/${encodeURIComponent(commessaCode||commessaRef)}/${page}`}
+    async function resolve(){if(commessaId)return;const r=await fetch(`/api/v1/commesse/resolve/${encodeURIComponent(commessaRef)}`,{headers:auth()});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Commessa non trovata');commessaId=d.id;commessaCode=d.codice||commessaRef;shippingLink.href=commessaUrl('in-cantiere');backBottom.href=commessaUrl('in-cantiere')}
+    function goBack(){const target=commessaUrl('in-cantiere');window.stqcNavigate?window.stqcNavigate(target):location.href=target}
+    function codeOf(x){return String(x.marca_pos||x.part_number||x.qr_code||'Senza codice')}
+    function visible(){const q=search.value.trim().toLowerCase();return items.filter(x=>(!selectedCodeFilters.size||selectedCodeFilters.has(codeOf(x)))&&(!q||[x.qr_code,x.marca_pos,x.profilo,x.tipo,x.materiale,x.assemblato,x.qr_payload].some(v=>String(v||'').toLowerCase().includes(q))))}
+    function grouped(rows){const groups=new Map();rows.forEach(x=>{const code=codeOf(x);if(!groups.has(code))groups.set(code,[]);groups.get(code).push(x)});return [...groups.entries()].sort(([a],[b])=>a.localeCompare(b,'it',{numeric:true,sensitivity:'base'}))}
+    function codeCounts(){const counts=new Map();items.forEach(x=>counts.set(codeOf(x),(counts.get(codeOf(x))||0)+1));return [...counts.entries()].sort(([a],[b])=>a.localeCompare(b,'it',{numeric:true,sensitivity:'base'}))}
+    function codeRowsForPicker(){const q=(codeSearch?.value||'').trim().toLowerCase();return codeCounts().filter(([code])=>!q||code.toLowerCase().includes(q))}
+    function renderCodePicker(){const allRows=codeCounts();const rows=codeRowsForPicker();const selectedCodes=[...selectedCodeFilters].sort((a,b)=>a.localeCompare(b,'it',{numeric:true,sensitivity:'base'}));codeTriggerTitle.textContent=selectedCodes.length?`${fmt(selectedCodes.length)} codici selezionati`:'Tutti i codici';codeTriggerSub.textContent=selectedCodes.length?selectedCodes.slice(0,3).join(', ')+(selectedCodes.length>3?` +${selectedCodes.length-3}`:''):`${fmt(allRows.length)} disponibili`;codeList.innerHTML=rows.map(([code,count])=>`<label class="code-option ${selectedCodeFilters.has(code)?'active':''}" data-action="toggle-code-filter" data-code="${esc(code)}"><input type="checkbox" ${selectedCodeFilters.has(code)?'checked':''} data-action="toggle-code-filter" data-code="${esc(code)}"><strong>${esc(code)}</strong><span>${fmt(count)} QR</span></label>`).join('')||'<div class="empty" style="padding:22px">Nessun codice trovato.</div>'}
+    function renderCard(x){const checked=selected.has(x.id)?'checked':'';return `<article class="card ${checked?'selected':''}" data-action="toggle-item" data-id="${Number(x.id)}"><input class="check" type="checkbox" ${checked} data-action="toggle-item" data-id="${Number(x.id)}"><img src="${esc(x.qr_image_url)}" alt="${esc(x.qr_code)}"><div><div class="code">${esc(x.qr_code||x.marca_pos)}</div><div class="meta">${esc(x.marca_pos||'-')} · ${esc(x.profilo||'-')} · ${esc(x.peso_kg?Number(x.peso_kg).toLocaleString('it-IT',{maximumFractionDigits:2})+' kg':'peso n.d.')}</div><div class="payload">${esc(x.qr_payload||'')}</div></div></article>`}
+    function renderGroup(code,rows){const selectedCount=rows.filter(x=>selected.has(x.id)).length;const allSelected=selectedCount===rows.length;const kg=rows.reduce((sum,x)=>sum+Number(x.peso_kg||0),0);return `<section class="group" data-code="${esc(code)}"><div class="group-head"><label class="group-main"><input class="group-check" type="checkbox" ${allSelected?'checked':''} data-action="toggle-code" data-code="${esc(code)}"><div><div class="group-title">${esc(code)}</div><div class="group-sub">${fmt(rows.length)} QR · ${fmt(selectedCount)} selezionati · ${kg.toLocaleString('it-IT',{maximumFractionDigits:1})} kg</div></div></label><div class="group-actions"><button class="btn" type="button" data-action="select-code" data-code="${esc(code)}">Seleziona codice</button><button class="btn" type="button" data-action="clear-code" data-code="${esc(code)}">Deseleziona codice</button></div></div><div class="grid">${rows.map(renderCard).join('')}</div></section>`}
+    function render(){renderCodePicker();const rows=visible();const groups=grouped(rows);grid.innerHTML=groups.map(([code,groupRows])=>renderGroup(code,groupRows)).join('')||'<div class="empty">Nessun QR spedizione trovato.</div>';summaryCount.textContent=`${fmt(rows.length)} visibili / ${fmt(items.length)} totali`;countLabel.textContent=`${fmt(groups.length)} codici · ${fmt(rows.length)} QR`;dockTitle.textContent=`${fmt(selected.size)} selezionati`;dockMeta.textContent=selectedCodeFilters.size?`${fmt(selectedCodeFilters.size)} codici filtrati · ${fmt(rows.length)} QR visibili.`:(rows.length?`${fmt(rows.length)} QR nel filtro corrente.`:'Nessun QR nel filtro corrente.');footerText.textContent=selected.size?`${fmt(selected.size)} QR selezionati.`:'Seleziona i QR da stampare.';printSelectedBtn.disabled=!selected.size;printAllBtn.disabled=!items.length}
+    function toggle(id){selected.has(id)?selected.delete(id):selected.add(id);render()}
+    function selectVisible(){visible().forEach(x=>selected.add(x.id));render()}
+    function selectFirstVisible(){const limit=Math.max(1,Number(firstCount.value||0));visible().slice(0,limit).forEach(x=>selected.add(x.id));render()}
+    function invertVisible(){visible().forEach(x=>selected.has(x.id)?selected.delete(x.id):selected.add(x.id));render()}
+    function selectCode(code){items.filter(x=>codeOf(x)===code).forEach(x=>selected.add(x.id));render()}
+    function clearCode(code){items.filter(x=>codeOf(x)===code).forEach(x=>selected.delete(x.id));render()}
+    function toggleCode(code){const rows=items.filter(x=>codeOf(x)===code);const allSelected=rows.every(x=>selected.has(x.id));rows.forEach(x=>allSelected?selected.delete(x.id):selected.add(x.id));render()}
+    function toggleCodeFilter(code){selectedCodeFilters.has(code)?selectedCodeFilters.delete(code):selectedCodeFilters.add(code);render()}
+    function toggleCodePicker(){codePicker.classList.toggle('open');if(codePicker.classList.contains('open'))setTimeout(()=>codeSearch.focus(),0)}
+    function selectPickerCodes(){codeRowsForPicker().forEach(([code])=>selectedCodeFilters.add(code));render()}
+    function clearCodeFilters(){selectedCodeFilters.clear();render()}
+    function clearVisible(){visible().forEach(x=>selected.delete(x.id));render()}
+    function clearSelected(){selected.clear();render()}
+    function resetFilters(){search.value='';selectedCodeFilters.clear();render()}
+    async function printIds(ids){if(!ids.length)return alert('Nessun QR selezionato.');if(ids.length>2000)return alert('Puoi stampare al massimo 2000 QR per volta.');const r=await fetch(`/api/v1/commesse/${commessaId}/step-5-1/labels.pdf`,{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({piece_ids:ids,width_mm:70,height_mm:120})});const d=r.ok?await r.blob():await r.json().catch(()=>({}));if(!r.ok)return alert(d.detail||'Stampa non disponibile');const url=URL.createObjectURL(d);window.open(url,'_blank','noopener');setTimeout(()=>URL.revokeObjectURL(url),120000)}
+    function printSelected(){printIds([...selected])}
+    function printAll(){printIds(items.map(x=>x.id))}
+    async function load(){grid.innerHTML='<div class="empty">Caricamento QR...</div>';try{await resolve();const r=await fetch(`/api/v1/commesse/${commessaId}/spedizione-qr/items?limit=5000`,{headers:auth()});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Errore caricamento QR spedizione');items=d.items||[];selected=new Set([...selected].filter(id=>items.some(x=>x.id===id)));const validCodes=new Set(items.map(codeOf));selectedCodeFilters=new Set([...selectedCodeFilters].filter(code=>validCodes.has(code)));subtitle.textContent=`${commessaCode} · ${fmt(items.length)} QR spedizione`;render()}catch(err){grid.innerHTML=`<div class="empty">${esc(err.message||'Errore caricamento')}</div>`}}
+    const shippingLink=document.getElementById('shipping-link'), backBottom=document.getElementById('back-bottom'), search=document.getElementById('search'), codePicker=document.getElementById('code-picker'), codeSearch=document.getElementById('code-search'), codeList=document.getElementById('code-list'), codeTriggerTitle=document.getElementById('code-trigger-title'), codeTriggerSub=document.getElementById('code-trigger-sub'), firstCount=document.getElementById('first-count'), grid=document.getElementById('grid');
+    const summaryCount=document.getElementById('summary-count'), countLabel=document.getElementById('count-label'), footerText=document.getElementById('footer-text'), dockTitle=document.getElementById('dock-title'), dockMeta=document.getElementById('dock-meta');
+    const printSelectedBtn=document.getElementById('print-selected'), printAllBtn=document.getElementById('print-all'), subtitle=document.getElementById('subtitle');
+    grid.addEventListener('click',event=>{
+      const control=event.target.closest('[data-action]');
+      if(!control)return;
+      event.preventDefault();
+      event.stopPropagation();
+      const action=control.dataset.action;
+      if(action==='toggle-item')return toggle(Number(control.dataset.id));
+      if(action==='select-code')return selectCode(control.dataset.code);
+      if(action==='clear-code')return clearCode(control.dataset.code);
+      if(action==='toggle-code')return toggleCode(control.dataset.code);
+      if(action==='toggle-code-filter')return toggleCodeFilter(control.dataset.code);
+    });
+    codePicker.addEventListener('click',event=>event.stopPropagation());
+    codeList.addEventListener('click',event=>{
+      const control=event.target.closest('[data-action="toggle-code-filter"]');
+      if(!control)return;
+      event.preventDefault();
+      toggleCodeFilter(control.dataset.code);
+    });
+    document.addEventListener('click',()=>codePicker.classList.remove('open'));
+    load();
+  </script>
+</body>
+</html>

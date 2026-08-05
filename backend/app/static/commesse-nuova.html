@@ -322,15 +322,6 @@
       <div class="form-title">Crea il progetto</div>
       <div class="form-subtitle">Inserisci i dati generali e carica i documenti disponibili.</div>
 
-      <div class="quick-action">
-        <div>
-          <div class="quick-action-kicker">Percorso rapido</div>
-          <div class="quick-action-title">Spedizione ad hoc</div>
-          <div class="quick-action-text">Per gestire una spedizione già codificata fuori dal tool: carichi solo titolo e file spedizione, senza generare QR.</div>
-        </div>
-        <a class="quick-action-btn" href="/spedizione-ad-hoc">Apri spedizione ad hoc</a>
-      </div>
-
       <form id="nuova-form" onsubmit="handleSubmit(event)">
         <div class="field">
           <label class="field-label" for="f-nome">Nome commessa <span>*</span></label>
@@ -363,10 +354,10 @@
 
         <div class="upload-row">
           <div class="upload-box" id="ub-distinta">
-            <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm" required
+            <input type="file" id="f-distinta" accept=".xlsx,.xls,.xlsm"
               onchange="ubSelected('ub-distinta','f-distinta',false)"/>
             <button type="button" class="ub-clear" onclick="clearUpload('ub-distinta','f-distinta',event)" aria-label="Rimuovi file">×</button>
-            <span class="ub-req-badge required">Obbligatorio</span>
+            <span class="ub-req-badge optional">Caricabile singolarmente</span>
             <div class="ub-icon">📊</div>
             <div class="ub-label">Lista pezzi</div>
             <div class="ub-sub">Posizioni, profili, quantità e dimensioni</div>
@@ -379,10 +370,10 @@
           </div>
 
           <div class="upload-box" id="ub-fasi">
-            <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm" required
+            <input type="file" id="f-fasi" accept=".xlsx,.xls,.xlsm"
               onchange="ubSelected('ub-fasi','f-fasi',false)"/>
             <button type="button" class="ub-clear" onclick="clearUpload('ub-fasi','f-fasi',event)" aria-label="Rimuovi file">×</button>
-            <span class="ub-req-badge required">Obbligatorio</span>
+            <span class="ub-req-badge optional">Caricabile singolarmente</span>
             <div class="ub-icon">🔧</div>
             <div class="ub-label">Lista pezzi e assemblati</div>
             <div class="ub-sub">Collega i pezzi ai relativi assemblati</div>
@@ -398,7 +389,7 @@
             <input type="file" id="f-spedizione" accept=".xlsx,.xls,.xlsm"
               onchange="ubSelected('ub-spedizione','f-spedizione',false)"/>
             <button type="button" class="ub-clear" onclick="clearUpload('ub-spedizione','f-spedizione',event)" aria-label="Rimuovi file">×</button>
-            <span class="ub-req-badge optional">Non bloccante</span>
+            <span class="ub-req-badge optional">Caricabile singolarmente</span>
             <div class="ub-icon">🚚</div>
             <div class="ub-label">Lista spedizione</div>
             <div class="ub-sub">Assemblati finali, quantità e pesi di consegna</div>
@@ -407,7 +398,7 @@
             <div class="ub-selected" id="ub-spedizione-sel">
               <span id="ub-spedizione-name"></span>
             </div>
-            <div class="ub-validation" id="ub-spedizione-status">Non caricato · non bloccante</div>
+            <div class="ub-validation" id="ub-spedizione-status">Non caricato</div>
           </div>
 
           <div class="upload-box" id="ub-bulloneria">
@@ -473,9 +464,9 @@ function clearUpload(boxId, inputId, event) {
   if (name) name.textContent = "";
   if (count) count.textContent = "";
   const defaults = {
-    "ub-distinta": "In attesa file obbligatorio",
-    "ub-fasi": "In attesa file obbligatorio",
-    "ub-spedizione": "Non caricato · non bloccante",
+    "ub-distinta": "Non caricato",
+    "ub-fasi": "Non caricato",
+    "ub-spedizione": "Non caricato",
     "ub-bulloneria": "Non caricato · opzionale",
   };
   setUploadStatus(boxId, "idle", defaults[boxId] || "");
@@ -529,7 +520,7 @@ function updateSubmitState() {
   const button = document.getElementById("btn-submit");
   if (!button || button.dataset.busy === "1") return;
   button.disabled = !fileValidation.can_upload;
-  button.textContent = fileValidation.can_upload ? "Avvia analisi commessa" : "Valida i file obbligatori";
+  button.textContent = fileValidation.can_upload ? "Avvia analisi commessa" : "Carica e valida almeno un file";
 }
 
 function currentFiles() {
@@ -546,17 +537,17 @@ async function validateSelectedFiles() {
   const run = ++validationRun;
   const files = currentFiles();
   fileValidation = { can_upload: false };
-  if (!files.listaPezzi) setUploadStatus("ub-distinta", "idle", "In attesa file obbligatorio");
-  if (!files.assemblaggi) setUploadStatus("ub-fasi", "idle", "In attesa file obbligatorio");
-  if (!files.spedizione) setUploadStatus("ub-spedizione", "idle", "Non caricato · non bloccante");
+  if (!files.listaPezzi) setUploadStatus("ub-distinta", "idle", "Non caricato");
+  if (!files.assemblaggi) setUploadStatus("ub-fasi", "idle", "Non caricato");
+  if (!files.spedizione) setUploadStatus("ub-spedizione", "idle", "Non caricato");
   if (!files.bulloneria) setUploadStatus("ub-bulloneria", "idle", "Non caricato · opzionale");
   updateSubmitState();
   if (!files.listaPezzi && !files.assemblaggi && !files.spedizione && !files.bulloneria) return;
 
   if (files.listaPezzi) setUploadStatus("ub-distinta", "pending", "Validazione parsing…");
   if (files.assemblaggi) setUploadStatus("ub-fasi", "pending", "Validazione parsing…");
-  if (files.spedizione) setUploadStatus("ub-spedizione", "pending", "Validazione non bloccante…");
-  if (files.bulloneria) setUploadStatus("ub-bulloneria", "pending", "Validazione non bloccante…");
+  if (files.spedizione) setUploadStatus("ub-spedizione", "pending", "Validazione parsing…");
+  if (files.bulloneria) setUploadStatus("ub-bulloneria", "pending", "Validazione parsing…");
 
   const body = new FormData();
   if (files.listaPezzi) body.append("lista_pezzi", files.listaPezzi);
@@ -591,8 +582,8 @@ async function validateSelectedFiles() {
     fileValidation = { can_upload: false };
     if (files.listaPezzi) setUploadStatus("ub-distinta", "error", "Validazione non riuscita");
     if (files.assemblaggi) setUploadStatus("ub-fasi", "error", "Validazione non riuscita");
-    if (files.spedizione) setUploadStatus("ub-spedizione", "warning", "Validazione non riuscita · non bloccante");
-    if (files.bulloneria) setUploadStatus("ub-bulloneria", "warning", "Validazione non riuscita · opzionale");
+    if (files.spedizione) setUploadStatus("ub-spedizione", "error", "Validazione non riuscita");
+    if (files.bulloneria) setUploadStatus("ub-bulloneria", "error", "Validazione non riuscita");
     showError(error.message || String(error));
   } finally {
     if (run === validationRun) updateSubmitState();
@@ -620,16 +611,12 @@ async function handleSubmit(event) {
   const assemblaggi = document.getElementById("f-fasi").files[0];
   const spedizione = document.getElementById("f-spedizione").files[0];
   const bulloneria = document.getElementById("f-bulloneria").files[0];
-  if (!listaPezzi) {
-    showError("La Lista pezzi è obbligatoria.");
-    return;
-  }
-  if (!assemblaggi) {
-    showError("La Lista pezzi e assemblati è obbligatoria.");
+  if (!listaPezzi && !assemblaggi && !spedizione && !bulloneria) {
+    showError("Carica almeno un file.");
     return;
   }
   if (!fileValidation.can_upload) {
-    showError("Prima valida i file obbligatori. Lista pezzi e Assemblaggi devono risultare OK.");
+    showError("Prima valida i file caricati.");
     return;
   }
   button.disabled = true;
@@ -654,8 +641,8 @@ async function handleSubmit(event) {
 
     button.textContent = "Caricamento e analisi file…";
     const formData = new FormData();
-    formData.append("lista_pezzi", listaPezzi);
-    formData.append("assemblaggi", assemblaggi);
+    if (listaPezzi) formData.append("lista_pezzi", listaPezzi);
+    if (assemblaggi) formData.append("assemblaggi", assemblaggi);
     if (spedizione) formData.append("spedizione", spedizione);
     if (bulloneria) formData.append("bulloneria", bulloneria);
     formData.append("predistinta", String(document.getElementById("f-predistinta").checked));

@@ -1,11 +1,16 @@
 <!doctype html>
 <html lang="it">
 <head>
+  <script>
+    if (window.parent !== window && new URLSearchParams(location.search).get("embed") !== "1") {
+      location.replace(`${location.pathname}?embed=1`);
+    }
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Commessa · MCC</title>
   <style>
-    :root{--bg:#07111f;--panel:#0d1a2c;--line:rgba(147,197,253,.16);--text:#eaf2ff;--muted:#8ea4c0;--blue:#5d8cff;--green:#4ade80}
+    :root{--bg:#07111f;--panel:#0d1a2c;--line:rgba(147,197,253,.16);--text:#eaf2ff;--muted:#8ea4c0;--blue:#5d8cff;--green:#4ade80;--yellow:#fbbf24}
     *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
     .shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
     .shell-head{position:relative;z-index:3;background:linear-gradient(180deg,#0d1829 0%,#091321 100%);border-bottom:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.18)}
@@ -14,7 +19,7 @@
     .timeline{max-width:1900px;margin:0 auto;padding:16px 30px 18px;display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:12px;position:relative}
     .timeline:before{content:"";position:absolute;left:9%;right:9%;top:32px;height:2px;background:linear-gradient(90deg,rgba(74,222,128,.8),rgba(96,165,250,.25));border-radius:999px}
     .stage{position:relative;min-height:76px;padding:13px 15px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(16,31,52,.88),rgba(9,18,32,.85));color:var(--text);text-align:left;cursor:pointer;transition:.18s transform,.18s border-color,.18s background}
-    .stage:hover{transform:translateY(-2px);border-color:rgba(124,166,255,.55)}.stage:before{content:"";display:block;width:12px;height:12px;margin:-23px 0 8px 9px;border-radius:50%;background:#223955;border:2px solid #53729a;box-shadow:0 0 0 6px #0b1524}.stage.done:before{background:var(--green);border-color:#bbf7d0}.stage.active{border-color:rgba(111,160,255,.72);background:radial-gradient(circle at 88% 14%,rgba(91,140,255,.22),transparent 34%),linear-gradient(180deg,rgba(23,47,84,.95),rgba(10,22,40,.92));box-shadow:0 14px 34px rgba(37,99,235,.18)}.stage.active:before{background:#76a6ff;border-color:#dbeafe;box-shadow:0 0 0 6px #0b1524,0 0 18px rgba(96,165,250,.48)}
+    .stage:hover{transform:translateY(-2px);border-color:rgba(124,166,255,.55)}.stage:before{content:"";display:block;width:12px;height:12px;margin:-23px 0 8px 9px;border-radius:50%;background:#223955;border:2px solid #53729a;box-shadow:0 0 0 6px #0b1524}.stage.done:before,.stage.active.done:before{background:var(--green);border-color:#bbf7d0;box-shadow:0 0 0 6px #0b1524,0 0 18px rgba(74,222,128,.42)}.stage.pending:before,.stage.active.pending:before{background:var(--yellow);border-color:#fde68a;box-shadow:0 0 0 6px #0b1524,0 0 18px rgba(251,191,36,.42)}.stage.active{border-color:rgba(111,160,255,.72);background:radial-gradient(circle at 88% 14%,rgba(91,140,255,.22),transparent 34%),linear-gradient(180deg,rgba(23,47,84,.95),rgba(10,22,40,.92));box-shadow:0 14px 34px rgba(37,99,235,.18)}
     .number{font-size:10px;color:#8facd3;font-weight:950;letter-spacing:.12em}.label{display:block;margin-top:5px;font-size:17px;font-weight:950;letter-spacing:-.025em}.sub{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:700}
     .frame-area{position:relative;min-height:0;background:var(--bg)}iframe{width:100%;height:100%;border:0;display:block;background:var(--bg)}.loader{position:absolute;inset:0;display:grid;place-items:center;background:rgba(7,17,31,.58);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .18s}.loader.show{opacity:1;pointer-events:auto}.loader span{padding:12px 16px;border:1px solid rgba(147,197,253,.25);border-radius:999px;background:#10213a;color:#cfe0f8;font-size:13px;font-weight:900}
     @media(max-width:900px){.bar{padding:0 16px}.hint{display:none}.timeline{padding:14px 12px;overflow:auto;grid-template-columns:repeat(5,154px)}.timeline:before{left:40px;right:auto;width:720px}.stage{min-height:70px}.label{font-size:15px}}
@@ -25,23 +30,28 @@
     <header class="shell-head">
       <div class="bar"><a class="back" href="/">← Home</a><span class="crumb">/</span><a class="section-link" id="section-link" href="/commesse">Gestione commesse</a><span class="crumb">/</span><span class="name" id="commessa-name">Commessa</span><span class="crumb">/</span><span class="view-name" id="current-view">Analisi commessa</span><span class="spacer"></span><span class="hint">Vista di gestione e controllo</span></div>
       <nav class="timeline" aria-label="Fasi commessa">
-        <button class="stage done" data-view="analisi"><span class="number">01</span><span class="label">Analisi commessa</span><span class="sub">Dati e fabbisogno</span></button>
-        <button class="stage" data-view="officina"><span class="number">02</span><span class="label">Officina</span><span class="sub">QR pezzi e lavorazioni</span></button>
-        <button class="stage" data-view="assemblaggi"><span class="number">03</span><span class="label">Assemblaggi</span><span class="sub">Montaggio e avanzamento</span></button>
-        <button class="stage" data-view="lavorazioni"><span class="number">04</span><span class="label">Lavorazioni</span><span class="sub">Interne ed esterne</span></button>
-        <button class="stage" data-view="in-cantiere"><span class="number">05</span><span class="label">Spedizione</span><span class="sub">Uscita finale</span></button>
+        <button class="stage pending" data-view="analisi"><span class="number">01</span><span class="label">Analisi commessa</span><span class="sub">Dati e fabbisogno</span></button>
+        <button class="stage pending" data-view="officina"><span class="number">02</span><span class="label">Officina</span><span class="sub">QR pezzi e lavorazioni</span></button>
+        <button class="stage pending" data-view="assemblaggi"><span class="number">03</span><span class="label">Assemblaggi</span><span class="sub">Montaggio e avanzamento</span></button>
+        <button class="stage pending" data-view="lavorazioni"><span class="number">04</span><span class="label">Lavorazioni</span><span class="sub">Interne ed esterne</span></button>
+        <button class="stage pending" data-view="in-cantiere"><span class="number">05</span><span class="label">Spedizione</span><span class="sub">Uscita finale</span></button>
       </nav>
     </header>
     <main class="frame-area"><iframe id="commessa-frame" title="Contenuto commessa"></iframe><div class="loader" id="loader"><span>Caricamento vista…</span></div></main>
   </div>
   <script>
-    const views={analisi:'Analisi commessa',officina:'In officina',assemblaggi:'Assemblaggi',lavorazioni:'Lavorazioni','in-cantiere':'Spedizione'};
+    const views={analisi:'Analisi commessa',officina:'In officina',assemblaggi:'Assemblaggi',lavorazioni:'Lavorazioni','in-cantiere':'Spedizione','spedizione-qr-registry':'Registro QR spedizione'};
     const valid=new Set(Object.keys(views)); const frame=document.getElementById('commessa-frame'); const loader=document.getElementById('loader');
     const breadcrumbSource=(()=>{try{const ref=new URL(document.referrer);return ref.origin===location.origin&&ref.pathname.startsWith('/dashboard')?'dashboard':'commesse'}catch{return 'commesse'}})();
     const parse=()=>{const parts=location.pathname.split('/').filter(Boolean);return {ref:parts[1]||'',view:valid.has(parts[2])?parts[2]:'analisi'};};
+    const auth=()=>({Authorization:'Bearer '+(sessionStorage.getItem('stqc_token')||'')});
     function renderBreadcrumbSource(){const el=document.getElementById('section-link');if(!el)return;if(breadcrumbSource==='dashboard'){el.textContent='Dashboard';el.href='/dashboard'}else{el.textContent='Gestione commesse';el.href='/commesse'}}
-    function updateCommessaName(ref){const el=document.getElementById('commessa-name');const decoded=decodeURIComponent(ref||'');el.textContent=decoded||'Commessa';fetch(`/api/v1/commesse/resolve/${encodeURIComponent(decoded)}`,{headers:{Authorization:'Bearer '+(sessionStorage.getItem('stqc_token')||'')}}).then(r=>r.ok?r.json():null).then(d=>{if(d?.codice)el.textContent=d.codice}).catch(()=>{});}
-    function renderChrome(view){const {ref}=parse();renderBreadcrumbSource();updateCommessaName(ref);document.getElementById('current-view').textContent=views[view];document.title=`${views[view]} · MCC`;document.querySelectorAll('.stage').forEach(el=>el.classList.toggle('active',el.dataset.view===view));}
+    function applyStageState(view,isReady){const el=document.querySelector(`.stage[data-view="${view}"]`);if(!el)return;el.classList.toggle('done',!!isReady);el.classList.toggle('pending',!isReady)}
+    function revisionFiles(revisione){const nested=revisione?.files||{};return {lista_pezzi:nested.lista_pezzi||revisione?.file_lista_pezzi||revisione?.file_lavorazioni,assemblaggi:nested.assemblaggi||revisione?.file_assemblaggi,spedizione:nested.spedizione||revisione?.file_spedizione}}
+    function applyTimelineFiles(revisione){const files=revisionFiles(revisione);const states={officina:!!files.lista_pezzi,assemblaggi:!!files.assemblaggi,lavorazioni:!!files.assemblaggi,'in-cantiere':!!files.spedizione};Object.entries(states).forEach(([view,ready])=>applyStageState(view,ready));applyStageState('analisi',Object.values(states).every(Boolean))}
+    async function loadTimelineState(ref){const decoded=decodeURIComponent(ref||'');try{const resolved=await fetch(`/api/v1/commesse/resolve/${encodeURIComponent(decoded)}`,{headers:auth()}).then(r=>r.ok?r.json():null);if(!resolved?.id)return;const revisions=await fetch(`/api/v1/commesse/${resolved.id}/revisioni`,{headers:auth()}).then(r=>r.ok?r.json():[]);const current=(revisions||[]).find(row=>row.corrente)||(revisions||[]).at(-1);applyTimelineFiles(current)}catch{}}
+    function updateCommessaName(ref){const el=document.getElementById('commessa-name');const decoded=decodeURIComponent(ref||'');el.textContent=decoded||'Commessa';fetch(`/api/v1/commesse/resolve/${encodeURIComponent(decoded)}`,{headers:auth()}).then(r=>r.ok?r.json():null).then(d=>{if(d?.codice)el.textContent=d.codice}).catch(()=>{});loadTimelineState(ref);}
+    function renderChrome(view){const {ref}=parse();const activeStage=view==='spedizione-qr-registry'?'in-cantiere':view;renderBreadcrumbSource();updateCommessaName(ref);document.getElementById('current-view').textContent=views[view];document.title=`${views[view]} · MCC`;document.querySelectorAll('.stage').forEach(el=>el.classList.toggle('active',el.dataset.view===activeStage));}
     function navigate(url,push=true){const parsed=new URL(url,location.origin);const parts=parsed.pathname.split('/').filter(Boolean);const view=valid.has(parts[2])?parts[2]:parse().view;if(parts[0]!=='commesse'||!parts[1])return;const clean=`/commesse/${encodeURIComponent(decodeURIComponent(parts[1]))}/${view}`;if(push&&location.pathname!==clean)history.pushState({},'',clean);renderChrome(view);loader.classList.add('show');frame.src=`${clean}?embed=1`;}
     document.querySelectorAll('.stage').forEach(button=>button.addEventListener('click',()=>{const {ref}=parse();navigate(`/commesse/${encodeURIComponent(ref)}/${button.dataset.view}`)}));
     frame.addEventListener('load',()=>loader.classList.remove('show'));window.addEventListener('popstate',()=>navigate(location.pathname,false));

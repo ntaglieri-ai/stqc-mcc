@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <script src="/static/commessa-embed.js?v=commessa-shell1"></script>
+  <script src="/static/commessa-embed.js?v=commessa-shell2"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Spedizione · MCC</title>
@@ -51,10 +51,31 @@
     .scan-total{font-size:clamp(18px,5.6cqw,24px)}
     .scan-pct{font-size:clamp(30px,10cqw,42px);line-height:1.04}
     @media(max-width:1100px){.hero{grid-template-columns:1fr}}
+    .hero{grid-template-columns:minmax(300px,1.25fr) repeat(3,minmax(160px,.85fr));margin-bottom:18px}
+    .shipment-file-card{border-color:rgba(45,212,191,.24);background:radial-gradient(circle at 90% 10%,rgba(45,212,191,.16),transparent 34%),linear-gradient(135deg,#102b3d,#0a1525)}
+    .metric-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:end;margin-top:10px}
+    .metric-pair>div+div{border-left:1px solid rgba(147,197,253,.16);padding-left:16px}
+    .panel{border-color:rgba(147,197,253,.20);background:radial-gradient(circle at 96% 0%,rgba(59,130,246,.10),transparent 28%),linear-gradient(145deg,#0f2038,#07111f 64%);box-shadow:0 20px 58px rgba(0,0,0,.24)}
+    .panel-head{min-height:86px;background:linear-gradient(180deg,rgba(15,31,53,.72),rgba(8,17,31,.30))}
+    .panel-head h2{font-size:clamp(24px,1.8vw,30px);letter-spacing:0}
+    .live-panel{border-color:rgba(45,212,191,.32);box-shadow:0 24px 70px rgba(13,148,136,.10)}
+    .live-panel .panel-head{background:radial-gradient(circle at 95% 15%,rgba(45,212,191,.14),transparent 30%),linear-gradient(180deg,rgba(13,45,57,.78),rgba(8,17,31,.34))}
+    .current-strip{grid-template-columns:minmax(260px,1fr) repeat(2,minmax(170px,.42fr));padding:18px 24px}
+    .current-card{min-height:112px;border-radius:20px}
+    .current-card .num{font-size:clamp(28px,8cqw,38px);letter-spacing:0}
+    .master-list .table-wrap{max-height:46vh}
+    .live-panel .table-wrap,.manual-panel .table-wrap,.history-panel .table-wrap{max-height:260px}
+    .history-panel{opacity:.94}
+    .manual-grid{background:rgba(7,17,31,.32)}
+    th{font-size:10px;letter-spacing:.12em;padding:12px 14px}
+    td{padding:12px 14px}
+    .code{font-size:16px}
+    .empty{padding:34px;color:#9fb4cf}
+    @media(max-width:1100px){.hero{grid-template-columns:1fr}.metric-pair>div+div{border-left:0;padding-left:0}.metric-pair{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
-  <header class="top"><a href="/">← Home</a><span>/</span><a id="analysisLink" href="#">Analisi commessa</a><span>/</span><strong id="topTitle">Spedizione</strong><span style="flex:1"></span><a class="btn adhoc" id="adHocShippingLink" href="/spedizione-ad-hoc">+ Spedizione ad hoc</a><button class="btn" onclick="load()">↻ Aggiorna</button></header>
+  <header class="top"><a href="/">← Home</a><span>/</span><a id="analysisLink" href="#">Analisi commessa</a><span>/</span><strong id="topTitle">Spedizione</strong><span style="flex:1"></span><button class="btn" onclick="load()">↻ Aggiorna</button></header>
   <div class="layout">
   <aside class="filter-side">
     <h2 class="filter-title">Filtri spedizione</h2>
@@ -80,26 +101,19 @@
   </aside>
   <main class="wrap">
     <section class="header">
-      <div><div class="eyebrow" id="pageEyebrow">Spedizione</div><h1 id="pageTitle">Spedizione</h1><div class="sub" id="subtitle">Unità finali pronte per uscita e consegna.</div></div>
-      <div class="header-actions"><a class="btn" id="openQrRegistryBtn" href="#" hidden>Apri registro QR</a><button class="btn ddt" id="printAllQrBtn" onclick="printAllAdHocQr()" hidden>Stampa tutti i QR</button><button class="btn primary" onclick="window.stqcNavigate ? stqcNavigate(commessaUrl('lavorazioni')) : location.href=commessaUrl('lavorazioni')">Torna a Lavorazioni</button></div>
+      <div><div class="eyebrow" id="pageEyebrow">Spedizione commessa</div><h1 id="pageTitle">Spedizione</h1><div class="sub" id="subtitle">Unità finali pronte per uscita e consegna.</div></div>
+      <div class="header-actions"><a class="btn" id="openQrRegistryBtn" href="#" hidden>Apri registro QR</a><button class="btn ddt" id="printAllQrBtn" onclick="printAllAdHocQr()" hidden>Stampa tutti i QR</button></div>
     </section>
     <div id="macro"></div>
     <section class="hero">
       <article class="card main"><div class="eyebrow" id="heroEyebrow">Avanzamento scan</div><div class="scan-line"><span class="scan-main" id="kFound">0</span><span class="scan-total">/ <span id="kTotal">0</span></span><span class="scan-pct" id="kProgress">0%</span></div><div class="progress"><span id="kProgressBar"></span></div><div class="muted" id="heroText">Righe spedizione riconosciute dagli scan rispetto al totale importato.</div></article>
-      <article class="card"><div class="eyebrow">Righe</div><div class="num" id="kRows">0</div><div class="muted">unità spedizione</div></article>
-      <article class="card"><div class="eyebrow">Quantità</div><div class="num" id="kQty">0</div><div class="muted">pezzi/unità</div></article>
+      <article class="card shipment-file-card"><div class="eyebrow">File spedizione</div><div class="metric-pair"><div><div class="num" id="kRows">0</div><div class="muted">righe</div></div><div><div class="num" id="kQty">0</div><div class="muted">quantità</div></div></div></article>
       <article class="card"><div class="eyebrow">Peso</div><div class="num" id="kWeight">0</div><div class="muted">kg totali</div></article>
       <article class="card weight-total weight-low" id="shippingWeightCard"><div class="eyebrow">Peso complessivo spedito</div><div class="num" id="kShippingWeight">0</div><div class="muted"><span id="kShippingTons">0,0 t spedite · 0%</span></div></article>
     </section>
-    <section class="panel top-report">
+    <section class="panel live-panel">
       <div class="panel-head">
-        <div><h2>Report generale spedizioni</h2><div class="muted">Storico dei DDT generati.</div></div>
-      </div>
-      <div class="table-wrap"><table><thead><tr><th>Spedizione</th><th>Data</th><th>Lista materiale spedito</th><th>Righe</th></tr></thead><tbody id="ddtShipmentRowsTop"></tbody></table></div>
-    </section>
-    <section class="panel">
-      <div class="panel-head">
-        <div><h2>Spedizione in definizione</h2><div class="muted">DDT in corso da letture scan e aggiunte manuali.</div></div>
+        <div><h2>Spedizione aperta</h2><div class="muted">DDT in corso da letture scan e aggiunte manuali.</div></div>
         <button class="btn ddt" onclick="exportDdtList()">Genera DDT</button>
       </div>
       <div class="current-strip">
@@ -109,14 +123,14 @@
       </div>
       <div class="table-wrap"><table><thead><tr><th>Codice</th><th>Descrizione scan</th><th>Profilo</th><th>Q.tà</th><th>Q.tà scan</th><th>Peso kg</th><th>Trattamento</th><th>Data scan</th></tr></thead><tbody id="scanRows"></tbody></table></div>
     </section>
-    <section class="panel ddt-extra">
+    <section class="panel ddt-extra master-list">
       <div class="panel-head">
         <div><h2 id="panelTitle">Lista item da spedire</h2><div class="muted" id="panelText">Elenco operativo delle unità destinate alla spedizione.</div></div>
       </div>
       <div class="table-wrap"><table><thead id="tableHead"></thead><tbody id="rows"></tbody></table></div>
       <div class="footer"><div><strong id="footerCount">0 righe visualizzate</strong><span id="footerText">Dati iniziali acquisiti dalla commessa; uscita finale gestita da scan e DDT.</span></div></div>
     </section>
-    <section class="panel ddt-extra">
+    <section class="panel ddt-extra manual-panel">
       <div class="panel-head">
         <div><h2>Aggiunte DDT</h2><div class="muted">Materiali o note da includere nel DDT senza scan.</div></div>
       </div>
@@ -129,6 +143,12 @@
         </div>
       </div>
       <div class="table-wrap"><table><thead><tr><th>Codice</th><th>Descrizione</th><th>Profilo</th><th>Q.tà</th><th>Peso kg</th><th>Trattamento</th><th>Origine</th><th>Azione</th></tr></thead><tbody id="manualDdtRows"></tbody></table></div>
+    </section>
+    <section class="panel ddt-extra history-panel">
+      <div class="panel-head">
+        <div><h2>Report generale spedizioni</h2><div class="muted">Storico dei DDT generati.</div></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Spedizione</th><th>Data</th><th>Lista materiale spedito</th><th>Righe</th></tr></thead><tbody id="ddtShipmentRowsTop"></tbody></table></div>
     </section>
   </main>
   </div>
@@ -155,14 +175,14 @@
     function populateFilters(){const items=data.items||[];const isAdHoc=!!data.revisione?.spedizione_ad_hoc;populateSelect('typeFilter',items.map(x=>x.tipo_unita),'Tutti i tipi');populateSelect('treatmentFilter',items.map(x=>x.trattamento),'Tutti i trattamenti');populateSelect('statusFilter',items.map(x=>displayStatus(x,isAdHoc)),'Tutti gli stati')}
     function resetFilters(){['search','typeFilter','treatmentFilter','statusFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});render()}
     function filtered(){const q=document.getElementById('search')?.value.trim().toLowerCase()||'';const type=document.getElementById('typeFilter')?.value||'';const treatment=document.getElementById('treatmentFilter')?.value||'';const status=document.getElementById('statusFilter')?.value||'';const isAdHoc=!!data.revisione?.spedizione_ad_hoc;return (data.items||[]).filter(x=>(!type||String(x.tipo_unita||'')===type)&&(!treatment||String(x.trattamento||'')===treatment)&&(!status||displayStatus(x,isAdHoc)===status)&&(!q||[x.codice,x.descrizione,x.profilo,x.trattamento,x.tipo_unita,displayStatus(x,isAdHoc)].some(v=>String(v||'').toLowerCase().includes(q))))}
-    function updateProgress(isAdHoc){const total=Number(data.summary?.righe||(data.items||[]).length||0);const found=Number(data.summary?.trovati ?? (data.items||[]).filter(x=>String(x.cantiere_status||'').toUpperCase()==='TROVATO').length);const pct=total?Math.round((found/total)*100):0;heroEyebrow.textContent=isAdHoc?'Scan spedizione ad hoc':'Avanzamento scan';kFound.textContent=fmt(found);kTotal.textContent=fmt(total);kProgress.textContent=`${pct}%`;kProgressBar.style.width=`${Math.max(0,Math.min(100,pct))}%`;heroText.textContent=`${fmt(found)} righe trovate su ${fmt(total)} totali. Il conteggio nasce dagli scan dei codici spedizione.`}
+    function updateProgress(isAdHoc){const total=Number(data.summary?.righe||(data.items||[]).length||0);const found=Number(data.summary?.trovati ?? (data.items||[]).filter(x=>String(x.cantiere_status||'').toUpperCase()==='TROVATO').length);const pct=total?Math.round((found/total)*100):0;heroEyebrow.textContent='Avanzamento spedizione';kFound.textContent=fmt(found);kTotal.textContent=fmt(total);kProgress.textContent=`${pct}%`;kProgressBar.style.width=`${Math.max(0,Math.min(100,pct))}%`;heroText.textContent=`${fmt(found)} righe acquisite su ${fmt(total)} totali. Il conteggio nasce dagli scan dei codici spedizione.`}
     function sumWeight(rows){return (rows||[]).reduce((sum,x)=>sum+Number(x.peso_totale_kg||0),0)}
     function updateShippingWeight(){const shippedKg=(data.ddt_shipments||[]).reduce((sum,x)=>sum+sumWeight(x.materiali||[]),0);const totalKg=Number(data.summary?.peso_kg||0);const pct=totalKg?Math.round((shippedKg/totalKg)*100):(shippedKg?100:0);const totalTone=pct>=100?'complete':pct>50?'mid':'low';shippingWeightCard.classList.remove('weight-low','weight-mid','weight-complete','weight-green','weight-yellow','weight-red');shippingWeightCard.classList.add(`weight-${totalTone}`);kShippingWeight.textContent=fmt(shippedKg);kShippingTons.textContent=`${Number(shippedKg/1000).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:2})} t spedite · ${Math.min(100,Math.max(0,pct))}%`;const currentKg=sumWeight(data.scan_items||[])+sumWeight(data.manual_items||[]);const currentTone=currentKg<10000?'green':currentKg<=27000?'yellow':'red';currentWeightCard.classList.remove('weight-green','weight-yellow','weight-red');currentWeightCard.classList.add(`weight-${currentTone}`);kCurrentWeight.textContent=fmt(currentKg);kCurrentTons.textContent=`${Number(currentKg/1000).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:2})} t`;kCurrentScanRows.textContent=fmt((data.scan_items||[]).length);kCurrentManualRows.textContent=fmt((data.manual_items||[]).length)}
     const ddtColumns=[['commessa_codice','Commessa'],['commessa_descrizione','Descrizione commessa'],['codice','Codice'],['tipo_unita','Tipo'],['descrizione','Descrizione'],['profilo','Profilo'],['quantita','Quantità'],['quantita_scan_label','Quantità scan'],['lunghezza_mm','Lunghezza mm'],['larghezza_mm','Larghezza mm'],['altezza_mm','Altezza mm'],['peso_unitario_kg','Peso unitario kg'],['peso_totale_kg','Peso totale kg'],['area_verniciabile_mq','Area verniciabile mq'],['trattamento','Trattamento'],['cantiere_status','Stato spedizione'],['trovato_at','Data scan'],['source_file','File origine']];
     function csvCell(value){if(value===null||value===undefined)return '';const text=String(value).replace(/\r?\n/g,' ').replace(/"/g,'""');return /[;"\r\n]/.test(text)?`"${text}"`:text}
     function downloadText(filename,text,mime='text/csv;charset=utf-8'){const blob=new Blob(['\ufeff',text],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
     function downloadDdtShipment(shipment){const materials=shipment.materiali||[];const baseKeys=new Set(ddtColumns.map(([key])=>key));const extraKeys=[...new Set(materials.flatMap(row=>Object.keys(row||{})))].filter(key=>!baseKeys.has(key)&&!['id','commessa_id','revisione_id','spedizione_id','row_index','qr_image_url'].includes(key));const columns=[...ddtColumns,...extraKeys.map(key=>[key,key])];const enriched=materials.map(row=>({...row,commessa_codice:data.commessa?.codice||shipment.commessa?.codice||commessaCode||'',commessa_descrizione:data.commessa?.descrizione||shipment.commessa?.descrizione||''}));const lines=[columns.map(([,label])=>csvCell(label)).join(';'),...enriched.map(row=>columns.map(([key])=>csvCell(row[key])).join(';'))];const stamp=new Date().toISOString().slice(0,10).replaceAll('-','');downloadText(`DDT_${commessaCode||commessaRef}_${String(shipment.numero||'').padStart(2,'0')}_${stamp}.csv`,lines.join('\r\n'))}
-    async function loadAdHocQrActions(isAdHoc){const openBtn=document.getElementById('openQrRegistryBtn');const printBtn=document.getElementById('printAllQrBtn');openBtn.hidden=!isAdHoc;printBtn.hidden=!isAdHoc;if(!isAdHoc)return;openBtn.href=commessaUrl('officina');const r=await fetch(`/api/v1/commesse/${commessaId}/step-5-1/items?limit=2000`,{headers:auth()});const d=await r.json().catch(()=>({items:[],total:0}));if(!r.ok){adHocQrItems=[];printBtn.disabled=true;printBtn.textContent='QR non disponibili';return}adHocQrItems=d.items||[];printBtn.disabled=!adHocQrItems.length;printBtn.textContent=`Stampa tutti i ${fmt(d.total||adHocQrItems.length)} QR`}
+    async function loadAdHocQrActions(isAdHoc){const openBtn=document.getElementById('openQrRegistryBtn');const printBtn=document.getElementById('printAllQrBtn');openBtn.hidden=true;printBtn.hidden=true;openBtn.href=commessaUrl('spedizione-qr-registry');const r=await fetch(`/api/v1/commesse/${commessaId}/spedizione-qr/items?limit=2000`,{headers:auth()});const d=await r.json().catch(()=>({items:[],total:0}));if(!r.ok){adHocQrItems=[];return}adHocQrItems=d.items||[];const total=Number(d.total||adHocQrItems.length||0);openBtn.hidden=!total;printBtn.hidden=!total;printBtn.disabled=!adHocQrItems.length;printBtn.textContent=`Stampa tutti i ${fmt(total)} QR`}
     async function printAllAdHocQr(){if(!adHocQrItems.length)return alert('Nessun QR disponibile.');if(adHocQrItems.length>2000)return alert('Puoi stampare al massimo 2000 QR per volta.');const btn=document.getElementById('printAllQrBtn');btn.disabled=true;try{const r=await fetch(`/api/v1/commesse/${commessaId}/step-5-1/labels.pdf`,{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({piece_ids:adHocQrItems.map(x=>x.id),width_mm:70,height_mm:120})});const d=r.ok?await r.blob():await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Stampa multipla non disponibile');const url=URL.createObjectURL(d);window.open(url,'_blank','noopener');setTimeout(()=>URL.revokeObjectURL(url),120000)}catch(error){alert(error.message||String(error))}finally{btn.disabled=false}}
     async function exportDdtList(){if(!commessaId)return;const r=await fetch(`/api/v1/commesse/${commessaId}/post-officina/ddt-shipments`,{method:'POST',headers:auth()});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Nessuna riga da inserire nel DDT.');return}downloadDdtShipment(d);await load();updateShippingWeight()}
     async function addManualDdtItems(){const text=document.getElementById('manualDdtText').value.trim();if(!text){alert('Inserisci almeno una riga da aggiungere al DDT.');return}const r=await fetch(`/api/v1/commesse/${commessaId}/post-officina/ddt-manual-items`,{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({text})});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.detail||'Aggiunta non riuscita');return}document.getElementById('manualDdtText').value='';await load();updateShippingWeight()}
@@ -175,7 +195,7 @@
     function manualAction(row,isAdHoc){if(isAcquired(row,isAdHoc))return '<span class="tag acquired">ACQUISITO</span>';if(!isAdHoc&&String(row.cantiere_status||'').toUpperCase()==='TROVATO')return '<span class="tag">OK</span>';return `<button class="btn small manual-found" data-mark-found="${row.id}:${isAdHoc?'1':'0'}" onclick="markFound(${Number(row.id)},${isAdHoc?'true':'false'})">Segna trovato</button>`}
     function renderHead(isAdHoc){tableHead.innerHTML=isAdHoc?`<tr><th>Codice</th><th>Tipo</th><th>Descrizione</th><th>Profilo</th><th>Q.tà</th><th>Q.tà scan</th><th>Peso kg</th><th>Trattamento</th><th>Stato spedizione</th><th>Azione</th></tr>`:`<tr><th>QR</th><th>Codice</th><th>Tipo</th><th>Descrizione</th><th>Profilo</th><th>Q.tà</th><th>Peso kg</th><th>Trattamento</th><th>Stato spedizione</th><th>Azione</th></tr>`}
     function render(){const rows=filtered();const isAdHoc=!!data.revisione?.spedizione_ad_hoc;renderHead(isAdHoc);document.getElementById('rows').innerHTML=rows.map(x=>`<tr>${isAdHoc?'':`<td><img class="qr" src="${esc(x.qr_image_url)}"></td>`}<td><div class="code">${esc(x.codice)}</div></td><td>${tag(x)}</td><td>${esc(x.descrizione||'—')}</td><td>${esc(x.profilo||'—')}</td><td>${fmt(x.quantita)}</td>${isAdHoc?`<td>${esc(displayScanLabel(x,isAdHoc))}</td>`:''}<td>${fmt(x.peso_totale_kg)}</td><td>${esc(x.trattamento||'—')}</td><td>${displayStatusTag(x,isAdHoc)}</td><td>${manualAction(x,isAdHoc)}</td></tr>`).join('')||`<tr><td colspan="${isAdHoc?10:10}"><div class="empty">Nessuna unità di spedizione trovata.</div></td></tr>`;footerCount.textContent=`${rows.length} righe visualizzate`;sideVisible.textContent=fmt(rows.length);sideTotal.textContent=fmt((data.items||[]).length)}
-    async function load(){await resolve();const r=await fetch(`/api/v1/commesse/${commessaId}/post-officina`,{headers:auth()});data=await r.json().catch(()=>({items:[],summary:{}}));if(!r.ok){renderHead(false);rows.innerHTML=`<tr><td colspan="9"><div class="empty">${esc(data.detail||'Errore caricamento')}</div></td></tr>`;return}const isAdHoc=!!data.revisione?.spedizione_ad_hoc;const adHocLink=document.getElementById('adHocShippingLink');if(adHocLink)adHocLink.hidden=!isAdHoc;const title=isAdHoc?'Spedizione ad hoc':'Spedizione';topTitle.textContent=title;pageTitle.textContent=title;pageEyebrow.textContent=isAdHoc?'Spedizione libera':'Spedizione';document.title=`${title} ${data.commessa.codice} · MCC`;subtitle.textContent=`${data.commessa.descrizione||data.commessa.codice} · ${data.summary.righe||0} unità`;updateProgress(isAdHoc);panelTitle.textContent='Lista item da spedire';panelText.textContent=isAdHoc?'Voci importate dal file spedizione da acquisire.':'Elenco operativo delle unità destinate alla spedizione.';footerText.textContent=isAdHoc?'Dati letti dal file spedizione; QR disponibili nel registro e in stampa multipla.':'Dati iniziali acquisiti dalla commessa; uscita finale gestita da scan e DDT.';kRows.textContent=fmt(data.summary.righe);kQty.textContent=fmt(data.summary.quantita);kWeight.textContent=fmt(data.summary.peso_kg);populateFilters();renderMacro();render();renderScanRows();renderManualDdtRows();renderDdtShipments();await loadAdHocQrActions(isAdHoc)}
+    async function load(){await resolve();const r=await fetch(`/api/v1/commesse/${commessaId}/post-officina`,{headers:auth()});data=await r.json().catch(()=>({items:[],summary:{}}));if(!r.ok){renderHead(false);rows.innerHTML=`<tr><td colspan="9"><div class="empty">${esc(data.detail||'Errore caricamento')}</div></td></tr>`;return}const isAdHoc=!!data.revisione?.spedizione_ad_hoc;const title='Spedizione';topTitle.textContent=title;pageTitle.textContent=title;pageEyebrow.textContent='Spedizione commessa';document.title=`${title} ${data.commessa.codice} · MCC`;subtitle.textContent=`${data.commessa.descrizione||data.commessa.codice} · ${data.summary.righe||0} unità`;updateProgress(isAdHoc);panelTitle.textContent='Lista item da spedire';panelText.textContent='Elenco operativo delle unità destinate alla spedizione.';footerText.textContent='Dati acquisiti dalla commessa; uscita finale gestita da scan e DDT.';kRows.textContent=fmt(data.summary.righe);kQty.textContent=fmt(data.summary.quantita);kWeight.textContent=fmt(data.summary.peso_kg);populateFilters();renderMacro();render();renderScanRows();renderManualDdtRows();renderDdtShipments();await loadAdHocQrActions(isAdHoc)}
     load().then(updateShippingWeight);
     setInterval(()=>{if(!document.hidden)load().then(updateShippingWeight).catch(()=>{})},3000);
   </script>

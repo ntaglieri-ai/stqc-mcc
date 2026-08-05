@@ -6,7 +6,7 @@
   const ref = parts[1] || "";
   const view = parts[2] || "analisi";
   document.documentElement.classList.add("stqc-embedded");
-  document.documentElement.dataset.embeddedView = view;
+  document.documentElement.dataset.embeddedView = view === "spedizione-qr-registry" ? "in-cantiere" : view;
 
   const embeddedCss = `
     html.stqc-embedded .top,
@@ -264,7 +264,7 @@
     const anchor = event.target.closest("a[href]");
     if (!anchor || anchor.target || event.defaultPrevented) return;
     const url = new URL(anchor.href, location.origin);
-    if (url.origin !== location.origin || !/^\/commesse\/[^/]+\/(analisi|officina|assemblaggi|lavorazioni|in-cantiere)$/.test(url.pathname)) return;
+    if (url.origin !== location.origin || !/^\/commesse\/[^/]+\/(analisi|officina|assemblaggi|lavorazioni|in-cantiere|spedizione-qr-registry)$/.test(url.pathname)) return;
     event.preventDefault();
     window.stqcNavigate(url.pathname);
   });
