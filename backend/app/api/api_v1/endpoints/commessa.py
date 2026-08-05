@@ -2119,12 +2119,17 @@ def _current_ddt_context(db: Session, commessa_id: int) -> tuple[Commessa, Comme
     revisione = _latest_revision(db, commessa_id)
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
-    spedizione_ad_hoc = (
-        db.query(SpedizioneAdHoc)
-        .filter(SpedizioneAdHoc.commessa_id == commessa_id)
-        .order_by(SpedizioneAdHoc.id.desc())
-        .first()
-    )
+    spedizione_ad_hoc = None
+    if bool((revisione.report_analisi or {}).get("spedizione_ad_hoc")):
+        spedizione_ad_hoc = (
+            db.query(SpedizioneAdHoc)
+            .filter(
+                SpedizioneAdHoc.commessa_id == commessa_id,
+                SpedizioneAdHoc.revisione_id == revisione.id,
+            )
+            .order_by(SpedizioneAdHoc.id.desc())
+            .first()
+        )
     return commessa, revisione, spedizione_ad_hoc
 
 
@@ -2278,12 +2283,17 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
     is_ad_hoc_spedizione = bool((revisione.report_analisi or {}).get("spedizione_ad_hoc"))
-    spedizione_ad_hoc = (
-        db.query(SpedizioneAdHoc)
-        .filter(SpedizioneAdHoc.commessa_id == commessa_id)
-        .order_by(SpedizioneAdHoc.id.desc())
-        .first()
-    )
+    spedizione_ad_hoc = None
+    if is_ad_hoc_spedizione:
+        spedizione_ad_hoc = (
+            db.query(SpedizioneAdHoc)
+            .filter(
+                SpedizioneAdHoc.commessa_id == commessa_id,
+                SpedizioneAdHoc.revisione_id == revisione.id,
+            )
+            .order_by(SpedizioneAdHoc.id.desc())
+            .first()
+        )
     if spedizione_ad_hoc:
         ad_hoc_rows = (
             db.query(SpedizioneAdHocItem)
