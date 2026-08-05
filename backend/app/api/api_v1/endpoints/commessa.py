@@ -1994,6 +1994,7 @@ def _post_officina_item_read(row: CommessaPostOfficinaItem) -> dict:
         "tipo_unita": row.tipo_unita,
         "lavorazioni_status": row.lavorazioni_status,
         "cantiere_status": row.cantiere_status,
+        "trovato_at": row.updated_at if row.cantiere_status == "TROVATO" else None,
         "source_file": row.source_file,
         "qr_image_url": f"/post-officina-qr-image/{row.commessa_id}/{quote(row.codice, safe='')}.png",
         "qr_payload": f"STQC:POST:{row.commessa_id}:{row.revisione_id}:{row.codice}",
@@ -2217,7 +2218,7 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
         )
         manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
         ddt_shipments = _load_ddt_shipments(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
-        master_rows = [row for row in ad_hoc_rows if row.stato != "TROVATO"]
+        master_rows = [row for row in ad_hoc_rows if row.stato not in {"TROVATO", "SPEDITO"}]
         scan_rows = [row for row in ad_hoc_rows if row.stato == "TROVATO"]
         summary_by_type: dict[str, dict] = {}
         summary_by_treatment: dict[str, dict] = {}
@@ -2354,10 +2355,11 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
             "by_type": sorted(summary_by_type.values(), key=lambda item: item["tipo"]),
             "by_treatment": sorted(summary_by_treatment.values(), key=lambda item: item["trattamento"]),
         },
-        "items": [_post_officina_item_read(row) for row in rows],
-        "manual_items": [_ddt_manual_item_read(row) for row in manual_rows],
-        "ddt_shipments": [_ddt_shipment_read(row) for row in ddt_shipments],
-    }
+            "items": [_post_officina_item_read(row) for row in rows],
+            "scan_items": [_post_officina_item_read(row) for row in rows if row.cantiere_status == "TROVATO"],
+            "manual_items": [_ddt_manual_item_read(row) for row in manual_rows],
+            "ddt_shipments": [_ddt_shipment_read(row) for row in ddt_shipments],
+        }
 
 
 @router.post("/{commessa_id}/post-officina/ddt-manual-items", status_code=201)
@@ -2434,6 +2436,7 @@ def create_ddt_shipment(
     db: Session = Depends(get_db),
 ):
     commessa, revisione, spedizione_ad_hoc = _current_ddt_context(db, commessa_id)
+    now = datetime.utcnow()
     if spedizione_ad_hoc:
         rows = (
             db.query(SpedizioneAdHocItem)
@@ -2441,10 +2444,10 @@ def create_ddt_shipment(
             .order_by(SpedizioneAdHocItem.row_index, SpedizioneAdHocItem.id)
             .all()
         )
+        scanned_rows = [row for row in rows if row.stato == "TROVATO"]
         scanned = [
             _ddt_snapshot_row(_spedizione_ad_hoc_item_read(row), source="SCAN")
-            for row in rows
-            if row.stato == "TROVATO"
+            for row in scanned_rows
         ]
         spedizione_ad_hoc_id = spedizione_ad_hoc.id
     else:
@@ -2454,10 +2457,10 @@ def create_ddt_shipment(
             .order_by(CommessaPostOfficinaItem.row_index, CommessaPostOfficinaItem.id)
             .all()
         )
+        scanned_rows = [row for row in rows if row.cantiere_status == "TROVATO"]
         scanned = [
             _ddt_snapshot_row(_post_officina_item_read(row), source="SCAN")
-            for row in rows
-            if row.cantiere_status == "TROVATO"
+            for row in scanned_rows
         ]
         spedizione_ad_hoc_id = None
 
@@ -2482,9 +2485,20 @@ def create_ddt_shipment(
         titolo=f"Spedizione #{numero}",
         righe_count=len(materials),
         materiali_snapshot=materials,
-        created_at=datetime.utcnow(),
+        created_at=now,
     )
     db.add(shipment)
+    for row in scanned_rows:
+        if isinstance(row, SpedizioneAdHocItem):
+            row.stato = "SPEDITO"
+            row.updated_at = now
+        else:
+            row.cantiere_status = "SPEDITO"
+            row.updated_at = now
+    for row in manual_rows:
+        db.delete(row)
+    if spedizione_ad_hoc:
+        spedizione_ad_hoc.updated_at = now
     db.commit()
     db.refresh(shipment)
     result = _ddt_shipment_read(shipment)
