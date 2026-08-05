@@ -2194,6 +2194,81 @@ def _ddt_snapshot_row(row: dict, *, source: str) -> dict:
     }
 
 
+def _ddt_snapshot_key(row: dict) -> tuple:
+    weight = row.get("peso_totale_kg") or 0
+    try:
+        weight_key = round(float(weight), 4)
+    except (TypeError, ValueError):
+        weight_key = 0.0
+    return (
+        str(row.get("codice") or "").strip().upper(),
+        str(row.get("descrizione") or "").strip().upper(),
+        str(row.get("profilo") or "").strip().upper(),
+        weight_key,
+        str(row.get("trattamento") or "").strip().upper(),
+    )
+
+
+def _snapshot_counts(ddt_shipments: list[DdtShipment], source: str) -> dict[tuple, int]:
+    counts: dict[tuple, int] = defaultdict(int)
+    for shipment in ddt_shipments:
+        for material in shipment.materiali_snapshot or []:
+            if str(material.get("source") or "").upper() == source:
+                counts[_ddt_snapshot_key(material)] += 1
+    return counts
+
+
+def _close_scans_already_in_ddt(
+    db: Session,
+    ddt_shipments: list[DdtShipment],
+    rows: list[CommessaPostOfficinaItem] | list[SpedizioneAdHocItem],
+) -> int:
+    counts = _snapshot_counts(ddt_shipments, "SCAN")
+    if not counts:
+        return 0
+    changed = 0
+    now = datetime.utcnow()
+    for row in rows:
+        current_status = row.stato if isinstance(row, SpedizioneAdHocItem) else row.cantiere_status
+        if current_status != "TROVATO":
+            continue
+        data = _spedizione_ad_hoc_item_read(row) if isinstance(row, SpedizioneAdHocItem) else _post_officina_item_read(row)
+        key = _ddt_snapshot_key(data)
+        if counts.get(key, 0) <= 0:
+            continue
+        if isinstance(row, SpedizioneAdHocItem):
+            row.stato = "SPEDITO"
+        else:
+            row.cantiere_status = "SPEDITO"
+        row.updated_at = now
+        counts[key] -= 1
+        changed += 1
+    if changed:
+        db.commit()
+    return changed
+
+
+def _delete_manual_items_already_in_ddt(
+    db: Session,
+    ddt_shipments: list[DdtShipment],
+    manual_rows: list[DdtManualItem],
+) -> int:
+    counts = _snapshot_counts(ddt_shipments, "MANUALE_DDT")
+    if not counts:
+        return 0
+    deleted = 0
+    for row in manual_rows:
+        key = _ddt_snapshot_key(_ddt_manual_item_read(row))
+        if counts.get(key, 0) <= 0:
+            continue
+        db.delete(row)
+        counts[key] -= 1
+        deleted += 1
+    if deleted:
+        db.commit()
+    return deleted
+
+
 @router.get("/{commessa_id}/post-officina")
 def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
@@ -2218,6 +2293,15 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
         )
         manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
         ddt_shipments = _load_ddt_shipments(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
+        if _close_scans_already_in_ddt(db, ddt_shipments, ad_hoc_rows):
+            ad_hoc_rows = (
+                db.query(SpedizioneAdHocItem)
+                .filter(SpedizioneAdHocItem.spedizione_id == spedizione_ad_hoc.id)
+                .order_by(SpedizioneAdHocItem.row_index, SpedizioneAdHocItem.id)
+                .all()
+            )
+        if _delete_manual_items_already_in_ddt(db, ddt_shipments, manual_rows):
+            manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, spedizione_ad_hoc.id)
         master_rows = [row for row in ad_hoc_rows if row.stato not in {"TROVATO", "SPEDITO"}]
         scan_rows = [row for row in ad_hoc_rows if row.stato == "TROVATO"]
         summary_by_type: dict[str, dict] = {}
@@ -2314,6 +2398,15 @@ def get_post_officina(commessa_id: int, db: Session = Depends(get_db)):
     summary_by_treatment: dict[str, dict] = {}
     manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, None)
     ddt_shipments = _load_ddt_shipments(db, commessa_id, revisione.id, None)
+    if _close_scans_already_in_ddt(db, ddt_shipments, rows):
+        rows = (
+            db.query(CommessaPostOfficinaItem)
+            .filter(CommessaPostOfficinaItem.revisione_id == revisione.id)
+            .order_by(CommessaPostOfficinaItem.row_index, CommessaPostOfficinaItem.id)
+            .all()
+        )
+    if _delete_manual_items_already_in_ddt(db, ddt_shipments, manual_rows):
+        manual_rows = _load_ddt_manual_items(db, commessa_id, revisione.id, None)
     for row in rows:
         tipo = row.tipo_unita or "NON_CLASSIFICATO"
         type_bucket = summary_by_type.setdefault(tipo, {"tipo": tipo, "righe": 0, "quantita": 0.0, "peso_kg": 0.0})
