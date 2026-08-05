@@ -245,7 +245,7 @@ def create_app() -> FastAPI:
 
     @app.get("/spedizione-ad-hoc", include_in_schema=False)
     def spedizione_ad_hoc_page():
-        return FileResponse(STATIC_DIR / "spedizione-ad-hoc.html", headers=_NO_CACHE)
+        return RedirectResponse("/commesse/nuova", status_code=303)
 
     @app.get("/commesse/{commessa_ref}/analisi", include_in_schema=False)
     def commessa_analysis_page(commessa_ref: str, request: Request):

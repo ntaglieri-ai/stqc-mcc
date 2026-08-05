@@ -621,23 +621,38 @@ async function handleSubmit(event) {
   }
   button.disabled = true;
   button.dataset.busy = "1";
-  button.textContent = "Creazione commessa…";
+  button.textContent = "Creazione o aggiornamento commessa…";
 
+  const codice = document.getElementById("f-nome").value.trim();
   let commessa;
+  let createdCommessa = false;
   try {
     const response = await fetch("/api/v1/commesse", {
       method: "POST",
       headers: { Authorization: authHeader(), "Content-Type": "application/json" },
       body: JSON.stringify({
-        codice: document.getElementById("f-nome").value.trim(),
+        codice,
         cliente: document.getElementById("f-cliente").value.trim() || null,
         data_consegna_prevista: document.getElementById("f-consegna").value || null,
         status: "APERTA",
       }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || `Errore creazione commessa (${response.status})`);
-    commessa = data;
+    if (response.ok) {
+      commessa = data;
+      createdCommessa = true;
+    } else if (response.status === 409) {
+      const resolveResponse = await fetch(`/api/v1/commesse/resolve/${encodeURIComponent(codice)}`, {
+        headers: { Authorization: authHeader() },
+      });
+      const resolved = await resolveResponse.json().catch(() => ({}));
+      if (!resolveResponse.ok) {
+        throw new Error(resolved.detail || `Commessa esistente non risolta (${resolveResponse.status})`);
+      }
+      commessa = resolved;
+    } else {
+      throw new Error(data.detail || `Errore creazione commessa (${response.status})`);
+    }
 
     button.textContent = "Caricamento e analisi file…";
     const formData = new FormData();
@@ -660,7 +675,7 @@ async function handleSubmit(event) {
 
     location.replace(`/commesse/${encodeURIComponent(commessa.codice)}/analisi`);
   } catch (error) {
-    if (commessa?.id) {
+    if (createdCommessa && commessa?.id) {
       await fetch(`/api/v1/commesse/${commessa.id}`, {
         method: "DELETE",
         headers: { Authorization: authHeader() },
