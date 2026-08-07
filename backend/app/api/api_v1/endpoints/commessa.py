@@ -199,6 +199,11 @@ def _unique_commessa_code(db: Session, title: str, *, prefix: str = "SPED") -> s
     return candidate
 
 
+def _clean_commessa_title(value: str | None) -> str:
+    """Mantiene le parole del titolo, normalizzando spazi, tab e righe vuote."""
+    return " ".join(str(value or "").split())
+
+
 def _piece_qr_code(part_number: str | None, instance_number: int | None, fallback_id: int | None = None) -> str:
     base = (part_number or "").strip()
     if not base:
@@ -223,6 +228,37 @@ def _expected_piece_payload(piece: Piece, commessa: Commessa, totals: dict[str, 
         totals.get(piece.marca_pos or "", 1),
         float(piece.peso_kg) if piece.peso_kg is not None else None,
     )
+
+
+def _refresh_commessa_piece_payloads(db: Session, commessa: Commessa) -> int:
+    """Rigenera tutti i QR pezzo quando cambia il nome stampato della commessa."""
+    pieces = (
+        db.query(Piece)
+        .filter(Piece.commessa_id == commessa.id)
+        .order_by(Piece.revisione_id, Piece.id)
+        .all()
+    )
+    if not pieces:
+        return 0
+    item_ids = [piece.distinta_item_id for piece in pieces if piece.distinta_item_id]
+    items_by_id = {
+        item.id: item
+        for item in db.query(DistintaItem).filter(DistintaItem.id.in_(item_ids)).all()
+    } if item_ids else {}
+    by_revision: dict[int | None, list[Piece]] = defaultdict(list)
+    for piece in pieces:
+        by_revision[piece.revisione_id].append(piece)
+    now = datetime.utcnow()
+    for revision_pieces in by_revision.values():
+        totals = _piece_totals(revision_pieces)
+        for piece in revision_pieces:
+            payload = _expected_piece_payload(piece, commessa, totals)
+            piece.qr_payload = payload
+            piece.updated_at = now
+            item = items_by_id.get(piece.distinta_item_id)
+            if item:
+                item.qr_code = generate_qr_for_payload(payload)
+    return len(pieces)
 
 
 def _create_piece_from_item(
@@ -441,7 +477,7 @@ def resolve_commessa_ref(commessa_ref: str, db: Session = Depends(get_db)):
         commessa = crud.get_commessa_by_codice(db=db, codice=commessa_ref)
     if commessa is None:
         raise HTTPException(status_code=404, detail="Commessa non trovata")
-    return {"id": commessa.id, "codice": commessa.codice}
+    return {"id": commessa.id, "codice": commessa.codice, "descrizione": commessa.descrizione}
 
 
 @router.post("/validate-files")
@@ -567,17 +603,16 @@ async def validate_commessa_files(
 
 @router.post("/spedizione-ad-hoc", status_code=201)
 async def create_spedizione_ad_hoc(
-    titolo: str = Form(...),
+    titolo: str = Form(""),
     spedizione: UploadFile = File(..., description="Lista spedizione"),
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     """Crea una spedizione libera e i QR pezzo partendo dal solo file spedizione."""
-    title = (titolo or "").strip()
-    if not title:
-        raise HTTPException(422, "Inserisci un titolo commessa/spedizione")
     if not spedizione or not spedizione.filename:
         raise HTTPException(422, "Carica il file spedizione")
+
+    title = _clean_commessa_title(titolo) or _clean_commessa_title(Path(spedizione.filename).stem)
 
     codice = _unique_commessa_code(db, title)
     commessa = Commessa(
@@ -606,9 +641,10 @@ async def create_spedizione_ad_hoc(
         with spedizione_dest.open("wb") as f:
             f.write(await spedizione.read())
         spedizione_items, spedizione_report = _parse_spedizione_file(spedizione_dest)
-        imported_name = str((spedizione_report.get("project") or {}).get("nome") or "").strip()
+        imported_name = _clean_commessa_title((spedizione_report.get("project") or {}).get("nome"))
         if imported_name:
             commessa.descrizione = imported_name
+            title = imported_name
 
         report = {
             "ok": True,
@@ -797,13 +833,28 @@ def update_commessa(commessa_id: int, commessa_in: CommessaUpdate, db: Session =
     if commessa is None:
         raise HTTPException(status_code=404, detail="Commessa non trovata")
     data = commessa_in.model_dump(exclude_unset=True)
+    if "descrizione" in data:
+        title = _clean_commessa_title(data.get("descrizione"))
+        if not title:
+            raise HTTPException(status_code=422, detail="Il titolo commessa non può essere vuoto")
+        data["descrizione"] = title
     target_status = data.get("status")
     if target_status == CommessaStatus.IN_PRODUZIONE and commessa.status != CommessaStatus.IN_PRODUZIONE:
         raise HTTPException(
             status_code=409,
             detail="Usa l'endpoint /avvia-produzione per avviare la produzione",
         )
-    return crud.update_commessa(db=db, commessa=commessa, obj_in=commessa_in)
+    old_title = commessa_display_name(commessa)
+    for field, value in data.items():
+        setattr(commessa, field, value)
+    if commessa_display_name(commessa) != old_title:
+        _refresh_commessa_piece_payloads(db, commessa)
+        for shipping in commessa.spedizioni_ad_hoc:
+            shipping.titolo = commessa.descrizione
+            shipping.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(commessa)
+    return commessa
 
 
 @router.delete("/{commessa_id}", status_code=204)
