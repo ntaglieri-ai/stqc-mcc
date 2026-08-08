@@ -40,7 +40,7 @@ from backend.app.services.distinta import (
 from backend.app.services.bulloneria import parse_bulloneria_file
 from backend.app.services.fasi_operative import parse_fasi_operative
 from backend.app.services.commessa_analysis import classify_commessa_materials
-from backend.app.services.qr import generate_qr_for_payload
+from backend.app.services.qr import generate_qr_for_payload, warm_qr_payload_cache
 from backend.app.services.label import (
     commessa_display_name,
     format_piece_label_payload,
@@ -64,8 +64,8 @@ class PieceManualUpdate(BaseModel):
 
 class PieceLabelsRequest(BaseModel):
     piece_ids: list[int] = Field(..., min_length=1, max_length=2000)
-    width_mm: float = Field(70, ge=40, le=210)
-    height_mm: float = Field(120, ge=40, le=297)
+    width_mm: float = Field(70, ge=40, le=70)
+    height_mm: float = Field(50, ge=40, le=50)
 
 
 class MouseScanRequest(BaseModel):
@@ -1675,6 +1675,7 @@ def _populate_spedizione_commessa_pieces(
                 totals[code],
                 float(unit_weight) if unit_weight is not None else None,
             )
+            generate_qr_for_payload(payload)
             db.add(Piece(
                 qr_code=_piece_qr_code(code, progressivo),
                 qr_payload=payload,
@@ -2858,6 +2859,7 @@ def list_commessa_item_qr(
         .all()
     )
     commessa = db.get(Commessa, commessa_id)
+
     return {
         "commessa_id": commessa_id,
         "revisione_id": revisione.id,
@@ -2908,6 +2910,7 @@ def list_commessa_spedizione_qr(
         .limit(safe_limit)
         .all()
     )
+    warm_qr_payload_cache([item.qr_payload for item in items])
     return {
         "commessa_id": commessa_id,
         "revisione_id": revisione.id,
@@ -2925,8 +2928,8 @@ def list_commessa_spedizione_qr(
 def download_commessa_piece_label(
     commessa_id: int,
     piece_id: int,
-    width_mm: float = Query(70, ge=40, le=210),
-    height_mm: float = Query(120, ge=40, le=297),
+    width_mm: float = Query(70, ge=40, le=70),
+    height_mm: float = Query(50, ge=40, le=50),
     db: Session = Depends(get_db),
 ):
     """Stampa il QR commessa nel formato MCC; non riguarda il magazzino."""
@@ -2940,6 +2943,10 @@ def download_commessa_piece_label(
     commessa = db.get(Commessa, commessa_id)
     if commessa is None:
         raise HTTPException(404, "Commessa non trovata")
+    if piece.distinta_item_id:
+        stored_qr = db.query(DistintaItem.qr_code).filter(DistintaItem.id == piece.distinta_item_id).scalar()
+        if stored_qr:
+            piece._label_qr_base64 = stored_qr
     same_registry_filter = Piece.distinta_item_id.is_(None) if piece.distinta_item_id is None else Piece.distinta_item_id.isnot(None)
     totale = db.query(Piece).filter(
         Piece.revisione_id == piece.revisione_id,
@@ -2978,6 +2985,15 @@ def download_commessa_piece_labels(
         Piece.qr_attivo.is_(True),
     ).all()
     by_id = {piece.id: piece for piece in pieces}
+    distinta_ids = [piece.distinta_item_id for piece in pieces if piece.distinta_item_id]
+    stored_qr = dict(
+        db.query(DistintaItem.id, DistintaItem.qr_code)
+        .filter(DistintaItem.id.in_(distinta_ids), DistintaItem.qr_code.isnot(None))
+        .all()
+    ) if distinta_ids else {}
+    for piece in pieces:
+        if piece.distinta_item_id in stored_qr:
+            piece._label_qr_base64 = stored_qr[piece.distinta_item_id]
     missing = [piece_id for piece_id in requested_ids if piece_id not in by_id]
     if missing:
         raise HTTPException(404, f"{len(missing)} QR selezionati non sono disponibili")

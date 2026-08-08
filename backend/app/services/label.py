@@ -3,8 +3,6 @@ import io
 import math
 
 from fpdf import FPDF
-from pypdf import PdfReader, PdfWriter
-
 from backend.app.models.commessa import Commessa, Piece
 from backend.app.models.warehouse import DistintaItem
 from backend.app.services.qr import generate_qr_for_payload, generate_qr_for_uuid
@@ -25,8 +23,8 @@ def format_piece_label_payload(
     peso_kg: float | None,
 ) -> str:
     """Replica il testo storico dei fogli etichette MCC."""
-    name = (commessa_name or "COMMESSA").strip()
-    code = (part_number or "SENZA CODICE").strip()
+    name = (commessa_name or "COMMESSA").strip().upper()
+    code = (part_number or "SENZA CODICE").strip().upper()
     current = max(1, int(progressivo or 1))
     total = max(current, int(totale or 1))
     raw_weight = float(peso_kg) if peso_kg is not None else 0
@@ -34,72 +32,78 @@ def format_piece_label_payload(
         raw_weight = 0
     # Excel ROUND: i mezzi si arrotondano lontano dallo zero (18,5 -> 19).
     weight = math.floor(raw_weight + 0.5) if raw_weight >= 0 else math.ceil(raw_weight - 0.5)
-    return f"{name} {code} Q.TA' {current} di {total} KG {weight}"
+    return f"{name} {code} Q.TA' {current} DI {total} KG {weight}"
 
 
-def generate_piece_label_pdf(
-    piece: Piece,
-    commessa: Commessa,
-    totale: int,
-    *,
-    width_mm: float = 70,
-    height_mm: float = 120,
-) -> bytes:
-    """Etichetta commessa parametrica, distinta dai QR di magazzino."""
-    width = min(max(float(width_mm), 40), 210)
-    height = min(max(float(height_mm), 40), 297)
+def _draw_piece_label(pdf: FPDF, piece: Piece, commessa: Commessa, totale: int,
+                      x: float, y: float, width: float = 70, height: float = 50) -> None:
+    """Disegna un'etichetta orizzontale con bordo di taglio visibile."""
     payload = format_piece_label_payload(
-        commessa_display_name(commessa),
-        piece.marca_pos,
-        piece.progressivo,
-        totale,
+        commessa_display_name(commessa), piece.marca_pos, piece.progressivo, totale,
         float(piece.peso_kg) if piece.peso_kg is not None else None,
     )
-    # Con un formato personalizzato FPDF usa la tupla come pagina base: mantenere
-    # P evita che larghezza e altezza vengano invertite una seconda volta.
-    pdf = FPDF(orientation="P", unit="mm", format=(width, height))
-    pdf.set_margins(4, 4, 4)
-    pdf.set_auto_page_break(False)
-    pdf.add_page()
-
-    qr_bytes = base64.b64decode(generate_qr_for_payload(payload))
-    qr_side = min(width * 0.48, height * 0.42)
-    qr_x = 5
-    qr_y = 6
+    pdf.set_draw_color(0, 0, 0)
+    pdf.set_line_width(0.35)
+    pdf.rect(x, y, width, height)
+    cached_qr = getattr(piece, "_label_qr_base64", None)
+    qr_bytes = base64.b64decode(cached_qr or generate_qr_for_payload(payload))
+    qr_side = min(28.0, height - 20, width * 0.42)
+    qr_x, qr_y = x + 3, y + 3
     pdf.image(io.BytesIO(qr_bytes), x=qr_x, y=qr_y, w=qr_side, h=qr_side)
 
-    pdf.set_xy(qr_x + qr_side + 2, qr_y + qr_side * 0.24)
-    pdf.set_font("Helvetica", "B", max(16, min(28, int(width * 0.35))))
-    pdf.cell(max(1, width - (qr_x + qr_side + 6)), 12, "MCC", align="C")
+    logo_x = qr_x + qr_side + 1
+    logo_width = x + width - logo_x - 3
+    pdf.set_xy(logo_x, y + 9)
+    pdf.set_font("Helvetica", "B", 24)
+    pdf.cell(logo_width, 11, "MCC", align="L")
 
-    text_y = min(height - 24, qr_y + qr_side + 4)
-    pdf.set_xy(4, text_y)
-    pdf.set_font("Helvetica", "B", max(8, min(12, int(width / 7))))
-    pdf.multi_cell(width - 8, 6, payload, align="C")
+    pdf.set_xy(x + 2, y + 35.5)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(width - 4, 6.5, payload, align="C")
+
+
+def _required_piece_label_width(piece: Piece, commessa: Commessa, totale: int) -> float:
+    """Larghezza necessaria per mantenere il payload su una sola riga."""
+    payload = format_piece_label_payload(
+        commessa_display_name(commessa), piece.marca_pos, piece.progressivo, totale,
+        float(piece.peso_kg) if piece.peso_kg is not None else None,
+    )
+    measure = FPDF(unit="mm")
+    measure.set_font("Helvetica", "B", 11)
+    return min(190.0, max(70.0, measure.get_string_width(payload) + 6.0))
+
+def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
+                             width_mm: float = 70, height_mm: float = 50) -> bytes:
+    """Etichetta orizzontale alta 50 mm e larga quanto richiede il testo."""
+    width = max(min(max(float(width_mm), 40), 70), _required_piece_label_width(piece, commessa, totale))
+    height = min(max(float(height_mm), 40), 50)
+    pdf = FPDF(orientation="L", unit="mm", format=(height, width))
+    pdf.set_margins(0, 0, 0); pdf.set_auto_page_break(False); pdf.add_page()
+    _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
     return bytes(pdf.output())
 
 
-def generate_piece_labels_pdf(
-    labels: list[tuple[Piece, Commessa, int]],
-    *,
-    width_mm: float = 70,
-    height_mm: float = 120,
-) -> bytes:
-    """Unisce più etichette MCC, una pagina per ogni pezzo selezionato."""
-    writer = PdfWriter()
-    for piece, commessa, totale in labels:
-        single = generate_piece_label_pdf(
-            piece,
-            commessa,
-            totale,
-            width_mm=width_mm,
-            height_mm=height_mm,
-        )
-        writer.append(PdfReader(io.BytesIO(single)))
-    output = io.BytesIO()
-    writer.write(output)
-    return output.getvalue()
-
+def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
+                              width_mm: float = 70, height_mm: float = 50) -> bytes:
+    """Crea fogli A4 con etichette uniformi e testo su una sola riga."""
+    base_width = min(max(float(width_mm), 40), 70)
+    width = max([base_width, *(_required_piece_label_width(*label) for label in labels)])
+    height = min(max(float(height_mm), 40), 50)
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_margins(0, 0, 0); pdf.set_auto_page_break(False)
+    gap_x, gap_y = 4.0, 4.0
+    columns, rows = (2, 5) if width * 2 + gap_x <= 200 else (1, 5)
+    start_x = (210 - (columns * width + (columns - 1) * gap_x)) / 2
+    start_y = (297 - (rows * height + (rows - 1) * gap_y)) / 2
+    for index, (piece, commessa, totale) in enumerate(labels):
+        slot = index % (columns * rows)
+        if slot == 0:
+            pdf.add_page()
+        column, row = slot % columns, slot // columns
+        _draw_piece_label(pdf, piece, commessa, totale,
+                          start_x + column * (width + gap_x),
+                          start_y + row * (height + gap_y), width, height)
+    return bytes(pdf.output())
 
 def generate_label_pdf(item: DistintaItem) -> bytes:
     """Genera un PDF etichetta A6 (105x148 mm) con QR e dati del pezzo."""
