@@ -64,7 +64,7 @@ class PieceManualUpdate(BaseModel):
 
 
 class PieceLabelsRequest(BaseModel):
-    piece_ids: list[int] = Field(..., min_length=1, max_length=2000)
+    piece_ids: list[int] = Field(..., min_length=1)
     width_mm: float = Field(70, ge=40, le=70)
     height_mm: float = Field(50, ge=40, le=50)
     layout: str = "separate"
