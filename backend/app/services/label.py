@@ -84,19 +84,26 @@ def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
 
 
 def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
-                              width_mm: float = 70, height_mm: float = 50) -> bytes:
-    """Crea fogli A4 con etichette uniformi e testo su una sola riga."""
+                              width_mm: float = 70, height_mm: float = 50,
+                              labels_per_page: int = 8) -> bytes:
+    """Impagina dinamicamente fino a 12 etichette su ogni A4 orizzontale."""
     base_width = min(max(float(width_mm), 40), 70)
     width = max([base_width, *(_required_piece_label_width(*label) for label in labels)])
     height = min(max(float(height_mm), 40), 50)
-    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
     pdf.set_margins(0, 0, 0); pdf.set_auto_page_break(False)
-    gap_x, gap_y = 4.0, 4.0
-    columns, rows = (2, 5) if width * 2 + gap_x <= 200 else (1, 5)
-    start_x = (210 - (columns * width + (columns - 1) * gap_x)) / 2
-    start_y = (297 - (rows * height + (rows - 1) * gap_y)) / 2
+    gap_x, gap_y, page_margin = 4.0, 2.0, 2.0
+    usable_width = 297 - 2 * page_margin
+    usable_height = 210 - 2 * page_margin
+    max_columns = min(3, max(1, int((usable_width + gap_x) // (width + gap_x))))
+    rows = min(4, max(1, int((usable_height + gap_y) // (height + gap_y))))
+    requested_capacity = min(max(int(labels_per_page), 1), 12)
+    columns = min(max_columns, 2 if requested_capacity <= 8 else 3)
+    page_capacity = min(requested_capacity, columns * rows)
+    start_x = (297 - (columns * width + (columns - 1) * gap_x)) / 2
+    start_y = (210 - (rows * height + (rows - 1) * gap_y)) / 2
     for index, (piece, commessa, totale) in enumerate(labels):
-        slot = index % (columns * rows)
+        slot = index % page_capacity
         if slot == 0:
             pdf.add_page()
         column, row = slot % columns, slot // columns
