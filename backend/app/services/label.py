@@ -91,37 +91,17 @@ def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
 
 
 def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
-                              width_mm: float = 70, height_mm: float = 50,
-                              labels_per_page: int = 8) -> bytes:
-    """Impagina da 1 a 12 etichette indipendenti su ogni A4 verticale."""
+                              width_mm: float = 70, height_mm: float = 50) -> bytes:
+    """Crea una pagina PDF indipendente per ogni etichetta selezionata."""
     base_width = min(max(float(width_mm), 40), 70)
     width = max([base_width, *(_required_piece_label_width(*label) for label in labels)])
     height = min(max(float(height_mm), 40), 50)
-    page_width, page_height = 210.0, 297.0
-    pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.set_margins(0, 0, 0); pdf.set_auto_page_break(False)
-    gap_x, gap_y, page_margin = 4.0, 2.0, 2.0
-    usable_width = page_width - 2 * page_margin
-    usable_height = page_height - 2 * page_margin
-    max_columns = min(2, max(1, int((usable_width + gap_x) // (width + gap_x))))
-    requested_capacity = min(max(int(labels_per_page), 1), 12)
-    columns = min(max_columns, max(1, min(requested_capacity, 2)))
-    target_rows = min(6, math.ceil(requested_capacity / columns))
-    if target_rows == 6:
-        height = min(height, (usable_height - (target_rows - 1) * gap_y) / target_rows)
-    max_rows = min(6, max(1, int((usable_height + gap_y) // (height + gap_y))))
-    page_capacity = min(requested_capacity, columns * max_rows)
-    layout_rows = math.ceil(page_capacity / columns)
-    start_x = (page_width - (columns * width + (columns - 1) * gap_x)) / 2
-    start_y = (page_height - (layout_rows * height + (layout_rows - 1) * gap_y)) / 2
-    for index, (piece, commessa, totale) in enumerate(labels):
-        slot = index % page_capacity
-        if slot == 0:
-            pdf.add_page()
-        column, row = slot % columns, slot // columns
-        _draw_piece_label(pdf, piece, commessa, totale,
-                          start_x + column * (width + gap_x),
-                          start_y + row * (height + gap_y), width, height)
+    pdf = FPDF(orientation="P", unit="mm", format=(width, height))
+    pdf.set_margins(0, 0, 0)
+    pdf.set_auto_page_break(False)
+    for piece, commessa, totale in labels:
+        pdf.add_page()
+        _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
     return bytes(pdf.output())
 
 def generate_label_pdf(item: DistintaItem) -> bytes:
