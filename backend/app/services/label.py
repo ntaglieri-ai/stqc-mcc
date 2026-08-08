@@ -57,20 +57,27 @@ def _draw_piece_label(pdf: FPDF, piece: Piece, commessa: Commessa, totale: int,
     pdf.set_font("Helvetica", "B", 24)
     pdf.cell(logo_width, 11, "MCC", align="L")
 
-    pdf.set_xy(x + 2, y + 35.5)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(width - 4, 6.5, payload, align="C")
+    first_line, quantity_line = payload.rsplit(" Q.TA'", 1)
+    quantity_line = "Q.TA'" + quantity_line
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_xy(x + 2, y + 33)
+    pdf.cell(width - 4, 6.5, first_line, align="C")
+    pdf.set_xy(x + 2, y + 40.5)
+    pdf.cell(width - 4, 6.5, quantity_line, align="C")
 
 
 def _required_piece_label_width(piece: Piece, commessa: Commessa, totale: int) -> float:
-    """Larghezza necessaria per mantenere il payload su una sola riga."""
+    """Larghezza necessaria per mantenere entrambe le righe intere."""
     payload = format_piece_label_payload(
         commessa_display_name(commessa), piece.marca_pos, piece.progressivo, totale,
         float(piece.peso_kg) if piece.peso_kg is not None else None,
     )
+    first_line, quantity_line = payload.rsplit(" Q.TA'", 1)
+    quantity_line = "Q.TA'" + quantity_line
     measure = FPDF(unit="mm")
-    measure.set_font("Helvetica", "B", 11)
-    return min(190.0, max(70.0, measure.get_string_width(payload) + 6.0))
+    measure.set_font("Helvetica", "B", 12)
+    text_width = max(measure.get_string_width(first_line), measure.get_string_width(quantity_line))
+    return min(190.0, max(70.0, text_width + 6.0))
 
 def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
                              width_mm: float = 70, height_mm: float = 50) -> bytes:
