@@ -46,7 +46,6 @@ from backend.app.services.label import (
     format_piece_label_payload,
     generate_piece_label_pdf,
     generate_piece_labels_pdf,
-    generate_piece_labels_grid_pdf,
 )
 from backend.app.services.preproduction_scan import process_preproduction_scan
 from backend.app.services.workshop_scan import process_workshop_scan
@@ -67,7 +66,7 @@ class PieceLabelsRequest(BaseModel):
     piece_ids: list[int] = Field(..., min_length=1)
     width_mm: float = Field(70, ge=40, le=70)
     height_mm: float = Field(50, ge=40, le=50)
-    layout: str = "separate"
+    labels_per_page: int = Field(8, ge=1, le=12)
 
 
 class MouseScanRequest(BaseModel):
@@ -3019,14 +3018,12 @@ def download_commessa_piece_labels(
         )
         for piece_id in requested_ids
     ]
-    if body.layout == "grid":
-        pdf_bytes = generate_piece_labels_grid_pdf(ordered_labels)
-    else:
-        pdf_bytes = generate_piece_labels_pdf(
-            ordered_labels,
-            width_mm=body.width_mm,
-            height_mm=body.height_mm,
-        )
+    pdf_bytes = generate_piece_labels_pdf(
+        ordered_labels,
+        width_mm=body.width_mm,
+        height_mm=body.height_mm,
+        labels_per_page=body.labels_per_page,
+    )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

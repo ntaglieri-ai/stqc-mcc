@@ -116,27 +116,19 @@ def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
 
 
 def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
-                              width_mm: float = 70, height_mm: float = 50) -> bytes:
-    """Crea una pagina PDF indipendente per ogni etichetta selezionata."""
-    base_width = min(max(float(width_mm), 40), 70)
-    width = max([base_width, *(_required_piece_label_width(*label) for label in labels)])
-    height = min(max(float(height_mm), 40), 50)
-    pdf = FPDF(orientation="P", unit="mm", format=(width, height))
-    pdf.set_margins(0, 0, 0)
-    pdf.set_auto_page_break(False)
-    for piece, commessa, totale in labels:
-        pdf.add_page()
-        _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
-    return _set_actual_size_printing(bytes(pdf.output()))
-
-def generate_piece_labels_grid_pdf(labels: list[tuple[Piece, Commessa, int]]) -> bytes:
-    """Crea fogli A4 verticali 3x4 con bordi adiacenti e margini esterni."""
+                              width_mm: float = 70, height_mm: float = 50,
+                              labels_per_page: int = 8) -> bytes:
+    """Compone da 1 a 12 etichette adiacenti su ogni A4 verticale."""
+    capacity = min(max(int(labels_per_page), 1), 12)
+    columns = 1 if capacity == 1 else (2 if capacity <= 10 else 3)
+    rows = math.ceil(capacity / columns)
     page_width, page_height = 210.0, 297.0
-    columns, rows = 3, 4
-    label_width, label_height = 65.0, 50.0
-    start_x = (page_width - columns * label_width) / 2
-    start_y = (page_height - rows * label_height) / 2
-    capacity = columns * rows
+    label_width = min(float(width_mm), 70.0, (page_width - 15.0) / columns)
+    label_height = min(float(height_mm), 50.0)
+    grid_width = columns * label_width
+    grid_height = rows * label_height
+    start_x = (page_width - grid_width) / 2
+    start_y = (page_height - grid_height) / 2
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(0, 0, 0)
     pdf.set_auto_page_break(False)
