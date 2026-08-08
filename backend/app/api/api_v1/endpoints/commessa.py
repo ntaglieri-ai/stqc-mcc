@@ -66,8 +66,7 @@ class PieceLabelsRequest(BaseModel):
     piece_ids: list[int] = Field(..., min_length=1, max_length=2000)
     width_mm: float = Field(70, ge=40, le=70)
     height_mm: float = Field(50, ge=40, le=50)
-    labels_per_page: int = Field(8, ge=1, le=12)
-    labels_per_page: int = Field(8, ge=1, le=12)
+    labels_per_page: int = Field(8, ge=1, le=10)
 
 
 class MouseScanRequest(BaseModel):
