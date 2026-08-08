@@ -78,7 +78,7 @@
           <button class="btn" type="button" onclick="invertVisible()">Inverti risultati</button>
           <button class="btn" type="button" onclick="clearVisible()">Deseleziona risultati</button>
           <button class="btn" type="button" onclick="clearSelected()">Deseleziona tutto</button>
-          <label class="field" style="min-width:150px"><span>Etichette/foglio</span><select class="select" id="labels-per-page" onchange="localStorage.setItem('stqc_labels_per_page',this.value)"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8 (predefinito)</option><option value="9">9</option><option value="10">10</option></select></label>
+          <label class="field" style="min-width:150px"><span>Etichette/foglio</span><select class="select" id="labels-per-page" onchange="localStorage.setItem('stqc_labels_per_page',this.value)"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8 (predefinito)</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select></label>
           <button class="btn primary" type="button" id="print-selected" onclick="printSelected()" disabled>Stampa selezionati</button>
           <button class="btn primary" type="button" id="print-all" onclick="printAll()" disabled>Stampa tutti</button>
         </div>
@@ -89,8 +89,8 @@
   <script>
     const token=sessionStorage.getItem('stqc_token'); if(!token) location.href='/login';
     const auth=()=>({Authorization:'Bearer '+token});
-    const labelsPerPage=()=>Math.min(10,Math.max(1,Number(document.getElementById('labels-per-page')?.value||8)));
-    document.getElementById('labels-per-page').value=String(Math.min(10,Math.max(1,Number(localStorage.getItem('stqc_labels_per_page')||8))));
+    const labelsPerPage=()=>Math.min(12,Math.max(1,Number(document.getElementById('labels-per-page')?.value||8)));
+    document.getElementById('labels-per-page').value=String(Math.min(12,Math.max(1,Number(localStorage.getItem('stqc_labels_per_page')||8))));
     const parts=location.pathname.split('/').filter(Boolean);
     const commessaRef=decodeURIComponent(parts[1]||'');
     let commessaId=null, commessaCode=commessaRef, items=[], selected=new Set(), selectedCodeFilters=new Set();

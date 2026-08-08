@@ -93,7 +93,7 @@ def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
 def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
                               width_mm: float = 70, height_mm: float = 50,
                               labels_per_page: int = 8) -> bytes:
-    """Impagina da 1 a 10 etichette su ogni A4 verticale."""
+    """Impagina da 1 a 12 etichette indipendenti su ogni A4 verticale."""
     base_width = min(max(float(width_mm), 40), 70)
     width = max([base_width, *(_required_piece_label_width(*label) for label in labels)])
     height = min(max(float(height_mm), 40), 50)
@@ -104,9 +104,12 @@ def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
     usable_width = page_width - 2 * page_margin
     usable_height = page_height - 2 * page_margin
     max_columns = min(2, max(1, int((usable_width + gap_x) // (width + gap_x))))
-    max_rows = min(5, max(1, int((usable_height + gap_y) // (height + gap_y))))
-    requested_capacity = min(max(int(labels_per_page), 1), 10)
+    requested_capacity = min(max(int(labels_per_page), 1), 12)
     columns = min(max_columns, max(1, min(requested_capacity, 2)))
+    target_rows = min(6, math.ceil(requested_capacity / columns))
+    if target_rows == 6:
+        height = min(height, (usable_height - (target_rows - 1) * gap_y) / target_rows)
+    max_rows = min(6, max(1, int((usable_height + gap_y) // (height + gap_y))))
     page_capacity = min(requested_capacity, columns * max_rows)
     layout_rows = math.ceil(page_capacity / columns)
     start_x = (page_width - (columns * width + (columns - 1) * gap_x)) / 2
