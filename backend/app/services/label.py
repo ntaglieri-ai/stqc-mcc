@@ -129,6 +129,30 @@ def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
         _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
     return _set_actual_size_printing(bytes(pdf.output()))
 
+def generate_piece_labels_grid_pdf(labels: list[tuple[Piece, Commessa, int]]) -> bytes:
+    """Crea fogli A4 verticali 3x4 con bordi adiacenti e margini esterni."""
+    page_width, page_height = 210.0, 297.0
+    columns, rows = 3, 4
+    label_width, label_height = 65.0, 50.0
+    start_x = (page_width - columns * label_width) / 2
+    start_y = (page_height - rows * label_height) / 2
+    capacity = columns * rows
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_margins(0, 0, 0)
+    pdf.set_auto_page_break(False)
+    for index, (piece, commessa, totale) in enumerate(labels):
+        slot = index % capacity
+        if slot == 0:
+            pdf.add_page()
+        column, row = slot % columns, slot // columns
+        _draw_piece_label(
+            pdf, piece, commessa, totale,
+            start_x + column * label_width,
+            start_y + row * label_height,
+            label_width, label_height,
+        )
+    return _set_actual_size_printing(bytes(pdf.output()))
+
 def generate_label_pdf(item: DistintaItem) -> bytes:
     """Genera un PDF etichetta A6 (105x148 mm) con QR e dati del pezzo."""
     piece_code = item.part_number or "-"
