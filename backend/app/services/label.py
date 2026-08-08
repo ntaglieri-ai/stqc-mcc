@@ -3,6 +3,8 @@ import io
 import math
 
 from fpdf import FPDF
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import BooleanObject, DictionaryObject, NameObject
 from backend.app.models.commessa import Commessa, Piece
 from backend.app.models.warehouse import DistintaItem
 from backend.app.services.qr import generate_qr_for_payload, generate_qr_for_uuid
@@ -59,7 +61,13 @@ def _draw_piece_label(pdf: FPDF, piece: Piece, commessa: Commessa, totale: int,
 
     first_line, quantity_line = payload.rsplit(" Q.TA'", 1)
     quantity_line = "Q.TA'" + quantity_line
-    pdf.set_font("Helvetica", "B", 12)
+    font_size = 12.0
+    while font_size > 8.0:
+        pdf.set_font("Helvetica", "B", font_size)
+        if max(pdf.get_string_width(first_line), pdf.get_string_width(quantity_line)) <= width - 4:
+            break
+        font_size -= 0.5
+    pdf.set_font("Helvetica", "B", font_size)
     pdf.set_xy(x + 2, y + 33)
     pdf.cell(width - 4, 6.5, first_line, align="C")
     pdf.set_xy(x + 2, y + 40.5)
@@ -77,7 +85,24 @@ def _required_piece_label_width(piece: Piece, commessa: Commessa, totale: int) -
     measure = FPDF(unit="mm")
     measure.set_font("Helvetica", "B", 12)
     text_width = max(measure.get_string_width(first_line), measure.get_string_width(quantity_line))
-    return min(190.0, max(70.0, text_width + 6.0))
+    return min(70.0, max(40.0, text_width + 6.0))
+
+def _set_actual_size_printing(pdf_bytes: bytes) -> bytes:
+    """Disabilita il ridimensionamento automatico nel dialogo di stampa PDF."""
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    writer = PdfWriter()
+    writer.clone_document_from_reader(reader)
+    preferences = writer.root_object.get("/ViewerPreferences")
+    if preferences is None:
+        preferences = DictionaryObject()
+    else:
+        preferences = preferences.get_object()
+    preferences[NameObject("/PrintScaling")] = NameObject("/None")
+    preferences[NameObject("/PickTrayByPDFSize")] = BooleanObject(True)
+    writer.root_object[NameObject("/ViewerPreferences")] = preferences
+    output = io.BytesIO()
+    writer.write(output)
+    return output.getvalue()
 
 def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
                              width_mm: float = 70, height_mm: float = 50) -> bytes:
@@ -87,7 +112,7 @@ def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
     pdf = FPDF(orientation="L", unit="mm", format=(height, width))
     pdf.set_margins(0, 0, 0); pdf.set_auto_page_break(False); pdf.add_page()
     _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
-    return bytes(pdf.output())
+    return _set_actual_size_printing(bytes(pdf.output()))
 
 
 def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
@@ -102,7 +127,7 @@ def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
     for piece, commessa, totale in labels:
         pdf.add_page()
         _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
-    return bytes(pdf.output())
+    return _set_actual_size_printing(bytes(pdf.output()))
 
 def generate_label_pdf(item: DistintaItem) -> bytes:
     """Genera un PDF etichetta A6 (105x148 mm) con QR e dati del pezzo."""
