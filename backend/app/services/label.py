@@ -38,15 +38,17 @@ def format_piece_label_payload(
 
 
 def _draw_piece_label(pdf: FPDF, piece: Piece, commessa: Commessa, totale: int,
-                      x: float, y: float, width: float = 70, height: float = 50) -> None:
+                      x: float, y: float, width: float = 70, height: float = 50,
+                      draw_border: bool = True) -> None:
     """Disegna un'etichetta orizzontale con bordo di taglio visibile."""
     payload = format_piece_label_payload(
         commessa_display_name(commessa), piece.marca_pos, piece.progressivo, totale,
         float(piece.peso_kg) if piece.peso_kg is not None else None,
     )
-    pdf.set_draw_color(0, 0, 0)
-    pdf.set_line_width(0.35)
-    pdf.rect(x, y, width, height)
+    if draw_border:
+        pdf.set_draw_color(0, 0, 0)
+        pdf.set_line_width(0.35)
+        pdf.rect(x, y, width, height)
     cached_qr = getattr(piece, "_label_qr_base64", None)
     qr_bytes = base64.b64decode(cached_qr or generate_qr_for_payload(payload))
     qr_side = min(28.0, height - 20, width * 0.42)
@@ -115,18 +117,62 @@ def generate_piece_label_pdf(piece: Piece, commessa: Commessa, totale: int, *,
     return _set_actual_size_printing(bytes(pdf.output()))
 
 
+def _draw_shared_label_grid(pdf: FPDF, occupied: set[tuple[int, int]], x0: float, y0: float,
+                            width: float, height: float) -> None:
+    pdf.set_draw_color(0, 0, 0)
+    pdf.set_line_width(0.35)
+    for row, col in occupied:
+        x = x0 + col * width
+        y = y0 + row * height
+        pdf.line(x, y, x + width, y)
+        pdf.line(x, y, x, y + height)
+        if (row, col + 1) not in occupied:
+            pdf.line(x + width, y, x + width, y + height)
+        if (row + 1, col) not in occupied:
+            pdf.line(x, y + height, x + width, y + height)
+
+
 def generate_piece_labels_pdf(labels: list[tuple[Piece, Commessa, int]], *,
-                              width_mm: float = 70, height_mm: float = 50) -> bytes:
-    """Crea una pagina PDF indipendente per ogni etichetta selezionata."""
+                              width_mm: float = 70, height_mm: float = 50,
+                              layout: str = "single", columns: int = 2,
+                              rows: int = 5, gap_mm: float = 0) -> bytes:
+    """Crea PDF A4 in modalità singola o griglia."""
     base_width = min(max(float(width_mm), 40), 70)
     width = max([base_width, *(_required_piece_label_width(*label) for label in labels)])
     height = min(max(float(height_mm), 40), 50)
-    pdf = FPDF(orientation="P", unit="mm", format=(width, height))
+    page_width, page_height = 210.0, 297.0
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_margins(0, 0, 0)
     pdf.set_auto_page_break(False)
-    for piece, commessa, totale in labels:
+    if layout != "grid":
+        x = (page_width - width) / 2
+        y = (page_height - height) / 2
+        for piece, commessa, totale in labels:
+            pdf.add_page()
+            _draw_piece_label(pdf, piece, commessa, totale, x, y, width, height)
+        return _set_actual_size_printing(bytes(pdf.output()))
+
+    columns = max(1, min(int(columns or 2), 4))
+    rows = max(1, min(int(rows or 5), 8))
+    gap = max(0.0, min(float(gap_mm or 0), 20.0))
+    grid_width = columns * width + (columns - 1) * gap
+    grid_height = rows * height + (rows - 1) * gap
+    x0 = (page_width - grid_width) / 2
+    y0 = (page_height - grid_height) / 2
+    per_page = max(1, columns * rows)
+    for page_start in range(0, len(labels), per_page):
+        page_labels = labels[page_start:page_start + per_page]
         pdf.add_page()
-        _draw_piece_label(pdf, piece, commessa, totale, 0, 0, width, height)
+        occupied: set[tuple[int, int]] = set()
+        for slot, (piece, commessa, totale) in enumerate(page_labels):
+            row = slot // columns
+            col = slot % columns
+            x = x0 + col * (width + gap)
+            y = y0 + row * (height + gap)
+            occupied.add((row, col))
+            _draw_piece_label(pdf, piece, commessa, totale, x, y, width, height, draw_border=gap > 0)
+        if gap == 0:
+            _draw_shared_label_grid(pdf, occupied, x0, y0, width, height)
     return _set_actual_size_printing(bytes(pdf.output()))
 
 def generate_label_pdf(item: DistintaItem) -> bytes:

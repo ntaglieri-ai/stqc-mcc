@@ -66,6 +66,10 @@ class PieceLabelsRequest(BaseModel):
     piece_ids: list[int] = Field(..., min_length=1, max_length=2000)
     width_mm: float = Field(70, ge=40, le=70)
     height_mm: float = Field(50, ge=40, le=50)
+    layout: str = Field("single", pattern="^(single|grid)$")
+    columns: int = Field(2, ge=1, le=4)
+    rows: int = Field(5, ge=1, le=8)
+    gap_mm: float = Field(0, ge=0, le=20)
 
 
 class MouseScanRequest(BaseModel):
@@ -3021,6 +3025,10 @@ def download_commessa_piece_labels(
         ordered_labels,
         width_mm=body.width_mm,
         height_mm=body.height_mm,
+        layout=body.layout,
+        columns=body.columns,
+        rows=body.rows,
+        gap_mm=body.gap_mm,
     )
     return Response(
         content=pdf_bytes,
