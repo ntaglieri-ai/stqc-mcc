@@ -60,6 +60,21 @@ def _join_parts(*parts) -> str:
     return " · ".join(str(part) for part in parts if part not in (None, ""))
 
 
+def _piece_total(db: Session, piece: Piece) -> int:
+    return max(
+        db.query(Piece)
+        .filter(
+            Piece.revisione_id == piece.revisione_id,
+            Piece.marca_pos == piece.marca_pos,
+            Piece.distinta_item_id.isnot(None),
+            Piece.qr_attivo.is_(True),
+        )
+        .count(),
+        int(piece.progressivo or 1),
+        1,
+    )
+
+
 def build_qr_detail(db: Session, raw: str) -> dict:
     value = _value(raw)
     warehouse = db.query(WarehouseItem).filter(WarehouseItem.uuid == value.lower()).first()
@@ -142,6 +157,9 @@ def build_qr_detail(db: Session, raw: str) -> dict:
     piece = candidates[0]
     commessa = db.get(Commessa, piece.commessa_id)
     origin = db.get(WarehouseItem, piece.materiale_origine_id) if piece.materiale_origine_id else None
+    total_for_code = _piece_total(db, piece)
+    progress_label = f"{int(piece.progressivo or 1)} di {total_for_code}"
+    display_code = piece.marca_pos or piece.qr_code
     events = (
         db.query(PieceScanEvent)
         .filter(PieceScanEvent.piece_id == piece.id)
@@ -159,12 +177,12 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         for row in db.query(Workstation).filter(Workstation.code.in_(workstation_codes)).all()
     } if workstation_codes else {}
     fields = {
-        "UUID": piece.uuid,
-        "Codice pezzo": piece.qr_code,
-        "Marca posizione": piece.marca_pos,
-        "Progressivo": piece.progressivo,
+        "Marca/Pos.": display_code,
+        "Progressivo": progress_label,
+        "Q.tà totale": total_for_code,
         "Commessa": commessa.codice if commessa else piece.commessa_id,
         "Revisione": piece.revisione_id,
+        "UUID": piece.uuid,
         "Assemblato": piece.assemblato_id,
         "Tipo profilo": piece.tipo_profilo,
         "Profilo": piece.profilo,
@@ -173,7 +191,8 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         "Lunghezza mm": piece.lunghezza_mm,
         "Larghezza mm": piece.larghezza_mm,
         "Spessore mm": piece.spessore_mm,
-        "Peso kg": piece.peso_kg,
+        "Peso netto kg per uno": piece.peso_kg,
+        "Peso netto kg totale": (piece.peso_kg * total_for_code) if piece.peso_kg is not None else None,
         "Colata": piece.colata,
         "Lotto": piece.lotto,
         "Certificato 3.1": piece.certificato_31,
@@ -186,6 +205,7 @@ def build_qr_detail(db: Session, raw: str) -> dict:
     piece_subtitle = _join_parts(
         _status_label(piece.stato_attuale),
         commessa.codice if commessa else None,
+        progress_label,
         piece.assemblato_id,
         piece.profilo,
     )
@@ -194,7 +214,11 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         "entity_label": "Pezzo da distinta",
         "id": piece.id,
         "uuid": piece.uuid,
-        "code": piece.qr_code,
+        "code": f"{display_code} · {progress_label}",
+        "technical_code": piece.qr_code,
+        "display_code": display_code,
+        "progress_label": progress_label,
+        "progressivo_totale": total_for_code,
         "status": piece.stato_attuale,
         "status_label": _status_label(piece.stato_attuale),
         "subtitle": piece_subtitle,

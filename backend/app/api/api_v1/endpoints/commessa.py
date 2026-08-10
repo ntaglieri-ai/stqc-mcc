@@ -121,12 +121,19 @@ def _warehouse_item_mapping_read(item: WarehouseItem, pieces: list[Piece]) -> di
     }
 
 
-def _piece_qr_read(item: Piece) -> dict:
+def _piece_qr_read(item: Piece, *, total_for_code: int | None = None) -> dict:
+    total = max(int(total_for_code or item.progressivo or 1), 1)
+    progressivo = max(int(item.progressivo or 1), 1)
+    display_code = item.marca_pos or item.qr_code
+    progress_label = f"{progressivo} di {total}"
     return {
         "id": item.id,
         "uuid": item.uuid,
         "distinta_item_id": item.distinta_item_id,
         "qr_code": item.qr_code,
+        "display_code": display_code,
+        "progress_label": progress_label,
+        "progressivo_totale": total,
         "part_number": item.marca_pos,
         "marca_pos": item.marca_pos,
         "instance_number": item.progressivo,
@@ -2863,6 +2870,15 @@ def list_commessa_item_qr(
         .all()
     )
     commessa = db.get(Commessa, commessa_id)
+    totals = _piece_totals(
+        db.query(Piece)
+        .filter(
+            Piece.revisione_id == revisione.id,
+            Piece.distinta_item_id.isnot(None),
+            Piece.qr_attivo.is_(True),
+        )
+        .all()
+    )
 
     return {
         "commessa_id": commessa_id,
@@ -2871,7 +2887,10 @@ def list_commessa_item_qr(
         "skip": max(skip, 0),
         "limit": safe_limit,
         "items": [
-            {**_piece_qr_read(item), "commessa": commessa.codice if commessa else str(commessa_id)}
+            {
+                **_piece_qr_read(item, total_for_code=totals.get(item.marca_pos or "")),
+                "commessa": commessa.codice if commessa else str(commessa_id),
+            }
             for item in items
         ],
     }
@@ -2915,6 +2934,15 @@ def list_commessa_spedizione_qr(
         .all()
     )
     warm_qr_payload_cache([item.qr_payload for item in items])
+    totals = _piece_totals(
+        db.query(Piece)
+        .filter(
+            Piece.revisione_id == revisione.id,
+            Piece.distinta_item_id.isnot(None),
+            Piece.qr_attivo.is_(True),
+        )
+        .all()
+    )
     return {
         "commessa_id": commessa_id,
         "revisione_id": revisione.id,
@@ -2922,7 +2950,7 @@ def list_commessa_spedizione_qr(
         "skip": max(skip, 0),
         "limit": safe_limit,
         "items": [
-            {**_piece_qr_read(item), "commessa": commessa.codice}
+            {**_piece_qr_read(item, total_for_code=totals.get(item.marca_pos or "")), "commessa": commessa.codice}
             for item in items
         ],
     }
@@ -3338,7 +3366,17 @@ def update_commessa_piece_qr(
     piece.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(piece)
-    return _piece_qr_read(piece)
+    total = (
+        db.query(Piece)
+        .filter(
+            Piece.revisione_id == piece.revisione_id,
+            Piece.marca_pos == piece.marca_pos,
+            Piece.distinta_item_id.isnot(None),
+            Piece.qr_attivo.is_(True),
+        )
+        .count()
+    )
+    return _piece_qr_read(piece, total_for_code=total)
 
 
 def _is_assembly_station(value: str | None) -> bool:
