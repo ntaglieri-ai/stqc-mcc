@@ -781,7 +781,7 @@ function renderMacroFlow() {
   const summary = analysisData.summary || {};
   const assemblySummary = assemblyData?.summary || {};
   const assemblyProgress = Number(assemblySummary.progress || 0);
-  const officeState = r.step51_completato || Number(summary.n_qr_attivi || 0) > 0 ? "IN_CORSO" : "NON_INIZIATA";
+  const officeState = Number(summary.n_qr_attivi || 0) > 0 ? "IN_CORSO" : "NON_INIZIATA";
   const assemblyState = assemblyProgress >= 100 ? "COMPLETATA" : assemblyProgress > 0 ? "IN_CORSO" : "NON_INIZIATA";
   const cards = [
     { title: "Analisi commessa", state: "COMPLETATA", sub: "File acquisiti e distinta pronta", href: commessaUrl("analisi") },
@@ -820,12 +820,10 @@ function renderPage() {
           </span>
           ${r.predistinta ? '<span class="status pre">Pre-distinta</span>' : ""}
         </div>
-        ${r.step51_completato ? `
           <button class="btn cta header-office-btn" onclick="openQrRegistry()">
             Apri In officina
             <small>${fmt(s.n_qr_attivi)} QR pezzi attivi</small>
           </button>
-        ` : ""}
       </div>
     </header>
 
@@ -1062,25 +1060,6 @@ async function uploadDefinitive(event) {
   }
 }
 
-async function generateStep51() {
-  const button = document.getElementById("generate-qr-btn");
-  const feedback = document.getElementById("step51-feedback");
-  button.disabled = true;
-  feedback.textContent = "Generazione dei record QR in corso…";
-  try {
-    const response = await fetch(`/api/v1/commesse/${commessaId}/step-5-1`, {
-      method: "POST", headers: auth(),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || "Impossibile generare i QR della commessa");
-    await load();
-  } catch (error) {
-    feedback.className = "feedback error";
-    feedback.textContent = error.message || String(error);
-    button.disabled = false;
-  }
-}
-
 function searchQrItems(value) {
   qrQuery = String(value || "").trim();
   qrPage = 0;
@@ -1110,7 +1089,7 @@ async function loadQrItems() {
   });
   if (qrQuery) params.set("q", qrQuery);
   try {
-    const response = await fetch(`/api/v1/commesse/${commessaId}/step-5-1/items?${params}`, { headers: auth() });
+    const response = await fetch(`/api/v1/commesse/${commessaId}/qr/items?${params}`, { headers: auth() });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || "QR non disponibili");
     currentQrItems = data.items || [];
@@ -1264,7 +1243,7 @@ async function saveQrManualEdit() {
       qualita: document.getElementById("qr-edit-qualita").value.trim() || null,
       stato: document.getElementById("qr-edit-stato").value.trim() || null,
     };
-    const response = await fetch(`/api/v1/commesse/${commessaId}/step-5-1/items/${currentQrDetail.id}`, {
+    const response = await fetch(`/api/v1/commesse/${commessaId}/qr/items/${currentQrDetail.id}`, {
       method: "PATCH",
       headers: { ...auth(), "Content-Type": "application/json" },
       body: JSON.stringify(payload),

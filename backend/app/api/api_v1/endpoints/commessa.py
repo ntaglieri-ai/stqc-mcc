@@ -165,7 +165,7 @@ def _piece_qr_read(item: Piece, *, total_for_code: int | None = None) -> dict:
         "qr_image_url": f"/piece-qr-image/{item.uuid}.png",
         "resolve_url": f"/p/{item.uuid}",
         "qr_payload": item.qr_payload,
-        "label_url": f"/api/v1/commesse/{item.commessa_id}/step-5-1/items/{item.id}/label.pdf",
+        "label_url": f"/api/v1/commesse/{item.commessa_id}/qr/items/{item.id}/label.pdf",
     }
 
 
@@ -330,22 +330,12 @@ def _generate_revision_piece_labels(db: Session, commessa: Commessa, revisione: 
             if not item.stato_tracciamento or item.stato_tracciamento == "NON_GENERATO":
                 item.stato_tracciamento = "DA_PRODURRE"
             item.qr_code = generate_qr_for_payload(piece.qr_payload)
-    if revisione.step51_completed_at is None:
-        revisione.step51_completed_at = now
     return len(pieces)
 
 
-def _ensure_revision_qr_consistency(db: Session, revisione: CommessaRevisione, *, force: bool = False) -> int:
-    """Rende sempre coerenti i QR già generati per la revisione.
-
-    Regola: se lo step QR è completato, ogni Piece della revisione deve avere
-    QR attivo, payload scansionabile e status ACTIVE.
-    """
-    if revisione.step51_completed_at is None and not force:
-        return 0
+def _ensure_revision_qr_consistency(db: Session, revisione: CommessaRevisione) -> int:
+    """Mantiene pezzi e QR coerenti con la distinta della revisione, senza attivazioni manuali."""
     now = datetime.utcnow()
-    if revisione.step51_completed_at is None and force:
-        revisione.step51_completed_at = now
     existing_by_item_id = {
         piece.distinta_item_id: piece
         for piece in db.query(Piece).filter(Piece.revisione_id == revisione.id).all()
@@ -674,7 +664,6 @@ async def create_spedizione_ad_hoc(
             stato_analisi="PRONTA",
             report_analisi=report,
             step4_completed_at=datetime.utcnow(),
-            step51_completed_at=datetime.utcnow(),
             note=note,
         )
         db.add(revisione)
@@ -849,12 +838,6 @@ def update_commessa(commessa_id: int, commessa_in: CommessaUpdate, db: Session =
         if not title:
             raise HTTPException(status_code=422, detail="Il titolo commessa non può essere vuoto")
         data["descrizione"] = title
-    target_status = data.get("status")
-    if target_status == CommessaStatus.IN_PRODUZIONE and commessa.status != CommessaStatus.IN_PRODUZIONE:
-        raise HTTPException(
-            status_code=409,
-            detail="Usa l'endpoint /avvia-produzione per avviare la produzione",
-        )
     old_title = commessa_display_name(commessa)
     for field, value in data.items():
         setattr(commessa, field, value)
@@ -1130,7 +1113,6 @@ async def create_analisi_commessa(
         "predistinta":   revisione.predistinta,
         "corrente":      revisione.corrente,
         "step4_completed_at": revisione.step4_completed_at,
-        "step51_completed_at": revisione.step51_completed_at,
         "qr_attivi": qr_created,
         "qr_spedizione": shipping_qr_created,
         "validation":    report,
@@ -1158,7 +1140,6 @@ def list_revisioni(commessa_id: int, db: Session = Depends(get_db)):
             "stato_analisi":    r.stato_analisi,
             "report_analisi":   r.report_analisi,
             "step4_completed_at": r.step4_completed_at,
-            "step51_completed_at": r.step51_completed_at,
             "note":            r.note,
             "imported_at":     r.imported_at,
             "n_items":         db.query(DistintaItem).filter(DistintaItem.revisione_id == r.id).count(),
@@ -1974,8 +1955,6 @@ def get_analisi_commessa(commessa_id: int, db: Session = Depends(get_db)):
             "report": revisione.report_analisi,
             "imported_at": revisione.imported_at,
             "step4_completed_at": revisione.step4_completed_at,
-            "step51_completed_at": revisione.step51_completed_at,
-            "step51_completato": revisione.step51_completed_at is not None,
             "files": {
                 "lista_pezzi": revisione.file_lavorazioni,
                 "assemblaggi": revisione.file_assemblaggi,
@@ -2772,65 +2751,7 @@ def mark_post_officina_item_found(
     return _post_officina_item_read(row)
 
 
-@router.post("/{commessa_id}/step-5-1")
-def activate_commessa_item_qr(commessa_id: int, db: Session = Depends(get_db)):
-    """Attiva record e QR dei pezzi della revisione corrente.
-
-    Non associa materiali, non prenota e non movimenta il magazzino.
-    """
-    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
-    if commessa is None:
-        raise HTTPException(404, "Commessa non trovata")
-    revisione = _latest_revision(db, commessa_id)
-    if revisione is None:
-        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
-    if not revisione.corrente:
-        raise HTTPException(409, "La revisione non è più corrente")
-    if revisione.stato_analisi != "PRONTA":
-        raise HTTPException(409, "L'analisi file non è pronta: verifica i dati base prima di generare i QR")
-
-    pieces = db.query(Piece).filter(
-        Piece.revisione_id == revisione.id,
-        Piece.distinta_item_id.isnot(None),
-    ).all()
-    total = len(pieces)
-    if total == 0:
-        raise HTTPException(409, "La revisione non contiene pezzi fisici")
-
-    item_ids = [piece.distinta_item_id for piece in pieces if piece.distinta_item_id]
-    items_by_id = {
-        item.id: item
-        for item in db.query(DistintaItem).filter(DistintaItem.id.in_(item_ids)).all()
-    } if item_ids else {}
-    totals = _piece_totals(pieces)
-    now = datetime.utcnow()
-    for piece in pieces:
-        piece.qr_payload = _expected_piece_payload(piece, commessa, totals)
-        piece.qr_attivo = True
-        piece.qr_status = "ACTIVE"
-        piece.stato_attuale = "DA_PRODURRE"
-        piece.updated_at = now
-        item = items_by_id.get(piece.distinta_item_id)
-        if item:
-            item.qr_attivo = True
-            item.stato_tracciamento = "DA_PRODURRE"
-            item.qr_code = generate_qr_for_payload(piece.qr_payload)
-    if revisione.step51_completed_at is None:
-        revisione.step51_completed_at = now
-    db.commit()
-    _ensure_revision_qr_consistency(db, revisione)
-    return {
-        "commessa_id": commessa_id,
-        "revisione_id": revisione.id,
-        "step": "5.1",
-        "stato": "COMPLETATO",
-        "qr_attivi": total,
-        "predistinta": revisione.predistinta,
-        "step51_completed_at": revisione.step51_completed_at,
-    }
-
-
-@router.get("/{commessa_id}/step-5-1/items")
+@router.get("/{commessa_id}/qr/items")
 def list_commessa_item_qr(
     commessa_id: int,
     skip: int = 0,
@@ -2841,8 +2762,6 @@ def list_commessa_item_qr(
     revisione = _latest_revision(db, commessa_id)
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
-    if revisione.step51_completed_at is None:
-        raise HTTPException(409, "Lo Step 5.1 non è ancora stato completato")
     _ensure_revision_qr_consistency(db, revisione)
 
     query = db.query(Piece).filter(
@@ -2956,7 +2875,7 @@ def list_commessa_spedizione_qr(
     }
 
 
-@router.get("/{commessa_id}/step-5-1/items/{piece_id}/label.pdf")
+@router.get("/{commessa_id}/qr/items/{piece_id}/label.pdf")
 def download_commessa_piece_label(
     commessa_id: int,
     piece_id: int,
@@ -3000,7 +2919,7 @@ def download_commessa_piece_label(
     )
 
 
-@router.post("/{commessa_id}/step-5-1/labels.pdf")
+@router.post("/{commessa_id}/qr/labels.pdf")
 def download_commessa_piece_labels(
     commessa_id: int,
     body: PieceLabelsRequest,
@@ -3065,7 +2984,7 @@ def download_commessa_piece_labels(
     )
 
 
-@router.get("/{commessa_id}/step-5-1/warehouse-mapping")
+@router.get("/{commessa_id}/qr/warehouse-mapping")
 def get_commessa_warehouse_mapping(
     commessa_id: int,
     db: Session = Depends(get_db),
@@ -3121,7 +3040,7 @@ def commessa_scan_test_kit(
     revisione = _latest_revision(db, commessa_id)
     if revisione is None:
         raise HTTPException(404, "Nessuna analisi caricata per la commessa")
-    _ensure_revision_qr_consistency(db, revisione, force=True)
+    _ensure_revision_qr_consistency(db, revisione)
 
     workstations = (
         db.query(Workstation)
@@ -3338,7 +3257,7 @@ def reset_commessa_mouse_scan_test(
     }
 
 
-@router.patch("/{commessa_id}/step-5-1/items/{piece_id}")
+@router.patch("/{commessa_id}/qr/items/{piece_id}")
 def update_commessa_piece_qr(
     commessa_id: int,
     piece_id: int,
@@ -3694,152 +3613,6 @@ def update_fase(
     db.commit()
     db.refresh(fase)
     return fase
-
-
-# ── Avvia Produzione ──────────────────────────────────────────────────────────
-
-@router.post("/{commessa_id}/avvia-produzione", status_code=201)
-def avvia_produzione(commessa_id: int, db: Session = Depends(get_db)):
-    _logger.info("[avvia] START commessa_id=%d", commessa_id)
-
-    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
-    if commessa is None:
-        _logger.warning("[avvia] commessa %d non trovata", commessa_id)
-        raise HTTPException(404, "Commessa non trovata")
-    if commessa.status != CommessaStatus.APERTA:
-        raise HTTPException(409, f"Commessa non è APERTA (stato attuale: {commessa.status})")
-
-    revisione = _latest_revision(db, commessa_id)
-    if revisione is None:
-        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
-    if revisione.predistinta:
-        raise HTTPException(409, "Produzione bloccata: la revisione corrente è una pre-distinta")
-    if revisione.step51_completed_at is None:
-        raise HTTPException(409, "Completa lo Step 5.1 prima di avviare la produzione")
-
-    existing = db.query(PezzoPercorso).filter(PezzoPercorso.commessa_id == commessa_id).first()
-    if existing:
-        raise HTTPException(409, "Produzione già avviata per questa commessa")
-
-    # ── 1. Fasi operative ──────────────────────────────────────────────────────
-    fasi = (
-        db.query(FaseOperativa)
-        .filter(FaseOperativa.commessa_id == commessa_id)
-        .all()
-    )
-    _logger.info("[avvia] fasi trovate: %d (distinct marca_pos: %d)",
-                 len(fasi), len({f.marca_pos for f in fasi if f.marca_pos}))
-    if not fasi:
-        raise HTTPException(422, "Nessuna fase operativa importata. Importa prima le fasi.")
-
-    # ── 2. Distinta items — cerca per commessa_id O per commessa_reference ────
-    # Alcuni items hanno commessa_id=NULL ma commessa_reference=codice commessa
-    items = (
-        db.query(DistintaItem)
-        .filter(
-            or_(
-                DistintaItem.commessa_id == commessa_id,
-                DistintaItem.commessa_reference == commessa.codice,
-            )
-        )
-        .all()
-    )
-    _logger.info("[avvia] distinta items trovati: %d (per commessa_id=%d OR ref='%s')",
-                 len(items), commessa_id, commessa.codice)
-
-    # ── 3. Raggruppa per (marca_pos, instance_number) — un row per istanza fisica
-    # Struttura: instances_by_part[marca_pos] = list of (instance_number, first_item)
-    # Un'istanza = la prima distinta_item con quella (part_number, instance_number)
-    instances_by_part: dict[str, list] = defaultdict(list)
-    seen_keys: set = set()
-    for item in sorted(items, key=lambda x: (x.part_number or "", x.instance_number or 0, x.id)):
-        if not item.part_number:
-            continue
-        if item.instance_number is None:
-            # Riga riepilogativa (qty totale) — skippa, non è un'istanza fisica
-            continue
-        key = (item.part_number, item.instance_number)
-        if key not in seen_keys:
-            seen_keys.add(key)
-            instances_by_part[item.part_number].append(item)
-
-    _logger.info("[avvia] istanze fisiche distinte: %d", sum(len(v) for v in instances_by_part.values()))
-    for part, inst_list in sorted(instances_by_part.items()):
-        _logger.info("[avvia]   %-12s → %d istanze", part, len(inst_list))
-
-    # ── 4. Raggruppa fasi per marca_pos ───────────────────────────────────────
-    by_marca: dict = defaultdict(list)
-    for f in fasi:
-        if f.marca_pos:
-            by_marca[f.marca_pos].append(f)
-
-    _logger.info("[avvia] marca_pos con fasi: %s", sorted(by_marca.keys()))
-
-    # Controlla quale marca_pos ha corrispondenza in distinta
-    matched = [mp for mp in by_marca if mp in instances_by_part]
-    unmatched = [mp for mp in by_marca if mp not in instances_by_part]
-    _logger.info("[avvia] marca_pos con match distinta: %s", matched)
-    _logger.info("[avvia] marca_pos SENZA match distinta (verranno tracciati senza item_id): %s", unmatched)
-
-    # ── 5. Crea righe pezzo_percorso ───────────────────────────────────────────
-    percorso_rows = []
-    for marca_pos, fase_list in by_marca.items():
-        sorted_fasi = sorted(fase_list, key=lambda f: (f.sequenza if f.sequenza is not None else 9999, f.id))
-        instances = instances_by_part.get(marca_pos, [])
-
-        if instances:
-            # Un row per (istanza fisica × fase)
-            for item in instances:
-                for idx, fase in enumerate(sorted_fasi):
-                    percorso_rows.append(PezzoPercorso(
-                        commessa_id=commessa_id,
-                        item_id=item.id,
-                        fase_id=fase.id,
-                        marca_pos=marca_pos,
-                        instance_number=item.instance_number,
-                        sequenza=fase.sequenza,
-                        stato=PezzoStato.SBLOCCATA if idx == 0 else PezzoStato.BLOCCATA,
-                        postazione=fase.postazione,
-                    ))
-        else:
-            # Nessun item in distinta — crea tracking generico senza item_id
-            for idx, fase in enumerate(sorted_fasi):
-                percorso_rows.append(PezzoPercorso(
-                    commessa_id=commessa_id,
-                    item_id=None,
-                    fase_id=fase.id,
-                    marca_pos=marca_pos,
-                    instance_number=None,
-                    sequenza=fase.sequenza,
-                    stato=PezzoStato.SBLOCCATA if idx == 0 else PezzoStato.BLOCCATA,
-                    postazione=fase.postazione,
-                ))
-
-    _logger.info("[avvia] pezzo_percorso rows da inserire: %d", len(percorso_rows))
-    db.add_all(percorso_rows)
-
-    # ── 6. Visibilità postazioni ──────────────────────────────────────────────
-    # Il vecchio sblocco automatico per utenti di postazione è stato disattivato:
-    # l'avanzamento produzione sarà guidato dagli eventi QR reali di postazione.
-    unlocked_count = 0
-    first_postazioni = {
-        row.postazione
-        for row in percorso_rows
-        if row.stato == PezzoStato.SBLOCCATA and row.postazione
-    }
-
-    # ── 7. Porta commessa in produzione ───────────────────────────────────────
-    commessa.status = CommessaStatus.IN_PRODUZIONE
-    db.commit()
-
-    _logger.info("[avvia] DONE — %d righe percorso, %d operatori sbloccati", len(percorso_rows), unlocked_count)
-    return {
-        "pezzi_tipo":          len(by_marca),
-        "istanze_fisiche":     len(seen_keys),
-        "percorsi_creati":     len(percorso_rows),
-        "prime_postazioni":    sorted(first_postazioni),
-        "operatori_sbloccati": unlocked_count,
-    }
 
 
 @router.get("/{commessa_id}/percorso")

@@ -12,7 +12,7 @@ Gestionale operativo per carpenteria metallica pesante, con tracciamento QR dei 
 | --- | --- | --- |
 | Home direzionale | Implementata | "Vista Direttore" con moduli dashboard, commesse e magazzino in colonna. Dashboard con KPI reali ancora da popolare. |
 | Magazzino | Implementato / in evoluzione | Inventario, movimenti, QR per singolo elemento fisico, stampa etichette, filtri, DDT. |
-| Analisi commessa | Implementata fino a Step 5.1 | Import file commessa, riepilogo, classificazione pezzi, generazione DB pezzi e QR commessa. |
+| Analisi commessa | Implementata | Import file commessa, riepilogo, classificazione pezzi, generazione DB pezzi e QR commessa. |
 | DDT magazzino | Implementato come workflow preliminare | Parsing PDF, proposta materiali, review editabile, conferma manuale, creazione QR magazzino. |
 | Produzione/officina | **Implementato** | Scan via HTTP (scanner NETUM DS2800), postazioni, tracking pezzo per pezzo. |
 | Post-officina | **Implementato** | Lavorazioni esterne e "in cantiere" con logica start/end su fasi dedicate. |
@@ -66,7 +66,7 @@ Endpoint: `POST /api/v1/inventario/ddt/analyze`, `POST /api/v1/inventario/ddt/co
 | Step | Stato | Descrizione |
 | --- | --- | --- |
 | Step 4 | Implementato | Lettura lista pezzi, riepilogo, classificazione materiali, anomalie tecniche |
-| Step 5.1 | Implementato | Generazione DB dei singoli pezzi fisici e QR commessa |
+| Pezzi e QR | Implementato | Generazione DB dei singoli pezzi fisici e QR commessa |
 | Step 5.2+ | Da progettare | Analisi magazzino, proposta sfridi/residui, piani operativi |
 
 Concetti: "Pezzi fisici" = quantità totale da produrre; "Marca/Pos" = codice posizione/pezzo base in distinta; riga con quantità > 1 genera più pezzi fisici e QR.
@@ -159,8 +159,7 @@ Endpoint dedicato alla gestione dei certificati di conformità materiali.
 | GET | `/api/v1/commesse` | Lista commesse |
 | GET/PATCH/DELETE | `/api/v1/commesse/{id}` | Dettaglio, modifica, cancellazione |
 | POST | `/api/v1/commesse/{id}/analisi` | Import/analisi file commessa |
-| POST | `/api/v1/commesse/{id}/step-5-1` | Genera DB pezzi e QR commessa |
-| GET | `/api/v1/commesse/{id}/step-5-1/items` | Lista pezzi generati |
+| GET | `/api/v1/commesse/{id}/qr/items` | Lista pezzi generati |
 
 ### Scanner (pubblico, nessun JWT)
 
@@ -261,3 +260,5 @@ Ambiente on-premise Windows presso MCC, accesso pubblico via Cloudflare Tunnel (
 - Il magazzino e il modulo commessa restano separati finché il link tecnico non sarà progettato.
 - Qualsiasi import/parsing produce una proposta editabile prima di creare dati definitivi.
 - Nessuna logica di analisi/matching complessa viene aggiunta al sistema senza esplicita richiesta: solo azioni semplici, confronti diretti, gestione quantità.
+
+I pezzi e i QR della commessa sono disponibili senza attivazione manuale della produzione. Il registro e la stampa usano gli endpoint `/api/v1/commesse/{id}/qr/`.

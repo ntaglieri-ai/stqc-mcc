@@ -56,7 +56,6 @@ class CommessaRevisione(Base):
     stato_analisi    = Column(String(30), nullable=False, default="PRONTA")
     report_analisi   = Column(JSON, nullable=True)
     step4_completed_at = Column(DateTime, nullable=True)
-    step51_completed_at = Column(DateTime, nullable=True)
     note             = Column(Text, nullable=True)
     imported_at      = Column(DateTime, default=datetime.utcnow)
 
