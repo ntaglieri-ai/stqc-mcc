@@ -32,6 +32,7 @@ class Commessa(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    progettazione = relationship("ProgettazioneItem", cascade="all, delete-orphan")
     fasi      = relationship("FaseOperativa", back_populates="commessa", cascade="all, delete-orphan", passive_deletes=True)
     revisioni = relationship("CommessaRevisione", back_populates="commessa", cascade="all, delete-orphan", passive_deletes=True, order_by="CommessaRevisione.id")
     spedizioni_ad_hoc = relationship("SpedizioneAdHoc", back_populates="commessa", cascade="all, delete-orphan", passive_deletes=True)
@@ -537,3 +538,13 @@ class PezzoPercorso(Base):
     sequenza        = Column(Integer, nullable=True)
     stato           = Column(String(20), nullable=False, default=PezzoStato.BLOCCATA)
     postazione      = Column(String(100), nullable=True)
+
+
+class ProgettazioneItem(Base):
+    __tablename__ = "commessa_progettazione"
+    __table_args__ = (UniqueConstraint("commessa_id", "voce", name="uq_progettazione_voce"),)
+    id = Column(Integer, primary_key=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    voce = Column(String(60), nullable=False)
+    inizio = Column(Boolean, nullable=False, default=False)
+    fine = Column(Boolean, nullable=False, default=False)

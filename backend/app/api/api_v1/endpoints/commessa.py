@@ -880,6 +880,11 @@ async def create_analisi_commessa(
     if commessa is None:
         raise HTTPException(404, "Commessa non trovata")
 
+    from backend.app.models.commessa import ProgettazioneItem
+    distinte = db.query(ProgettazioneItem).filter_by(commessa_id=commessa_id, voce="distinte").first()
+    if distinte is None or not distinte.inizio:
+        raise HTTPException(409, 'Per caricare i file, spunta Inizio alla voce DISTINTE in Progettazione.')
+
     # Calcola codice revisione (r01, r02, …)
     existing = db.query(CommessaRevisione).filter(
         CommessaRevisione.commessa_id == commessa_id
@@ -3715,3 +3720,51 @@ def get_pezzi(commessa_id: int, db: Session = Depends(get_db)):
         })
 
     return result
+
+
+PROGETTAZIONE_VOCI = {
+    "modello_ifc": "MODELLO .ifc",
+    "distinte": "DISTINTE",
+    "taglio_foratura": "TAGLIO/FORATURA",
+    "nesting_tecnocam": "NESTING TECNOCAM PER TAGLIO PROFILATI",
+    "taglio_lamiere": "TAGLIO LAMIERE / LASER",
+    "nesting_metalix": "NESTING METALIX LASER",
+    "tavole_assemblaggio": "TAVOLE DI ASSEMBLAGGIO",
+    "tavole_montaggio": "TAVOLE DI MONTAGGIO",
+    "etichette": "STAMPA DI TUTTE LE ETICHETTE",
+}
+
+
+class ProgettazioneUpdate(BaseModel):
+    inizio: bool
+    fine: bool
+
+
+def _progettazione_read(key, row=None):
+    inizio, fine = (bool(row.inizio), bool(row.fine)) if row else (False, False)
+    return {"voce": key, "label": PROGETTAZIONE_VOCI[key], "inizio": inizio, "fine": fine,
+            "stato": "COMPLETATA" if fine else "IN_CORSO" if inizio else "NON_INIZIATA"}
+
+
+@router.get("/{commessa_id}/progettazione")
+def get_progettazione(commessa_id: int, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import ProgettazioneItem
+    if db.get(Commessa, commessa_id) is None:
+        raise HTTPException(404, "Commessa non trovata")
+    rows = {r.voce: r for r in db.query(ProgettazioneItem).filter_by(commessa_id=commessa_id).all()}
+    return [_progettazione_read(key, rows.get(key)) for key in PROGETTAZIONE_VOCI]
+
+
+@router.patch("/{commessa_id}/progettazione/{voce}")
+def update_progettazione(commessa_id: int, voce: str, body: ProgettazioneUpdate, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import ProgettazioneItem
+    if db.get(Commessa, commessa_id) is None or voce not in PROGETTAZIONE_VOCI:
+        raise HTTPException(404, "Commessa o voce non trovata")
+    row = db.query(ProgettazioneItem).filter_by(commessa_id=commessa_id, voce=voce).first()
+    if row is None:
+        row = ProgettazioneItem(commessa_id=commessa_id, voce=voce)
+        db.add(row)
+    row.inizio = body.inizio or body.fine
+    row.fine = body.fine
+    db.commit()
+    return _progettazione_read(voce, row)

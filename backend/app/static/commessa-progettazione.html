@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Progettazione</title>
+<script src="/static/commessa-embed.js?v=progettazione"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07111f;color:#eaf2ff;font:15px Inter,Segoe UI,sans-serif}main{max-width:1200px;margin:auto;padding:32px 28px}header{margin-bottom:28px}.eyebrow{color:#8eb5ef;font-size:12px;font-weight:700;letter-spacing:.1em}h1{font-size:30px;margin:10px 0}.meta{color:#a7bad1;line-height:1.8}.panel{border:1px solid #263b55;background:#0d1a2c;border-radius:18px;overflow:hidden}.panel-head{padding:22px;border-bottom:1px solid #263b55;display:flex;justify-content:space-between;gap:20px;align-items:center}h2{margin:0;font-size:20px}.legend{color:#a7bad1;font-size:12px;margin:8px 0 0}table{border-collapse:collapse;width:100%}th,td{padding:18px 22px;border-bottom:1px solid #20344d;text-align:left}th{color:#a7bad1;font-size:12px}tr:last-child td{border-bottom:0}th.check,td.check{text-align:center;width:86px}input{width:21px;height:21px;accent-color:#699cff;cursor:pointer}input:focus-visible{outline:3px solid #fff;outline-offset:3px}.status{white-space:nowrap;font-size:13px}.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:9px;background:#f87171;box-shadow:0 0 10px #f8717130}.IN_CORSO .dot{background:#facc15}.COMPLETATA .dot{background:#4ade80}.note{display:block;font-size:12px;color:#9db0c8;margin-top:6px}#feedback{min-height:26px;color:#fca5a5;padding-top:12px}#count{color:#a7bad1;white-space:nowrap}@media(max-width:650px){main{padding:20px 12px}th,td{padding:14px 8px}h1{font-size:24px}.status{white-space:normal}.panel-head{align-items:flex-start}.check{width:55px!important}.status{font-size:11px}}
+</style></head><body><main><header><div class="eyebrow">PROGETTAZIONE</div><h1 id="title">Caricamento commessa…</h1><div class="meta" id="meta"></div></header><section class="panel"><div class="panel-head"><div><h2>Checklist progettazione</h2><p class="legend">Rosso: non iniziata · Giallo: in corso · Verde: completata</p></div><span id="count"></span></div><table><thead><tr><th>Elaborato / attività</th><th class="check">Inizio</th><th class="check">Fine</th><th>Stato</th></tr></thead><tbody id="rows"></tbody></table></section><div id="feedback" role="status" aria-live="polite"></div></main>
+<script>
+const auth=()=>({Authorization:'Bearer '+(sessionStorage.getItem('stqc_token')||'')});
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let commessaId,items=[];
+const labels={NON_INIZIATA:'Non iniziata',IN_CORSO:'In corso',COMPLETATA:'Completata'};
+function render(){
+ document.getElementById('count').textContent=items.filter(x=>x.fine).length+' / '+items.length+' completate';
+ document.getElementById('rows').innerHTML=items.map(x=>`<tr data-key="${x.voce}"><td>${esc(x.label)}${x.voce==='etichette'?'<span class="note">Cartacee o metalliche se è prevista la zincatura a caldo.</span>':''}</td><td class="check"><input type="checkbox" data-field="inizio" aria-label="Inizio ${esc(x.label)}" ${x.inizio?'checked':''}></td><td class="check"><input type="checkbox" data-field="fine" aria-label="Fine ${esc(x.label)}" ${x.fine?'checked':''}></td><td class="status ${x.stato}"><span class="dot" aria-hidden="true"></span>${labels[x.stato]}</td></tr>`).join('');
+}
+document.getElementById('rows').addEventListener('change',async event=>{
+ const input=event.target;if(!input.matches('input'))return;
+ const row=input.closest('tr'),item=items.find(x=>x.voce===row.dataset.key);
+ let inizio=item.inizio,fine=item.fine;
+ if(input.dataset.field==='fine'){fine=input.checked;if(fine)inizio=true;}else{inizio=input.checked;if(!inizio)fine=false;}
+ document.getElementById('rows').querySelectorAll('input').forEach(x=>x.disabled=true);
+ const feedback=document.getElementById('feedback');feedback.textContent='Salvataggio…';
+ try{
+  const r=await fetch(`/api/v1/commesse/${commessaId}/progettazione/${item.voce}`,{method:'PATCH',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({inizio,fine})});
+  const d=await r.json();if(!r.ok)throw new Error(d.detail||'Salvataggio non riuscito');
+  Object.assign(item,d);feedback.textContent='Salvato';
+ }catch(error){feedback.textContent=error.message;}
+ render();
+});
+async function load(){try{
+ const ref=decodeURIComponent(location.pathname.split('/')[2]);
+ const r=await fetch('/api/v1/commesse/resolve/'+encodeURIComponent(ref),{headers:auth()});const c=await r.json();if(!r.ok)throw new Error(c.detail||'Commessa non disponibile');
+ const detail=await fetch(`/api/v1/commesse/${c.id}`,{headers:auth()});if(!detail.ok)throw new Error('Dati commessa non disponibili');Object.assign(c,await detail.json());
+ commessaId=c.id;document.getElementById('title').textContent=c.descrizione||c.codice;document.title='Progettazione · '+(c.descrizione||c.codice);
+ document.getElementById('meta').textContent='Codice: '+c.codice+' · Cliente: '+(c.cliente||'—')+' · Consegna prevista: '+(c.data_consegna_prevista?new Date(c.data_consegna_prevista+'T12:00:00').toLocaleDateString('it-IT'):'—');
+ const response=await fetch(`/api/v1/commesse/${c.id}/progettazione`,{headers:auth()});const data=await response.json();if(!response.ok)throw new Error(data.detail||'Checklist non disponibile');items=data;render();
+ }catch(error){document.getElementById('feedback').textContent=error.message;}}
+load();
+</script></body></html>

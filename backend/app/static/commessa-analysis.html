@@ -5,7 +5,7 @@
   <link rel="stylesheet" href="/static/qr-drawer.css?v=scan4">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Analisi Commessa · MCC</title>
+  <title>Analisi Distinta · MCC</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -565,7 +565,7 @@
       .input-file-grid, .input-mini-row { grid-template-columns: 1fr; }
       .steps, .macro-flow, .kpis, .assembly-overview, .detail-grid, .qr-detail, .qr-edit-grid { grid-template-columns: 1fr; }
     }
-  </style>
+  .macro-flow::before,.macro-card::before{display:none}</style>
 </head>
 <body>
 <script>
@@ -580,7 +580,7 @@
 <nav class="nav">
   <a href="/commesse">← In corso</a>
   <span class="nav-sep">/</span>
-  <span class="nav-current" id="nav-code">Analisi Commessa</span>
+  <span class="nav-current" id="nav-code">Analisi Distinta</span>
   <span class="nav-user" id="nav-user"></span>
 </nav>
 
@@ -645,6 +645,7 @@ const auth = () => ({ Authorization: "Bearer " + sessionStorage.getItem("stqc_to
 let analysisData = null;
 let assemblyData = null;
 let revisionData = [];
+let uploadsEnabled = false;
 let qrPage = 0;
 const qrPageSize = 5000;
 let qrQuery = "";
@@ -744,7 +745,7 @@ function renderInputDashboard() {
   return `<section class="input-dashboard">
     <div class="input-hero">
       <div>
-        <div class="input-kicker">Analisi commessa</div>
+        <div class="input-kicker">Analisi Distinta</div>
         <div class="input-title">Dashboard file disponibili</div>
         <div class="input-copy">
           Stato operativo dei documenti caricati sulla commessa. Ogni file alimenta la propria area:
@@ -784,15 +785,15 @@ function renderMacroFlow() {
   const officeState = Number(summary.n_qr_attivi || 0) > 0 ? "IN_CORSO" : "NON_INIZIATA";
   const assemblyState = assemblyProgress >= 100 ? "COMPLETATA" : assemblyProgress > 0 ? "IN_CORSO" : "NON_INIZIATA";
   const cards = [
-    { title: "Analisi commessa", state: "COMPLETATA", sub: "File acquisiti e distinta pronta", href: commessaUrl("analisi") },
-    { title: "Officina", state: officeState, sub: `${fmt(summary.n_qr_attivi || 0)} QR pezzi attivi`, href: commessaUrl("officina") },
-    { title: "Assemblaggio", state: assemblyState, sub: assemblyProgress > 0 ? `${fmt(assemblyProgress)}% avanzamento assemblati` : "In attesa scan assemblaggio", href: commessaUrl("assemblaggi") },
+    { title: "Analisi Distinta", state: "COMPLETATA", sub: "File acquisiti e distinta pronta", href: commessaUrl("analisi") },
+    { title: "Lavorazioni Officina", state: officeState, sub: `${fmt(summary.n_qr_attivi || 0)} QR pezzi attivi`, href: commessaUrl("officina") },
+    { title: "Assemblaggi", state: assemblyState, sub: assemblyProgress > 0 ? `${fmt(assemblyProgress)}% avanzamento assemblati` : "In attesa scan assemblaggio", href: commessaUrl("assemblaggi") },
     { title: "Lavorazioni", state: "NON_INIZIATA", sub: "Post-officina e lavorazioni esterne", href: commessaUrl("lavorazioni") },
     { title: "Spedizione", state: "NON_INIZIATA", sub: "Uscita finale", href: commessaUrl("in-cantiere") },
   ];
   return `<div class="macro-flow">${cards.map((card, index) => `
     <${card.href ? `a href="${esc(card.href)}"` : "div"} class="macro-card ${macroStateClass(card.state)}">
-      <div class="macro-kicker"><span>${index + 1}</span><span class="macro-state">${macroStateLabel(card.state)}</span></div>
+      <div class="macro-kicker"><span class="macro-state">${macroStateLabel(card.state)}</span></div>
       <div class="macro-title">${esc(card.title)}</div>
       <div class="macro-sub">${esc(card.sub)}</div>
     </${card.href ? "a" : "div"}>
@@ -821,7 +822,7 @@ function renderPage() {
           ${r.predistinta ? '<span class="status pre">Pre-distinta</span>' : ""}
         </div>
           <button class="btn cta header-office-btn" onclick="openQrRegistry()">
-            Apri In officina
+            Apri Lavorazioni Officina
             <small>${fmt(s.n_qr_attivi)} QR pezzi attivi</small>
           </button>
       </div>
@@ -829,7 +830,7 @@ function renderPage() {
 
     ${renderMacroFlow()}
 
-    ${r.predistinta ? renderPredistintaWarning(r) : ""}
+    ${renderPredistintaWarning(r)}
     ${renderFileWarnings(r)}
 
     ${renderInputDashboard()}
@@ -1002,27 +1003,30 @@ function renderPredistintaWarning(revision) {
       ${row.corrente ? " · corrente" : " · archiviata"}
     </div>`).join("");
   return `<section class="section">
-    <div class="section-head"><div><div class="section-title">Pre-distinta · analisi preliminare</div>
-    <div class="section-sub">Analisi e QR possono essere preparati, ma la produzione resterà bloccata fino alla distinta definitiva</div></div></div>
+    <div class="section-head"><div><div class="section-title">Documenti · Analisi Distinta</div>
+    <div class="section-sub">Carica i file disponibili per questa commessa.</div></div></div>
     <div class="notice warn">
-      Caricando la distinta definitiva verrà creata una nuova revisione: lo Step 4 sarà rieseguito e gli eventuali QR preliminari saranno archiviati e disattivati.
+      Ogni caricamento crea una nuova revisione. Includi tutti i file da utilizzare: i QR della revisione precedente saranno archiviati e disattivati.
     </div>
     <div class="revision-list">${chips}</div>
-    <form class="revision-form" onsubmit="uploadDefinitive(event)">
-      <div class="upload-field"><label>Lista pezzi definitiva</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm"/></div>
+    ${!uploadsEnabled ? `<div class="notice warn">Per caricare i file, spunta <strong>Inizio</strong> alla voce <strong>DISTINTE</strong> in <a href="${esc(commessaUrl('progettazione'))}">Progettazione</a>.</div>` : ""}
+    <form onsubmit="uploadDefinitive(event)">
+    <fieldset class="revision-form" style="border:0;padding:0;margin:0;min-width:0" ${uploadsEnabled ? "" : "disabled"}>
+      <div class="upload-field"><label>Lista pezzi</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm"/></div>
       <div class="upload-field"><label>Pezzi e assemblati</label><input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm"/></div>
       <div class="upload-field"><label>Lista spedizione</label><input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm"/></div>
       <div class="upload-field"><label>Bulloneria senza QR</label><input type="file" id="def-bulloneria" accept=".xls,.xlsx,.xlsm,.csv,.pdf"/></div>
-      <div class="revision-actions">
+      <label><input type="checkbox" id="def-predistinta"/> Pre-distinta (documenti provvisori)</label><div class="revision-actions">
         <span class="feedback" id="revision-feedback"></span>
         <button class="btn" id="revision-submit" type="submit">Carica file e aggiorna analisi</button>
       </div>
-    </form>
+    </fieldset></form>
   </section>`;
 }
 
 async function uploadDefinitive(event) {
   event.preventDefault();
+  if (!uploadsEnabled) return;
   const button = document.getElementById("revision-submit");
   const feedback = document.getElementById("revision-feedback");
   const lista = document.getElementById("def-lista").files[0];
@@ -1042,7 +1046,7 @@ async function uploadDefinitive(event) {
   if (assemblaggi) body.append("assemblaggi", assemblaggi);
   if (spedizione) body.append("spedizione", spedizione);
   if (bulloneria) body.append("bulloneria", bulloneria);
-  body.append("predistinta", "false");
+  body.append("predistinta", String(document.getElementById("def-predistinta").checked));
   try {
     const response = await fetch(`/api/v1/commesse/${commessaId}/analisi`, {
       method: "POST", headers: auth(), body,
@@ -1301,17 +1305,27 @@ function renderPositions(query) {
 async function load() {
   try {
     await resolveCommessa();
-    const [analysisResponse, assembliesResponse, revisionsResponse] = await Promise.all([
+    const designResponse = await fetch(`/api/v1/commesse/${commessaId}/progettazione`, { headers: auth() });
+    const design = await designResponse.json();
+    if (!designResponse.ok) throw new Error(design.detail || "Progettazione non disponibile");
+    uploadsEnabled = design.some(row => row.voce === "distinte" && row.inizio);
+    const revisionsResponse = await fetch(`/api/v1/commesse/${commessaId}/revisioni`, { headers: auth() });
+    const revisions = await revisionsResponse.json();
+    if (!revisionsResponse.ok) throw new Error(revisions.detail || "Revisioni non disponibili");
+    revisionData = revisions;
+    if (revisions.length === 0) {
+      document.getElementById("nav-code").textContent=commessaCode;
+      document.getElementById("root").innerHTML=`<header class="header"><div><div class="eyebrow">Analisi Distinta</div><h1>${esc(commessaCode)}</h1><p>Nessun documento caricato.</p></div></header>${renderPredistintaWarning({})}`;
+      return;
+    }
+    const [analysisResponse, assembliesResponse] = await Promise.all([
       fetch(`/api/v1/commesse/${commessaId}/analisi`, { headers: auth() }),
       fetch(`/api/v1/commesse/${commessaId}/analisi/assemblati`, { headers: auth() }),
-      fetch(`/api/v1/commesse/${commessaId}/revisioni`, { headers: auth() }),
     ]);
-    const analysis = await analysisResponse.json().catch(() => ({}));
-    const assemblies = await assembliesResponse.json().catch(() => ({}));
-    const revisions = await revisionsResponse.json().catch(() => ([]));
+    const analysis = await analysisResponse.json();
+    const assemblies = await assembliesResponse.json();
     if (!analysisResponse.ok) throw new Error(analysis.detail || "Analisi non disponibile");
     if (!assembliesResponse.ok) throw new Error(assemblies.detail || "Assemblati non disponibili");
-    if (!revisionsResponse.ok) throw new Error(revisions.detail || "Revisioni non disponibili");
     analysisData = analysis;
     commessaCode = analysisData?.commessa?.codice || commessaCode;
     assemblyData = assemblies;

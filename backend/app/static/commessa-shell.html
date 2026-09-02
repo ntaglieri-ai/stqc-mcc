@@ -16,31 +16,32 @@
     .shell-head{position:relative;z-index:3;background:linear-gradient(180deg,#0d1829 0%,#091321 100%);border-bottom:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.18)}
     .bar{height:56px;display:flex;align-items:center;gap:12px;padding:0 30px;border-bottom:1px solid rgba(147,197,253,.1)}
     .back,.section-link{color:#a9bbd2;text-decoration:none;font-weight:800;font-size:14px}.section-link{color:#dce8fa}.back:hover,.section-link:hover{color:#fff}.crumb{color:#637b98}.name{color:#dce8fa;font-weight:900}.edit-name{border:1px solid rgba(147,197,253,.2);background:#12243b;color:#b9d2f5;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:900;cursor:pointer}.edit-name:hover{border-color:#75a7ff;color:#fff}.view-name{color:#a8c4ef;font-weight:850}.spacer{flex:1}.hint{font-size:12px;color:#7890ad}
-    .timeline{max-width:1900px;margin:0 auto;padding:16px 30px 18px;display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:12px;position:relative}
+    .timeline{max-width:1900px;margin:0 auto;padding:16px 30px 18px;display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:12px;position:relative}
     .timeline:before{content:"";position:absolute;left:9%;right:9%;top:32px;height:2px;background:linear-gradient(90deg,rgba(74,222,128,.8),rgba(96,165,250,.25));border-radius:999px}
     .stage{position:relative;min-height:76px;padding:13px 15px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(16,31,52,.88),rgba(9,18,32,.85));color:var(--text);text-align:left;cursor:pointer;transition:.18s transform,.18s border-color,.18s background}
     .stage:hover{transform:translateY(-2px);border-color:rgba(124,166,255,.55)}.stage:before{content:"";display:block;width:12px;height:12px;margin:-23px 0 8px 9px;border-radius:50%;background:#223955;border:2px solid #53729a;box-shadow:0 0 0 6px #0b1524}.stage.done:before,.stage.active.done:before{background:var(--green);border-color:#bbf7d0;box-shadow:0 0 0 6px #0b1524,0 0 18px rgba(74,222,128,.42)}.stage.pending:before,.stage.active.pending:before{background:var(--yellow);border-color:#fde68a;box-shadow:0 0 0 6px #0b1524,0 0 18px rgba(251,191,36,.42)}.stage.active{border-color:rgba(111,160,255,.72);background:radial-gradient(circle at 88% 14%,rgba(91,140,255,.22),transparent 34%),linear-gradient(180deg,rgba(23,47,84,.95),rgba(10,22,40,.92));box-shadow:0 14px 34px rgba(37,99,235,.18)}
     .number{font-size:10px;color:#8facd3;font-weight:950;letter-spacing:.12em}.label{display:block;margin-top:5px;font-size:17px;font-weight:950;letter-spacing:-.025em}.sub{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:700}
     .frame-area{position:relative;min-height:0;background:var(--bg)}iframe{width:100%;height:100%;border:0;display:block;background:var(--bg)}.loader{position:absolute;inset:0;display:grid;place-items:center;background:rgba(7,17,31,.58);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .18s}.loader.show{opacity:1;pointer-events:auto}.loader span{padding:12px 16px;border:1px solid rgba(147,197,253,.25);border-radius:999px;background:#10213a;color:#cfe0f8;font-size:13px;font-weight:900}
-    @media(max-width:900px){.bar{padding:0 16px}.hint{display:none}.timeline{padding:14px 12px;overflow:auto;grid-template-columns:repeat(5,154px)}.timeline:before{left:40px;right:auto;width:720px}.stage{min-height:70px}.label{font-size:15px}}
-  </style>
+    @media(max-width:900px){.bar{padding:0 16px}.hint{display:none}.timeline{padding:14px 12px;overflow:auto;grid-template-columns:repeat(6,154px)}.timeline:before{left:40px;right:auto;width:720px}.stage{min-height:70px}.label{font-size:15px}}
+  .timeline:before,.stage:before{display:none}.timeline{gap:10px}.label{font-size:15px}.stage{min-height:70px}</style>
 </head>
 <body>
   <div class="shell">
     <header class="shell-head">
-      <div class="bar"><a class="back" href="/">← Home</a><span class="crumb">/</span><a class="section-link" id="section-link" href="/commesse">Gestione commesse</a><span class="crumb">/</span><span class="name" id="commessa-name">Commessa</span><button class="edit-name" id="edit-name" type="button" title="Modifica il titolo commessa e aggiorna tutti i QR">Modifica titolo</button><span class="crumb">/</span><span class="view-name" id="current-view">Analisi commessa</span><span class="spacer"></span><span class="hint">Vista di gestione e controllo</span></div>
-      <nav class="timeline" aria-label="Fasi commessa">
-        <button class="stage pending" data-view="analisi"><span class="number">01</span><span class="label">Analisi commessa</span><span class="sub">Dati e fabbisogno</span></button>
-        <button class="stage pending" data-view="officina"><span class="number">02</span><span class="label">Officina</span><span class="sub">QR pezzi e lavorazioni</span></button>
-        <button class="stage pending" data-view="assemblaggi"><span class="number">03</span><span class="label">Assemblaggi</span><span class="sub">Montaggio e avanzamento</span></button>
-        <button class="stage pending" data-view="lavorazioni"><span class="number">04</span><span class="label">Lavorazioni</span><span class="sub">Interne ed esterne</span></button>
-        <button class="stage pending" data-view="in-cantiere"><span class="number">05</span><span class="label">Spedizione</span><span class="sub">Uscita finale</span></button>
+      <div class="bar"><a class="back" href="/">← Home</a><span class="crumb">/</span><a class="section-link" id="section-link" href="/commesse">Gestione commesse</a><span class="crumb">/</span><span class="name" id="commessa-name">Commessa</span><button class="edit-name" id="edit-name" type="button" title="Modifica il titolo commessa e aggiorna tutti i QR">Modifica titolo</button><span class="crumb">/</span><span class="view-name" id="current-view">Analisi Distinta</span><span class="spacer"></span><span class="hint">Vista di gestione e controllo</span></div>
+      <nav class="timeline" aria-label="Sezioni commessa">
+        <button class="stage" data-view="progettazione"><span class="label">Progettazione</span><span class="sub">Checklist elaborati</span></button>
+        <button class="stage pending" data-view="analisi"><span class="label">Analisi Distinta</span><span class="sub">Dati e fabbisogno</span></button>
+        <button class="stage pending" data-view="officina"><span class="label">Lavorazioni Officina</span><span class="sub">QR pezzi e lavorazioni</span></button>
+        <button class="stage pending" data-view="assemblaggi"><span class="label">Assemblaggi</span><span class="sub">Montaggio e avanzamento</span></button>
+        <button class="stage pending" data-view="lavorazioni"><span class="label">Lavorazioni</span><span class="sub">Interne ed esterne</span></button>
+        <button class="stage pending" data-view="in-cantiere"><span class="label">Spedizione</span><span class="sub">Uscita finale</span></button>
       </nav>
     </header>
     <main class="frame-area"><iframe id="commessa-frame" title="Contenuto commessa"></iframe><div class="loader" id="loader"><span>Caricamento vista…</span></div></main>
   </div>
   <script>
-    const views={analisi:'Analisi commessa',officina:'In officina',assemblaggi:'Assemblaggi',lavorazioni:'Lavorazioni','in-cantiere':'Spedizione','spedizione-qr-registry':'Registro QR spedizione'};
+    const views={progettazione:'Progettazione',analisi:'Analisi Distinta',officina:'Lavorazioni Officina',assemblaggi:'Assemblaggi',lavorazioni:'Lavorazioni','in-cantiere':'Spedizione','spedizione-qr-registry':'Registro QR spedizione'};
     const valid=new Set(Object.keys(views)); const frame=document.getElementById('commessa-frame'); const loader=document.getElementById('loader');
     const breadcrumbSource=(()=>{try{const ref=new URL(document.referrer);return ref.origin===location.origin&&ref.pathname.startsWith('/dashboard')?'dashboard':'commesse'}catch{return 'commesse'}})();
     function decodeRef(value){let result=String(value||'');for(let i=0;i<3;i++){try{const decoded=decodeURIComponent(result);if(decoded===result)break;result=decoded}catch{break}}return result}

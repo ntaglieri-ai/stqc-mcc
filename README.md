@@ -262,3 +262,13 @@ Ambiente on-premise Windows presso MCC, accesso pubblico via Cloudflare Tunnel (
 - Nessuna logica di analisi/matching complessa viene aggiunta al sistema senza esplicita richiesta: solo azioni semplici, confronti diretti, gestione quantità.
 
 I pezzi e i QR della commessa sono disponibili senza attivazione manuale della produzione. Il registro e la stampa usano gli endpoint `/api/v1/commesse/{id}/qr/`.
+
+## Progettazione e creazione commessa
+
+Nuova commessa richiede solo i dati generali; i documenti si caricano in Analisi Distinta, anche dopo la creazione. Progettazione, Analisi Distinta, Lavorazioni Officina, Assemblaggi, Lavorazioni e Spedizione sono sezioni indipendenti.
+
+Progettazione contiene nove voci con checkbox Inizio/Fine e stato rosso (non iniziata), giallo (in corso), verde (completata). Fine include Inizio; togliendo Inizio si toglie anche Fine. La checklist è salvata per commessa, indipendentemente dalle revisioni dei file.
+
+Applicare `alembic upgrade head` per creare la tabella della checklist. API: `GET /api/v1/commesse/{id}/progettazione` e `PATCH /api/v1/commesse/{id}/progettazione/{voce}`.
+
+Il caricamento dei file in Analisi Distinta è abilitato solo quando Inizio è selezionato alla voce DISTINTE in Progettazione della stessa commessa. La consultazione dei dati esistenti resta disponibile.

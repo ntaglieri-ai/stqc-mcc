@@ -247,6 +247,11 @@ def create_app() -> FastAPI:
     def spedizione_ad_hoc_page():
         return RedirectResponse("/commesse/nuova", status_code=303)
 
+    @app.get("/commesse/{commessa_ref}/progettazione", include_in_schema=False)
+    def commessa_progettazione_page(commessa_ref: str, request: Request):
+        page = "commessa-progettazione.html" if request.query_params.get("embed") == "1" else "commessa-shell.html"
+        return FileResponse(STATIC_DIR / page, headers=_NO_CACHE)
+
     @app.get("/commesse/{commessa_ref}/analisi", include_in_schema=False)
     def commessa_analysis_page(commessa_ref: str, request: Request):
         commessa = _find_commessa_by_ref(commessa_ref)
