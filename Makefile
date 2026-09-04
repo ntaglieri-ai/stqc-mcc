@@ -1,13 +1,22 @@
 .PHONY: run migrate upgrade downgrade
 
+ifeq ($(OS),Windows_NT)
+PYTHON := $(firstword $(wildcard .venv/Scripts/python.exe venv/Scripts/python.exe))
+else
+PYTHON := $(firstword $(wildcard .venv/bin/python venv/bin/python))
+endif
+ifeq ($(PYTHON),)
+PYTHON := python
+endif
+
 run:
-	./venv/bin/uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+	"$(PYTHON)" -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
 migrate:
-	alembic revision --autogenerate -m "$(msg)"
+	"$(PYTHON)" -m alembic revision --autogenerate -m "$(msg)"
 
 upgrade:
-	./venv/bin/alembic upgrade head
+	"$(PYTHON)" -m alembic upgrade head
 
 downgrade:
-	./venv/bin/alembic downgrade -1
+	"$(PYTHON)" -m alembic downgrade -1

@@ -18,6 +18,7 @@ class DefaultWorkstation:
 
 
 DEFAULT_WORKSTATIONS: tuple[DefaultWorkstation, ...] = (
+    DefaultWorkstation("TAGLIO_FORATURA", "Taglio - Foratura", "Postazione unica di taglio e foratura"),
     DefaultWorkstation("TAGLIO_LASER01", "Taglio Laser 01", "Taglio lamiere - laser 1"),
     DefaultWorkstation("TAGLIO_LASER02", "Taglio Laser 02", "Taglio lamiere - laser 2"),
     DefaultWorkstation("TRANCIATURA01", "Tranciatura 01", "Tranciatura lamiera"),

@@ -237,7 +237,12 @@ def create_app() -> FastAPI:
 
     @app.get("/dashboard", include_in_schema=False)
     def dashboard_page():
-        return FileResponse(STATIC_DIR / "commesse-lista.html", headers=_NO_CACHE)
+        return FileResponse(STATIC_DIR / "dashboard.html", headers=_NO_CACHE)
+
+    @app.get("/dashboard/monitoring", include_in_schema=False)
+    @app.get("/dashboard/statistiche-reportistica", include_in_schema=False)
+    def dashboard_section_page():
+        return FileResponse(STATIC_DIR / "dashboard-section.html", headers=_NO_CACHE)
 
     @app.get("/commesse/nuova", include_in_schema=False)
     def commesse_nuova_page():
@@ -311,7 +316,7 @@ def create_app() -> FastAPI:
     def commessa_detail_page(commessa_ref: str):
         commessa = _find_commessa_by_ref(commessa_ref)
         if commessa:
-            return RedirectResponse(url=_commessa_path(commessa, "analisi"), status_code=307, headers=_NO_CACHE)
+            return RedirectResponse(url=_commessa_path(commessa, "progettazione"), status_code=307, headers=_NO_CACHE)
         return RedirectResponse(url="/commesse", status_code=307, headers=_NO_CACHE)
 
     @app.get("/magazzino", include_in_schema=False)

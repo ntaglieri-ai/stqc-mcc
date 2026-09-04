@@ -548,3 +548,5 @@ class ProgettazioneItem(Base):
     voce = Column(String(60), nullable=False)
     inizio = Column(Boolean, nullable=False, default=False)
     fine = Column(Boolean, nullable=False, default=False)
+    iniziata_at = Column(DateTime, nullable=True)
+    completata_at = Column(DateTime, nullable=True)

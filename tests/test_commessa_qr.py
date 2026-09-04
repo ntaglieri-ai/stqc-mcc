@@ -68,6 +68,11 @@ class CommessaQrTests(unittest.TestCase):
         result = api.update_progettazione(self.commessa.id, "modello_ifc", api.ProgettazioneUpdate(inizio=False, fine=True), db=self.db)
         self.assertTrue(result["inizio"])
         self.assertEqual(result["stato"], "COMPLETATA")
+        self.assertIsNotNone(result["iniziata_at"])
+        self.assertIsNotNone(result["completata_at"])
+        repeated = api.update_progettazione(self.commessa.id, "modello_ifc", api.ProgettazioneUpdate(inizio=True, fine=True), db=self.db)
+        self.assertEqual(repeated["iniziata_at"], result["iniziata_at"])
+        self.assertEqual(repeated["completata_at"], result["completata_at"])
         self.db.expire_all()
         saved = api.get_progettazione(self.commessa.id, db=self.db)
         self.assertTrue(saved[0]["fine"])
@@ -78,6 +83,11 @@ class CommessaQrTests(unittest.TestCase):
         self.assertFalse(api.get_progettazione(other.id, db=self.db)[0]["fine"])
         reset = api.update_progettazione(self.commessa.id, "modello_ifc", api.ProgettazioneUpdate(inizio=False, fine=False), db=self.db)
         self.assertEqual(reset["stato"], "NON_INIZIATA")
+        self.assertIsNone(reset["iniziata_at"])
+        self.assertIsNone(reset["completata_at"])
+        ongoing = api.update_progettazione(self.commessa.id, "modello_ifc", api.ProgettazioneUpdate(inizio=True, fine=False), db=self.db)
+        self.assertIsNotNone(ongoing["iniziata_at"])
+        self.assertIsNone(ongoing["completata_at"])
         self.assertEqual(self.commessa.status, CommessaStatus.APERTA)
 
     def test_upload_requires_distinte_started_for_same_commessa(self):

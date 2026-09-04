@@ -3743,6 +3743,8 @@ class ProgettazioneUpdate(BaseModel):
 def _progettazione_read(key, row=None):
     inizio, fine = (bool(row.inizio), bool(row.fine)) if row else (False, False)
     return {"voce": key, "label": PROGETTAZIONE_VOCI[key], "inizio": inizio, "fine": fine,
+            "iniziata_at": row.iniziata_at if row else None,
+            "completata_at": row.completata_at if row else None,
             "stato": "COMPLETATA" if fine else "IN_CORSO" if inizio else "NON_INIZIATA"}
 
 
@@ -3755,6 +3757,69 @@ def get_progettazione(commessa_id: int, db: Session = Depends(get_db)):
     return [_progettazione_read(key, rows.get(key)) for key in PROGETTAZIONE_VOCI]
 
 
+@router.get("/{commessa_id}/monitoring")
+def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
+    """Read-only operational overview; never generate QR or update workflow state."""
+    commessa = db.get(Commessa, commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revision = _latest_revision(db, commessa_id)
+    events = (db.query(PieceScanEvent).options(joinedload(PieceScanEvent.piece))
+              .filter(PieceScanEvent.commessa_id == commessa_id)
+              .order_by(PieceScanEvent.timestamp, PieceScanEvent.id).all())
+    sessions = {s.id: s for s in db.query(PieceWorkSession).filter_by(commessa_id=commessa_id).all()}
+    scans = {"officina": [], "assemblaggi": []}
+    for event in events:
+        if event.event_type not in {"PIECE_READ", "PHASE_START", "PHASE_DONE", "PHASE_END"}:
+            continue
+        session = sessions.get(event.session_id)
+        section = "assemblaggi" if _is_assembly_station(event.postazione_code) else "officina"
+        scans[section].append({
+            "marca": event.piece.marca_pos if event.piece else None,
+            "postazione": event.postazione_code, "evento": event.event_type,
+            "data": event.timestamp, "revisione_id": event.revisione_id,
+            "durata_secondi": session.duration_seconds if session and session.close_event_id == event.id else None,
+        })
+    shipments = db.query(DdtShipment).filter_by(commessa_id=commessa_id).order_by(DdtShipment.created_at).all()
+    readings = []
+    attempts = (db.query(WorkshopScanAttempt, Piece, Workstation)
+                .join(Piece, Piece.id == WorkshopScanAttempt.piece_id)
+                .outerjoin(Workstation, Workstation.id == WorkshopScanAttempt.workstation_id)
+                .filter(Piece.commessa_id == commessa_id)
+                .order_by(WorkshopScanAttempt.created_at, WorkshopScanAttempt.id).all())
+    for attempt, piece, station in attempts:
+        if station and _is_assembly_station(station.code):
+            continue
+        linked = [s for s in sessions.values() if s.piece_id == piece.id
+                  and attempt.scan_block_id is not None and s.scan_block_id == attempt.scan_block_id]
+        readings.append({"scan_id": attempt.id, "piece_id": piece.id, "qr": piece.qr_code,
+                         "posizione": piece.marca_pos, "progressivo": piece.progressivo,
+                         "lavorazione": linked[0].lavoro_code if len(linked) == 1 else None,
+                         "postazione": station.code if station else None,
+                         "esito": attempt.outcome, "messaggio": attempt.message})
+    master = (db.query(CommessaPostOfficinaItem).filter_by(revisione_id=revision.id).all() if revision else [])
+    # The master shipment list is the denominator, not the number of QR scans.
+    expected = sum(float(r.quantita or 0) for r in master) if master else None
+    shipped = sum(float(r.quantita or 0) for r in master if r.cantiere_status == "SPEDITO") if master else None
+    if commessa.spedizione_ad_hoc:
+        # Ad-hoc rows can be split/duplicated by scanning. They are not a stable denominator.
+        expected = shipped = None
+    adhoc_scans = db.query(SpedizioneAdHocItem).filter_by(commessa_id=commessa_id).filter(SpedizioneAdHocItem.trovato_at.isnot(None)).order_by(SpedizioneAdHocItem.trovato_at).all()
+    return {
+        "commessa": {"codice": commessa.codice, "cliente": commessa.cliente, "stato": commessa.status,
+                     "consegna": commessa.data_consegna_prevista},
+        "revisione": revision.codice if revision else None,
+        "progettazione": get_progettazione(commessa_id, db),
+        **scans,
+        "officina_letture": readings,
+        "spedizione": {"previsti": expected, "spediti": shipped,
+                       "ddt": [_ddt_shipment_read(s) for s in shipments],
+                       "scan": [{"marca": s.codice, "data": s.trovato_at, "stato": s.stato} for s in adhoc_scans]},
+        "lavorazioni_esterne": [{"marca": r.codice, "stato": r.lavorazioni_status} for r in master],
+        "cantiere": [{"marca": r.codice, "stato": r.cantiere_status} for r in master],
+    }
+
+
 @router.patch("/{commessa_id}/progettazione/{voce}")
 def update_progettazione(commessa_id: int, voce: str, body: ProgettazioneUpdate, db: Session = Depends(get_db)):
     from backend.app.models.commessa import ProgettazioneItem
@@ -3764,7 +3829,17 @@ def update_progettazione(commessa_id: int, voce: str, body: ProgettazioneUpdate,
     if row is None:
         row = ProgettazioneItem(commessa_id=commessa_id, voce=voce)
         db.add(row)
-    row.inizio = body.inizio or body.fine
+    now = datetime.utcnow()
+    started = body.inizio or body.fine
+    if started and not row.inizio:
+        row.iniziata_at = now
+    if body.fine and not row.fine:
+        row.completata_at = now
+    if not body.fine:
+        row.completata_at = None
+    if not started:
+        row.iniziata_at = None
+    row.inizio = started
     row.fine = body.fine
     db.commit()
     return _progettazione_read(voce, row)

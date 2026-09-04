@@ -222,6 +222,33 @@ Endpoint `/api/v1/stock/*` disattivati con `410 Gone`. La vecchia logica mescola
 
 ## Avvio Locale
 
+### Windows (PowerShell / terminale di VS Code)
+
+Solo al primo avvio:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Dalla cartella del repository:
+
+```powershell
+.\run.ps1
+```
+
+Se la policy PowerShell impedisce gli script, usa direttamente:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+`make run` richiede GNU Make nel PATH; il Makefile riconosce `.venv` e `venv`
+sia su Windows sia su Linux/macOS. Arresta il server con `Ctrl+C`.
+Dashboard: `http://localhost:8000/dashboard` (la porta `8000` è necessaria).
+
+### Linux / macOS
+
 ```
 python3 -m venv venv
 . venv/bin/activate

@@ -17,6 +17,13 @@ from backend.app.models.warehouse import DistintaItem, ScanEvento
 
 router = APIRouter()
 
+
+@router.get("/postazioni-scanner")
+def configured_station_codes(db: Session = Depends(get_db)):
+    # Same configured workstations and START/END payloads as Configuration.
+    from backend.app.api.api_v1.endpoints.admin import list_workstation_qr_codes
+    return list_workstation_qr_codes(include_inactive=False, db=db)
+
 # Postazioni fisse per gruppo
 GRUPPI_POSTAZIONI: list[dict] = [
     {
