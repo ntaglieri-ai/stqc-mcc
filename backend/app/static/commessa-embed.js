@@ -199,6 +199,84 @@
       background:linear-gradient(180deg,rgba(10,21,38,.98),rgba(5,11,20,1)) !important;
     }
 
+    html.stqc-embedded[data-embedded-view="officina"] .inline-stations {
+      flex:0 0 auto !important;
+      margin:0 !important;
+      border-radius:16px !important;
+      overflow:visible !important;
+      background:linear-gradient(145deg,#10213b 0%,#081625 100%) !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .inline-stations>summary {
+      min-height:52px !important;
+      padding:8px 16px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .inline-stations-title {
+      font-size:21px !important;
+      line-height:1.08 !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .inline-stations-panel {
+      padding:10px 16px 12px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-toolbar {
+      align-items:center !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-picker {
+      width:min(520px,42vw) !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-picker-menu {
+      right:auto !important;
+      width:min(520px,calc(100vw - 420px)) !important;
+      max-height:210px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-picker-option {
+      padding:7px 9px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-selected-rows {
+      margin-top:9px !important;
+      max-height:178px !important;
+      overflow:auto !important;
+      padding-right:4px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-selected-row {
+      grid-template-columns:minmax(210px,300px) minmax(260px,1fr) minmax(260px,1fr) !important;
+      gap:10px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-row-name,
+    html.stqc-embedded[data-embedded-view="officina"] .station-selected-row .station-qr {
+      min-height:78px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .station-selected-row .station-qr img {
+      width:58px !important;
+      height:58px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .qr-workbench {
+      flex:1 1 auto !important;
+      min-height:0 !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .qr-panel-frame {
+      flex:1 1 auto !important;
+      min-height:180px !important;
+    }
+
+    html.stqc-embedded[data-embedded-view="officina"] .pager-control {
+      display:flex !important;
+      align-items:center !important;
+      gap:7px !important;
+    }
+
     html.stqc-embedded[data-embedded-view="assemblaggi"] .wrap {
       padding:14px 18px 14px !important;
       gap:12px !important;
