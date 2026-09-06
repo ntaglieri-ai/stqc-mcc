@@ -146,7 +146,6 @@
       border: 1px solid rgba(147,197,253,.13); border-radius: 18px;
       box-shadow: 0 22px 70px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.025);
     }
-    .section.fabbisogno-section { border-color: rgba(59,130,246,.22); }
     .section.production-section { border-color: rgba(74,222,128,.15); }
     .section.assembly-section { border-color: rgba(168,85,247,.16); }
     .section-head {
@@ -297,50 +296,6 @@
       background: rgba(74,222,128,.06); border: 1px solid rgba(74,222,128,.16); color: #86efac;
     }
     .notice.warn { background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.18); color: #fcd34d; }
-    .explanation {
-      margin: 13px 0 16px; padding: 13px 15px; border-radius: 10px;
-      background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.16);
-      color: var(--secondary); font-size: 11px; line-height: 1.55;
-    }
-    .explanation strong { color: #bfdbfe; }
-    .details-panel {
-      display: none; margin-top: 16px; padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,.055);
-    }
-    .details-panel.open { display: block; }
-    .details-toggle {
-      min-width: 118px;
-      background: linear-gradient(135deg, rgba(59,130,246,.22), rgba(99,102,241,.16));
-      border-color: rgba(147,197,253,.32);
-      color: #dbeafe;
-    }
-    .details-toggle.open {
-      background: rgba(255,255,255,.035);
-      border-color: rgba(255,255,255,.12);
-      color: var(--secondary);
-    }
-    .needs-overview {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px; margin-bottom: 15px;
-    }
-    .need-card {
-      padding: 15px; border-radius: 13px; border: 1px solid rgba(147,197,253,.14);
-      background:
-        radial-gradient(circle at 86% 12%, rgba(59,130,246,.13), transparent 34%),
-        var(--panel2);
-      cursor: pointer; transition: transform .15s ease, border-color .15s ease;
-    }
-    .need-card:hover { transform: translateY(-1px); border-color: rgba(147,197,253,.34); }
-    .need-label { color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
-    .need-value { margin-top: 7px; font-size: 24px; font-weight: 950; letter-spacing: -.035em; }
-    .need-sub { margin-top: 5px; color: var(--secondary); font-size: 10px; line-height: 1.4; }
-    .origin-pill, .qr-pill {
-      display: inline-flex; align-items: center; justify-content: center;
-      padding: 4px 7px; border-radius: 999px; font-size: 8px; font-weight: 900;
-      letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
-      background: rgba(147,197,253,.08); border: 1px solid rgba(147,197,253,.16); color: #bfdbfe;
-    }
-    .qr-pill.no { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.18); color: #fde68a; }
     .anomaly-list { display: flex; flex-direction: column; gap: 7px; }
     .anomaly {
       padding: 10px 12px; border-radius: 9px; font-size: 11px;
@@ -397,15 +352,38 @@
     .qr-cta-title { font-size: 23px; font-weight: 900; letter-spacing: -.035em; }
     .qr-cta-copy { margin-top: 8px; max-width: 720px; color: var(--secondary); font-size: 12px; line-height: 1.55; }
     .revision-form {
-      display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px;
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
       margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border);
     }
     .upload-field {
-      padding: 11px; border: 1px dashed rgba(255,255,255,.16);
-      border-radius: 9px; background: #0c1322;
+      position: relative; display: flex; flex-direction: column; justify-content: space-between;
+      min-height: 104px; padding: 14px; border: 1px dashed rgba(147,197,253,.24);
+      border-radius: 10px; background: rgba(12,19,34,.72); cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
     }
-    .upload-field label { display: block; margin-bottom: 6px; color: var(--secondary); font-size: 10px; font-weight: 750; }
-    .upload-field input { width: 100%; color: var(--secondary); font-size: 10px; }
+    .upload-field:hover {
+      transform: translateY(-1px); border-color: rgba(147,197,253,.48);
+      background: rgba(18,31,54,.88);
+    }
+    fieldset:disabled .upload-field { opacity: .45; cursor: not-allowed; transform: none; }
+    .upload-field input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    fieldset:disabled .upload-field input[type="file"] { cursor: not-allowed; }
+    .upload-field-title {
+      color: var(--text); font-size: 12px; font-weight: 900; line-height: 1.25;
+    }
+    .upload-field-sub {
+      margin-top: 6px; color: var(--muted); font-size: 10px; font-weight: 700; line-height: 1.35;
+    }
+    .upload-file-name {
+      margin-top: 14px; color: #bfdbfe; font-size: 11px; font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+    .precheck {
+      grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 10px;
+      width: fit-content; color: var(--secondary); font-size: 13px; font-weight: 800;
+      cursor: pointer;
+    }
+    .precheck input { width: 16px; height: 16px; accent-color: var(--blue); }
     .revision-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .feedback { color: var(--secondary); font-size: 11px; }
     .feedback.error { color: var(--red); }
@@ -531,12 +509,6 @@
     }
     .qr-edit-field input:disabled { opacity:.55; cursor:not-allowed; }
     .qr-edit-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
-    .revision-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
-    .revision-chip {
-      padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
-      color: var(--secondary); background: rgba(255,255,255,.02); font-size: 10px;
-    }
-    .revision-chip.current { color: #bfdbfe; border-color: rgba(59,130,246,.35); }
     .loader {
       min-height: 360px; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px; color: var(--muted);
@@ -653,7 +625,6 @@ let currentQrItems = [];
 let currentQrDetail = null;
 let qrEditUnlocked = false;
 const selectedQrPieces = new Set();
-let fabbisognoDetailsOpen = false;
 
 function commessaUrl(page) {
   return `/commesse/${encodeURIComponent(commessaCode || commessaRef)}/${page}`;
@@ -680,6 +651,16 @@ function fmt(value) {
 }
 function basename(path) {
   return path ? String(path).split("/").pop() : null;
+}
+function currentRevisionFiles() {
+  const files = analysisData?.revisione?.files || {};
+  const changes = analysisData?.revisione?.report?.file_changes || {};
+  return {
+    lista: changes.lista_pezzi?.filename || basename(files.lista_pezzi),
+    assemblaggi: changes.assemblaggi?.filename || basename(files.assemblaggi),
+    spedizione: changes.spedizione?.filename || basename(files.spedizione),
+    bulloneria: changes.bulloneria?.filename || basename(files.bulloneria),
+  };
 }
 function jsArg(value) {
   return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -804,15 +785,16 @@ function renderPage() {
   const c = analysisData.commessa;
   const r = analysisData.revisione;
   const s = analysisData.summary;
-  document.title = `Analisi ${c.codice} · MCC`;
-  document.getElementById("nav-code").textContent = `${c.codice} · Analisi`;
+  const commessaName = c.descrizione || c.codice || commessaCode || commessaRef;
+  document.title = `Analisi Distinte Commessa "${commessaName}" · MCC`;
+  document.getElementById("nav-code").textContent = `${c.codice} · Analisi Distinta`;
 
   document.getElementById("root").innerHTML = `
     <header class="header">
       <div>
         <div class="eyebrow">Gestione Commesse</div>
-        <h1>Analisi ${esc(c.codice)}</h1>
-        <div class="subtitle">${esc(c.cliente || "Cliente non specificato")} · File acquisiti</div>
+        <h1>Analisi Distinte Commessa "${esc(commessaName)}"</h1>
+        <div class="subtitle">${esc(c.cliente || "Cliente non specificato")} · File distinta acquisiti</div>
       </div>
       <div class="header-actions">
         <div class="header-status-row">
@@ -835,13 +817,10 @@ function renderPage() {
 
     ${renderInputDashboard()}
 
-    ${renderFabbisognoSection()}
-
     <div class="footer-note">
       La commessa viene aggiornata dagli eventi reali generati dagli scan in officina.
     </div>`;
 
-  renderFabbisognoRows("");
   renderAssemblyRows("");
 }
 
@@ -866,102 +845,6 @@ function renderProgress(value) {
     <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
     <span>${fmt(pct)}%</span>
   </div>`;
-}
-
-let fabbisognoCategory = "Tutte";
-
-function renderFabbisognoSection() {
-  const data = analysisData?.fabbisogno || { summary: [], detail: [], totals: {} };
-  const summary = data.summary || [];
-  const detail = data.detail || [];
-  const totals = data.totals || {};
-  const qrPieces = detail
-    .filter(row => row.qr_scope === "PEZZO")
-    .reduce((sum, row) => sum + Number(row.quantita || 0), 0);
-  const noQrPieces = detail
-    .filter(row => row.qr_scope !== "PEZZO")
-    .reduce((sum, row) => sum + Number(row.quantita || 0), 0);
-  const cards = [
-    `<div class="need-card" onclick="filterFabbisogno('Tutte')">
-      <div class="need-label">Totale fabbisogno documentale</div>
-      <div class="need-value">${fmt(totals.quantita)}</div>
-      <div class="need-sub">${fmt(qrPieces)} pezzi con QR + ${fmt(noQrPieces)} senza QR<br>${fmt(totals.righe)} righe aggregate · ${fmt(totals.peso_kg)} kg</div>
-    </div>`,
-    ...summary.map(row => `
-      <div class="need-card" onclick="filterFabbisogno('${jsArg(row.categoria)}')">
-        <div class="need-label">${esc(row.categoria)}</div>
-        <div class="need-value">${fmt(row.quantita)}</div>
-        <div class="need-sub">${row.origini?.includes("File bulloneria") ? "senza QR" : "pezzi con QR"} · ${fmt(row.righe)} righe · ${fmt(row.peso_kg)} kg<br>${esc((row.origini || []).join(" + ") || "—")}</div>
-      </div>`)
-  ].join("");
-  return `<section class="section fabbisogno-section" id="fabbisogno-section">
-    <div class="section-head">
-      <div><div class="section-title">Fabbisogno commessa</div>
-      <div class="section-sub">Materiali necessari ricavati dai file caricati. È una vista documentale: non modifica i QR.</div></div>
-      <button class="btn details-toggle ${fabbisognoDetailsOpen ? "open" : ""}" id="fabbisogno-detail-btn" onclick="toggleFabbisognoDetails()">
-        ${fabbisognoDetailsOpen ? "Nascondi" : "Dettagli"}
-      </button>
-    </div>
-    <div class="needs-overview">${cards}</div>
-    <div class="explanation">
-      <strong>Nota operativa:</strong> i QR sono generati solo per i pezzi da distinta (${fmt(qrPieces)}). Il totale fabbisogno include anche la bulloneria/minuteria senza QR (${fmt(noQrPieces)}).
-    </div>
-    <div class="details-panel ${fabbisognoDetailsOpen ? "open" : ""}" id="fabbisogno-detail-panel">
-      <div class="toolbar"><input class="search" id="fabbisogno-search" placeholder="Cerca categoria, profilo, norma, dimensione, origine…" oninput="renderFabbisognoRows(this.value)"/></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Categoria</th><th>Codice</th><th>Descrizione</th><th>Materiale / norma</th><th>Dimensioni</th>
-            <th class="right">Quantità</th><th class="right">Peso kg</th><th>Origine</th><th>QR</th>
-          </tr></thead>
-          <tbody id="fabbisogno-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>`;
-}
-
-function toggleFabbisognoDetails() {
-  fabbisognoDetailsOpen = !fabbisognoDetailsOpen;
-  const panel = document.getElementById("fabbisogno-detail-panel");
-  const button = document.getElementById("fabbisogno-detail-btn");
-  if (panel) panel.classList.toggle("open", fabbisognoDetailsOpen);
-  if (button) {
-    button.classList.toggle("open", fabbisognoDetailsOpen);
-    button.textContent = fabbisognoDetailsOpen ? "Nascondi" : "Dettagli";
-  }
-  if (fabbisognoDetailsOpen) renderFabbisognoRows(document.getElementById("fabbisogno-search")?.value || "");
-}
-
-function filterFabbisogno(category) {
-  fabbisognoCategory = category || "Tutte";
-  if (!fabbisognoDetailsOpen) toggleFabbisognoDetails();
-  const input = document.getElementById("fabbisogno-search");
-  renderFabbisognoRows(input?.value || "");
-}
-
-function renderFabbisognoRows(query) {
-  const body = document.getElementById("fabbisogno-body");
-  if (!body) return;
-  const q = String(query || "").trim().toLowerCase();
-  const rows = (analysisData?.fabbisogno?.detail || []).filter(row => {
-    const categoryOk = fabbisognoCategory === "Tutte" || row.categoria === fabbisognoCategory;
-    const text = [row.categoria, row.codice, row.descrizione, row.materiale_norma, row.dimensioni, row.origine_label, row.qr_scope]
-      .map(value => String(value || "").toLowerCase()).join(" ");
-    return categoryOk && (!q || text.includes(q));
-  });
-  body.innerHTML = rows.map(row => `
-    <tr>
-      <td><span class="mono">${esc(row.categoria || "—")}</span></td>
-      <td>${esc(row.codice || "—")}</td>
-      <td>${esc(row.descrizione || "—")}</td>
-      <td>${esc(row.materiale_norma || "—")}</td>
-      <td>${esc(row.dimensioni || "—")}</td>
-      <td class="right">${fmt(row.quantita)} ${esc(row.unita || "pz")}</td>
-      <td class="right">${fmt(row.peso_kg)}</td>
-      <td><span class="origin-pill">${esc(row.origine_label || row.origine || "—")}</span></td>
-      <td><span class="qr-pill ${row.qr_scope === "NESSUN_QR" ? "no" : ""}">${row.qr_scope === "NESSUN_QR" ? "No QR" : "QR pezzo"}</span></td>
-    </tr>`).join("") || '<tr><td colspan="9">Nessun fabbisogno trovato</td></tr>';
 }
 
 function renderAssemblyRows(query) {
@@ -989,7 +872,7 @@ function renderFileWarnings(revision) {
   if (!warnings.length) return "";
   return `<section class="section">
     <div class="section-head"><div><div class="section-title">Warning file</div>
-    <div class="section-sub">L'analisi commessa è proseguita. Questi file possono essere verificati a parte.</div></div></div>
+    <div class="section-sub">L'analisi distinta è proseguita. Questi file possono essere verificati a parte.</div></div></div>
     <div class="notice warn">
       ${warnings.map(item => `<div><strong>${esc(item.file || "File")}:</strong> ${esc(item.message || "Verifica file/parsing")}</div>`).join("")}
     </div>
@@ -997,31 +880,66 @@ function renderFileWarnings(revision) {
 }
 
 function renderPredistintaWarning(revision) {
-  const chips = revisionData.map(row => `
-    <div class="revision-chip${row.corrente ? " current" : ""}">
-      ${esc(row.codice)} · ${row.predistinta ? "pre-distinta" : "definitiva"}
-      ${row.corrente ? " · corrente" : " · archiviata"}
-    </div>`).join("");
+  const isPre = !!revision?.predistinta;
   return `<section class="section">
-    <div class="section-head"><div><div class="section-title">Documenti · Analisi Distinta</div>
-    <div class="section-sub">Carica i file disponibili per questa commessa.</div></div></div>
-    <div class="notice warn">
-      Ogni caricamento crea una nuova revisione. Includi tutti i file da utilizzare: i QR della revisione precedente saranno archiviati e disattivati.
-    </div>
-    <div class="revision-list">${chips}</div>
+    <div class="section-head"><div><div class="section-title">${isPre ? "Pre-distinta · analisi preliminare" : "Documenti · Analisi Distinta"}</div>
+    <div class="section-sub">${isPre ? "Analisi e QR possono essere preparati, ma la produzione resterà bloccata fino alla distinta definitiva" : "Carica una nuova revisione quando arrivano file aggiornati o mancanti"}</div></div></div>
+    ${isPre ? `<div class="notice warn">
+      Caricando la distinta definitiva verrà creata una nuova revisione: lo Step 4 sarà rieseguito e gli eventuali QR preliminari saranno archiviati e disattivati.
+    </div>` : `<div class="notice">
+      Se ricarichi un file già presente vedrai un avviso: verranno aggiornate solo le parti cambiate.
+    </div>`}
     ${!uploadsEnabled ? `<div class="notice warn">Per caricare i file, spunta <strong>Inizio</strong> alla voce <strong>DISTINTE</strong> in <a href="${esc(commessaUrl('progettazione'))}">Progettazione</a>.</div>` : ""}
     <form onsubmit="uploadDefinitive(event)">
     <fieldset class="revision-form" style="border:0;padding:0;margin:0;min-width:0" ${uploadsEnabled ? "" : "disabled"}>
-      <div class="upload-field"><label>Lista pezzi</label><input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm"/></div>
-      <div class="upload-field"><label>Pezzi e assemblati</label><input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm"/></div>
-      <div class="upload-field"><label>Lista spedizione</label><input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm"/></div>
-      <div class="upload-field"><label>Bulloneria senza QR</label><input type="file" id="def-bulloneria" accept=".xls,.xlsx,.xlsm,.csv,.pdf"/></div>
-      <label><input type="checkbox" id="def-predistinta"/> Pre-distinta (documenti provvisori)</label><div class="revision-actions">
+      <label class="upload-field">
+        <input type="file" id="def-lista" accept=".xls,.xlsx,.xlsm" onchange="updateRevisionFileLabels()"/>
+        <span class="upload-field-title">${isPre ? "Lista pezzi definitiva" : "Lista pezzi"}</span>
+        <span class="upload-field-sub">Posizioni, profili e quantità</span>
+        <span class="upload-file-name" id="def-lista-name">Nessun file selezionato</span>
+      </label>
+      <label class="upload-field">
+        <input type="file" id="def-assemblaggi" accept=".xls,.xlsx,.xlsm" onchange="updateRevisionFileLabels()"/>
+        <span class="upload-field-title">Pezzi e assemblati</span>
+        <span class="upload-field-sub">Riferimenti e gerarchie di assemblaggio</span>
+        <span class="upload-file-name" id="def-assemblaggi-name">Nessun file selezionato</span>
+      </label>
+      <label class="upload-field">
+        <input type="file" id="def-spedizione" accept=".xls,.xlsx,.xlsm" onchange="updateRevisionFileLabels()"/>
+        <span class="upload-field-title">Lista spedizione</span>
+        <span class="upload-field-sub">Unità e destinazione spedizione</span>
+        <span class="upload-file-name" id="def-spedizione-name">Nessun file selezionato</span>
+      </label>
+      <label class="upload-field">
+        <input type="file" id="def-bulloneria" accept=".xls,.xlsx,.xlsm,.csv,.pdf" onchange="updateRevisionFileLabels()"/>
+        <span class="upload-field-title">Bulloneria senza QR</span>
+        <span class="upload-field-sub">Minuteria e componenti non marcati</span>
+        <span class="upload-file-name" id="def-bulloneria-name">Nessun file selezionato</span>
+      </label>
+      <label class="precheck">
+        <input type="checkbox" id="def-predistinta"/>
+        <span>Pre-distinta (documenti provvisori)</span>
+      </label>
+      <div class="revision-actions">
         <span class="feedback" id="revision-feedback"></span>
         <button class="btn" id="revision-submit" type="submit">Carica file e aggiorna analisi</button>
       </div>
     </fieldset></form>
   </section>`;
+}
+
+function updateRevisionFileLabels() {
+  [
+    ["def-lista", "def-lista-name"],
+    ["def-assemblaggi", "def-assemblaggi-name"],
+    ["def-spedizione", "def-spedizione-name"],
+    ["def-bulloneria", "def-bulloneria-name"],
+  ].forEach(([inputId, labelId]) => {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(labelId);
+    if (!input || !label) return;
+    label.textContent = input.files?.[0]?.name || "Nessun file selezionato";
+  });
 }
 
 async function uploadDefinitive(event) {
@@ -1036,6 +954,16 @@ async function uploadDefinitive(event) {
   if (!lista && !assemblaggi && !spedizione && !bulloneria) {
     feedback.className = "feedback error";
     feedback.textContent = "Carica almeno un file.";
+    return;
+  }
+  const currentFiles = currentRevisionFiles();
+  const duplicates = [
+    lista && currentFiles.lista === lista.name ? `Lista pezzi: ${lista.name}` : null,
+    assemblaggi && currentFiles.assemblaggi === assemblaggi.name ? `Pezzi e assemblati: ${assemblaggi.name}` : null,
+    spedizione && currentFiles.spedizione === spedizione.name ? `Lista spedizione: ${spedizione.name}` : null,
+    bulloneria && currentFiles.bulloneria === bulloneria.name ? `Bulloneria: ${bulloneria.name}` : null,
+  ].filter(Boolean);
+  if (duplicates.length && !confirm(`File già caricato nella revisione corrente:\n\n${duplicates.join("\n")}\n\nProcedere comunque? Gli slot uguali verranno trattati come invariati.`)) {
     return;
   }
   button.disabled = true;
@@ -1055,6 +983,13 @@ async function uploadDefinitive(event) {
     if (!response.ok) {
       const detail = data.detail || "Impossibile analizzare la distinta definitiva";
       throw new Error(response.status === 422 ? `File non importabile. Verifica file/parsing. ${detail}` : detail);
+    }
+    if (data.noop) {
+      feedback.className = "feedback";
+      feedback.textContent = data.message || "Nessuna differenza rilevata.";
+      alert(data.message || "I file caricati sono già presenti: nessun aggiornamento necessario.");
+      button.disabled = false;
+      return;
     }
     location.reload();
   } catch (error) {
