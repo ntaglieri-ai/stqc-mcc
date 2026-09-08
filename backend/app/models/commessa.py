@@ -334,6 +334,19 @@ class Workstation(Base):
     scanner_devices = relationship("ScannerDevice", back_populates="postazione")
 
 
+class WorkstationQr(Base):
+    __tablename__ = "workstation_qr_codes"
+    id = Column(Integer, primary_key=True)
+    workstation_id = Column(Integer, ForeignKey("workstations.id"), nullable=False, index=True)
+    label = Column(String(160), nullable=False)
+    actions = Column(JSON, nullable=False)
+    description = Column(Text, nullable=True)
+    behavior = Column(String(20), nullable=False, default="RECORD")
+    payload = Column(String(160), nullable=False, unique=True, index=True)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ScannerDevice(Base):
     """Scanner fisico associabile a una postazione configurabile."""
     __tablename__ = "scanner_devices"

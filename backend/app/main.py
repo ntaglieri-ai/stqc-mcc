@@ -227,6 +227,10 @@ def create_app() -> FastAPI:
     def root():
         return FileResponse(STATIC_DIR / "home.html", headers=_NO_CACHE)
 
+    @app.get("/impostazioni", include_in_schema=False)
+    def impostazioni_page():
+        return FileResponse(STATIC_DIR / "impostazioni.html", headers=_NO_CACHE)
+
     @app.get("/app", include_in_schema=False)
     def app_page():
         return FileResponse(STATIC_DIR / "index.html", headers=_NO_CACHE)

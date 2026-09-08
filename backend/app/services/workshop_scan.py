@@ -217,6 +217,22 @@ def process_workshop_scan(
         return _failure(db, scanner, external_id, "", "UNKNOWN", "EMPTY_PAYLOAD", "QR vuoto")
 
     value = _scan_value(raw_payload)
+    from backend.app.models.commessa import WorkstationQr
+    configured_qr = db.query(WorkstationQr).filter_by(payload=value).first()
+    if configured_qr:
+        station = db.get(Workstation, configured_qr.workstation_id)
+        if not configured_qr.active or not station or not station.active:
+            return _failure(db, scanner, external_id, raw_payload, "WORKSTATION_ACTION",
+                "QR_REVOKED", "QR rimosso o sostituito: utilizzare il nuovo codice", workstation=station)
+        if configured_qr.behavior == "RECORD":
+            # Full immutable metadata remains on the QR row addressed by raw_payload.
+            message = (configured_qr.label + " · " + " · ".join(configured_qr.actions))[:500]
+            _attempt(db, scanner, external_id, raw_payload, "WORKSTATION_ACTION", "OK", message,
+                workstation=station)
+            db.commit()
+            return _response(1, f"Registrato · {configured_qr.label}", ok=True,
+                scan_kind="WORKSTATION_ACTION", workstation=station.code, actions=configured_qr.actions)
+        value = station.start_qr_code if configured_qr.behavior == "START" else station.end_qr_code
     workstation = db.query(Workstation).filter(
         or_(Workstation.start_qr_code == value, Workstation.end_qr_code == value)
     ).first()

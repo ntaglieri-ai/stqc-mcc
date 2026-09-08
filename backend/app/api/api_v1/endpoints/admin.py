@@ -370,32 +370,18 @@ def list_workstation_qr_codes(include_inactive: bool = False, db: Session = Depe
     if not include_inactive:
         q = q.filter(Workstation.active == True)
     rows = q.order_by(Workstation.active.desc(), Workstation.code).all()
-    return {
-        "items": [
-            {
-                "id": ws.id,
-                "code": ws.code,
-                "name": ws.name,
-                "description": ws.description,
-                "active": ws.active,
-                "codes": [
-                    {
-                        "action": "START",
-                        "label": "Inizio",
-                        "payload": ws.start_qr_code,
-                        "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(ws.start_qr_code)}",
-                    },
-                    {
-                        "action": "END",
-                        "label": "Fine",
-                        "payload": ws.end_qr_code,
-                        "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(ws.end_qr_code)}",
-                    },
-                ],
-            }
-            for ws in rows
-        ]
-    }
+    from backend.app.models.commessa import WorkstationQr
+    from backend.app.services.station_qr import seed_station_qr
+    for ws in rows:
+        seed_station_qr(db, ws)
+    db.commit()
+    return {"items": [{"id": ws.id, "code": ws.code, "name": ws.name,
+        "description": ws.description, "active": ws.active,
+        "codes": [{"id": qr.id, "action": qr.behavior, "label": qr.label,
+            "actions": qr.actions, "description": qr.description,
+            "payload": qr.payload, "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(qr.payload)}"}
+            for qr in db.query(WorkstationQr).filter_by(workstation_id=ws.id, active=True).order_by(WorkstationQr.id).all()]
+        } for ws in rows]}
 
 
 @router.post("/workstations", response_model=WorkstationRead, status_code=201)
@@ -451,6 +437,21 @@ def update_workstation(workstation_id: int, body: WorkstationUpdate, db: Session
     db.commit()
     db.refresh(ws)
     return ws
+
+
+@router.delete("/workstations/{workstation_id}", status_code=204)
+def delete_workstation(workstation_id: int, db: Session = Depends(get_db)):
+    ws = db.get(Workstation, workstation_id)
+    if not ws:
+        raise HTTPException(404, "Postazione non trovata")
+    # Preserve scan history and prevent default stations being recreated at startup.
+    ws.active = False
+    db.query(ScannerDevice).filter(ScannerDevice.postazione_id == workstation_id).update(
+        {ScannerDevice.postazione_id: None}, synchronize_session=False
+    )
+    write_audit_log(db, "DELETE_WORKSTATION", details=f"id={workstation_id}, code={ws.code}")
+    db.commit()
+    return None
 
 
 @router.get("/scanner-devices", response_model=list[ScannerDeviceRead])
@@ -917,3 +918,62 @@ def update_settings(body: SettingsBody, db: Session = Depends(get_db)):
     db.commit()
     rows = db.query(AppSettings).all()
     return {r.key: r.value for r in rows}
+
+
+from pydantic import BaseModel, Field
+
+class StationQrBody(BaseModel):
+    label: str = Field(min_length=1, max_length=160)
+    actions: list[str] = Field(min_length=1, max_length=12)
+    description: str | None = Field(default=None, max_length=2000)
+
+
+def _station_qr_values(body):
+    label = body.label.strip()
+    actions = [a.strip() for a in body.actions if a.strip()]
+    if not label or not actions or any(len(a) > 100 for a in actions):
+        raise HTTPException(400, "Indica un nome e almeno un'azione (massimo 100 caratteri per azione)")
+    return dict(label=label, actions=actions, description=body.description)
+
+
+@router.post("/workstations/{workstation_id}/qr-codes", status_code=201)
+def create_station_qr(workstation_id: int, body: StationQrBody, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import WorkstationQr
+    from backend.app.services.station_qr import seed_station_qr, new_payload
+    ws = db.get(Workstation, workstation_id)
+    if not ws or not ws.active:
+        raise HTTPException(404, "Postazione non trovata")
+    values = _station_qr_values(body)
+    seed_station_qr(db, ws)
+    qr = WorkstationQr(workstation_id=ws.id, payload=new_payload(), behavior="RECORD", active=True, **values)
+    db.add(qr)
+    write_audit_log(db, "CREATE_STATION_QR", details=f"station={ws.id}, label={qr.label}")
+    db.commit()
+    return {"id": qr.id}
+
+
+@router.post("/workstations/{workstation_id}/qr-codes/{qr_id}/renew")
+def renew_station_qr(workstation_id: int, qr_id: int, body: StationQrBody, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import WorkstationQr
+    from backend.app.services.station_qr import new_payload
+    values = _station_qr_values(body)
+    qr = db.query(WorkstationQr).filter_by(id=qr_id, workstation_id=workstation_id, active=True).first()
+    if not qr:
+        raise HTTPException(404, "QR non trovato o già sostituito")
+    qr.active = False
+    replacement = WorkstationQr(workstation_id=workstation_id, payload=new_payload(), behavior=qr.behavior, active=True, **values)
+    db.add(replacement)
+    write_audit_log(db, "RENEW_STATION_QR", details=f"station={workstation_id}, previous={qr_id}")
+    db.commit()
+    return {"id": replacement.id}
+
+
+@router.delete("/workstations/{workstation_id}/qr-codes/{qr_id}", status_code=204)
+def remove_station_qr(workstation_id: int, qr_id: int, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import WorkstationQr
+    qr = db.query(WorkstationQr).filter_by(id=qr_id, workstation_id=workstation_id).first()
+    if not qr:
+        raise HTTPException(404, "QR non trovato")
+    qr.active = False
+    write_audit_log(db, "REMOVE_STATION_QR", details=f"station={workstation_id}, qr={qr_id}")
+    db.commit()
