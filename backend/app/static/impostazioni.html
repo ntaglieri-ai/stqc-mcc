@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Impostazioni · MCC STQC</title><style>
-* { box-sizing:border-box; } body { margin:0; background:#080f1f; color:#e5edf8; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; } main { max-width:1400px; margin:auto; padding:32px; } header { display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:28px; } h1 { margin:6px 0 0; } nav { display:flex; gap:10px; } nav a { text-decoration:none; } .eyebrow { color:#94a3b8; font-size:12px; letter-spacing:.12em; }
+* { box-sizing:border-box; } body { margin:0; background:#0f1c39; color:#e5edf8; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; } main { max-width:1400px; margin:auto; padding:32px; } header { display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:28px; } h1 { margin:6px 0 0; } nav { display:flex; gap:10px; } nav a { text-decoration:none; } .eyebrow { color:#94a3b8; font-size:12px; letter-spacing:.12em; }
     .scan-settings { display: none; flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
     .scan-settings.open { display: block; }
     .scan-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .scan-tab {
       border: 1px solid rgba(147,197,253,.16); background: rgba(255,255,255,.04);
-      color: rgba(255,255,255,.62); border-radius: 999px; padding: 8px 11px;
+      color: rgba(255,255,255,.72); border-radius: 999px; padding: 8px 11px;
       font-size: 11px; font-weight: 800; cursor: pointer;
     }
     .scan-tab.active { color: #dbeafe; border-color: rgba(96,165,250,.42); background: rgba(59,130,246,.14); }
     .scan-mini-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 0 0 14px; }
     .scan-mini-card { border: 1px solid rgba(147,197,253,.14); border-radius: 14px; background: rgba(255,255,255,.035); padding: 13px; }
     .scan-mini-card strong { display: block; font-size: 20px; color: rgba(255,255,255,.92); letter-spacing: -.03em; }
-    .scan-mini-card span { display: block; margin-top: 4px; font-size: 10px; color: rgba(255,255,255,.38); text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
-    .scan-panel { border: 1px solid rgba(147,197,253,.14); border-radius: 18px; background: linear-gradient(145deg, rgba(16,32,55,.82), rgba(8,15,27,.72)); overflow: hidden; }
+    .scan-mini-card span { display: block; margin-top: 4px; font-size: 10px; color: rgba(255,255,255,.72); text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
+    .scan-panel { border: 1px solid rgba(147,197,253,.14); border-radius: 18px; background: linear-gradient(145deg, rgba(23,47,81,.82), rgba(16,29,53,.72)); overflow: hidden; }
     .scan-panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 15px 16px; border-bottom: 1px solid rgba(147,197,253,.12); }
     .scan-panel-title { font-size: 15px; font-weight: 900; color: rgba(255,255,255,.9); }
-    .scan-panel-sub { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.38); line-height: 1.4; }
+    .scan-panel-sub { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.72); line-height: 1.4; }
     .scan-list { display: grid; gap: 10px; padding: 14px; }
-    .scan-row { border: 1px solid rgba(147,197,253,.12); border-radius: 14px; background: rgba(8,15,27,.54); padding: 12px; }
+    .scan-row { border: 1px solid rgba(147,197,253,.12); border-radius: 14px; background: rgba(16,29,53,.54); padding: 12px; }
     .scan-row-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
     .scan-row-title { font-size: 14px; font-weight: 900; color: #eaf2ff; }
-    .scan-row-sub { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.42); line-height: 1.4; }
+    .scan-row-sub { margin-top: 4px; font-size: 11px; color: rgba(255,255,255,.72); line-height: 1.4; }
     .scan-badge { display:inline-flex; align-items:center; border-radius:999px; border:1px solid rgba(147,197,253,.16); padding:4px 8px; font-size:9px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:#bfdbfe; background:rgba(59,130,246,.08); white-space:nowrap; }
     .scan-badge.ok { color:#86efac; border-color:rgba(74,222,128,.28); background:rgba(74,222,128,.09); }
     .scan-badge.off { color:#fca5a5; border-color:rgba(248,113,113,.24); background:rgba(248,113,113,.08); }
@@ -34,11 +34,11 @@
     .scan-form { display:grid; gap:9px; padding:14px; }
     .scan-form input,.scan-form select,.scan-form textarea {
       width:100%; border:1px solid rgba(147,197,253,.14); border-radius:12px;
-      background:rgba(8,15,27,.72); color:#eaf2ff; padding:10px 11px; font-size:12px; outline:none;
+      background:rgba(16,29,53,.72); color:#eaf2ff; padding:10px 11px; font-size:12px; outline:none;
     }
     .scan-form textarea { min-height:70px; resize:vertical; }
     .scan-form-two { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-    .scan-empty { padding: 26px; text-align:center; color:rgba(255,255,255,.34); font-size:12px; }
+    .scan-empty { padding: 26px; text-align:center; color: rgba(255,255,255,.72); font-size:12px; }
     @media (max-width: 680px) { .scan-mini-grid,.scan-form-two,.scan-qr-grid { grid-template-columns: 1fr; } }
 
 .scan-settings { overflow:visible; padding:0; } @media(max-width:680px) { main { padding:20px 14px; } }
@@ -47,6 +47,15 @@
 .scan-action.edit { background:rgba(245,158,11,.14); border-color:rgba(245,158,11,.4); color:#fcd34d; }
 .scan-action.delete { background:rgba(239,68,68,.14); border-color:rgba(239,68,68,.4); color:#fca5a5; }
 .scan-action:hover { filter:brightness(1.2); } .scan-tab:focus-visible { outline:2px solid #93c5fd; outline-offset:3px; } .scan-tab:disabled { opacity:.5; cursor:wait; }
+.station-toggle { display:flex; align-items:center; gap:10px; flex:1; min-width:0; border:0; padding:2px 0; background:none; color:#eaf2ff; text-align:left; cursor:pointer; font:inherit; }
+.station-toggle::before { content:'▸'; color:#93c5fd; font-size:18px; }
+.station-toggle[aria-expanded="true"]::before { content:'▾'; }
+.station-toggle:focus-visible { outline:2px solid #93c5fd; outline-offset:4px; border-radius:6px; }
+.station-row .scan-row-top { align-items:center; }
+.station-row .scan-action { padding:7px 12px; }
+.station-row .scan-row-sub { color:#b8c7dd; }
+.station-row .scan-qr-grid[hidden] { display:none; }
+@media(max-width:540px) { .station-row .scan-row-top { flex-wrap:wrap; } .station-toggle { flex-basis:100%; } }
 </style></head><body><main><header><div><div class="eyebrow">VISTA DIRETTORE</div><h1>Impostazioni</h1></div><nav><button class="scan-tab" onclick="goBack()">← Indietro</button><a class="scan-tab" href="/">Home</a></nav></header>  <div class="scan-settings open" id="scanner-settings-view">
     <div class="scan-toolbar">
       
@@ -160,21 +169,21 @@ function renderStationQrSettings() {
   document.getElementById('station-new-action').hidden = false;
   document.getElementById('scanner-new-action').hidden = true;
   document.getElementById('scanner-settings-heading').textContent = 'Gestione Postazioni';
-  document.getElementById('scanner-settings-sub').textContent = 'QR e azioni delle postazioni. Clicca un QR per stamparlo; usa Modifica per gestirlo.';
+  document.getElementById('scanner-settings-sub').textContent = 'Clicca una postazione per mostrare i QR, poi un QR per stamparlo.';
   document.getElementById('scanner-settings-body').innerHTML = `<div class="scan-list">${
     scannerQrCodes.map((ws, i) => `
-      <div class="scan-row">
+      <div class="scan-row station-row">
         <div class="scan-row-top">
-          <div>
-            <div class="scan-row-title">${esc(ws.name || ws.code)}</div>
-            <div class="scan-row-sub">${esc(ws.code)}${ws.description ? ' · ' + esc(ws.description) : ''}</div>
-          </div>
+          <button class="station-toggle" aria-expanded="false" aria-controls="station-codes-${Number(ws.id)}" onclick="toggleStationCodes(this)">
+            <span><span class="scan-row-title">${esc(ws.name || ws.code)}</span>
+            <span class="scan-row-sub" style="display:block">${esc(ws.code)} · ${(ws.codes || []).length} QR</span></span>
+          </button>
           <div class="scan-toolbar" style="margin:0;justify-content:flex-end">
             <button class="scan-tab scan-action edit" onclick="renderStationForm(${Number(ws.id)})">Modifica</button>
             <button class="scan-tab scan-action delete" onclick="deleteStation(${Number(ws.id)},this)">Elimina</button>
           </div>
         </div>
-        <div class="scan-qr-grid">
+        <div class="scan-qr-grid" id="station-codes-${Number(ws.id)}" hidden>
           ${(ws.codes || []).map((code, j) => `
             <div class="scan-qr" onclick="printScannerStationCode(${i},${j})">
               <img src="${esc(code.qr_image_url)}" alt="${esc(code.label)} ${esc(ws.code)}">
@@ -188,6 +197,12 @@ function renderStationQrSettings() {
       </div>
     `).join('') || '<div class="scan-empty">Nessuna postazione attiva.</div>'
   }</div>`;
+}
+
+function toggleStationCodes(button) {
+  const expanded = button.getAttribute('aria-expanded') !== 'true';
+  button.setAttribute('aria-expanded', String(expanded));
+  document.getElementById(button.getAttribute('aria-controls')).hidden = !expanded;
 }
 
 function renderStationForm(id = null) {
@@ -350,6 +365,15 @@ function printScannerStationCode(i, j) {
 .scan-action.edit { background:rgba(245,158,11,.14); border-color:rgba(245,158,11,.4); color:#fcd34d; }
 .scan-action.delete { background:rgba(239,68,68,.14); border-color:rgba(239,68,68,.4); color:#fca5a5; }
 .scan-action:hover { filter:brightness(1.2); } .scan-tab:focus-visible { outline:2px solid #93c5fd; outline-offset:3px; } .scan-tab:disabled { opacity:.5; cursor:wait; }
+.station-toggle { display:flex; align-items:center; gap:10px; flex:1; min-width:0; border:0; padding:2px 0; background:none; color:#eaf2ff; text-align:left; cursor:pointer; font:inherit; }
+.station-toggle::before { content:'▸'; color:#93c5fd; font-size:18px; }
+.station-toggle[aria-expanded="true"]::before { content:'▾'; }
+.station-toggle:focus-visible { outline:2px solid #93c5fd; outline-offset:4px; border-radius:6px; }
+.station-row .scan-row-top { align-items:center; }
+.station-row .scan-action { padding:7px 12px; }
+.station-row .scan-row-sub { color:#b8c7dd; }
+.station-row .scan-qr-grid[hidden] { display:none; }
+@media(max-width:540px) { .station-row .scan-row-top { flex-wrap:wrap; } .station-toggle { flex-basis:100%; } }
 </style></head><body><div class="sheet"><div class="label"><div class="kicker">Codice postazione officina</div><div class="name">${esc(ws.name || ws.code)}</div><div class="action ${String(code.label).toLowerCase().includes('inizio')?'start':'end'}">${esc(code.label).toUpperCase()}</div><img src="${esc(code.qr_image_url)}"><div class="payload">${esc(code.payload)}</div><div class="hint">${esc(ws.code)} · scannerizza questo QR con la pistola</div><button onclick="window.print()" style="margin-top:22px;padding:12px 18px;border-radius:10px;border:1px solid #111827;background:#111827;color:white;font-weight:800">Stampa</button></div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
   win.document.close();
 }

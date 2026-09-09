@@ -6,7 +6,7 @@
   <title>Accesso · MCC STQC</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; }
+    html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #182442; }
 
     /* ── Layout ── */
     .split { display: flex; height: 100vh; }
@@ -24,7 +24,7 @@
     .left-bg.loaded { transform: scale(1); }
     .left-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(160deg, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.75) 60%, rgba(15,23,42,0.95) 100%);
+      background: linear-gradient(160deg, rgba(24,36,66,0.45) 0%, rgba(24,36,66,0.75) 60%, rgba(24,36,66,0.95) 100%);
     }
     .left-content {
       position: relative; z-index: 2; height: 100%;
@@ -40,14 +40,14 @@
       font-size: 44px; font-weight: 900; letter-spacing: -.02em; color: rgba(255,255,255,0.85);
     }
     .left-brand-srl {
-      font-size: 20px; font-weight: 700; letter-spacing: .1em; color: rgba(255,255,255,0.38);
+      font-size: 20px; font-weight: 700; letter-spacing: .1em; color: rgba(255,255,255,.72);
     }
     .left-stqc {
       font-size: clamp(80px, 10vw, 118px); font-weight: 900; color: #fff;
       line-height: 1; letter-spacing: -.03em; text-shadow: 0 4px 40px rgba(0,0,0,0.5);
     }
     .left-sub {
-      font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.38);
+      font-size: 12px; font-weight: 500; color: rgba(255,255,255,.72);
       margin-top: 10px; letter-spacing: .04em;
     }
     .left-badge {
@@ -59,7 +59,7 @@
 
     /* ── Right panel ── */
     .right {
-      flex: 1; background: #0f172a;
+      flex: 1; background: #182442;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 40px;
@@ -69,7 +69,7 @@
     }
     .login-header { margin-bottom: 32px; }
     .login-eyebrow {
-      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.3);
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,.72);
       text-transform: uppercase; letter-spacing: .14em; margin-bottom: 8px;
     }
     .login-title {
@@ -81,7 +81,7 @@
     .field { margin-bottom: 16px; }
     .field label {
       display: block; font-size: 11px; font-weight: 700;
-      color: rgba(255,255,255,0.35); text-transform: uppercase;
+      color: rgba(255,255,255,.72); text-transform: uppercase;
       letter-spacing: .1em; margin-bottom: 7px;
     }
     .field input {
@@ -96,7 +96,7 @@
       border-color: rgba(59,130,246,0.5);
       background: rgba(59,130,246,0.06);
     }
-    .field input::placeholder { color: rgba(255,255,255,0.2); }
+    .field input::placeholder { color: rgba(255,255,255,.72); }
 
     .btn-login {
       width: 100%; padding: 14px;

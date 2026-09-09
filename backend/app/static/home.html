@@ -6,7 +6,7 @@
   <title>MCC · STQC</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; }
+    html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #182442; }
 
     /* ── Layout ── */
     .split { display: flex; height: 100vh; }
@@ -22,7 +22,7 @@
     .left-bg.loaded { transform: scale(1); }
     .left-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(160deg, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.75) 60%, rgba(15,23,42,0.92) 100%);
+      background: linear-gradient(160deg, rgba(24,36,66,0.45) 0%, rgba(24,36,66,0.75) 60%, rgba(24,36,66,0.92) 100%);
     }
     .left-content {
       position: relative; z-index: 2; height: 100%;
@@ -31,18 +31,18 @@
     }
     .left-logo { display: flex; align-items: center; gap: 10px; }
     .left-logo-dot { width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 12px #3b82f6; }
-    .left-logo-text { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: .12em; text-transform: uppercase; }
+    .left-logo-text { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.72); letter-spacing: .12em; text-transform: uppercase; }
     .left-meta { margin-top: 32px; display: flex; align-items: center; gap: 16px; }
     .left-badge {
       padding: 5px 12px; border-radius: 20px;
       background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4);
       color: #93c5fd; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
     }
-    .left-version { font-size: 11px; color: rgba(255,255,255,0.25); }
+    .left-version { font-size: 11px; color: #b8c7dd; }
 
     /* ── Right panel ── */
     .right {
-      flex: 1; background: #0f172a;
+      flex: 1; background: #182442;
       display: flex; flex-direction: column;
       padding: 36px 40px 36px 40px; overflow-y: auto;
     }
@@ -51,13 +51,13 @@
       display: flex; align-items: flex-start; justify-content: space-between;
     }
     .right-eyebrow {
-      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.3);
+      font-size: 11px; font-weight: 700; color: #b8c7dd;
       text-transform: uppercase; letter-spacing: .14em; margin-bottom: 6px;
     }
     .right-title { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.9); }
     .right-subtitle {
       margin-top: 7px; max-width: 560px;
-      color: rgba(255,255,255,0.36); font-size: 12px; line-height: 1.55;
+      color: #cbd5e1; font-size: 12px; line-height: 1.55;
     }
 
     /* User info + logout */
@@ -65,17 +65,19 @@
       display: flex; align-items: center; gap: 10px; flex-shrink: 0;
     }
     .user-name {
-      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4);
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,.72);
       text-align: right; line-height: 1.4;
     }
-    .user-name small { display: block; font-size: 10px; color: rgba(255,255,255,0.22); font-weight: 400; }
+    .user-name small { display: block; font-size: 10px; color: rgba(255,255,255,.72); font-weight: 400; }
     .btn-logout {
       padding: 6px 13px; border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.1);
       background: rgba(255,255,255,0.04);
-      color: rgba(255,255,255,0.35); font-size: 11px; font-weight: 600;
+      color: #fecaca; font-size: 11px; font-weight: 600;
       cursor: pointer; transition: all .18s; white-space: nowrap;
     }
+    .btn-logout { border-color: rgba(248,113,113,.45); background: rgba(127,29,29,.22); }
+    .btn-logout:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
     .btn-logout:hover { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.3); color: #fca5a5; }
 
     /* ── Card grid ── */
@@ -89,15 +91,15 @@
     }
     .card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
     .card:hover .card-bg { transform: scale(1.06); filter: brightness(1.1); }
-    .card:hover .card-overlay { opacity: 0.55; }
+    .card:hover .card-overlay { opacity: 1; }
     .card:hover .card-arrow { opacity: 1; transform: translateX(0); }
     .card:active { transform: scale(0.98); }
     .card-bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform .5s cubic-bezier(.4,0,.2,1), filter .3s; }
-    .card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0.15) 100%); transition: opacity .25s; opacity: 0.75; }
+    .card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.65) 55%, rgba(0,0,0,0.15) 100%); transition: opacity .25s; opacity: 1; }
     .card-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; padding: 18px 20px; }
     .card-icon { font-size: 22px; margin-bottom: 6px; line-height: 1; }
     .card-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.2; }
-    .card-desc { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 3px; font-weight: 400; }
+    .card-desc { font-size: 11px; color: #e2e8f0; text-shadow: 0 1px 3px #000; margin-top: 3px; font-weight: 400; }
     .card-arrow {
       position: absolute; top: 18px; right: 18px; width: 28px; height: 28px; border-radius: 50%;
       background: rgba(255,255,255,0.15); backdrop-filter: blur(4px);
@@ -115,7 +117,7 @@
       padding: clamp(24px, 3.2vh, 42px) clamp(34px, 4vw, 72px);
       background:
         radial-gradient(circle at 82% 2%, rgba(37,99,235,.08), transparent 29%),
-        #0f172a;
+        #182442;
     }
     .director-mode .right-header {
       width: 100%; margin-bottom: clamp(14px, 2vh, 22px);
@@ -166,9 +168,9 @@
     .c-mag    { background-color: #1a2a2a; }
     .c-off    { background-color: #2a1f0e; }
     .c-acq    { background-color: #2e2a1a; }
-    .c-impost { background-color: #1e1e2e; }
-    .c-account { background-color: #0f1f2e; }
-    .c-maint   { background-color: #1a1a2e; }
+    .c-impost { background-color: #2b2b42; }
+    .c-account { background-color: #173047; }
+    .c-maint   { background-color: #262643; }
     .c-config  { background-color: #1e2a1e; }
 
     /* ── Admin sub-panels ── */
@@ -184,8 +186,8 @@
     }
     .admin-panel {
       position: fixed; top: 0; right: 0; width: 40%; min-width: 360px; height: 100vh;
-      background: #080f1f; border-left: 1px solid rgba(255,255,255,0.07);
-      box-shadow: -32px 0 100px rgba(0,0,0,0.7);
+      background: #0f1c39; border-left: 1px solid rgba(255,255,255,0.07);
+      box-shadow: none;
       transform: translateX(100%); transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
       z-index: 100; display: flex; flex-direction: column; padding: 44px 40px 40px; gap: 24px;
     }
@@ -202,13 +204,13 @@
     .adm-sub-icon { font-size: 26px; flex-shrink: 0; width: 44px; text-align: center; }
     .adm-sub-text {}
     .adm-sub-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 2px; }
-    .adm-sub-desc  { font-size: 11px; color: rgba(255,255,255,0.38); font-weight: 400; }
-    .adm-sub-arrow { margin-left: auto; color: rgba(255,255,255,0.25); font-size: 14px; flex-shrink: 0; transition: color .2s; }
+    .adm-sub-desc  { font-size: 11px; color: rgba(255,255,255,.72); font-weight: 400; }
+    .adm-sub-arrow { margin-left: auto; color: rgba(255,255,255,.72); font-size: 14px; flex-shrink: 0; transition: color .2s; }
     .adm-sub-item:hover .adm-sub-arrow { color: rgba(59,130,246,0.8); }
     .adm-soon-badge {
       margin-left: auto; padding: 2px 8px; border-radius: 8px;
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.3); font-size: 9px; font-weight: 700;
+      color: rgba(255,255,255,.72); font-size: 9px; font-weight: 700;
       text-transform: uppercase; letter-spacing: .08em; flex-shrink: 0;
     }
 
@@ -306,16 +308,17 @@
     }
     #comm-panel {
       position: fixed; top: 0; right: 0; width: min(1100px, 65vw); min-width: min(560px, 100vw); height: 100dvh;
-      background: #080f1f; border-left: 1px solid rgba(255,255,255,0.07);
-      box-shadow: -32px 0 100px rgba(0,0,0,0.7);
+      background: #0f1c39; border-left: 1px solid rgba(255,255,255,0.07);
+      box-shadow: none;
       transform: translateX(100%); transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
       z-index: 100; display: flex; flex-direction: column; padding: 28px 32px; gap: 18px;
     }
     #comm-panel.open { transform: translateX(0); }
+    .admin-panel.open, #comm-panel.open { box-shadow: -32px 0 100px rgba(0,0,0,0.7); }
     .pnl-close {
       width: 34px; height: 34px; border-radius: 50%;
       border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.45); font-size: 16px; cursor: pointer;
+      color: rgba(255,255,255,.72); font-size: 16px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: background .2s, color .2s; flex-shrink: 0; line-height: 1;
     }
@@ -348,12 +351,12 @@
         <div class="left-logo-dot"></div>
         <span class="left-logo-text" style="display:flex;align-items:baseline;gap:5px">
           <span style="font-size:44px;font-weight:900;letter-spacing:-.02em;color:rgba(255,255,255,0.85)">MCC</span>
-          <span style="font-size:20px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,0.38)">S.R.L.</span>
+          <span style="font-size:20px;font-weight:700;letter-spacing:.1em;color:#cbd5e1">S.R.L.</span>
         </span>
       </div>
       <div>
         <div style="font-size:120px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.03em;text-shadow:0 4px 40px rgba(0,0,0,0.5)">STQC</div>
-        <div style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.38);margin-top:10px;white-space:nowrap;letter-spacing:.04em">Sistema Tracciamento QR su Commessa</div>
+        <div style="font-size:12px;font-weight:500;color:#cbd5e1;margin-top:10px;white-space:nowrap;letter-spacing:.04em">Sistema Tracciamento QR su Commessa</div>
         <div class="left-meta">
           <span class="left-badge">Produzione</span>
           <span class="left-version">v1.0 · 2026</span>
@@ -390,7 +393,7 @@
 <div id="comm-panel">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
     <div>
-      <div id="comm-panel-eyebrow" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Gestione Commesse</div>
+      <div id="comm-panel-eyebrow" style="font-size:11px;font-weight:700;color:#b8c7dd;text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Gestione Commesse</div>
       <div id="comm-panel-title" style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Cosa vuoi fare?</div>
     </div>
     <button class="pnl-close" id="comm-panel-close" onclick="closeCommessePanel()">✕</button>
@@ -435,7 +438,7 @@
 <div class="admin-panel" id="adm-account-panel">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
     <div>
-      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Amministrazione</div>
+      <div style="font-size:11px;font-weight:700;color:#b8c7dd;text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Amministrazione</div>
       <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Account</div>
     </div>
     <button class="pnl-close" onclick="closeAdminPanel('account')">✕</button>
@@ -473,7 +476,7 @@
 <div class="admin-panel" id="adm-maint-panel">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
     <div>
-      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Sistema</div>
+      <div style="font-size:11px;font-weight:700;color:#b8c7dd;text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Sistema</div>
       <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Manutenzione</div>
     </div>
     <button class="pnl-close" onclick="closeAdminPanel('maint')">✕</button>
@@ -519,7 +522,7 @@
 <div class="admin-panel" id="adm-config-panel">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0">
     <div>
-      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Configurazione</div>
+      <div style="font-size:11px;font-weight:700;color:#b8c7dd;text-transform:uppercase;letter-spacing:.14em;margin-bottom:7px">Configurazione</div>
       <div style="font-size:23px;font-weight:800;color:rgba(255,255,255,0.93);letter-spacing:-.025em;line-height:1.15">Impostazioni</div>
     </div>
     <button class="pnl-close" onclick="closeAdminPanel('config')">✕</button>

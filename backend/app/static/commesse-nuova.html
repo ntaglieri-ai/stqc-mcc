@@ -9,7 +9,7 @@
     html, body {
       height: 100%; overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f172a; color: #fff;
+      background: #182442; color: #fff;
     }
     .split { display: flex; height: 100vh; }
     .left { width: 32%; position: relative; overflow: hidden; flex-shrink: 0; }
@@ -22,7 +22,7 @@
     .left-bg.loaded { transform: scale(1); }
     .left-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(160deg, rgba(8,15,31,.5), rgba(8,15,31,.78) 60%, rgba(8,15,31,.95));
+      background: linear-gradient(160deg, rgba(15,28,57,.5), rgba(15,28,57,.78) 60%, rgba(15,28,57,.95));
     }
     .left-content {
       position: relative; z-index: 2; height: 100%;
@@ -32,7 +32,7 @@
     .left-nav { display: flex; align-items: center; gap: 10px; }
     .left-back {
       display: flex; align-items: center; gap: 7px; padding: 6px 11px;
-      border-radius: 8px; color: rgba(255,255,255,.4);
+      border-radius: 8px; color: rgba(255,255,255,.72);
       text-decoration: none; font-size: 13px; font-weight: 500;
       transition: background .2s, color .2s;
     }
@@ -42,7 +42,7 @@
       background: #3b82f6; box-shadow: 0 0 12px #3b82f6;
     }
     .left-logo-text {
-      font-size: 13px; font-weight: 600; color: rgba(255,255,255,.4);
+      font-size: 13px; font-weight: 600; color: rgba(255,255,255,.72);
       letter-spacing: .12em; text-transform: uppercase;
     }
     .left-mcc {
@@ -51,7 +51,7 @@
     }
     .left-sub {
       margin-top: 12px; font-size: 14px; font-weight: 500;
-      color: rgba(255,255,255,.55); letter-spacing: .03em; line-height: 1.65;
+      color: rgba(255,255,255,.72); letter-spacing: .03em; line-height: 1.65;
     }
     .left-sub strong { color: rgba(255,255,255,.88); font-weight: 700; }
     .left-meta { margin-top: 24px; display: flex; align-items: center; gap: 14px; }
@@ -61,23 +61,23 @@
       color: #93c5fd; font-size: 11px; font-weight: 600;
       letter-spacing: .06em; text-transform: uppercase;
     }
-    .left-version { font-size: 11px; color: rgba(255,255,255,.2); }
+    .left-version { font-size: 11px; color: rgba(255,255,255,.72); }
 
-    .right { flex: 1; background: #0a1020; display: flex; overflow-y: auto; }
+    .right { flex: 1; background: #121d39; display: flex; overflow-y: auto; }
     .form-wrap {
       flex: 1; display: flex; flex-direction: column; justify-content: center;
       padding: 52px 44px; max-width: 980px; width: 100%; margin: 0 auto;
     }
     .bc { display: flex; align-items: center; gap: 7px; font-size: 12px; margin-bottom: 28px; }
     .bc a {
-      color: rgba(255,255,255,.38); text-decoration: none;
+      color: rgba(255,255,255,.72); text-decoration: none;
       padding: 3px 7px; border-radius: 6px;
     }
     .bc a:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.75); }
     .bc-sep { color: rgba(255,255,255,.15); }
-    .bc-cur { color: rgba(255,255,255,.6); font-weight: 600; padding: 3px 7px; }
+    .bc-cur { color: rgba(255,255,255,.72); font-weight: 600; padding: 3px 7px; }
     .form-eyebrow {
-      font-size: 11px; font-weight: 700; color: rgba(255,255,255,.28);
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,.72);
       text-transform: uppercase; letter-spacing: .14em; margin-bottom: 7px;
     }
     .form-title {
@@ -85,7 +85,7 @@
       letter-spacing: -.025em; margin-bottom: 4px;
     }
     .form-subtitle {
-      font-size: 14px; color: rgba(255,255,255,.35);
+      font-size: 14px; color: rgba(255,255,255,.72);
       margin-bottom: 40px; line-height: 1.5;
     }
     .quick-action {
@@ -124,7 +124,7 @@
     }
     .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
     .field-label {
-      font-size: 12px; font-weight: 700; color: rgba(255,255,255,.45);
+      font-size: 12px; font-weight: 700; color: rgba(255,255,255,.72);
       text-transform: uppercase; letter-spacing: .07em;
     }
     .field-label span { color: #f87171; margin-left: 2px; }
@@ -139,7 +139,7 @@
     .field-input::placeholder { color: rgba(255,255,255,.18); }
     .section-line { height: 1px; background: rgba(255,255,255,.07); margin: 8px 0 18px; }
     .document-title { font-size: 14px; font-weight: 800; color: rgba(255,255,255,.88); margin-bottom: 3px; }
-    .document-subtitle { font-size: 12px; color: rgba(255,255,255,.35); }
+    .document-subtitle { font-size: 12px; color: rgba(255,255,255,.72); }
     .predistinta {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 14px; margin: 16px 0;
@@ -147,7 +147,7 @@
       border-radius: 11px;
     }
     .predistinta-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.8); }
-    .predistinta-sub { font-size: 11px; color: rgba(255,255,255,.35); margin-top: 2px; }
+    .predistinta-sub { font-size: 11px; color: rgba(255,255,255,.72); margin-top: 2px; }
     .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
     .toggle-slider {
@@ -196,7 +196,7 @@
       width: 26px; height: 26px; border-radius: 50%;
       align-items: center; justify-content: center;
       border: 1px solid rgba(255,255,255,.14);
-      background: rgba(15,23,42,.88); color: rgba(255,255,255,.62);
+      background: rgba(24,36,66,.88); color: rgba(255,255,255,.72);
       font-size: 17px; font-weight: 900; line-height: 1; cursor: pointer;
       transition: border-color .2s, background .2s, color .2s;
     }
@@ -215,14 +215,14 @@
       border: 1px solid rgba(239,68,68,.25);
     }
     .ub-req-badge.optional {
-      background: rgba(255,255,255,.06); color: rgba(255,255,255,.3);
+      background: rgba(255,255,255,.06); color: rgba(255,255,255,.72);
       border: 1px solid rgba(255,255,255,.1);
     }
     .ub-icon { font-size: 24px; margin-bottom: 8px; line-height: 1; }
     .ub-label { font-size: 13px; font-weight: 800; color: rgba(255,255,255,.85); margin-bottom: 3px; }
-    .ub-sub { font-size: 11px; color: rgba(255,255,255,.32); margin-bottom: 10px; line-height: 1.45; }
-    .ub-hint { font: 10px monospace; color: rgba(255,255,255,.2); margin-bottom: 4px; }
-    .ub-cta { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.3); }
+    .ub-sub { font-size: 11px; color: rgba(255,255,255,.72); margin-bottom: 10px; line-height: 1.45; }
+    .ub-hint { font: 10px monospace; color: rgba(255,255,255,.72); margin-bottom: 4px; }
+    .ub-cta { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); }
     .ub-selected {
       display: none; margin-top: 8px; font-size: 11px; font-weight: 700;
       color: #4ade80; text-align: center; word-break: break-all; line-height: 1.4;
@@ -231,7 +231,7 @@
     .ub-selected-count { font-size: 10px; color: rgba(74,222,128,.7); }
     .ub-validation {
       min-height: 16px; margin-top: 7px; font-size: 10px; font-weight: 800;
-      line-height: 1.35; color: rgba(255,255,255,.26);
+      line-height: 1.35; color: rgba(255,255,255,.72);
     }
     .ub-validation.ok { color: #4ade80; }
     .ub-validation.warning { color: #fbbf24; }
