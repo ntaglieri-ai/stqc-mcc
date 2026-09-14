@@ -333,7 +333,7 @@
     .station-label { font-size:12px; font-weight:900; color:#e5edff; }
     .station-payload { margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9px; color:rgba(219,234,254,.52); word-break:break-all; }
   </style>
-</head>
+<script src="/static/qr-print.js"></script></head>
 <body>
 
 <!-- Auth guard -->
@@ -503,7 +503,7 @@ function renderStationCodes() {
   `).join('');
 }
 
-function printStationCode(code, name, label, payload, img) {
+function printStationCodePrevious(code, name, label, payload, img) {
   const w = window.open('', '_blank', 'width=760,height=860');
   if (!w) return alert('Popup bloccato: abilita le finestre di stampa.');
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(code)} ${esc(label)}</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;margin:0;color:#101828}.sheet{min-height:calc(100vh - 36mm);display:flex;align-items:center;justify-content:center}.label{text-align:center;border:2px solid #111827;border-radius:18px;padding:28px 34px;max-width:520px}.kicker{font-size:16px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#475467}.name{font-size:34px;font-weight:900;margin-top:10px}.action{font-size:46px;font-weight:950;margin:8px 0 20px}.action.start{color:#047857}.action.end{color:#b42318}img{width:360px;height:360px;image-rendering:pixelated}.payload{margin-top:18px;font-family:monospace;font-size:18px;word-break:break-all}.hint{margin-top:12px;color:#667085;font-size:13px}@media print{button{display:none}}</style></head><body><div class="sheet"><div class="label"><div class="kicker">Codice postazione officina</div><div class="name">${esc(name)}</div><div class="action ${label.toLowerCase().includes('inizio')?'start':'end'}">${esc(label).toUpperCase()}</div><img src="${esc(img)}"><div class="payload">${esc(payload)}</div><div class="hint">${esc(code)} · scannerizza questo QR con la pistola</div><button onclick="window.print()" style="margin-top:22px;padding:12px 18px;border-radius:10px;border:1px solid #111827;background:#111827;color:white;font-weight:800">Stampa</button></div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
@@ -713,6 +713,8 @@ async function loadCommesse() {
 
 applyPageMode();
 loadCommesse();
+
+function printStationCode(code,name,label,payload,img){openQrPrint([{title:name,action:label,detail:code,image:img}]);}
 </script>
 </body>
 </html>

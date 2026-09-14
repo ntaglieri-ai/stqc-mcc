@@ -47,7 +47,7 @@
     @media(max-width:1100px){.wrap{grid-template-columns:1fr}.control-panel{grid-template-columns:1fr}.panel{height:auto;min-height:auto}.group-list{max-height:70vh}.action-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.compact-count{grid-column:1/-1}}
     @media(max-width:900px){.action-strip{grid-template-columns:1fr}.top{height:auto;min-height:72px;flex-wrap:wrap;padding:14px}.wrap{padding:14px}.grid{grid-template-columns:1fr}.footer,.group-head{flex-direction:column;align-items:stretch}.dock-grid{grid-template-columns:1fr}}
   </style>
-</head>
+<script src="/static/qr-print.js"></script></head>
 <body>
   <header class="top">
     <a href="/">Home</a><span>/</span><a id="shipping-link" href="#">Spedizione</a><span>/</span><strong>Registro QR spedizione</strong>
@@ -151,12 +151,12 @@
     function showPrintError(popup,message){if(!popup||popup.closed)return alert(message);popup.document.body.innerHTML=`<div style="margin:50px;font-family:Arial;color:#991b1b"><h1>Stampa non riuscita</h1><p>${esc(message)}</p><button onclick="window.close()">Chiudi</button></div>`}
     function printSettings(){return{layout:printLayout.value,columns:Math.max(1,Math.min(4,Number(printColumns.value||2))),rows:Math.max(1,Math.min(8,Number(printRows.value||5))),gap_mm:Math.max(0,Math.min(20,Number(printGap.value||0)))}}
     function directPrintSettings(){return{...printSettings(),orientation:printOrientation.value==='portrait'?'portrait':'landscape'}}
-    async function printIds(ids){if(!ids.length)return alert('Nessun QR selezionato.');if(ids.length>2000)return alert('Puoi stampare al massimo 2000 QR per volta.');const settings=printSettings();const popup=openPrintProgressWindow(settings.layout==='grid'?Math.ceil(ids.length/(settings.columns*settings.rows)):ids.length);if(!popup)return;try{const r=await fetch(`/api/v1/commesse/${commessaId}/qr/labels.pdf`,{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({piece_ids:ids,width_mm:70,height_mm:50,...settings})});const d=r.ok?await r.blob():await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Stampa non disponibile');const url=URL.createObjectURL(d);popup.location.replace(url);setTimeout(()=>URL.revokeObjectURL(url),300000)}catch(err){showPrintError(popup,err.message||String(err))}}
+    async function printIdsPrevious(ids){if(!ids.length)return alert('Nessun QR selezionato.');if(ids.length>2000)return alert('Puoi stampare al massimo 2000 QR per volta.');const settings=printSettings();const popup=openPrintProgressWindow(settings.layout==='grid'?Math.ceil(ids.length/(settings.columns*settings.rows)):ids.length);if(!popup)return;try{const r=await fetch(`/api/v1/commesse/${commessaId}/qr/labels.pdf`,{method:'POST',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify({piece_ids:ids,width_mm:70,height_mm:50,...settings})});const d=r.ok?await r.blob():await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||'Stampa non disponibile');const url=URL.createObjectURL(d);popup.location.replace(url);setTimeout(()=>URL.revokeObjectURL(url),300000)}catch(err){showPrintError(popup,err.message||String(err))}}
     function printSelected(){printIds([...selected])}
     function printAll(){printIds(items.map(x=>x.id))}
     function printDirectSelected(){printDirectIds([...selected])}
     function labelTextParts(item){const payload=String(item.qr_payload||'').trim();if(!payload)return{title:String(item.marca_pos||item.qr_code||''),detail:''};const qtaIndex=payload.toUpperCase().indexOf("Q.TA");if(qtaIndex>0)return{title:payload.slice(0,qtaIndex).trim(),detail:payload.slice(qtaIndex).trim()};return{title:payload,detail:''}}
-    function printDirectIds(ids){
+    function printDirectIdsPrevious(ids){
       if(!ids.length)return alert('Nessun QR selezionato.');
       const selectedRows=ids.map(id=>items.find(x=>x.id===id)).filter(Boolean);
       if(!selectedRows.length)return alert('QR selezionati non disponibili.');
@@ -212,6 +212,9 @@
     });
     document.addEventListener('click',()=>codePicker.classList.remove('open'));
     load();
-  </script>
+
+function printIds(ids){printDirectIds(ids);}
+function printDirectIds(ids){openQrPrint(ids.map(id=>items.find(x=>x.id===id)).filter(Boolean).map(x=>({title:labelTextParts(x).title,detail:labelTextParts(x).detail,image:x.qr_image_url})));}
+</script>
 </body>
 </html>

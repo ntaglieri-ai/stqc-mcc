@@ -56,7 +56,7 @@
 .station-row .scan-row-sub { color:#b8c7dd; }
 .station-row .scan-qr-grid[hidden] { display:none; }
 @media(max-width:540px) { .station-row .scan-row-top { flex-wrap:wrap; } .station-toggle { flex-basis:100%; } }
-</style></head><body><main><header><div><div class="eyebrow">VISTA DIRETTORE</div><h1>Impostazioni</h1></div><nav><button class="scan-tab" onclick="goBack()">← Indietro</button><a class="scan-tab" href="/">Home</a></nav></header>  <div class="scan-settings open" id="scanner-settings-view">
+</style><script src="/static/qr-print.js"></script></head><body><main><header><div><div class="eyebrow">VISTA DIRETTORE</div><h1>Impostazioni</h1></div><nav><button class="scan-tab" onclick="goBack()">← Indietro</button><a class="scan-tab" href="/">Home</a></nav></header>  <div class="scan-settings open" id="scanner-settings-view">
     <div class="scan-toolbar">
       
       <button class="scan-tab active" data-scan-tab="codes" onclick="setScannerSettingsTab('codes')">Gestione Postazioni</button>
@@ -335,6 +335,7 @@ function renderNewScannerSettings(id = null) {
       <div class="scan-form-two">
         <select id="scan-new-mode">
           <option value="OFFICINA">OFFICINA</option>
+          <option value="ASSEMBLAGGI">ASSEMBLAGGI</option>
           <option value="MAGAZZINO">MAGAZZINO</option>
           <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
         </select>
@@ -354,7 +355,7 @@ function renderNewScannerSettings(id = null) {
   }
 }
 
-function printScannerStationCode(i, j) {
+function printScannerStationCodePrevious(i, j) {
   const ws = scannerQrCodes[i];
   const code = ws?.codes?.[j];
   if (!ws || !code) return;
@@ -434,4 +435,6 @@ async function copyScannerUrl(token, mode) {
 
 
 if (TOKEN) loadScannerSettings();
+
+function printScannerStationCode(i,j){const ws=scannerQrCodes[i],qr=ws?.codes?.[j];if(qr)openQrPrint([{title:ws.name||ws.code,action:qr.label,detail:ws.code,image:qr.qr_image_url}]);}
 </script></body></html>
