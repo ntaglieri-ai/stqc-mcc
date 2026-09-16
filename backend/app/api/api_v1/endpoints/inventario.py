@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from backend.app.crud import warehouse as crud
 from backend.app.db.session import get_db
 from backend.app.models.warehouse import Material, MovementType, StockMovement
-from backend.app.services.ddt import analyze_ddt_pdf
+from backend.app.services.ddt import analyze_ddt_file, analyze_ddt_files
 from backend.app.services.inventario import parse_inventario
 from backend.app.services.warehouse_items import create_items_for_incoming, reconcile_available_items
 
@@ -208,7 +208,7 @@ async def analyze_ddt(
         tmp_path = Path(tmp.name)
 
     try:
-        return analyze_ddt_pdf(tmp_path, file.filename)
+        return analyze_ddt_file(tmp_path, file.filename)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Impossibile analizzare il DDT: {exc}")
     finally:
@@ -216,6 +216,32 @@ async def analyze_ddt(
             os.remove(tmp_path)
         except OSError:
             pass
+
+
+@router.post("/ddt/analyze-batch")
+async def analyze_ddt_batch(
+    files: list[UploadFile] = File(...),
+):
+    if not files:
+        raise HTTPException(status_code=422, detail="Nessun file caricato")
+
+    tmp_files: list[tuple[Path, str]] = []
+    try:
+        for file in files:
+            filename = file.filename or "pagina-ddt"
+            suffix = Path(filename).suffix or ".bin"
+            with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(await file.read())
+                tmp_files.append((Path(tmp.name), filename))
+        return analyze_ddt_files(tmp_files)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Impossibile analizzare il DDT: {exc}")
+    finally:
+        for tmp_path, _filename in tmp_files:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
 
 @router.post("/ddt/confirm")

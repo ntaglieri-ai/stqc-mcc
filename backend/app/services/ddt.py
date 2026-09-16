@@ -8,6 +8,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".heic", ".heif"}
+TEXT_SUFFIXES = {".txt", ".csv", ".tsv"}
+
 
 @dataclass
 class DdtLine:
@@ -130,10 +133,66 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[str]]:
     return ocr_text, warnings
 
 
+def _tesseract_path() -> str | None:
+    tesseract = shutil.which("tesseract") or "/opt/homebrew/bin/tesseract"
+    return tesseract if Path(tesseract).exists() else None
+
+
+def _extract_image_ocr_text(path: Path) -> tuple[str, list[str]]:
+    warnings: list[str] = []
+    tesseract = _tesseract_path()
+    if not tesseract:
+        return "", ["OCR non disponibile: Tesseract non installato."]
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        try:
+            from PIL import Image, ImageEnhance, ImageOps
+
+            image = Image.open(path)
+            image = ImageOps.exif_transpose(image)
+            image = image.convert("L")
+            image = ImageOps.autocontrast(image)
+            image = ImageEnhance.Contrast(image).enhance(2.2)
+            image_path = Path(tmp_dir) / "ddt-image.png"
+            image.save(image_path)
+        except Exception as exc:
+            return "", [f"Immagine non leggibile: {exc}."]
+
+        try:
+            result = subprocess.run(
+                [tesseract, image_path.as_posix(), "stdout", "-l", "ita+eng", "--psm", "6"],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=45,
+            )
+        except Exception as exc:
+            return "", [f"OCR immagine non riuscito: {exc}."]
+
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout, warnings
+    if result.stderr.strip():
+        warnings.append(result.stderr.strip().splitlines()[-1])
+    warnings.append("OCR completato ma nessun testo leggibile rilevato.")
+    return "", warnings
+
+
+def _extract_plain_text(path: Path) -> tuple[str, list[str]]:
+    for encoding in ("utf-8-sig", "utf-8", "latin-1"):
+        try:
+            return path.read_text(encoding=encoding), []
+        except UnicodeDecodeError:
+            continue
+        except Exception as exc:
+            return "", [f"File testo non leggibile: {exc}."]
+    return "", ["File testo non leggibile con le codifiche supportate."]
+
+
 def _extract_pdf_ocr_text(path: Path) -> tuple[str, list[str]]:
     warnings: list[str] = []
-    tesseract = shutil.which("tesseract") or "/opt/homebrew/bin/tesseract"
-    if not Path(tesseract).exists():
+    tesseract = _tesseract_path()
+    if not tesseract:
         return "", ["OCR non disponibile: Tesseract non installato."]
 
     try:
@@ -570,9 +629,13 @@ def _merge_lines(lines: list[DdtLine]) -> list[DdtLine]:
     return list(merged.values())
 
 
-def analyze_ddt_pdf(path: Path, original_filename: str | None = None) -> dict[str, Any]:
-    filename = original_filename or path.name
-    text, warnings = _extract_pdf_text(path)
+def _analyze_ddt_text(
+    text: str,
+    warnings: list[str],
+    filename: str,
+    *,
+    source_kind: str,
+) -> dict[str, Any]:
     meta = _document_meta(text, filename)
     lines: list[DdtLine] = []
     if text.strip():
@@ -591,12 +654,13 @@ def analyze_ddt_pdf(path: Path, original_filename: str | None = None) -> dict[st
     if not text.strip():
         status = "ocr_required"
         warnings.append(
-            "Il PDF sembra una scansione: serve OCR per estrarre quantità, pesi e riferimenti in automatico."
+            "Il documento non contiene testo leggibile: serve OCR o completamento manuale per quantità, pesi e riferimenti."
         )
 
     return {
         "status": status,
         "filename": filename,
+        "source_kind": source_kind,
         "supplier": meta.get("supplier"),
         "ddt_number": meta.get("ddt_number"),
         "ddt_date": meta.get("ddt_date"),
@@ -605,3 +669,71 @@ def analyze_ddt_pdf(path: Path, original_filename: str | None = None) -> dict[st
         "warnings": warnings,
         "items": [asdict(line) for line in lines],
     }
+
+
+def analyze_ddt_pdf(path: Path, original_filename: str | None = None) -> dict[str, Any]:
+    filename = original_filename or path.name
+    text, warnings = _extract_pdf_text(path)
+    return _analyze_ddt_text(text, warnings, filename, source_kind="pdf")
+
+
+def _extract_ddt_file_text(path: Path, filename: str) -> tuple[str, list[str], str]:
+    suffix = Path(filename).suffix.lower() or path.suffix.lower()
+    if suffix == ".pdf":
+        text, warnings = _extract_pdf_text(path)
+        return text, warnings, "pdf"
+    if suffix in IMAGE_SUFFIXES:
+        text, warnings = _extract_image_ocr_text(path)
+        return text, warnings, "image"
+    if suffix in TEXT_SUFFIXES:
+        text, warnings = _extract_plain_text(path)
+        return text, warnings, "text"
+
+    warnings = [
+        f"Formato {suffix or 'senza estensione'} accettato ma non leggibile automaticamente. "
+        "Carica PDF, immagini o testo per estrazione automatica; puoi comunque completare la review manualmente."
+    ]
+    return "", warnings, "unsupported"
+
+
+def analyze_ddt_file(path: Path, original_filename: str | None = None) -> dict[str, Any]:
+    filename = original_filename or path.name
+    text, warnings, source_kind = _extract_ddt_file_text(path, filename)
+    return _analyze_ddt_text(text, warnings, filename, source_kind=source_kind)
+
+
+def analyze_ddt_files(files: list[tuple[Path, str]]) -> dict[str, Any]:
+    if not files:
+        return _analyze_ddt_text(
+            "",
+            ["Nessun file caricato."],
+            "DDT multipagina",
+            source_kind="batch",
+        )
+
+    chunks: list[str] = []
+    warnings: list[str] = []
+    source_kinds: set[str] = set()
+    filenames: list[str] = []
+
+    for index, (path, filename) in enumerate(files, start=1):
+        filenames.append(filename)
+        text, file_warnings, source_kind = _extract_ddt_file_text(path, filename)
+        source_kinds.add(source_kind)
+        warnings.extend(f"Pagina {index} ({filename}): {warning}" for warning in file_warnings)
+        if text.strip():
+            chunks.append(f"\n--- PAGINA {index}: {filename} ---\n{text}")
+
+    batch_name = " + ".join(filenames[:3])
+    if len(filenames) > 3:
+        batch_name += f" + {len(filenames) - 3} altri"
+    result = _analyze_ddt_text(
+        "\n".join(chunks),
+        warnings,
+        batch_name,
+        source_kind="batch",
+    )
+    result["files"] = filenames
+    result["page_count"] = len(files)
+    result["source_kinds"] = sorted(source_kinds)
+    return result

@@ -327,6 +327,26 @@ def create_app() -> FastAPI:
     def magazzino_page():
         return FileResponse(STATIC_DIR / "magazzino.html", headers=_NO_CACHE)
 
+    @app.get("/ddt-upload", include_in_schema=False)
+    def ddt_upload_page():
+        return FileResponse(STATIC_DIR / "ddt-upload.html", headers=_NO_CACHE)
+
+    @app.get("/ddt-upload.webmanifest", include_in_schema=False)
+    def ddt_upload_manifest():
+        return FileResponse(
+            STATIC_DIR / "ddt-upload.webmanifest",
+            media_type="application/manifest+json",
+            headers=_NO_CACHE,
+        )
+
+    @app.get("/ddt-upload-sw.js", include_in_schema=False)
+    def ddt_upload_service_worker():
+        return FileResponse(
+            STATIC_DIR / "ddt-upload-sw.js",
+            media_type="application/javascript",
+            headers=_NO_CACHE,
+        )
+
     @app.get("/p/{item_uuid}", include_in_schema=False)
     def qr_resolve_page(item_uuid: str):
         return FileResponse(STATIC_DIR / "qr-item.html", headers=_NO_CACHE)

@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#16263d"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="DDT MCC"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="manifest" href="/ddt-upload.webmanifest"/>
+  <link rel="icon" href="/static/ddt-upload-icon.svg" type="image/svg+xml"/>
+  <link rel="apple-touch-icon" href="/static/ddt-upload-icon-192.png"/>
+  <title>Analizza DDT</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07101d;
+      --panel: #111d2e;
+      --panel-2: #18263a;
+      --line: rgba(142, 173, 220, .22);
+      --line-strong: rgba(118, 168, 255, .48);
+      --text: #e5efff;
+      --muted: #95a8c0;
+      --faint: #6f829b;
+      --blue: #5b8cff;
+      --green: #22c55e;
+      --amber: #f8c747;
+      --red: #fb7185;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .34);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100%;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 8% -8%, rgba(91, 140, 255, .22), transparent 30rem),
+        linear-gradient(160deg, #07101d 0%, #0a1525 50%, #101827 100%);
+      color: var(--text);
+      letter-spacing: 0;
+    }
+
+    button, input, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .app {
+      width: min(100%, 620px);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 2px 0;
+    }
+
+    .brand-kicker {
+      color: #8fb3ff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 5px 0 0;
+      font-size: clamp(30px, 8vw, 42px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .05);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .icon-btn svg { width: 20px; height: 20px; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(17, 29, 46, .86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-pad { padding: 18px; }
+
+    .session {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, .04);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .session-name {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .session-name strong {
+      display: block;
+      color: var(--text);
+      font-size: 15px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ghost {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 42px;
+      padding: 0 13px;
+      background: rgba(255, 255, 255, .04);
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .login-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    label {
+      color: #8ca3bf;
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    input, select {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid rgba(126, 163, 210, .32);
+      border-radius: 8px;
+      background: rgba(5, 13, 24, .62);
+      color: var(--text);
+      padding: 0 13px;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--line-strong);
+      box-shadow: 0 0 0 3px rgba(91, 140, 255, .18);
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6, #6d5dfc);
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(59, 130, 246, .24);
+    }
+
+    .primary:disabled, .ghost:disabled {
+      opacity: .48;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .upload {
+      display: grid;
+      gap: 14px;
+    }
+
+    .drop {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      gap: 12px;
+      min-height: 240px;
+      border: 1.5px dashed rgba(118, 168, 255, .58);
+      border-radius: 8px;
+      background: rgba(30, 45, 68, .82);
+      padding: 24px 18px;
+      cursor: pointer;
+    }
+
+    .drop svg {
+      width: 54px;
+      height: 54px;
+      color: #cfe0ff;
+    }
+
+    .drop-title {
+      font-size: 24px;
+      line-height: 1.08;
+      font-weight: 900;
+    }
+
+    .drop-copy {
+      max-width: 34ch;
+      color: var(--muted);
+      line-height: 1.45;
+      font-weight: 650;
+    }
+
+    .file-input {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .split-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .page-queue {
+      display: grid;
+      gap: 8px;
+    }
+
+    .queue-empty,
+    .queued-page {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(6, 14, 27, .44);
+      padding: 11px 12px;
+    }
+
+    .queue-empty {
+      color: var(--muted);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .queued-page {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: rgba(91, 140, 255, .16);
+      color: #bcd2ff;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .page-name {
+      min-width: 0;
+      color: var(--text);
+      font-weight: 850;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .page-meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      margin-top: 2px;
+    }
+
+    .remove-page {
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(251, 113, 133, .34);
+      border-radius: 8px;
+      background: rgba(251, 113, 133, .08);
+      color: #fecdd3;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .status {
+      border: 1px solid rgba(248, 199, 71, .32);
+      border-radius: 8px;
+      background: rgba(248, 199, 71, .08);
+      color: #ffe08a;
+      padding: 13px 14px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 96px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .035);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .metric-label {
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      min-width: 0;
+      font-size: 18px;
+      line-height: 1.15;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .warnings {
+      display: grid;
+      gap: 8px;
+    }
+
+    .warning {
+      border: 1px solid rgba(248, 199, 71, .30);
+      border-radius: 8px;
+      background: rgba(248, 199, 71, .08);
+      color: #ffe08a;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.35;
+    }
+
+    .review-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .doc-grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .item-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(6, 14, 27, .5);
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .item-index {
+      color: #8fb3ff;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .item-source {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    .empty {
+      min-height: 110px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .result {
+      border: 1px solid rgba(34, 197, 94, .34);
+      border-radius: 8px;
+      background: rgba(34, 197, 94, .09);
+      color: #bdf7ce;
+      padding: 14px;
+      font-weight: 850;
+      line-height: 1.38;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 430px) {
+      .app { padding-left: 12px; padding-right: 12px; }
+      .summary { grid-template-columns: 1fr; }
+      .split-actions { grid-template-columns: 1fr; }
+      .item-grid { grid-template-columns: 1fr; }
+      .drop { min-height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <div class="brand-kicker">Magazzino · Documenti</div>
+        <h1>Analizza DDT</h1>
+      </div>
+      <button class="icon-btn" id="copy-link" type="button" aria-label="Copia link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 11 21.07l1.71-1.71"/>
+        </svg>
+      </button>
+    </header>
+
+    <section class="panel" id="session-panel">
+      <div class="session hidden" id="session-ok">
+        <div class="session-name">Sessione attiva<strong id="session-user">Utente</strong></div>
+        <button class="ghost" id="logout-btn" type="button">Esci</button>
+      </div>
+      <div class="panel-pad" id="login-box">
+        <form class="login-grid" id="login-form">
+          <div class="field">
+            <label for="username">UserID</label>
+            <input id="username" name="username" autocomplete="username" autocapitalize="none" required/>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required/>
+          </div>
+          <button class="primary" id="login-btn" type="submit">Accedi</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel panel-pad upload" id="upload-panel">
+      <label class="drop" for="file-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M12 3v12"/>
+          <path d="m7 8 5-5 5 5"/>
+          <path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3"/>
+        </svg>
+        <span class="drop-title">Aggiungi pagine DDT</span>
+        <span class="drop-copy">Scatta o seleziona tutte le pagine, poi premi Analizza DDT quando hai finito.</span>
+      </label>
+      <input class="file-input" id="file-input" type="file" multiple/>
+      <input class="file-input" id="camera-input" type="file" accept="image/*" capture="environment"/>
+      <div class="split-actions">
+        <button class="ghost" id="camera-btn" type="button">Scatta foto</button>
+        <button class="ghost" id="add-file-btn" type="button">Aggiungi file</button>
+        <button class="ghost" id="remove-last-btn" type="button" disabled>Rimuovi ultima</button>
+        <button class="ghost" id="full-app-btn" type="button">Gestione completa</button>
+      </div>
+      <div class="page-queue" id="page-queue">
+        <div class="queue-empty">Nessuna pagina aggiunta.</div>
+      </div>
+      <button class="primary" id="analyze-btn" type="button" disabled>Analizza DDT</button>
+      <div class="status" id="status">In attesa documento.</div>
+    </section>
+
+    <section class="panel panel-pad">
+      <div class="summary">
+        <div class="metric">
+          <div class="metric-label">Fornitore</div>
+          <div class="metric-value" id="supplier">Da leggere</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Documento</div>
+          <div class="metric-value" id="document">Da leggere</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Materiali</div>
+          <div class="metric-value" id="materials">0 rilevati</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Stato</div>
+          <div class="metric-value" id="state">In attesa</div>
+        </div>
+      </div>
+      <div class="warnings" id="warnings"></div>
+    </section>
+
+    <section class="panel panel-pad" id="review-panel">
+      <div class="review-head">
+        <h2 class="section-title">Review ingresso</h2>
+        <div class="count" id="review-count">0 righe</div>
+      </div>
+      <div class="doc-grid" id="doc-fields"></div>
+      <div class="item-list" id="items">
+        <div class="empty">Nessuna riga materiale proposta.</div>
+      </div>
+      <button class="primary" id="confirm-btn" type="button" disabled style="margin-top:14px">Conferma ingresso magazzino</button>
+    </section>
+
+    <section class="result hidden" id="result"></section>
+  </main>
+
+  <script>
+    const TOKEN_KEY = "stqc_mobile_token";
+    const USER_KEY = "stqc_mobile_user";
+    let analysis = null;
+    let queuedFiles = [];
+
+    const $ = id => document.getElementById(id);
+    const token = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem("stqc_token") || "";
+    const authHeaders = () => ({ Authorization: "Bearer " + token() });
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const numOrNull = value => {
+      if (value === null || value === undefined || String(value).trim() === "") return null;
+      const n = Number(String(value).replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    };
+    const fmt = value => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 3 }).format(Number(value || 0));
+    const fmtBytes = value => {
+      if (!value) return "0 KB";
+      if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+      return `${(value / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+    };
+
+    function setStatus(message, tone = "wait") {
+      $("status").textContent = message;
+      $("status").style.borderColor = tone === "ok" ? "rgba(34, 197, 94, .34)" : tone === "err" ? "rgba(251, 113, 133, .35)" : "rgba(248, 199, 71, .32)";
+      $("status").style.color = tone === "ok" ? "#bdf7ce" : tone === "err" ? "#fecdd3" : "#ffe08a";
+    }
+
+    function refreshSession() {
+      const currentToken = token();
+      const user = localStorage.getItem(USER_KEY) || sessionStorage.getItem("stqc_nome") || "";
+      $("login-box").classList.toggle("hidden", Boolean(currentToken));
+      $("session-ok").classList.toggle("hidden", !currentToken);
+      $("session-user").textContent = user || "Utente";
+      $("upload-panel").style.opacity = currentToken ? "1" : ".55";
+    }
+
+    function renderQueue() {
+      $("page-queue").innerHTML = queuedFiles.length ? queuedFiles.map((file, idx) => `
+        <div class="queued-page">
+          <div class="page-badge">${idx + 1}</div>
+          <div>
+            <div class="page-name">${esc(file.name || `Pagina ${idx + 1}`)}</div>
+            <div class="page-meta">${esc(file.type || "file")} · ${fmtBytes(file.size)}</div>
+          </div>
+          <button class="remove-page" type="button" data-remove-page="${idx}" aria-label="Rimuovi pagina ${idx + 1}">×</button>
+        </div>
+      `).join("") : '<div class="queue-empty">Nessuna pagina aggiunta.</div>';
+      $("analyze-btn").disabled = !queuedFiles.length;
+      $("remove-last-btn").disabled = !queuedFiles.length;
+      if (queuedFiles.length) {
+        setStatus(`${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina pronta" : "pagine pronte"}. Premi Analizza DDT quando hai finito.`, "ok");
+      }
+    }
+
+    function addFiles(files) {
+      const incoming = Array.from(files || []);
+      if (!incoming.length) return;
+      queuedFiles = queuedFiles.concat(incoming);
+      analysis = null;
+      $("result").classList.add("hidden");
+      $("state").textContent = "Da analizzare";
+      $("document").textContent = `${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"}`;
+      renderQueue();
+    }
+
+    function removeQueuedFile(index) {
+      queuedFiles.splice(index, 1);
+      renderQueue();
+      $("document").textContent = queuedFiles.length ? `${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"}` : "Da leggere";
+      if (!queuedFiles.length) setStatus("In attesa documento.");
+    }
+
+    function resetAnalysis(clearQueue = true) {
+      if (clearQueue) {
+        queuedFiles = [];
+        renderQueue();
+      }
+      analysis = null;
+      $("supplier").textContent = "Da leggere";
+      $("document").textContent = "Da leggere";
+      $("materials").textContent = "0 rilevati";
+      $("state").textContent = "In attesa";
+      $("warnings").innerHTML = "";
+      $("doc-fields").innerHTML = "";
+      $("items").innerHTML = '<div class="empty">Nessuna riga materiale proposta.</div>';
+      $("review-count").textContent = "0 righe";
+      $("confirm-btn").disabled = true;
+      $("result").classList.add("hidden");
+      setStatus("In attesa documento.");
+    }
+
+    function field(label, id, value, placeholder = "") {
+      return `
+        <div class="field">
+          <label for="${id}">${esc(label)}</label>
+          <input id="${id}" value="${esc(value || "")}" placeholder="${esc(placeholder)}"/>
+        </div>`;
+    }
+
+    function input(idx, fieldName, value, label, type = "text", step = "any", wide = false) {
+      return `
+        <div class="field ${wide ? "wide" : ""}">
+          <label>${esc(label)}</label>
+          <input data-index="${idx}" data-field="${fieldName}" type="${type}" ${type === "number" ? `step="${step}"` : ""} value="${esc(value ?? "")}"/>
+        </div>`;
+    }
+
+    function renderAnalysis(data) {
+      analysis = data;
+      const items = data.items || [];
+      const ready = items.length > 0;
+      $("supplier").textContent = data.supplier || "Da verificare";
+      $("document").textContent = [data.ddt_number ? `DDT ${data.ddt_number}` : data.filename, data.ddt_date].filter(Boolean).join(" · ") || "Da verificare";
+      $("materials").textContent = `${items.length} rilevati`;
+      $("state").textContent = ready ? "Review" : (data.status === "ocr_required" ? "OCR richiesto" : "Da verificare");
+      $("warnings").innerHTML = (data.warnings || []).map(w => `<div class="warning">${esc(w)}</div>`).join("");
+      $("doc-fields").innerHTML = [
+        field("Fornitore", "doc-supplier", data.supplier, "es. TECNOACCIAI"),
+        field("N. DDT", "doc-number", data.ddt_number, "es. 3083"),
+        field("Data DDT", "doc-date", data.ddt_date, "gg/mm/aaaa"),
+        field("Riferimento", "doc-reference", data.reference, "opzionale")
+      ].join("");
+      $("review-count").textContent = `${items.length} ${items.length === 1 ? "riga" : "righe"}`;
+      $("items").innerHTML = items.length ? items.map((item, idx) => `
+        <article class="item">
+          <div class="item-top">
+            <div class="item-index">Riga ${idx + 1}</div>
+            <div class="item-source">${esc(item.source || data.source_kind || "documento")}</div>
+          </div>
+          <div class="item-grid">
+            ${input(idx, "material_code", item.material_code, "Codice", "text", "any", true)}
+            ${input(idx, "description", item.description, "Descrizione", "text", "any", true)}
+            ${input(idx, "quantity", item.quantity, "Quantità", "number", "1")}
+            ${input(idx, "unit", item.unit || "PZ", "Unità")}
+            ${input(idx, "tipo", item.tipo, "Tipo")}
+            ${input(idx, "uso_materiale", item.uso_materiale, "Uso")}
+            ${input(idx, "posizione", item.posizione, "Posizione")}
+            ${input(idx, "profilo", item.profilo, "Profilo")}
+            ${input(idx, "dimensioni", item.dimensioni, "Dimensioni")}
+            ${input(idx, "qualita", item.qualita, "Qualità")}
+            ${input(idx, "colata", item.colata, "Colata")}
+            ${input(idx, "peso_kg", item.peso_kg, "Peso kg", "number", "0.001")}
+            ${input(idx, "peso_u_kg", item.peso_u_kg, "Peso unitario", "number", "0.001")}
+          </div>
+        </article>
+      `).join("") : '<div class="empty">Nessuna riga materiale proposta.</div>';
+      $("confirm-btn").disabled = !ready;
+      setStatus(
+        ready ? "Proposta pronta: controlla le righe e conferma l'ingresso." : "Nessuna riga materiale rilevata: completa dal gestionale o riprova con un file più leggibile.",
+        ready ? "ok" : "err"
+      );
+    }
+
+    async function analyzeQueuedFiles() {
+      if (!token()) {
+        setStatus("Accedi prima di caricare il documento.", "err");
+        $("username").focus();
+        return;
+      }
+      if (!queuedFiles.length) {
+        setStatus("Aggiungi almeno una pagina prima dell'analisi.", "err");
+        return;
+      }
+      resetAnalysis(false);
+      renderQueue();
+      $("document").textContent = `${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"}`;
+      $("state").textContent = "Analisi";
+      $("analyze-btn").disabled = true;
+      $("analyze-btn").textContent = "Analisi...";
+      setStatus(`Analisi di ${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"} in corso...`);
+      const fd = new FormData();
+      queuedFiles.forEach(file => fd.append("files", file));
+      try {
+        const res = await fetch("/api/v1/inventario/ddt/analyze-batch", { method: "POST", headers: authHeaders(), body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+        renderAnalysis(data);
+      } catch (err) {
+        $("state").textContent = "Errore";
+        setStatus(err.message || "Analisi non riuscita.", "err");
+      } finally {
+        $("analyze-btn").textContent = "Analizza DDT";
+        $("analyze-btn").disabled = !queuedFiles.length;
+      }
+    }
+
+    function collectPayload() {
+      if (!analysis) throw new Error("Nessuna analisi disponibile.");
+      const items = (analysis.items || []).map((item, idx) => {
+        const next = { ...item };
+        document.querySelectorAll(`[data-index="${idx}"]`).forEach(el => {
+          const name = el.dataset.field;
+          if (name === "quantity") next[name] = Math.trunc(numOrNull(el.value) || 0);
+          else if (name === "peso_kg" || name === "peso_u_kg") next[name] = numOrNull(el.value);
+          else next[name] = el.value.trim();
+        });
+        next.unit = next.unit || "PZ";
+        return next;
+      });
+      for (const [idx, item] of items.entries()) {
+        if (!item.material_code) throw new Error(`Riga ${idx + 1}: codice materiale obbligatorio.`);
+        if (!item.description) throw new Error(`Riga ${idx + 1}: descrizione obbligatoria.`);
+        if (!Number.isInteger(item.quantity) || item.quantity <= 0) throw new Error(`Riga ${idx + 1}: quantità obbligatoria e maggiore di zero.`);
+      }
+      return {
+        ...analysis,
+        supplier: $("doc-supplier").value.trim(),
+        ddt_number: $("doc-number").value.trim(),
+        ddt_date: $("doc-date").value.trim(),
+        reference: $("doc-reference").value.trim(),
+        items
+      };
+    }
+
+    async function confirmDdt() {
+      let payload;
+      try {
+        payload = collectPayload();
+      } catch (err) {
+        setStatus(err.message, "err");
+        return;
+      }
+      $("confirm-btn").disabled = true;
+      $("confirm-btn").textContent = "Inserimento...";
+      try {
+        const res = await fetch("/api/v1/inventario/ddt/confirm", {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+        analysis = payload;
+        $("result").innerHTML = `Ingresso registrato: ${fmt(data.physical_items_created || 0)} QR fisici creati.`;
+        $("result").classList.remove("hidden");
+        setStatus("Ingresso DDT registrato.", "ok");
+      } catch (err) {
+        setStatus(err.message || "Conferma non riuscita.", "err");
+      } finally {
+        $("confirm-btn").textContent = "Conferma ingresso magazzino";
+        $("confirm-btn").disabled = !(analysis && (analysis.items || []).length);
+      }
+    }
+
+    $("login-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const username = $("username").value.trim();
+      const password = $("password").value;
+      if (!username || !password) return;
+      $("login-btn").disabled = true;
+      $("login-btn").textContent = "Accesso...";
+      try {
+        const res = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || "Accesso non riuscito.");
+        localStorage.setItem(TOKEN_KEY, data.access_token);
+        localStorage.setItem(USER_KEY, data.username || username);
+        refreshSession();
+        setStatus("Sessione attiva. Puoi caricare il documento.", "ok");
+      } catch (err) {
+        setStatus(err.message || "Accesso non riuscito.", "err");
+      } finally {
+        $("login-btn").disabled = false;
+        $("login-btn").textContent = "Accedi";
+      }
+    });
+
+    $("logout-btn").addEventListener("click", () => {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      resetAnalysis();
+      refreshSession();
+    });
+    $("file-input").addEventListener("change", event => {
+      addFiles(event.target.files);
+      event.target.value = "";
+    });
+    $("camera-input").addEventListener("change", event => {
+      addFiles(event.target.files);
+      event.target.value = "";
+    });
+    $("camera-btn").addEventListener("click", () => $("camera-input").click());
+    $("add-file-btn").addEventListener("click", () => $("file-input").click());
+    $("remove-last-btn").addEventListener("click", () => {
+      if (queuedFiles.length) removeQueuedFile(queuedFiles.length - 1);
+    });
+    $("page-queue").addEventListener("click", event => {
+      const btn = event.target.closest("[data-remove-page]");
+      if (btn) removeQueuedFile(Number(btn.dataset.removePage));
+    });
+    $("analyze-btn").addEventListener("click", analyzeQueuedFiles);
+    $("full-app-btn").addEventListener("click", () => { location.href = "/magazzino"; });
+    $("confirm-btn").addEventListener("click", confirmDdt);
+    $("copy-link").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        setStatus("Link copiato.", "ok");
+      } catch {
+        setStatus(location.href, "ok");
+      }
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/ddt-upload-sw.js").catch(() => {});
+      });
+    }
+    refreshSession();
+  </script>
+</body>
+</html>
