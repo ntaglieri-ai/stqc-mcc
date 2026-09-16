@@ -1075,8 +1075,14 @@
       background: linear-gradient(180deg, rgba(73,129,255,.12), rgba(255,255,255,.022));
     }
     .item-row.selected td { background: rgba(73,129,255,.055); }
+    .item-action-stack {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
     .item-qr-btn {
-      width: 46px; height: 46px; padding: 4px; border-radius: 10px;
+      width: 42px; height: 42px; padding: 4px; border-radius: 10px;
       border: 1px solid rgba(139,174,255,.22);
       background: rgba(255,255,255,.96);
       cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -1089,6 +1095,26 @@
       box-shadow: 0 12px 28px rgba(73,129,255,.18);
     }
     .item-qr-btn img { width: 100%; height: 100%; display: block; }
+    .item-edit-row-btn {
+      min-height: 34px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(139,174,255,.26);
+      background: rgba(73,129,255,.12);
+      color: #bfd4ff;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .16s, border-color .16s, color .16s, transform .16s;
+    }
+    .item-edit-row-btn:hover {
+      background: rgba(73,129,255,.20);
+      border-color: rgba(139,174,255,.48);
+      color: #eff6ff;
+      transform: translateY(-1px);
+    }
     .item-code { font-weight: 850; color: var(--color-text-primary); }
     .item-sub { margin-top: 3px; color: var(--color-text-muted); font-size: 10px; font-family: 'SF Mono','Menlo',monospace; }
     .item-row { cursor: pointer; }
@@ -1225,10 +1251,10 @@
       background:linear-gradient(180deg, rgba(168,85,247,.16), rgba(168,85,247,.06));
     }
     .qr-preview-body {
-      display:grid;grid-template-columns:310px minmax(0,1fr);gap:26px;align-items:start;
+      display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;
       padding:24px 28px;overflow:auto;
     }
-    .qr-preview-img { width:280px;height:280px;background:#fff;border-radius:18px;padding:14px;display:block;box-shadow:0 18px 50px rgba(0,0,0,.35); }
+    .qr-preview-img { width:220px;height:220px;background:#fff;border-radius:16px;padding:12px;display:block;box-shadow:0 18px 50px rgba(0,0,0,.35); }
     .qr-preview-code { font-size:19px;font-weight:950;color:var(--color-text-primary); }
     .qr-preview-uuid { margin-top:9px;font-family:'SF Mono','Menlo',monospace;font-size:10px;color:var(--color-text-muted);word-break:break-all;line-height:1.5; }
     .qr-preview-help { margin-top:16px;font-size:12px;color:var(--color-text-secondary);line-height:1.55; }
@@ -1863,14 +1889,14 @@
   </div>
 </div>
 
-<!-- ITEM / QR DETAIL MODAL -->
+<!-- INVENTORY RECORD DETAIL MODAL -->
 <div class="backdrop item-backdrop" id="qr-preview-modal" onclick="closeQrPreview()">
   <div class="modal qr-preview-modal" onclick="event.stopPropagation()">
     <div class="item-modal-head">
       <div>
-        <div class="item-modal-eyebrow">Magazzino · Elemento fisico</div>
-        <div class="item-modal-title" id="qr-preview-code">QR elemento</div>
-        <div class="item-modal-sub">Scheda del singolo record di magazzino: QR, dati tecnici, origine DDT e correzioni manuali.</div>
+        <div class="item-modal-eyebrow">Magazzino · Record inventario</div>
+        <div class="item-modal-title" id="qr-preview-code">Record inventario</div>
+        <div class="item-modal-sub">Scheda del singolo record fisico: dati tecnici, stato, origine e correzioni manuali.</div>
       </div>
       <button class="item-lock" id="item-edit-lock" onclick="toggleItemEdit()">🔒 Modifica</button>
     </div>
@@ -1882,7 +1908,7 @@
           <div class="item-source-label">Stato attuale</div>
           <div class="item-source-value" id="item-current-status">—</div>
         </div>
-        <div class="qr-preview-help">Il QR a schermo è scannerizzabile. Il QR a schermo è scannerizzabile. La stampa produce solo il QR code con un identificativo leggibile.</div>
+        <div class="qr-preview-help">QR operativo del record. Serve per stampa e scansione; la modifica dei dati si gestisce dai campi della scheda.</div>
         <div class="mf" style="margin-top:16px">
           <label class="ml">Formato stampa QR</label>
           <select class="mi" id="preview-label-format" onchange="saveLabelConfig(this.value,null)">
@@ -1920,7 +1946,7 @@
     <div class="item-modal-actions">
       <button class="ddt-secondary" onclick="closeQrPreview()">Chiudi</button>
       <button class="ddt-secondary" id="item-out-btn" onclick="openOutgoingForPreviewItem()">Gestisci uscita</button>
-      <button class="ddt-secondary" onclick="toggleCurrentItemSelection()">Seleziona QR</button>
+      <button class="ddt-secondary" onclick="toggleCurrentItemSelection()">Seleziona record</button>
       <button class="ddt-secondary" onclick="deletePreviewItem()">Elimina record</button>
       <button class="ddt-secondary" onclick="printPreviewItem()">Stampa QR</button>
       <button class="ddt-primary" id="item-save-btn" onclick="saveItemDetail()" disabled>Salva modifiche</button>
@@ -2089,7 +2115,7 @@ const BASE_COLUMNS = [
   { key:'peso_kg', label:'Peso kg' },
   { key:'peso_u_kg', label:'Peso/u' },
   { key:'peso_1_pz', label:'Peso 1 pz' },
-  { key:'qr', label:'QR' },
+  { key:'qr', label:'Azioni' },
   { key:'status', label:'Stato' },
 ];
 const COLUMN_PREF_VERSION = 'warehouse-columns-v3';
@@ -3059,7 +3085,7 @@ function isItemSelected(uuid) { return selectedItems.has(uuid); }
 function isMaterialSelected(materialId) { return selectedMaterials.has(Number(materialId)); }
 function itemCheckbox(uuid) {
   return `<input class="item-select" type="checkbox" ${isItemSelected(uuid) ? 'checked' : ''}
-    onclick="toggleItemSelection('${uuid}',event)" title="Seleziona record QR"/>`;
+    onclick="toggleItemSelection('${uuid}',event)" title="Seleziona record inventario"/>`;
 }
 function materialCheckbox(materialId) {
   return `<input class="item-select" type="checkbox" ${isMaterialSelected(materialId) ? 'checked' : ''}
@@ -3277,7 +3303,7 @@ function renderCompactCell(r, col) {
     peso_kg: `<td class="td-r td-mono td-muted">${fmt(compactDisplayPeso(r),1)}</td>`,
     peso_u_kg: `<td class="td-r td-mono td-muted">${fmt(r.peso_u_kg,3)}</td>`,
     peso_1_pz: `<td class="td-r td-mono td-muted">${fmt(r.peso_1_pz,3)}</td>`,
-    qr: `<td><span style="color:var(--color-accent-text);font-size:10px">${r.physical_items_count||0} QR ${expandedMaterial === mid?'▴':'▾'}</span></td>`,
+    qr: `<td><span style="color:var(--color-accent-text);font-size:10px">${r.physical_items_count||0} record ${expandedMaterial === mid?'▴':'▾'}</span></td>`,
     status: `<td>${statusBadge(compactDisplayStatus(r))}</td>`,
   };
   return cells[col.key] || '<td></td>';
@@ -3306,7 +3332,10 @@ function renderExtendedCell(item, col) {
     peso_kg: `<td class="td-r td-mono td-muted">${fmt(item.peso_kg,3)}</td>`,
     peso_u_kg: `<td class="td-r td-mono td-muted">${fmt(item.peso_u_kg,3)}</td>`,
     peso_1_pz: `<td class="td-r td-mono td-muted">${fmt(item.peso_1_pz,3)}</td>`,
-    qr: `<td><button class="item-qr-btn" onclick="openQrPreview('${item.uuid}',event)" title="Apri scheda QR"><img src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/></button></td>`,
+    qr: `<td onclick="event.stopPropagation()"><div class="item-action-stack">
+      <button class="item-edit-row-btn" onclick="openItemRecord('${item.uuid}',event)" title="Apri e modifica il record">Modifica</button>
+      <button class="item-qr-btn" onclick="printItemLabel('${item.uuid}',event)" title="Stampa QR del record"><img src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/></button>
+    </div></td>`,
     status: `<td>${statusBadge(item.status)}${reservedLine}</td>`,
   };
   return cells[col.key] || '<td></td>';
@@ -3375,7 +3404,7 @@ function renderExtendedTable() {
   const s = (page-1)*rpp, e = Math.min(s+rpp, total);
   const cols = visibleColumnDefs();
   tbody.innerHTML = filtered.slice(s,e).map(item => {
-    return `<tr class="item-row${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="QrDrawer.open('${item.uuid}')">
+    return `<tr class="item-row${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openItemRecord('${item.uuid}',event)">
       ${cols.map(col => renderExtendedCell(item, col)).join('')}
     </tr>`;
   }).join('');
@@ -3419,14 +3448,14 @@ function renderPhysicalPanel(row) {
       <button class="ra ra-del" onclick="deleteMaterialVisibleSelection(${row.material_id},event)">Elimina selezionati</button>
     </div>
     <div class="physical-grid">
-      ${visibleItems.map(item=>`<div class="physical-card${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="QrDrawer.open('${item.uuid}')">
+      ${visibleItems.map(item=>`<div class="physical-card${isItemSelected(item.uuid) ? ' selected' : ''}" onclick="openItemRecord('${item.uuid}',event)">
         <div onclick="event.stopPropagation()">${itemCheckbox(item.uuid)}</div>
         <img class="physical-qr" src="${qrImageUrl(item.uuid)}" loading="lazy" alt="QR ${esc(item.label)}"/>
         <div><div class="physical-code">${esc(item.label)}</div>
         <div class="physical-uuid">${esc(item.uuid)}</div>
         ${(item.uso_materiale || item.posizione) ? `<div class="item-stack-sub">${esc([item.uso_materiale,item.posizione].filter(Boolean).join(' · '))}</div>` : ''}
         ${item.reserved_for_commessa ? `<div class="reserved-note" title="${esc(item.reserved_for_commessa)}">Commessa ${esc(item.reserved_for_commessa)}</div>` : ''}
-        <button class="physical-print" onclick="printItemLabel('${item.uuid}',event)">Stampa QR</button></div>
+        <button class="physical-print" onclick="openItemRecord('${item.uuid}',event)">Modifica record</button></div>
       </div>`).join('')}
     </div>
   </div>`;
@@ -3464,7 +3493,7 @@ function updateSelectionBar() {
   bar.classList.toggle('show', n > 0);
   const parts = [];
   if (selectedMaterials.size) parts.push(`${selectedMaterials.size} righe materiale`);
-  if (selectedItems.size) parts.push(`${selectedItems.size} QR fisici`);
+  if (selectedItems.size) parts.push(`${selectedItems.size} record fisici`);
   count.textContent = parts.length ? parts.join(' · ') : '0 elementi selezionati';
   updateSelectAllVisibleState();
 }
@@ -3550,17 +3579,17 @@ function deleteEntireInventory() {
 
 function openSelectedQrDetails() {
   const values = [...selectedItems];
-  if (!values.length) return showToast('Seleziona almeno un QR fisico.', 'err');
-  if (values.length === 1) QrDrawer.open(values[0]);
+  if (!values.length) return showToast('Seleziona almeno un record fisico.', 'err');
+  if (values.length === 1) openItemRecord(values[0]);
   else QrDrawer.openMany(values);
 }
 
 function openQrConfigFromSelection() {
   if (selectedItems.size && !previewItemDetail) {
     const uuid = [...selectedItems][0];
-    openQrPreview(uuid);
+    openItemRecord(uuid);
   } else {
-    showToast('Apri un QR per modificare formato, codifica e contenuto.', 'ok');
+    showToast('Apri un record per modificare formato, codifica e contenuto QR.', 'ok');
   }
 }
 
@@ -3696,12 +3725,16 @@ function renderItemDetail(detail) {
 
 function toggleItemEdit() { setItemEdit(!itemEditEnabled); }
 
+function openItemRecord(uuid,e) {
+  return openQrPreview(uuid,e);
+}
+
 async function openQrPreview(uuid,e) {
   if(e)e.stopPropagation();
   previewItem = allItems.find(item=>item.uuid===uuid) || Object.values(physicalCache).flat().find(item=>item.uuid===uuid) || {uuid};
   document.getElementById('qr-preview-modal').classList.add('open');
   document.getElementById('qr-preview-img').src=qrImageUrl(uuid);
-  document.getElementById('qr-preview-code').textContent='Caricamento elemento…';
+  document.getElementById('qr-preview-code').textContent='Caricamento record…';
   document.getElementById('qr-preview-uuid').textContent=uuid;
   document.getElementById('item-current-status').textContent='—';
   document.getElementById('item-fields').innerHTML='<div class="physical-loading">Caricamento scheda…</div>';
@@ -3758,7 +3791,7 @@ async function saveItemDetail() {
   try {
     await queueInventoryChange(
       'item_update',
-      'Modifica record fisico',
+      'Modifica record inventario',
       previewItemDetail.label || previewItemDetail.uuid,
       { uuid: previewItemDetail.uuid, changes: collectItemPayload() }
     );
@@ -3844,13 +3877,13 @@ async function printSelectedLabels(e) {
 async function deleteItemsByUuid(uuids) {
   const clean = [...new Set(uuids.filter(Boolean))];
   if(!clean.length) return;
-  const ok = confirm(`Creare una notifica per eliminare ${clean.length} record fisici di magazzino?\\n\\nL'anagrafica materiale resta, ma questi UUID/QR saranno rimossi solo quando la notifica viene applicata.`);
+  const ok = confirm(`Creare una notifica per eliminare ${clean.length} record fisici di magazzino?\\n\\nL'anagrafica materiale resta, ma questi record saranno rimossi solo quando la notifica viene applicata.`);
   if(!ok) return;
   try {
     await queueInventoryChange(
       'items_delete',
       'Eliminazione record fisici',
-      `${clean.length} UUID/QR selezionati`,
+      `${clean.length} record selezionati`,
       { uuids: clean }
     );
     clean.forEach(uuid => selectedItems.delete(uuid));
@@ -3872,7 +3905,7 @@ async function deleteMaterialsById(materialIds) {
   const ok = confirm(
     `ATTENZIONE: richiesta cancellazione inventario.\\n\\n` +
     `Stai per creare una notifica per eliminare ${ids.length} righe materiale.\\n` +
-    `Verranno rimossi anche QR fisici, movimenti, lotti, ricevute e certificati collegati.\\n\\n` +
+    `Verranno rimossi anche record fisici, movimenti, lotti, ricevute e certificati collegati.\\n\\n` +
     `La cancellazione avverrà solo quando la notifica viene applicata. Continuare?`
   );
   if(!ok) return;
