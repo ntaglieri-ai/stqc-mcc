@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import List, Literal
+from typing import Any, List, Literal
 
 import base64
 import csv
@@ -12,14 +12,17 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response
 from fpdf import FPDF
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from backend.app.crud import warehouse as crud
+from backend.app.core.auth import require_auth
 from backend.app.db.session import get_db
 from backend.app.models.commessa import Commessa, Piece
+from backend.app.models.user import User
 from backend.app.models.warehouse import (
     Batch,
     Certificate,
@@ -29,16 +32,115 @@ from backend.app.models.warehouse import (
     StockMovement,
     WarehouseCustomField,
     WarehouseCustomValue,
+    WarehouseChangeRequest,
+    WarehouseChangeRequestStatus,
     WarehouseItem,
 )
 from backend.app.schemas import warehouse as warehouse_schemas
 from backend.app.services.qr import generate_qr_for_payload, generate_qr_for_uuid
+from backend.app.services.warehouse_notifications import create_warehouse_change_request
 from backend.app.services.warehouse_items import (
     close_items_for_outgoing,
     create_items_for_incoming,
 )
 
 router = APIRouter()
+
+
+def _user_label(user: User | None) -> str | None:
+    return user.username if user else None
+
+
+def _stock_movement_payload(movement_in: warehouse_schemas.StockMovementCreate) -> dict[str, Any]:
+    payload = movement_in.model_dump()
+    payload["movement_type"] = movement_in.movement_type.value if hasattr(movement_in.movement_type, "value") else str(movement_in.movement_type)
+    return payload
+
+
+def _request_read(request: WarehouseChangeRequest) -> dict[str, Any]:
+    return {
+        "id": request.id,
+        "status": request.status.value if hasattr(request.status, "value") else str(request.status),
+        "action": request.action,
+        "title": request.title,
+        "summary": request.summary,
+        "payload": request.payload or {},
+        "result": request.result,
+        "error": request.error,
+        "created_by_username": request.created_by_username,
+        "created_at": request.created_at,
+        "applied_by_username": request.applied_by_username,
+        "applied_at": request.applied_at,
+        "rejected_by_username": request.rejected_by_username,
+        "rejected_at": request.rejected_at,
+    }
+
+
+def _queue_inventory_change(
+    db: Session,
+    *,
+    action: str,
+    title: str,
+    summary: str | None,
+    payload: dict[str, Any],
+    user: User | None,
+) -> dict[str, Any]:
+    request = create_warehouse_change_request(
+        db,
+        action=action,
+        title=title,
+        summary=summary,
+        payload=payload,
+        user=user,
+    )
+    return _request_read(request)
+
+
+def _apply_stock_movement_payload(db: Session, payload: dict[str, Any]) -> StockMovement:
+    movement_in = warehouse_schemas.StockMovementCreate.model_validate(payload)
+    if getattr(movement_in, "commessa_id", None) is not None or getattr(movement_in, "destination_commessa", None):
+        raise HTTPException(
+            status_code=422,
+            detail="Il movimento di magazzino non può essere collegato a una commessa in questa fase.",
+        )
+    if movement_in.movement_type == warehouse_schemas.MovementType.ADJUSTMENT and movement_in.quantity == 0:
+        raise HTTPException(status_code=422, detail="La rettifica non può essere zero")
+    if movement_in.movement_type != warehouse_schemas.MovementType.ADJUSTMENT and movement_in.quantity <= 0:
+        raise HTTPException(status_code=422, detail="La quantità deve essere maggiore di zero")
+    movement = StockMovement(**movement_in.model_dump())
+    db.add(movement)
+    db.flush()
+    try:
+        if movement_in.movement_type == warehouse_schemas.MovementType.INCOMING:
+            create_items_for_incoming(db, movement.material_id, movement.quantity, movement.id)
+        elif movement_in.movement_type in (
+            warehouse_schemas.MovementType.OUTGOING,
+            warehouse_schemas.MovementType.SFRIDO,
+        ):
+            close_items_for_outgoing(db, movement.material_id, movement.quantity, movement.id)
+        elif movement_in.movement_type == warehouse_schemas.MovementType.ADJUSTMENT:
+            if movement.quantity > 0:
+                create_items_for_incoming(db, movement.material_id, movement.quantity, movement.id)
+            elif movement.quantity < 0:
+                close_items_for_outgoing(db, movement.material_id, abs(movement.quantity), movement.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return movement
+
+
+def _delete_material_internal(db: Session, material_id: int) -> None:
+    material = db.get(Material, material_id)
+    if material is None:
+        raise HTTPException(status_code=404, detail="Materiale non trovato")
+    receipt_ids = [r.id for r in db.query(Receipt.id).filter(Receipt.material_id == material_id)]
+    if receipt_ids:
+        db.query(Certificate).filter(Certificate.receipt_id.in_(receipt_ids)).delete(synchronize_session=False)
+    db.query(WarehouseCustomValue).filter(WarehouseCustomValue.material_id == material_id).delete(synchronize_session=False)
+    db.query(WarehouseItem).filter(WarehouseItem.material_id == material_id).delete(synchronize_session=False)
+    db.query(StockMovement).filter(StockMovement.material_id == material_id).delete(synchronize_session=False)
+    db.query(Receipt).filter(Receipt.material_id == material_id).delete(synchronize_session=False)
+    db.query(Batch).filter(Batch.material_id == material_id).delete(synchronize_session=False)
+    db.delete(material)
 
 
 @router.post("/suppliers", response_model=warehouse_schemas.SupplierRead)
@@ -496,11 +598,12 @@ def _parse_append_file(path: Path) -> list[dict]:
     raise HTTPException(status_code=422, detail="Formato non supportato. Usa CSV, XLSX/XLSM o PDF tabellare.")
 
 
-@router.post("/materials/import-append", response_model=warehouse_schemas.MaterialIncomingBulkResult)
+@router.post("/materials/import-append", response_model=warehouse_schemas.WarehouseChangeRequestRead, status_code=202)
 async def import_append_materials(
     file: UploadFile = File(...),
     reason: str = Query("Import append magazzino"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
 ):
     suffix = Path(file.filename or "").suffix.lower() or ".xlsx"
     with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -520,31 +623,23 @@ async def import_append_materials(
             pass
     if not parsed_items:
         raise HTTPException(status_code=422, detail="Nessuna riga valida trovata. Servono almeno codice oppure tipo/profilo e una quantità attuale valida anche zero.")
-    created = 0
-    existing = 0
-    physical = 0
-    movements = 0
-    reserved = 0
-    for item, custom_values, custom_labels in parsed_items:
-        row = _upsert_material_with_incoming(db, item, allow_existing=True, read_back=False)
-        if row.get("_created"):
-            created += 1
-        else:
-            existing += 1
-        physical += int(row.get("_physical_items_created") or item.quantity or 0)
-        movements += int(row.get("_movement_created") or 0)
-        reserved += int(row.get("_reserved_items_created") or 0)
-        material_id = int(row.get("_material_id") or row["material_id"])
-        _upsert_custom_values(db, material_id, custom_values, custom_labels)
-    db.commit()
-    return {
-        "rows": len(parsed_items),
-        "materials_created": created,
-        "materials_existing": existing,
-        "movements_created": movements,
-        "physical_items_created": physical,
-        "reserved_items_created": reserved,
-    }
+    return _queue_inventory_change(
+        db,
+        action="bulk_incoming_custom",
+        title="Import append inventario",
+        summary=f"{len(parsed_items)} righe importate da {file.filename or 'file'} in attesa di applicazione.",
+        payload={
+            "rows": [
+                {
+                    "item": item.model_dump(),
+                    "custom_values": custom_values,
+                    "custom_labels": custom_labels,
+                }
+                for item, custom_values, custom_labels in parsed_items
+            ]
+        },
+        user=current_user,
+    )
 
 
 @router.get("/materials", response_model=List[warehouse_schemas.MaterialRead])
@@ -630,40 +725,7 @@ def create_stock_movement(
     movement_in: warehouse_schemas.StockMovementCreate,
     db: Session = Depends(get_db),
 ):
-    if getattr(movement_in, "commessa_id", None) is not None or getattr(movement_in, "destination_commessa", None):
-        raise HTTPException(
-            status_code=422,
-            detail="Il movimento di magazzino non può essere collegato a una commessa in questa fase.",
-        )
-    if (
-        movement_in.movement_type == warehouse_schemas.MovementType.ADJUSTMENT
-        and movement_in.quantity == 0
-    ):
-        raise HTTPException(status_code=422, detail="La rettifica non può essere zero")
-    if (
-        movement_in.movement_type != warehouse_schemas.MovementType.ADJUSTMENT
-        and movement_in.quantity <= 0
-    ):
-        raise HTTPException(status_code=422, detail="La quantità deve essere maggiore di zero")
-    movement = StockMovement(**movement_in.model_dump())
-    db.add(movement)
-    db.flush()
-    try:
-        if movement_in.movement_type == warehouse_schemas.MovementType.INCOMING:
-            create_items_for_incoming(db, movement.material_id, movement.quantity, movement.id)
-        elif movement_in.movement_type in (
-            warehouse_schemas.MovementType.OUTGOING,
-            warehouse_schemas.MovementType.SFRIDO,
-        ):
-            close_items_for_outgoing(db, movement.material_id, movement.quantity, movement.id)
-        elif movement_in.movement_type == warehouse_schemas.MovementType.ADJUSTMENT:
-            if movement.quantity > 0:
-                create_items_for_incoming(db, movement.material_id, movement.quantity, movement.id)
-            elif movement.quantity < 0:
-                close_items_for_outgoing(db, movement.material_id, abs(movement.quantity), movement.id)
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=422, detail=str(exc))
+    movement = _apply_stock_movement_payload(db, _stock_movement_payload(movement_in))
     db.commit()
     db.refresh(movement)
     return movement
@@ -690,6 +752,182 @@ def list_magazzino(
 @router.get("/custom-fields", response_model=List[warehouse_schemas.WarehouseCustomFieldRead])
 def list_warehouse_custom_fields(db: Session = Depends(get_db)):
     return db.scalars(select(WarehouseCustomField).order_by(WarehouseCustomField.label)).all()
+
+
+@router.get("/change-requests", response_model=List[warehouse_schemas.WarehouseChangeRequestRead])
+def list_warehouse_change_requests(
+    status: str = Query("PENDING"),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    stmt = select(WarehouseChangeRequest).order_by(WarehouseChangeRequest.created_at.desc(), WarehouseChangeRequest.id.desc())
+    if status and status.lower() != "all":
+        stmt = stmt.where(WarehouseChangeRequest.status == status.upper())
+    return [_request_read(row) for row in db.scalars(stmt.limit(limit)).all()]
+
+
+@router.post("/change-requests", response_model=warehouse_schemas.WarehouseChangeRequestRead, status_code=202)
+def create_warehouse_change_request_endpoint(
+    request_in: warehouse_schemas.WarehouseChangeRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    return _queue_inventory_change(
+        db,
+        action=request_in.action,
+        title=request_in.title,
+        summary=request_in.summary,
+        payload=request_in.payload,
+        user=current_user,
+    )
+
+
+def _apply_change_request_payload(db: Session, request: WarehouseChangeRequest) -> dict[str, Any]:
+    payload = request.payload or {}
+    if request.action == "stock_movement":
+        movement = _apply_stock_movement_payload(db, payload)
+        return {"movement_id": movement.id}
+    if request.action == "bulk_incoming":
+        body = warehouse_schemas.MaterialIncomingBulkCreate.model_validate(payload)
+        created = existing = physical = movements = reserved = 0
+        for item in body.items:
+            row = _upsert_material_with_incoming(db, item, allow_existing=True, read_back=False)
+            if row.get("_created"):
+                created += 1
+            else:
+                existing += 1
+            physical += int(row.get("_physical_items_created") or item.quantity or 0)
+            movements += int(row.get("_movement_created") or 0)
+            reserved += int(row.get("_reserved_items_created") or 0)
+        return {
+            "rows": len(body.items),
+            "materials_created": created,
+            "materials_existing": existing,
+            "movements_created": movements,
+            "physical_items_created": physical,
+            "reserved_items_created": reserved,
+        }
+    if request.action == "bulk_incoming_custom":
+        rows = payload.get("rows") or []
+        created = existing = physical = movements = reserved = 0
+        for raw in rows:
+            item = warehouse_schemas.MaterialIncomingCreate.model_validate(raw.get("item") or {})
+            custom_values = raw.get("custom_values") or {}
+            custom_labels = raw.get("custom_labels") or {}
+            row = _upsert_material_with_incoming(db, item, allow_existing=True, read_back=False)
+            if row.get("_created"):
+                created += 1
+            else:
+                existing += 1
+            physical += int(row.get("_physical_items_created") or item.quantity or 0)
+            movements += int(row.get("_movement_created") or 0)
+            reserved += int(row.get("_reserved_items_created") or 0)
+            material_id = int(row.get("_material_id") or row["material_id"])
+            _upsert_custom_values(db, material_id, custom_values, custom_labels)
+        return {
+            "rows": len(rows),
+            "materials_created": created,
+            "materials_existing": existing,
+            "movements_created": movements,
+            "physical_items_created": physical,
+            "reserved_items_created": reserved,
+        }
+    if request.action == "item_update":
+        item_uuid = str(payload.get("uuid") or "").lower()
+        item = db.scalar(
+            select(WarehouseItem)
+            .options(joinedload(WarehouseItem.material))
+            .where(WarehouseItem.uuid == item_uuid)
+        )
+        if item is None:
+            raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
+        data = warehouse_schemas.WarehouseItemUpdate.model_validate(payload.get("changes") or {}).model_dump(exclude_unset=True)
+        _apply_item_update_data(item, data)
+        db.add(item)
+        return {"uuid": item.uuid}
+    if request.action == "items_delete":
+        requested = [str(uuid).strip().lower() for uuid in (payload.get("uuids") or []) if str(uuid).strip()]
+        requested = list(dict.fromkeys(requested))
+        items = db.scalars(select(WarehouseItem).where(WarehouseItem.uuid.in_(requested))).all()
+        found = {item.uuid for item in items}
+        for item in items:
+            db.delete(item)
+        return {"deleted": len(items), "requested": len(requested), "missing": [uuid for uuid in requested if uuid not in found]}
+    if request.action == "materials_delete":
+        ids = [int(value) for value in (payload.get("material_ids") or []) if value]
+        for material_id in ids:
+            _delete_material_internal(db, material_id)
+        return {"deleted": len(ids)}
+    if request.action == "mapped_grezzo_outgoing":
+        return _mapped_grezzo_outgoing_apply(db, str(payload.get("uuid") or ""))
+    if request.action == "ddt_confirm":
+        from backend.app.api.api_v1.endpoints.inventario import DdtConfirmRequest, _apply_ddt_confirm
+
+        return _apply_ddt_confirm(db, DdtConfirmRequest.model_validate(payload))
+    raise HTTPException(status_code=422, detail=f"Azione notifiche non supportata: {request.action}")
+
+
+@router.post("/change-requests/{request_id}/apply", response_model=warehouse_schemas.WarehouseChangeRequestRead)
+def apply_warehouse_change_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    request = db.get(WarehouseChangeRequest, request_id)
+    if request is None:
+        raise HTTPException(status_code=404, detail="Notifica inventario non trovata")
+    if request.status != WarehouseChangeRequestStatus.PENDING:
+        raise HTTPException(status_code=409, detail=f"Notifica già chiusa: {request.status.value}")
+    try:
+        request.result = jsonable_encoder(_apply_change_request_payload(db, request))
+        request.status = WarehouseChangeRequestStatus.APPLIED
+        request.applied_by_user_id = current_user.id
+        request.applied_by_username = _user_label(current_user)
+        request.applied_at = datetime.utcnow()
+        request.error = None
+        db.add(request)
+        db.commit()
+    except HTTPException as exc:
+        db.rollback()
+        request = db.get(WarehouseChangeRequest, request_id)
+        if request is not None:
+            request.status = WarehouseChangeRequestStatus.FAILED
+            request.error = str(exc.detail)
+            db.add(request)
+            db.commit()
+        raise
+    except Exception as exc:
+        db.rollback()
+        request = db.get(WarehouseChangeRequest, request_id)
+        if request is not None:
+            request.status = WarehouseChangeRequestStatus.FAILED
+            request.error = str(exc)
+            db.add(request)
+            db.commit()
+        raise HTTPException(status_code=400, detail=f"Applicazione notifica non riuscita: {exc}")
+    db.refresh(request)
+    return _request_read(request)
+
+
+@router.post("/change-requests/{request_id}/reject", response_model=warehouse_schemas.WarehouseChangeRequestRead)
+def reject_warehouse_change_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    request = db.get(WarehouseChangeRequest, request_id)
+    if request is None:
+        raise HTTPException(status_code=404, detail="Notifica inventario non trovata")
+    if request.status != WarehouseChangeRequestStatus.PENDING:
+        raise HTTPException(status_code=409, detail=f"Notifica già chiusa: {request.status.value}")
+    request.status = WarehouseChangeRequestStatus.REJECTED
+    request.rejected_by_user_id = current_user.id
+    request.rejected_by_username = _user_label(current_user)
+    request.rejected_at = datetime.utcnow()
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    return _request_read(request)
 
 
 @router.get("/export.csv")
@@ -761,6 +999,21 @@ def _item_value(item: WarehouseItem, material: Material, field: str):
     return getattr(material, field, None)
 
 
+def _apply_item_update_data(item: WarehouseItem, data: dict) -> None:
+    for field, value in data.items():
+        if isinstance(value, str):
+            value = value.strip() or None
+        if field in {"peso_u_kg", "peso_1_pz"} and value is not None:
+            value = Decimal(str(value))
+        setattr(item, field, value)
+    if "reserved_for_commessa" in data:
+        if item.reserved_for_commessa and item.status == "AVAILABLE":
+            item.status = "RESERVED"
+        elif not item.reserved_for_commessa and item.status == "RESERVED":
+            item.status = "AVAILABLE"
+    item.updated_at = datetime.utcnow()
+
+
 def _item_list_read(item: WarehouseItem, custom_fields: dict[str, str] | None = None) -> dict:
     material = item.material
     peso_1_pz = _item_value(item, material, "peso_1_pz")
@@ -804,6 +1057,9 @@ def _item_list_read(item: WarehouseItem, custom_fields: dict[str, str] | None = 
         "unit": material.unit,
         "source_movement_id": item.source_movement_id,
         "exit_movement_id": item.exit_movement_id,
+        "reserved_at": item.reserved_at,
+        "reserved_by_scanner_id": item.reserved_by_scanner_id,
+        "updated_at": item.updated_at,
         "notes": item.notes,
         "manual_overrides": manual_fields,
         "custom_fields": custom_fields or {},
@@ -861,6 +1117,9 @@ def _item_detail_read(item: WarehouseItem, db: Session) -> dict:
         "unit": material.unit,
         "source_movement_id": item.source_movement_id,
         "exit_movement_id": item.exit_movement_id,
+        "reserved_at": item.reserved_at,
+        "reserved_by_scanner_id": item.reserved_by_scanner_id,
+        "updated_at": item.updated_at,
         "notes": item.notes,
         "manual_overrides": manual_fields,
         "custom_fields": _custom_fields_for_material_ids(db, [material.id]).get(material.id, {}),
@@ -997,6 +1256,12 @@ def list_mapped_grezzi(db: Session = Depends(get_db)):
 
 @router.post("/mapped-grezzi/{item_uuid}/outgoing")
 def mapped_grezzo_outgoing(item_uuid: str, db: Session = Depends(get_db)):
+    result = _mapped_grezzo_outgoing_apply(db, item_uuid)
+    db.commit()
+    return result
+
+
+def _mapped_grezzo_outgoing_apply(db: Session, item_uuid: str) -> dict[str, Any]:
     item = db.scalar(
         select(WarehouseItem)
         .options(joinedload(WarehouseItem.material))
@@ -1025,7 +1290,6 @@ def mapped_grezzo_outgoing(item_uuid: str, db: Session = Depends(get_db)):
     item.exited_at = now
     item.exit_movement_id = movement.id
     item.updated_at = now
-    db.commit()
     return {
         "ok": True,
         "uuid": item.uuid,
@@ -1052,18 +1316,7 @@ def update_warehouse_item(
     if item is None:
         raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
     data = item_in.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        if isinstance(value, str):
-            value = value.strip() or None
-        if field in {"peso_u_kg", "peso_1_pz"} and value is not None:
-            value = Decimal(str(value))
-        setattr(item, field, value)
-    if "reserved_for_commessa" in data:
-        if item.reserved_for_commessa and item.status == "AVAILABLE":
-            item.status = "RESERVED"
-        elif not item.reserved_for_commessa and item.status == "RESERVED":
-            item.status = "AVAILABLE"
-    item.updated_at = datetime.utcnow()
+    _apply_item_update_data(item, data)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -1329,20 +1582,5 @@ def warehouse_selected_item_labels(
 @router.delete("/materials/{material_id}", status_code=204)
 def delete_material(material_id: int, db: Session = Depends(get_db)):
     """Rimozione fisica di un materiale dal solo dominio magazzino."""
-    material = db.get(Material, material_id)
-    if material is None:
-        raise HTTPException(status_code=404, detail="Materiale non trovato")
-
-    # Certificati (tramite receipts di questo materiale)
-    receipt_ids = [r.id for r in db.query(Receipt.id).filter(Receipt.material_id == material_id)]
-    if receipt_ids:
-        db.query(Certificate).filter(Certificate.receipt_id.in_(receipt_ids)).delete(synchronize_session=False)
-
-    db.query(WarehouseCustomValue).filter(WarehouseCustomValue.material_id == material_id).delete(synchronize_session=False)
-    db.query(WarehouseItem).filter(WarehouseItem.material_id == material_id).delete(synchronize_session=False)
-    db.query(StockMovement).filter(StockMovement.material_id == material_id).delete(synchronize_session=False)
-    db.query(Receipt).filter(Receipt.material_id == material_id).delete(synchronize_session=False)
-    db.query(Batch).filter(Batch.material_id == material_id).delete(synchronize_session=False)
-
-    db.delete(material)
+    _delete_material_internal(db, material_id)
     db.commit()

@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -53,6 +54,13 @@ class MovementType(str, Enum):
     OUTGOING = "OUTGOING"
     ADJUSTMENT = "ADJUSTMENT"
     SFRIDO = "SFRIDO"
+
+
+class WarehouseChangeRequestStatus(str, Enum):
+    PENDING = "PENDING"
+    APPLIED = "APPLIED"
+    REJECTED = "REJECTED"
+    FAILED = "FAILED"
 
 
 class Supplier(Base):
@@ -180,6 +188,34 @@ class WarehouseItem(Base):
     updated_at = Column(DateTime, nullable=True)
 
     material = relationship("Material", back_populates="physical_items")
+
+
+class WarehouseChangeRequest(Base):
+    """Richiesta intermedia per ogni modifica operativa all'inventario."""
+    __tablename__ = "warehouse_change_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(
+        SQLEnum(WarehouseChangeRequestStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=WarehouseChangeRequestStatus.PENDING,
+        index=True,
+    )
+    action = Column(String(80), nullable=False, index=True)
+    title = Column(String(240), nullable=False)
+    summary = Column(Text, nullable=True)
+    payload = Column(JSON, nullable=False)
+    result = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_by_username = Column(String(100), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    applied_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    applied_by_username = Column(String(100), nullable=True)
+    applied_at = Column(DateTime, nullable=True, index=True)
+    rejected_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    rejected_by_username = Column(String(100), nullable=True)
+    rejected_at = Column(DateTime, nullable=True, index=True)
 
 
 class WarehouseCustomField(Base):

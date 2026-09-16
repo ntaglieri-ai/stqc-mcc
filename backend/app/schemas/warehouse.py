@@ -260,6 +260,9 @@ class WarehouseItemDetailRead(WarehousePhysicalItemRead):
     unit: Optional[str] = None
     source_movement_id: Optional[int] = None
     exit_movement_id: Optional[int] = None
+    reserved_at: Optional[datetime] = None
+    reserved_by_scanner_id: Optional[int] = None
+    updated_at: Optional[datetime] = None
     notes: Optional[str] = None
     manual_overrides: List[str] = Field(default_factory=list)
     custom_fields: dict[str, str] = Field(default_factory=dict)
@@ -279,6 +282,10 @@ class WarehouseCustomFieldRead(BaseModel):
 class WarehouseItemUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    status: Optional[str] = None
+    source_movement_id: Optional[int] = None
+    exit_movement_id: Optional[int] = None
+    exited_at: Optional[datetime] = None
     tipo: Optional[str] = None
     profilo: Optional[str] = None
     dimensioni: Optional[str] = None
@@ -289,6 +296,8 @@ class WarehouseItemUpdate(BaseModel):
     posizione: Optional[str] = None
     commessa_ref: Optional[str] = None
     reserved_for_commessa: Optional[str] = None
+    reserved_at: Optional[datetime] = None
+    reserved_by_scanner_id: Optional[int] = None
     peso_u_kg: Optional[float] = None
     peso_1_pz: Optional[float] = None
     notes: Optional[str] = None
@@ -304,6 +313,35 @@ class WarehouseItemBulkDeleteResult(BaseModel):
     deleted: int
     requested: int
     missing: List[str] = Field(default_factory=list)
+
+
+class WarehouseChangeRequestCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: str = Field(..., min_length=1, max_length=80)
+    title: str = Field(..., min_length=1, max_length=240)
+    summary: Optional[str] = None
+    payload: dict[str, Any]
+
+
+class WarehouseChangeRequestRead(BaseModel):
+    id: int
+    status: str
+    action: str
+    title: str
+    summary: Optional[str] = None
+    payload: dict[str, Any]
+    result: Optional[dict[str, Any]] = None
+    error: Optional[str] = None
+    created_by_username: Optional[str] = None
+    created_at: datetime
+    applied_by_username: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    rejected_by_username: Optional[str] = None
+    rejected_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 class WarehouseLabelPrintRequest(WarehouseItemBulkRequest):

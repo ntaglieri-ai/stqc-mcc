@@ -790,19 +790,24 @@
         return;
       }
       $("confirm-btn").disabled = true;
-      $("confirm-btn").textContent = "Inserimento...";
+      $("confirm-btn").textContent = "Creazione notifica...";
       try {
-        const res = await fetch("/api/v1/inventario/ddt/confirm", {
+        const res = await fetch("/api/v1/warehouse/change-requests", {
           method: "POST",
           headers: { ...authHeaders(), "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            action: "ddt_confirm",
+            title: "Ingresso da DDT",
+            summary: `${payload.items.length} righe materiale da ${payload.filename || payload.ddt_number || "DDT"}`,
+            payload
+          })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
         analysis = payload;
-        $("result").innerHTML = `Ingresso registrato: ${fmt(data.physical_items_created || 0)} QR fisici creati.`;
+        $("result").innerHTML = `Notifica ingresso creata: applicala dal gestionale per creare i QR fisici.`;
         $("result").classList.remove("hidden");
-        setStatus("Ingresso DDT registrato.", "ok");
+        setStatus("Notifica ingresso DDT creata.", "ok");
       } catch (err) {
         setStatus(err.message || "Conferma non riuscita.", "err");
       } finally {

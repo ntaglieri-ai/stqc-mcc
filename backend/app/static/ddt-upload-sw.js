@@ -1,4 +1,4 @@
-const CACHE_NAME = "mcc-ddt-upload-v2";
+const CACHE_NAME = "mcc-ddt-upload-v3";
 const SHELL_ASSETS = [
   "/ddt-upload",
   "/ddt-upload.webmanifest",

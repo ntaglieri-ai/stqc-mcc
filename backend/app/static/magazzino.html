@@ -691,6 +691,20 @@
     .mapped-label { font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:#7f96b4; font-weight:950; margin-bottom:6px; }
     .mapped-commessa { color:#dbeafe; font-size:17px; font-weight:950; }
     .mapped-pieces { display:inline-flex; justify-content:center; align-items:center; min-width:84px; padding:10px 14px; border-radius:999px; background:rgba(59,130,246,.14); color:#bfdbfe; border:1px solid rgba(96,165,250,.28); font-weight:950; font-size:18px; }
+    .notification-section-title { margin:18px 2px 8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#91a7c6; font-weight:950; }
+    .notification-row {
+      display:grid;
+      grid-template-columns:minmax(0,1.4fr) minmax(180px,.55fr) minmax(230px,.45fr);
+      gap:16px;
+      align-items:center;
+      padding:18px;
+      border:1px solid rgba(251,191,36,.22);
+      border-radius:18px;
+      background:linear-gradient(135deg, rgba(83,64,28,.78), rgba(35,42,62,.68));
+    }
+    .notification-actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+    .notification-apply { border-color:rgba(34,197,94,.34); background:linear-gradient(135deg, rgba(34,197,94,.72), rgba(21,128,61,.68)); }
+    .notification-reject { border-color:rgba(248,113,113,.34); background:rgba(127,29,29,.32); }
     @media(max-width:900px){#mapped-grezzi-drawer{width:100vw}.mapped-row{grid-template-columns:1fr}.mapped-row .ddt-primary{width:100%}}
     .ddt-primary {
       min-height: 42px; padding: 10px 18px; border-radius: 12px;
@@ -1600,17 +1614,17 @@
 <aside class="drawer" id="mapped-grezzi-drawer" aria-hidden="true">
   <div class="drawer-head">
     <div>
-      <div class="drawer-eyebrow">Magazzino · Pre-produzione</div>
-      <div class="drawer-title">Grezzi mappati a commessa</div>
+      <div class="drawer-eyebrow">Magazzino · Controllo modifiche</div>
+      <div class="drawer-title">Notifiche inventario</div>
       <div class="drawer-sub">
-        Elenco dei grezzi collegati a pezzi di commessa. Da qui gestisci l'uscita del grezzo dal magazzino.
+        Le modifiche allo stock passano da qui: prima vengono create come richieste, poi applicate o rifiutate.
       </div>
     </div>
     <button class="drawer-close" onclick="closeMappedGrezziDrawer()" aria-label="Chiudi">×</button>
   </div>
   <div class="drawer-body">
     <div class="mapped-drawer-body" id="mapped-grezzi-list">
-      <div class="physical-loading">Caricamento grezzi mappati…</div>
+      <div class="physical-loading">Caricamento notifiche inventario…</div>
     </div>
   </div>
 </aside>
@@ -2050,6 +2064,7 @@ let selectedReservation = null;
 const selectedItems = new Set();
 const selectedMaterials = new Set();
 let mappedGrezzi = [];
+let warehouseNotifications = [];
 
 // Chip filters (exact match)
 const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
@@ -3098,7 +3113,7 @@ function updateMappedGrezziButton(count) {
   if (badge) badge.textContent = n;
   if (btn) {
     btn.style.opacity = n ? '1' : '.45';
-    btn.title = n ? `${n} grezzi mappati da gestire` : 'Nessun grezzo mappato da gestire';
+    btn.title = n ? `${n} notifiche inventario da gestire` : 'Nessuna notifica inventario da gestire';
   }
 }
 
@@ -3116,49 +3131,112 @@ function closeMappedGrezziDrawer() {
 function renderMappedGrezziDrawer() {
   const target = document.getElementById('mapped-grezzi-list');
   if (!target) return;
-  if (!mappedGrezzi.length) {
-    target.innerHTML = '<div class="empty">Nessun grezzo mappato da gestire.</div>';
+  const notificationsHtml = warehouseNotifications.length ? `
+    <div class="notification-section-title">Richieste inventario</div>
+    ${warehouseNotifications.map(item => `
+      <div class="notification-row">
+        <div>
+          <div class="mapped-code">${esc(item.title || 'Modifica inventario')}</div>
+          <div class="mapped-meta">${esc(item.summary || item.action || '')}</div>
+        </div>
+        <div>
+          <div class="mapped-label">Richiedente</div>
+          <div class="mapped-commessa">${esc(item.created_by_username || '—')}</div>
+          <div class="mapped-meta">${esc(item.created_at ? new Date(item.created_at).toLocaleString('it-IT') : '')}</div>
+        </div>
+        <div class="notification-actions">
+          <button class="ddt-primary notification-apply" onclick="applyInventoryNotification(${Number(item.id)})">Applica</button>
+          <button class="ddt-primary notification-reject" onclick="rejectInventoryNotification(${Number(item.id)})">Rifiuta</button>
+        </div>
+      </div>
+    `).join('')}` : '';
+  const mappedHtml = mappedGrezzi.length ? `
+    <div class="notification-section-title">Grezzi mappati da uscire</div>
+    ${mappedGrezzi.map(item => `
+      <div class="mapped-row">
+        <div>
+          <div class="mapped-code">${esc(item.label || item.material_code || item.uuid)}</div>
+          <div class="mapped-meta">${esc([item.tipo, item.profilo, item.dimensioni, item.qualita].filter(Boolean).join(' · ') || item.uuid)}</div>
+        </div>
+        <div>
+          <div class="mapped-label">Commessa</div>
+          <div class="mapped-commessa">${esc(item.commessa || item.reserved_for_commessa || '—')}</div>
+        </div>
+        <div class="mapped-pieces">${Number(item.pieces_count || 0)} pz</div>
+        <button class="ddt-primary" onclick="manageMappedGrezzoOutgoing('${esc(item.uuid)}')">Richiedi uscita</button>
+      </div>
+    `).join('')}` : '';
+  if (!warehouseNotifications.length && !mappedGrezzi.length) {
+    target.innerHTML = '<div class="empty">Nessuna notifica inventario da gestire.</div>';
     return;
   }
-  target.innerHTML = mappedGrezzi.map(item => `
-    <div class="mapped-row">
-      <div>
-        <div class="mapped-code">${esc(item.label || item.material_code || item.uuid)}</div>
-        <div class="mapped-meta">${esc([item.tipo, item.profilo, item.dimensioni, item.qualita].filter(Boolean).join(' · ') || item.uuid)}</div>
-      </div>
-      <div>
-        <div class="mapped-label">Commessa</div>
-        <div class="mapped-commessa">${esc(item.commessa || item.reserved_for_commessa || '—')}</div>
-      </div>
-      <div class="mapped-pieces">${Number(item.pieces_count || 0)} pz</div>
-      <button class="ddt-primary" onclick="manageMappedGrezzoOutgoing('${esc(item.uuid)}')">Gestisci uscita</button>
-    </div>
-  `).join('');
+  target.innerHTML = notificationsHtml + mappedHtml;
 }
 
 async function refreshMappedGrezzi() {
-  const res = await fetch('/api/v1/warehouse/mapped-grezzi', { headers: hdr() });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
-  mappedGrezzi = data.items || [];
-  updateMappedGrezziButton(data.count ?? mappedGrezzi.length);
+  const [mappedRes, notificationsRes] = await Promise.all([
+    fetch('/api/v1/warehouse/mapped-grezzi', { headers: hdr() }),
+    fetch('/api/v1/warehouse/change-requests?status=PENDING&limit=100', { headers: hdr() }),
+  ]);
+  const mappedData = await mappedRes.json().catch(() => ({}));
+  const notificationsData = await notificationsRes.json().catch(() => ([]));
+  if (!mappedRes.ok) throw new Error(mappedData.detail || `Errore ${mappedRes.status}`);
+  if (!notificationsRes.ok) throw new Error(notificationsData.detail || `Errore ${notificationsRes.status}`);
+  mappedGrezzi = mappedData.items || [];
+  warehouseNotifications = Array.isArray(notificationsData) ? notificationsData : [];
+  updateMappedGrezziButton(warehouseNotifications.length + (mappedData.count ?? mappedGrezzi.length));
   renderMappedGrezziDrawer();
+}
+
+async function queueInventoryChange(action, title, summary, payload) {
+  const res = await fetch('/api/v1/warehouse/change-requests', {
+    method:'POST',
+    headers:{...hdr(),'Content-Type':'application/json'},
+    body:JSON.stringify({action,title,summary,payload}),
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+  await refreshMappedGrezzi();
+  return data;
+}
+
+async function applyInventoryNotification(id) {
+  try {
+    const res = await fetch(`/api/v1/warehouse/change-requests/${id}/apply`, { method:'POST', headers:hdr() });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    showToast('Modifica inventario applicata', 'ok');
+    await loadStock();
+    await refreshMappedGrezzi();
+  } catch(err) {
+    showToast(err.message || String(err), 'err');
+  }
+}
+
+async function rejectInventoryNotification(id) {
+  try {
+    const res = await fetch(`/api/v1/warehouse/change-requests/${id}/reject`, { method:'POST', headers:hdr() });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
+    showToast('Notifica inventario rifiutata', 'ok');
+    await refreshMappedGrezzi();
+  } catch(err) {
+    showToast(err.message || String(err), 'err');
+  }
 }
 
 async function manageMappedGrezzoOutgoing(uuid) {
   const item = mappedGrezzi.find(row => row.uuid === uuid);
   const label = item ? `${item.label} · ${item.commessa}` : uuid;
-  if (!confirm(`Registrare uscita magazzino per questo grezzo?\n\n${label}`)) return;
+  if (!confirm(`Creare una notifica per l'uscita magazzino di questo grezzo?\n\n${label}`)) return;
   try {
-    const res = await fetch(`/api/v1/warehouse/mapped-grezzi/${encodeURIComponent(uuid)}/outgoing`, {
-      method: 'POST',
-      headers: hdr(),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
-    showToast('Uscita grezzo registrata', 'ok');
-    await loadStock();
-    await refreshMappedGrezzi();
+    await queueInventoryChange(
+      'mapped_grezzo_outgoing',
+      'Uscita grezzo mappato',
+      label,
+      { uuid }
+    );
+    showToast('Notifica uscita creata', 'ok');
   } catch (err) {
     showToast(err.message || String(err), 'err');
   }
@@ -3487,6 +3565,7 @@ function openQrConfigFromSelection() {
 }
 
 const ITEM_EDIT_FIELDS = [
+  ['status','Stato'],
   ['tipo','Tipo'],
   ['profilo','Profilo'],
   ['dimensioni','Dimensioni'],
@@ -3496,14 +3575,27 @@ const ITEM_EDIT_FIELDS = [
   ['uso_materiale','Uso'],
   ['posizione','Posizione'],
   ['reserved_for_commessa','Prenotato per commessa'],
+  ['reserved_at','Prenotato il','datetime-local'],
+  ['reserved_by_scanner_id','Scanner prenotazione','number-int'],
   ['commessa_ref','Riferimento libero'],
   ['peso_u_kg','Peso/u kg','number'],
   ['peso_1_pz','Peso pezzo kg','number'],
+  ['source_movement_id','Movimento ingresso','number-int'],
+  ['exit_movement_id','Movimento uscita','number-int'],
+  ['exited_at','Uscito il','datetime-local'],
   ['notes','Note','textarea'],
 ];
 
+function datetimeLocalValue(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value).slice(0,16);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function itemFieldHtml(detail, field, label, type='text') {
-  const value = detail?.[field] ?? '';
+  const value = type === 'datetime-local' ? datetimeLocalValue(detail?.[field]) : (detail?.[field] ?? '');
   const disabled = itemEditEnabled ? '' : 'disabled';
   if (type === 'textarea') {
     return `<div class="item-field full">
@@ -3511,9 +3603,11 @@ function itemFieldHtml(detail, field, label, type='text') {
       <textarea data-item-field="${field}" ${disabled}>${esc(value)}</textarea>
     </div>`;
   }
+  const inputType = type === 'number-int' ? 'number' : type;
+  const step = type === 'number' ? 'step="0.001"' : (type === 'number-int' ? 'step="1"' : '');
   return `<div class="item-field">
     <label>${esc(label)}</label>
-    <input data-item-field="${field}" type="${type}" ${type === 'number' ? 'step="0.001"' : ''} value="${esc(value)}" ${disabled}/>
+    <input data-item-field="${field}" type="${inputType}" ${step} value="${esc(value)}" ${disabled}/>
   </div>`;
 }
 
@@ -3531,6 +3625,12 @@ function renderItemSources() {
     ['Uso', d.uso_materiale],
     ['Posizione', d.posizione],
     ['Prenotato per commessa', d.reserved_for_commessa],
+    ['Prenotato il', d.reserved_at ? new Date(d.reserved_at).toLocaleString('it-IT') : null],
+    ['Uscito il', d.exited_at ? new Date(d.exited_at).toLocaleString('it-IT') : null],
+    ['Aggiornato il', d.updated_at ? new Date(d.updated_at).toLocaleString('it-IT') : null],
+    ['Movimento ingresso', d.source_movement_id],
+    ['Movimento uscita', d.exit_movement_id],
+    ['Scanner prenotazione', d.reserved_by_scanner_id],
     ['Creato il', d.created_at ? new Date(d.created_at).toLocaleString('it-IT') : null],
     ['Campi manuali', (d.manual_overrides || []).length ? d.manual_overrides.join(', ') : 'Nessuno'],
   ];
@@ -3638,6 +3738,10 @@ function collectItemPayload() {
     let value = el.value;
     if (['peso_u_kg','peso_1_pz'].includes(field)) {
       value = numOrNull(value);
+    } else if (['source_movement_id','exit_movement_id','reserved_by_scanner_id'].includes(field)) {
+      value = value === '' ? null : Math.trunc(numOrNull(value) || 0);
+    } else if (['reserved_at','exited_at'].includes(field)) {
+      value = value ? new Date(value).toISOString() : null;
     } else {
       value = value.trim() || null;
     }
@@ -3650,20 +3754,15 @@ async function saveItemDetail() {
   if(!previewItemDetail?.uuid) return;
   const btn = document.getElementById('item-save-btn');
   btn.disabled = true;
-  btn.textContent = 'Salvataggio…';
+  btn.textContent = 'Creazione notifica…';
   try {
-    const res = await fetch(`/api/v1/warehouse/items/${previewItemDetail.uuid}`, {
-      method:'PATCH',
-      headers:{...hdr(),'Content-Type':'application/json'},
-      body:JSON.stringify(collectItemPayload()),
-    });
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
-    showToast('Elemento aggiornato', 'ok');
-    renderItemDetail(data);
-    const idx = allItems.findIndex(i => i.uuid === data.uuid);
-    if(idx >= 0) allItems[idx] = data;
-    await loadStock();
+    await queueInventoryChange(
+      'item_update',
+      'Modifica record fisico',
+      previewItemDetail.label || previewItemDetail.uuid,
+      { uuid: previewItemDetail.uuid, changes: collectItemPayload() }
+    );
+    showToast('Notifica modifica creata', 'ok');
   } catch(err) {
     showToast(err.message, 'err');
   } finally {
@@ -3745,20 +3844,18 @@ async function printSelectedLabels(e) {
 async function deleteItemsByUuid(uuids) {
   const clean = [...new Set(uuids.filter(Boolean))];
   if(!clean.length) return;
-  const ok = confirm(`Eliminare definitivamente ${clean.length} record fisici di magazzino?\\n\\nL'anagrafica materiale resta, ma questi UUID/QR saranno rimossi.`);
+  const ok = confirm(`Creare una notifica per eliminare ${clean.length} record fisici di magazzino?\\n\\nL'anagrafica materiale resta, ma questi UUID/QR saranno rimossi solo quando la notifica viene applicata.`);
   if(!ok) return;
   try {
-    const res = await fetch('/api/v1/warehouse/items/bulk-delete', {
-      method:'POST',
-      headers:{...hdr(),'Content-Type':'application/json'},
-      body:JSON.stringify({uuids:clean}),
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.detail||`Errore ${res.status}`);
+    await queueInventoryChange(
+      'items_delete',
+      'Eliminazione record fisici',
+      `${clean.length} UUID/QR selezionati`,
+      { uuids: clean }
+    );
     clean.forEach(uuid => selectedItems.delete(uuid));
     closeQrPreview();
-    showToast(`${data.deleted || 0} record eliminati`, 'ok');
-    await loadStock();
+    showToast('Notifica eliminazione creata', 'ok');
   } catch(err) {
     showToast(err.message,'err');
   }
@@ -3773,27 +3870,26 @@ async function deleteMaterialsById(materialIds) {
   const ids = [...new Set(materialIds.map(Number).filter(Boolean))];
   if(!ids.length) return;
   const ok = confirm(
-    `ATTENZIONE: cancellazione inventario definitiva.\\n\\n` +
-    `Stai per eliminare ${ids.length} righe materiale.\\n` +
+    `ATTENZIONE: richiesta cancellazione inventario.\\n\\n` +
+    `Stai per creare una notifica per eliminare ${ids.length} righe materiale.\\n` +
     `Verranno rimossi anche QR fisici, movimenti, lotti, ricevute e certificati collegati.\\n\\n` +
-    `Questa operazione non si annulla. Continuare?`
+    `La cancellazione avverrà solo quando la notifica viene applicata. Continuare?`
   );
   if(!ok) return;
-  const typed = prompt(`Per confermare la cancellazione definitiva scrivi ELIMINA`);
+  const typed = prompt(`Per creare la notifica di cancellazione scrivi ELIMINA`);
   if (typed !== 'ELIMINA') {
     showToast('Cancellazione annullata: conferma testuale non valida.', 'err');
     return;
   }
-  let deleted = 0;
   try {
-    for (const id of ids) {
-      const res = await fetch(`/api/v1/warehouse/materials/${id}`, { method:'DELETE', headers:hdr() });
-      if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.detail||`Errore ${res.status}`);}
-      deleted += 1;
-      selectedMaterials.delete(id);
-    }
-    showToast(`${deleted} righe materiale eliminate`, 'ok');
-    await loadStock();
+    await queueInventoryChange(
+      'materials_delete',
+      'Eliminazione righe materiale',
+      `${ids.length} materiali selezionati`,
+      { material_ids: ids }
+    );
+    ids.forEach(id => selectedMaterials.delete(id));
+    showToast('Notifica cancellazione creata', 'ok');
   } catch(err) {
     showToast(err.message,'err');
   }
@@ -4079,18 +4175,15 @@ function closeImport() { document.getElementById('imp-modal').classList.remove('
 async function confirmImport() {
   const fi=document.getElementById('imp-file'); const err=document.getElementById('imp-err'); err.classList.remove('show');
   if(!fi.files.length){err.textContent='Seleziona un file.'; err.classList.add('show'); return;}
-  const btn=document.getElementById('imp-ok'); btn.disabled=true; btn.textContent='Importazione…';
+  const btn=document.getElementById('imp-ok'); btn.disabled=true; btn.textContent='Creazione notifica…';
   const fd=new FormData(); fd.append('file',fi.files[0]);
   const reason = encodeURIComponent(document.getElementById('imp-reason').value.trim() || 'Import append magazzino');
   try {
     const res=await fetch(`/api/v1/warehouse/materials/import-append?reason=${reason}`,{method:'POST',headers:hdr(),body:fd});
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
     const data=await res.json(); closeImport();
-    showToast(
-      `Import completato — ${data.rows||0} righe, ${data.materials_created||0} nuovi, ${data.materials_existing||0} aggiornati, ${data.physical_items_created||0} QR, ${data.reserved_items_created||0} prenotati`,
-      'ok'
-    );
-    await loadStock();
+    showToast(data.title ? 'Notifica import creata' : 'Notifica inventario creata', 'ok');
+    await refreshMappedGrezzi();
   } catch(e){err.textContent=e.message; err.classList.add('show');}
   finally{btn.disabled=false; btn.textContent='↑ Importa';}
 }
@@ -4299,20 +4392,18 @@ async function confirmDdt(){
     return;
   }
   btn.disabled = true;
-  btn.textContent = 'Inserimento…';
+  btn.textContent = 'Creazione notifica…';
   try {
-    const res = await fetch('/api/v1/inventario/ddt/confirm', {
-      method:'POST',
-      headers:{...hdr(),'Content-Type':'application/json'},
-      body:JSON.stringify(payload),
-    });
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
-    showToast(`Ingresso DDT registrato — ${data.physical_items_created || 0} QR creati`, 'ok');
+    await queueInventoryChange(
+      'ddt_confirm',
+      'Ingresso da DDT',
+      `${payload.items.length} righe materiale da ${payload.filename || payload.ddt_number || 'DDT'}`,
+      payload
+    );
+    showToast('Notifica ingresso DDT creata', 'ok');
     ddtAnalysis = payload;
     closeDdtReview();
     closeDdt();
-    await loadStock();
   } catch(e) {
     showDdtReviewError(e.message);
     document.getElementById('ddt-status').textContent = e.message;

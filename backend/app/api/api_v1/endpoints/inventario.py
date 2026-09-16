@@ -249,6 +249,19 @@ def confirm_ddt(
     payload: DdtConfirmRequest,
     db: Session = Depends(get_db),
 ):
+    try:
+        result = _apply_ddt_confirm(db, payload)
+        db.commit()
+        return result
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _apply_ddt_confirm(db: Session, payload: DdtConfirmRequest) -> dict:
     if not payload.items:
         raise HTTPException(status_code=422, detail="Nessun materiale da inserire")
 
@@ -260,36 +273,31 @@ def confirm_ddt(
     ]
     reference = " · ".join(reference_bits)[:255] if reference_bits else "DDT"
 
-    try:
-        for item in payload.items:
-            material = _upsert_material_from_ddt(db, item)
-            movement = StockMovement(
-                material_id=material.id,
-                quantity=item.quantity,
-                movement_type=MovementType.INCOMING,
-                reason="Ingresso da DDT",
-                reference=reference,
-            )
-            db.add(movement)
-            db.flush()
-            created_movements += 1
+    for item in payload.items:
+        material = _upsert_material_from_ddt(db, item)
+        movement = StockMovement(
+            material_id=material.id,
+            quantity=item.quantity,
+            movement_type=MovementType.INCOMING,
+            reason="Ingresso da DDT",
+            reference=reference,
+        )
+        db.add(movement)
+        db.flush()
+        created_movements += 1
+        try:
             created_items = create_items_for_incoming(db, material.id, item.quantity, movement.id)
-            physical_items_created += len(created_items)
-            materials.append(
-                {
-                    "material_id": material.id,
-                    "material_code": material.code,
-                    "quantity": item.quantity,
-                    "physical_items_created": len(created_items),
-                }
-            )
-        db.commit()
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=422, detail=str(exc))
-    except Exception:
-        db.rollback()
-        raise
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        physical_items_created += len(created_items)
+        materials.append(
+            {
+                "material_id": material.id,
+                "material_code": material.code,
+                "quantity": item.quantity,
+                "physical_items_created": len(created_items),
+            }
+        )
 
     return {
         "status": "ok",
