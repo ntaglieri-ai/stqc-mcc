@@ -677,11 +677,11 @@
     function renderAnalysis(data) {
       analysis = data;
       const items = data.items || [];
-      const ready = items.length > 0;
+      const ready = items.length > 0 && data.status === "ready";
       $("supplier").textContent = data.supplier || "Da verificare";
       $("document").textContent = [data.ddt_number ? `DDT ${data.ddt_number}` : data.filename, data.ddt_date].filter(Boolean).join(" · ") || "Da verificare";
       $("materials").textContent = `${items.length} rilevati`;
-      $("state").textContent = ready ? "Review" : (data.status === "ocr_required" ? "OCR richiesto" : "Da verificare");
+      $("state").textContent = ready ? "Review" : "Da verificare";
       $("warnings").innerHTML = (data.warnings || []).map(w => `<div class="warning">${esc(w)}</div>`).join("");
       $("doc-fields").innerHTML = [
         field("Fornitore", "doc-supplier", data.supplier, "es. TECNOACCIAI"),
@@ -733,10 +733,10 @@
       resetAnalysis(false);
       renderQueue();
       $("document").textContent = `${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"}`;
-      $("state").textContent = "Analisi";
+      $("state").textContent = "Lettura";
       $("analyze-btn").disabled = true;
-      $("analyze-btn").textContent = "Analisi...";
-      setStatus(`Analisi di ${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"} in corso...`);
+      $("analyze-btn").textContent = "Lettura...";
+      setStatus(`Lettura di ${queuedFiles.length} ${queuedFiles.length === 1 ? "pagina" : "pagine"} in corso...`);
       const fd = new FormData();
       queuedFiles.forEach(file => fd.append("files", file));
       try {
@@ -746,7 +746,7 @@
         renderAnalysis(data);
       } catch (err) {
         $("state").textContent = "Errore";
-        setStatus(err.message || "Analisi non riuscita.", "err");
+        setStatus(err.message || "Lettura non riuscita.", "err");
       } finally {
         $("analyze-btn").textContent = "Analizza DDT";
         $("analyze-btn").disabled = !queuedFiles.length;

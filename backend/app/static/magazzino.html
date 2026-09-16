@@ -1698,7 +1698,7 @@
       <div class="ddt-card full">
         <div class="ddt-card-label">Flusso operativo</div>
         <div class="ddt-card-muted" id="ddt-next">
-          Analisi documento, controllo manuale dei dati letti e conferma finale: solo alla conferma vengono creati ingresso magazzino e QR fisici.
+          Lettura documento, controllo manuale dei dati letti e conferma finale: solo alla conferma vengono creati ingresso magazzino e record fisici.
         </div>
       </div>
     </div>
@@ -4278,11 +4278,12 @@ function resetDdtView(){
 function renderDdtAnalysis(data){
   ddtAnalysis = data;
   const items = data.items || [];
-  const ready = items.length > 0;
+  const hasItems = items.length > 0;
+  const ready = hasItems && data.status === 'ready';
   document.getElementById('ddt-supplier').textContent = data.supplier || 'Da verificare';
   document.getElementById('ddt-doc').textContent = [data.ddt_number ? `DDT ${data.ddt_number}` : data.filename, data.ddt_date].filter(Boolean).join(' · ') || 'Da verificare';
   document.getElementById('ddt-materials').textContent = `${items.length} rilevati`;
-  document.getElementById('ddt-state').textContent = ready ? 'Pronto' : (data.status === 'ocr_required' ? 'OCR richiesto' : 'Da verificare');
+  document.getElementById('ddt-state').textContent = ready ? 'Pronto' : 'Da verificare';
   document.getElementById('ddt-lines').innerHTML = items.map(item => `
     <div class="ddt-line">
       <div class="ddt-line-top">
@@ -4299,18 +4300,18 @@ function renderDdtAnalysis(data){
       ${item.notes ? `<div class="ddt-card-muted" style="margin-top:9px">${esc(item.notes)}</div>` : ''}
     </div>`).join('') || '<div class="ddt-card-muted">Nessuna riga materiale proposta.</div>';
   document.getElementById('ddt-warnings').innerHTML = (data.warnings || []).map(w => `<div class="ddt-warning">${esc(w)}</div>`).join('');
-  document.getElementById('ddt-status').textContent = ready
+  document.getElementById('ddt-status').textContent = hasItems
     ? "Proposta pronta: apri la review per controllare e correggere i dati prima dell'ingresso."
     : 'Nessuna riga materiale rilevata: verifica il documento o riprova con un file più leggibile.';
-  document.getElementById('ddt-confirm').disabled = !ready;
+  document.getElementById('ddt-confirm').disabled = !hasItems;
 }
 async function onDdtFileSelected(input){
   const file = input.files && input.files[0];
   if(!file) return;
   resetDdtView();
   document.getElementById('ddt-doc').textContent = file.name;
-  document.getElementById('ddt-state').textContent = 'Analisi…';
-  document.getElementById('ddt-status').textContent = 'Analisi del documento in corso…';
+  document.getElementById('ddt-state').textContent = 'Lettura…';
+  document.getElementById('ddt-status').textContent = 'Lettura del documento in corso…';
   const fd = new FormData();
   fd.append('file', file);
   try {
@@ -4318,11 +4319,11 @@ async function onDdtFileSelected(input){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
     renderDdtAnalysis(data);
-    showToast(data.status === 'ready' ? 'DDT analizzato' : 'DDT da verificare', data.status === 'ready' ? 'ok' : 'err');
+    showToast(data.status === 'ready' ? 'DDT letto' : 'DDT da verificare', data.status === 'ready' ? 'ok' : 'err');
   } catch(e) {
     document.getElementById('ddt-state').textContent = 'Errore';
     document.getElementById('ddt-status').textContent = e.message;
-    showToast('Analisi DDT non riuscita', 'err');
+    showToast('Lettura DDT non riuscita', 'err');
   }
 }
 function ddtField(label, id, value, placeholder='') {

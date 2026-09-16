@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import base64
+import json
+import mimetypes
+import os
 import re
 import shutil
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -112,7 +118,7 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[str]]:
         if text.strip() and _has_material_keywords(text):
             return text, warnings
         if text.strip():
-            warnings.append("Testo PDF nativo incompleto: eseguo OCR.")
+            warnings.append("Testo PDF nativo incompleto: eseguo lettura avanzata.")
     except Exception as exc:
         warnings.append(f"pdfplumber non disponibile o non riuscito: {exc}")
 
@@ -124,7 +130,7 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[str]]:
         if text.strip() and _has_material_keywords(text):
             return text, warnings
         if text.strip():
-            warnings.append("Testo pypdf incompleto: eseguo OCR.")
+            warnings.append("Testo PDF incompleto: eseguo lettura avanzata.")
     except Exception as exc:
         warnings.append(f"pypdf non disponibile o non riuscito: {exc}")
 
@@ -142,7 +148,7 @@ def _extract_image_ocr_text(path: Path) -> tuple[str, list[str]]:
     warnings: list[str] = []
     tesseract = _tesseract_path()
     if not tesseract:
-        return "", ["OCR non disponibile: Tesseract non installato."]
+        return "", ["Lettura automatica non disponibile sul server."]
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
@@ -168,13 +174,13 @@ def _extract_image_ocr_text(path: Path) -> tuple[str, list[str]]:
                 timeout=45,
             )
         except Exception as exc:
-            return "", [f"OCR immagine non riuscito: {exc}."]
+            return "", [f"Lettura immagine non riuscita: {exc}."]
 
     if result.returncode == 0 and result.stdout.strip():
         return result.stdout, warnings
     if result.stderr.strip():
         warnings.append(result.stderr.strip().splitlines()[-1])
-    warnings.append("OCR completato ma nessun testo leggibile rilevato.")
+    warnings.append("Lettura completata ma nessun testo leggibile rilevato.")
     return "", warnings
 
 
@@ -193,12 +199,12 @@ def _extract_pdf_ocr_text(path: Path) -> tuple[str, list[str]]:
     warnings: list[str] = []
     tesseract = _tesseract_path()
     if not tesseract:
-        return "", ["OCR non disponibile: Tesseract non installato."]
+        return "", ["Lettura automatica non disponibile sul server."]
 
     try:
         import pypdfium2 as pdfium  # type: ignore
     except Exception as exc:
-        return "", [f"OCR non disponibile: pypdfium2 non installato ({exc})."]
+        return "", [f"Lettura PDF non disponibile sul server ({exc})."]
 
     def run_ocr(enhanced: bool) -> tuple[str, list[str]]:
         texts: list[str] = []
@@ -250,9 +256,9 @@ def _extract_pdf_ocr_text(path: Path) -> tuple[str, list[str]]:
                 text = enhanced_text
         if text.strip():
             return text, warnings
-        warnings.append("OCR completato ma nessun testo leggibile rilevato.")
+        warnings.append("Lettura completata ma nessun testo leggibile rilevato.")
     except Exception as exc:
-        warnings.append(f"OCR non riuscito: {exc}")
+        warnings.append(f"Lettura documento non riuscita: {exc}")
     return "", warnings
 
 
@@ -605,7 +611,7 @@ def _parse_profiles_from_filename(filename: str, meta: dict[str, Any]) -> list[D
                 profilo=profilo,
                 confidence=0.35,
                 source="filename",
-                notes="Dati parziali dal nome file: serve OCR o completamento manuale.",
+                notes="Dati parziali dal nome file: completare la review manualmente.",
             )
         )
     return lines
@@ -652,9 +658,9 @@ def _analyze_ddt_text(
 
     status = "ready" if lines and all(line.quantity for line in lines) else "needs_review"
     if not text.strip():
-        status = "ocr_required"
+        status = "needs_review"
         warnings.append(
-            "Il documento non contiene testo leggibile: serve OCR o completamento manuale per quantità, pesi e riferimenti."
+            "Il documento non contiene testo leggibile: completare la review manualmente per quantità, pesi e riferimenti."
         )
 
     return {
@@ -671,10 +677,388 @@ def _analyze_ddt_text(
     }
 
 
+DDT_AI_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "supplier": {"type": ["string", "null"]},
+        "ddt_number": {"type": ["string", "null"]},
+        "ddt_date": {"type": ["string", "null"]},
+        "reference": {"type": ["string", "null"]},
+        "warnings": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "material_code": {"type": ["string", "null"]},
+                    "description": {"type": ["string", "null"]},
+                    "quantity": {"type": ["integer", "null"]},
+                    "unit": {"type": ["string", "null"]},
+                    "tipo": {"type": ["string", "null"]},
+                    "profilo": {"type": ["string", "null"]},
+                    "dimensioni": {"type": ["string", "null"]},
+                    "qualita": {"type": ["string", "null"]},
+                    "colata": {"type": ["string", "null"]},
+                    "peso_kg": {"type": ["number", "null"]},
+                    "peso_u_kg": {"type": ["number", "null"]},
+                    "confidence": {"type": "number"},
+                    "notes": {"type": ["string", "null"]},
+                },
+                "required": [
+                    "material_code",
+                    "description",
+                    "quantity",
+                    "unit",
+                    "tipo",
+                    "profilo",
+                    "dimensioni",
+                    "qualita",
+                    "colata",
+                    "peso_kg",
+                    "peso_u_kg",
+                    "confidence",
+                    "notes",
+                ],
+            },
+        },
+    },
+    "required": ["supplier", "ddt_number", "ddt_date", "reference", "warnings", "items"],
+}
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _ddt_ai_key() -> str | None:
+    if os.getenv("DDT_AI_PROVIDER", "openai").strip().lower() != "openai":
+        return None
+    return os.getenv("OPENAI_API_KEY") or os.getenv("DDT_OPENAI_API_KEY")
+
+
+def _ddt_ai_enabled() -> bool:
+    return bool(_ddt_ai_key()) and not _env_bool("DDT_AI_DISABLED", False)
+
+
+def _ddt_ai_model() -> str:
+    return os.getenv("DDT_AI_MODEL", "gpt-5.6-terra").strip() or "gpt-5.6-terra"
+
+
+def _ddt_ai_detail() -> str:
+    detail = os.getenv("DDT_AI_DETAIL", "high").strip().lower()
+    return detail if detail in {"low", "high", "original", "auto"} else "high"
+
+
+def _ddt_ai_max_pages() -> int:
+    try:
+        return max(1, min(20, int(os.getenv("DDT_AI_MAX_PAGES", "5"))))
+    except ValueError:
+        return 5
+
+
+def _result_ready(result: dict[str, Any]) -> bool:
+    items = result.get("items") or []
+    return bool(items) and all((item.get("quantity") or 0) > 0 for item in items)
+
+
+def _should_use_ddt_ai(result: dict[str, Any]) -> bool:
+    if not _ddt_ai_enabled():
+        return False
+    if _env_bool("DDT_AI_ALWAYS", False):
+        return True
+    source_kind = result.get("source_kind")
+    if source_kind in {"image", "batch"}:
+        return True
+    return not _result_ready(result)
+
+
+def _image_data_url(path: Path, filename: str | None = None) -> str | None:
+    suffix = Path(filename or path.name).suffix.lower() or path.suffix.lower()
+    supported_direct = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    if suffix in supported_direct:
+        mime = mimetypes.guess_type(filename or path.name)[0] or "image/jpeg"
+        data = path.read_bytes()
+    else:
+        try:
+            from PIL import Image, ImageOps
+
+            with Image.open(path) as image:
+                image = ImageOps.exif_transpose(image)
+                if image.mode not in {"RGB", "L"}:
+                    image = image.convert("RGB")
+                with tempfile.NamedTemporaryFile(suffix=".jpg") as tmp:
+                    image.save(tmp.name, format="JPEG", quality=90)
+                    data = Path(tmp.name).read_bytes()
+            mime = "image/jpeg"
+        except Exception:
+            return None
+    return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+def _pdf_page_data_urls(path: Path, max_pages: int) -> list[str]:
+    try:
+        import pypdfium2 as pdfium  # type: ignore
+    except Exception:
+        return []
+
+    urls: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        pdf = pdfium.PdfDocument(path.as_posix())
+        for index in range(min(len(pdf), max_pages)):
+            page = pdf[index]
+            bitmap = page.render(scale=2.4)
+            image = bitmap.to_pil().convert("RGB")
+            image_path = Path(tmp_dir) / f"page-{index + 1}.jpg"
+            image.save(image_path, format="JPEG", quality=88)
+            url = _image_data_url(image_path, image_path.name)
+            if url:
+                urls.append(url)
+    return urls
+
+
+def _input_images_for_ai(files: list[tuple[Path, str]]) -> list[str]:
+    urls: list[str] = []
+    max_pages = _ddt_ai_max_pages()
+    for path, filename in files:
+        suffix = Path(filename).suffix.lower() or path.suffix.lower()
+        if suffix == ".pdf":
+            urls.extend(_pdf_page_data_urls(path, max_pages - len(urls)))
+        elif suffix in IMAGE_SUFFIXES:
+            url = _image_data_url(path, filename)
+            if url:
+                urls.append(url)
+        if len(urls) >= max_pages:
+            break
+    return urls[:max_pages]
+
+
+def _extract_response_text(payload: dict[str, Any]) -> str:
+    if isinstance(payload.get("output_text"), str):
+        return payload["output_text"]
+    chunks: list[str] = []
+
+    def walk(value: Any) -> None:
+        if isinstance(value, dict):
+            if value.get("type") in {"output_text", "text"} and isinstance(value.get("text"), str):
+                chunks.append(value["text"])
+            for child in value.values():
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+
+    walk(payload.get("output"))
+    return "\n".join(chunks).strip()
+
+
+def _openai_ddt_extract(
+    *,
+    files: list[tuple[Path, str]],
+    local_result: dict[str, Any],
+    text_excerpt: str,
+) -> dict[str, Any] | None:
+    key = _ddt_ai_key()
+    if not key:
+        return None
+
+    images = _input_images_for_ai(files)
+    if not images and not text_excerpt.strip():
+        return None
+
+    system_prompt = (
+        "Leggi documenti di trasporto italiani per materiali metallici e restituisci solo JSON conforme allo schema. "
+        "Non inventare dati: usa null quando un campo non e' leggibile. "
+        "Normalizza materiali per magazzino: tipo, profilo, dimensioni, qualita, colata, quantita e pesi. "
+        "Per lamiere usa tipo LAMIERA, profilo come spessore, dimensioni come lunghezza*larghezza. "
+        "Per travi usa profili come HEA200, HEB, IPE, UPN. Per tubi/angolari usa profili compatti. "
+        "material_code deve essere breve, mai vuoto se la riga materiale e' valida."
+    )
+    user_content: list[dict[str, Any]] = [
+        {
+            "type": "input_text",
+            "text": (
+                "Estrai il DDT per preparare una proposta di ingresso magazzino. "
+                f"File: {', '.join(name for _path, name in files)}\n"
+                f"Dati letti localmente, se presenti:\n{text_excerpt[:12000]}\n"
+                f"Proposta locale precedente:\n{json.dumps(local_result, ensure_ascii=False)[:8000]}"
+            ),
+        }
+    ]
+    for image_url in images:
+        user_content.append({"type": "input_image", "image_url": image_url, "detail": _ddt_ai_detail()})
+
+    request_payload = {
+        "model": _ddt_ai_model(),
+        "input": [
+            {"role": "system", "content": [{"type": "input_text", "text": system_prompt}]},
+            {"role": "user", "content": user_content},
+        ],
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "ddt_extraction",
+                "schema": DDT_AI_SCHEMA,
+                "strict": True,
+            }
+        },
+        "max_output_tokens": 5000,
+    }
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(request_payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=75) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return None
+
+    raw_text = _extract_response_text(response_payload)
+    if not raw_text:
+        return None
+    try:
+        return json.loads(raw_text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", raw_text, flags=re.DOTALL)
+        if not match:
+            return None
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            return None
+
+
+def _sanitize_ai_item(item: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any] | None:
+    description = _clean(item.get("description"))
+    tipo = _clean(item.get("tipo")).upper() or None
+    profilo = _clean(item.get("profilo")).upper() or None
+    dimensioni = _clean(item.get("dimensioni")).replace(" x ", "*").replace("X", "*") or None
+    qualita = _normalize_quality(item.get("qualita"))
+    colata = _clean(item.get("colata")) or None
+    quantity_raw = item.get("quantity")
+    try:
+        quantity = int(quantity_raw) if quantity_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        quantity = None
+    peso_kg = item.get("peso_kg")
+    peso_u_kg = item.get("peso_u_kg")
+    try:
+        peso_kg = float(peso_kg) if peso_kg not in (None, "") else None
+    except (TypeError, ValueError):
+        peso_kg = None
+    try:
+        peso_u_kg = float(peso_u_kg) if peso_u_kg not in (None, "") else None
+    except (TypeError, ValueError):
+        peso_u_kg = None
+    if peso_u_kg is None and peso_kg is not None and quantity:
+        peso_u_kg = round(peso_kg / quantity, 3)
+
+    material_code = _clean(item.get("material_code"))
+    if not material_code:
+        material_code = _material_code(tipo, profilo, dimensioni, qualita, colata, meta.get("ddt_number"))
+    if not description:
+        description = " ".join(part for part in [tipo, profilo, dimensioni, qualita, colata] if part)
+    if not material_code or not description:
+        return None
+
+    confidence = item.get("confidence")
+    try:
+        confidence = max(0.0, min(1.0, float(confidence)))
+    except (TypeError, ValueError):
+        confidence = 0.65
+
+    return {
+        "material_code": material_code[:100],
+        "description": description[:400],
+        "quantity": quantity,
+        "unit": _clean(item.get("unit")).upper() or "PZ",
+        "tipo": tipo,
+        "profilo": profilo,
+        "dimensioni": dimensioni,
+        "qualita": qualita,
+        "colata": colata,
+        "peso_kg": peso_kg,
+        "peso_u_kg": peso_u_kg,
+        "confidence": confidence,
+        "source": "document",
+        "notes": _clean(item.get("notes")) or None,
+    }
+
+
+def _merge_ai_result(
+    local_result: dict[str, Any],
+    ai_result: dict[str, Any] | None,
+    *,
+    filename: str,
+    source_kind: str,
+) -> dict[str, Any]:
+    if not ai_result:
+        if not local_result.get("items"):
+            local_result["warnings"] = [
+                warning
+                for warning in (local_result.get("warnings") or [])
+                if "OCR" not in warning.upper()
+            ]
+            local_result["warnings"].append("Lettura documento non riuscita: completa la review manualmente o riprova con un file piu' leggibile.")
+        return local_result
+
+    meta = {
+        "supplier": ai_result.get("supplier") or local_result.get("supplier"),
+        "ddt_number": ai_result.get("ddt_number") or local_result.get("ddt_number"),
+        "ddt_date": ai_result.get("ddt_date") or local_result.get("ddt_date"),
+        "reference": ai_result.get("reference") or local_result.get("reference"),
+    }
+    items = [
+        clean
+        for clean in (_sanitize_ai_item(item, meta) for item in (ai_result.get("items") or []))
+        if clean
+    ]
+    if not items:
+        return local_result
+    warnings = [
+        _clean(warning)
+        for warning in (ai_result.get("warnings") or [])
+        if _clean(warning)
+    ]
+    low_confidence = any(float(item.get("confidence") or 0) < 0.72 for item in items)
+    status = "ready" if all((item.get("quantity") or 0) > 0 for item in items) and not low_confidence else "needs_review"
+    if low_confidence:
+        warnings.append("Alcuni campi sono da verificare in review.")
+    return {
+        "status": status,
+        "filename": filename,
+        "source_kind": source_kind,
+        "supplier": meta.get("supplier"),
+        "ddt_number": meta.get("ddt_number"),
+        "ddt_date": meta.get("ddt_date"),
+        "reference": meta.get("reference"),
+        "text_available": bool(local_result.get("text_available")),
+        "warnings": warnings,
+        "items": items,
+    }
+
+
 def analyze_ddt_pdf(path: Path, original_filename: str | None = None) -> dict[str, Any]:
     filename = original_filename or path.name
     text, warnings = _extract_pdf_text(path)
-    return _analyze_ddt_text(text, warnings, filename, source_kind="pdf")
+    local_result = _analyze_ddt_text(text, warnings, filename, source_kind="pdf")
+    if _should_use_ddt_ai(local_result):
+        ai_result = _openai_ddt_extract(files=[(path, filename)], local_result=local_result, text_excerpt=text)
+        return _merge_ai_result(local_result, ai_result, filename=filename, source_kind="pdf")
+    return local_result
 
 
 def _extract_ddt_file_text(path: Path, filename: str) -> tuple[str, list[str], str]:
@@ -699,7 +1083,11 @@ def _extract_ddt_file_text(path: Path, filename: str) -> tuple[str, list[str], s
 def analyze_ddt_file(path: Path, original_filename: str | None = None) -> dict[str, Any]:
     filename = original_filename or path.name
     text, warnings, source_kind = _extract_ddt_file_text(path, filename)
-    return _analyze_ddt_text(text, warnings, filename, source_kind=source_kind)
+    local_result = _analyze_ddt_text(text, warnings, filename, source_kind=source_kind)
+    if _should_use_ddt_ai(local_result):
+        ai_result = _openai_ddt_extract(files=[(path, filename)], local_result=local_result, text_excerpt=text)
+        return _merge_ai_result(local_result, ai_result, filename=filename, source_kind=source_kind)
+    return local_result
 
 
 def analyze_ddt_files(files: list[tuple[Path, str]]) -> dict[str, Any]:
@@ -736,4 +1124,10 @@ def analyze_ddt_files(files: list[tuple[Path, str]]) -> dict[str, Any]:
     result["files"] = filenames
     result["page_count"] = len(files)
     result["source_kinds"] = sorted(source_kinds)
+    if _should_use_ddt_ai(result):
+        ai_result = _openai_ddt_extract(files=files, local_result=result, text_excerpt="\n".join(chunks))
+        result = _merge_ai_result(result, ai_result, filename=batch_name, source_kind="batch")
+        result["files"] = filenames
+        result["page_count"] = len(files)
+        result["source_kinds"] = sorted(source_kinds)
     return result
