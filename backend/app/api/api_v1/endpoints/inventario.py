@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -40,6 +40,7 @@ class DdtConfirmRequest(BaseModel):
     ddt_number: Optional[str] = None
     ddt_date: Optional[str] = None
     reference: Optional[str] = None
+    material_destination: Literal["warehouse", "commessa", "partial_commessa"] = "warehouse"
     items: list[DdtConfirmItem]
 
 
@@ -272,6 +273,11 @@ def _apply_ddt_confirm(db: Session, payload: DdtConfirmRequest) -> dict:
         part for part in [payload.filename, payload.ddt_number, payload.supplier] if part
     ]
     reference = " · ".join(reference_bits)[:255] if reference_bits else "DDT"
+    destination_label = {
+        "warehouse": "Per magazzino",
+        "commessa": "Per una commessa",
+        "partial_commessa": "Parzialmente per una commessa",
+    }[payload.material_destination]
 
     for item in payload.items:
         material = _upsert_material_from_ddt(db, item)
@@ -279,7 +285,7 @@ def _apply_ddt_confirm(db: Session, payload: DdtConfirmRequest) -> dict:
             material_id=material.id,
             quantity=item.quantity,
             movement_type=MovementType.INCOMING,
-            reason="Ingresso da DDT",
+            reason=f"Ingresso da DDT · {destination_label}",
             reference=reference,
         )
         db.add(movement)
@@ -304,4 +310,5 @@ def _apply_ddt_confirm(db: Session, payload: DdtConfirmRequest) -> dict:
         "materials": materials,
         "movements_created": created_movements,
         "physical_items_created": physical_items_created,
+        "material_destination": payload.material_destination,
     }

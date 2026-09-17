@@ -9,7 +9,7 @@ from backend.app.api.api_v1.endpoints.commessa import get_monitoring
 from backend.app.db.base import Base
 from backend.app.models.commessa import (
     Commessa, CommessaRevisione, CommessaPostOfficinaItem, Piece, PieceScanEvent,
-    WorkshopScanAttempt,
+    WorkshopScanAttempt, ProgettazioneItem,
 )
 
 
@@ -30,10 +30,58 @@ class MonitoringTests(unittest.TestCase):
         result = get_monitoring(self.commessa.id, self.db)
         self.assertIsNone(result['spedizione']['previsti'])
         self.assertEqual(result['officina'], [])
+        self.assertIsNone(result['analisi_distinta'])
+        self.assertEqual(result['progettazione_tempi'], {'inizio_generale': None, 'fine_generale': None})
         self.assertTrue(all(r['stato'] == 'NON_INIZIATA' for r in result['progettazione']))
         with self.assertRaises(HTTPException) as error:
             get_monitoring(999, self.db)
         self.assertEqual(error.exception.status_code, 404)
+
+    def test_design_phase_times_are_per_commessa_with_open_tasks(self):
+        other = Commessa(codice='OTHER')
+        self.db.add(other)
+        self.db.flush()
+        self.db.add_all([
+            ProgettazioneItem(commessa_id=self.commessa.id, voce='modello_ifc', inizio=True, fine=True,
+                              iniziata_at=datetime(2026, 1, 3), completata_at=datetime(2026, 1, 5)),
+            ProgettazioneItem(commessa_id=self.commessa.id, voce='distinte', inizio=True, fine=True,
+                              iniziata_at=datetime(2026, 1, 2), completata_at=datetime(2026, 1, 7)),
+            ProgettazioneItem(commessa_id=self.commessa.id, voce='etichette', inizio=True, fine=False,
+                              iniziata_at=datetime(2026, 1, 8)),
+            ProgettazioneItem(commessa_id=other.id, voce='modello_ifc', inizio=True, fine=True,
+                              iniziata_at=datetime(2025, 1, 1), completata_at=datetime(2027, 1, 1)),
+        ])
+        self.db.commit()
+        result = get_monitoring(self.commessa.id, self.db)
+        self.assertEqual(result['progettazione_tempi'], {
+            'inizio_generale': datetime(2026, 1, 2), 'fine_generale': datetime(2026, 1, 7),
+        })
+        self.assertFalse(self.db.dirty)
+
+    def test_analysis_numbers_use_current_revision_and_match_analysis(self):
+        old = CommessaRevisione(commessa_id=self.commessa.id, codice='r01', corrente=False,
+                               report_analisi={'assemblies': 999})
+        current = CommessaRevisione(commessa_id=self.commessa.id, codice='r02', corrente=True,
+                                   file_lavorazioni='lista.xls', file_assemblaggi='assemblaggi.xls',
+                                   report_analisi={'assemblaggi': {'assemblati': 12, 'righe': 25},
+                                                   'spedizione': {'righe': 8, 'quantita': 30},
+                                                   'bulloneria': {'righe': 4, 'quantita_totale': 120}})
+        self.db.add_all([old, current])
+        self.db.flush()
+        self.db.add(Piece(commessa_id=self.commessa.id, revisione_id=old.id,
+                          qr_code='OLD', qr_payload='OLD', marca_pos='OLD', progressivo=1))
+        self.db.add(Piece(commessa_id=self.commessa.id, revisione_id=current.id,
+                          qr_code='NEW', qr_payload='NEW', marca_pos='NEW', progressivo=1))
+        self.db.commit()
+        result = get_monitoring(self.commessa.id, self.db)['analisi_distinta']
+        self.assertEqual(result['lista_pezzi'], {'acquisito': True, 'pezzi': 1, 'codici_distinti': 0, 'profili_qualita': 0})
+        self.assertEqual(result['assemblati'], {'acquisito': True, 'assemblati': 12, 'riferimenti': 25})
+        self.assertEqual(result['spedizione']['righe'], 8)
+        self.assertEqual(result['spedizione']['unita'], 30)
+        self.assertEqual(result['bulloneria']['righe'], 4)
+        self.assertEqual(result['bulloneria']['pezzi'], 120)
+        self.assertFalse(self.db.new)
+        self.assertFalse(self.db.dirty)
 
     def test_current_revision_quantities_and_scan_separation(self):
         old = CommessaRevisione(commessa_id=self.commessa.id, codice='r01', corrente=False)

@@ -784,6 +784,10 @@ def create_warehouse_change_request_endpoint(
 
 def _apply_change_request_payload(db: Session, request: WarehouseChangeRequest) -> dict[str, Any]:
     payload = request.payload or {}
+    if request.action == "inventory_presence":
+        from backend.app.services.inventory_scan import apply_inventory_presence
+
+        return apply_inventory_presence(db, payload)
     if request.action == "stock_movement":
         movement = _apply_stock_movement_payload(db, payload)
         return {"movement_id": movement.id}

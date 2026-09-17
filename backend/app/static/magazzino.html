@@ -1703,6 +1703,15 @@
       </div>
     </div>
 
+    <div class="ddt-card" style="margin-top:16px">
+      <label class="ddt-card-label" for="ddt-destination">Destinazione materiale arrivato</label>
+      <select class="ddt-review-input" id="ddt-destination" onchange="updateDdtDestination()" aria-describedby="ddt-destination-note">
+        <option value="warehouse">Per magazzino</option>
+        <option value="commessa">Per una commessa</option>
+        <option value="partial_commessa">Parzialmente per una commessa</option>
+      </select>
+      <div class="ddt-card-muted" id="ddt-destination-note" style="margin-top:8px" aria-live="polite">Materiale destinato alle scorte di magazzino.</div>
+    </div>
     <div class="ddt-lines" id="ddt-lines"></div>
     <div class="ddt-warnings" id="ddt-warnings"></div>
 
@@ -1735,6 +1744,7 @@
         <div class="ddt-review-section-title">Documento</div>
         <div class="ddt-review-grid" id="ddt-review-doc"></div>
         <div class="ddt-review-note" id="ddt-review-filename"></div>
+        <div class="ddt-review-note" id="ddt-review-destination"></div>
       </div>
       <div class="ddt-review-section">
         <div class="ddt-review-section-title">Materiali proposti per magazzino</div>
@@ -4251,6 +4261,19 @@ function openNewMat() {
 }
 
 // ── DDT drawer ───────────────────────────────────────────────────────────────
+function ddtDestinationLabel(value){
+  return {warehouse:'Per magazzino', commessa:'Per una commessa', partial_commessa:'Parzialmente per una commessa'}[value] || 'Per magazzino';
+}
+function updateDdtDestination(){
+  const value = document.getElementById('ddt-destination').value;
+  const note = {
+    warehouse:'Materiale destinato alle scorte di magazzino.',
+    commessa:'Materiale destinato a una commessa. La commessa sarà indicata durante il carico manuale a magazzino.',
+    partial_commessa:'Durante il carico manuale a magazzino indicherai quali materiali sono per la commessa e quali per magazzino.',
+  }[value];
+  document.getElementById('ddt-destination-note').textContent = note;
+  if(ddtAnalysis) ddtAnalysis.material_destination = value;
+}
 function openDdt(){
   document.getElementById('ddt-backdrop').classList.add('open');
   const drawer = document.getElementById('ddt-drawer');
@@ -4277,6 +4300,7 @@ function resetDdtView(){
 }
 function renderDdtAnalysis(data){
   ddtAnalysis = data;
+  ddtAnalysis.material_destination = document.getElementById('ddt-destination').value;
   const items = data.items || [];
   const hasItems = items.length > 0;
   const ready = hasItems && data.status === 'ready';
@@ -4346,6 +4370,7 @@ function openDdtReview(){
     ddtField('Riferimento interno', 'ddt-review-reference', ddtAnalysis.reference, 'opzionale'),
   ].join('');
   document.getElementById('ddt-review-filename').textContent = ddtAnalysis.filename ? `File origine: ${ddtAnalysis.filename}` : '';
+  document.getElementById('ddt-review-destination').textContent = `${ddtDestinationLabel(document.getElementById('ddt-destination').value)}. ${document.getElementById('ddt-destination-note').textContent}`;
   document.getElementById('ddt-review-items').innerHTML = (ddtAnalysis.items || []).map((item, idx) => `
     <tr>
       <td class="col-code">${ddtCellInput(idx, 'material_code', item.material_code)}</td>
@@ -4407,6 +4432,7 @@ function collectDdtReviewPayload(){
 
   return {
     ...ddtAnalysis,
+    material_destination: document.getElementById('ddt-destination').value,
     supplier: document.getElementById('ddt-review-supplier').value.trim(),
     ddt_number: document.getElementById('ddt-review-number').value.trim(),
     ddt_date: document.getElementById('ddt-review-date').value.trim(),
@@ -4431,7 +4457,7 @@ async function confirmDdt(){
     await queueInventoryChange(
       'ddt_confirm',
       'Ingresso da DDT',
-      `${payload.items.length} righe materiale da ${payload.filename || payload.ddt_number || 'DDT'}`,
+      `${payload.items.length} righe materiale da ${payload.filename || payload.ddt_number || 'DDT'} · ${ddtDestinationLabel(payload.material_destination)}${payload.material_destination === 'partial_commessa' ? ' · Materiali da assegnare durante il carico manuale' : ''}`,
       payload
     );
     showToast('Notifica ingresso DDT creata', 'ok');
@@ -4481,5 +4507,6 @@ function showToast(msg, type='ok') {
   setTimeout(()=>{el.classList.remove('on'); setTimeout(()=>w.removeChild(el),300);},3200);
 }
 </script>
+<script src="/static/phase-scanners.js?v=1"></script>
 </body>
 </html>

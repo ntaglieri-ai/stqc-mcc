@@ -36,6 +36,7 @@ from backend.app.services.distinta import (
     _find_header_row,
     normalized_to_db_bulk,
     parse_commessa_files,
+    parse_assembly_parents,
 )
 from backend.app.services.bulloneria import parse_bulloneria_file
 from backend.app.services.fasi_operative import parse_fasi_operative
@@ -122,6 +123,7 @@ def _warehouse_item_mapping_read(item: WarehouseItem, pieces: list[Piece]) -> di
 
 
 def _piece_qr_read(item: Piece, *, total_for_code: int | None = None) -> dict:
+    from backend.app.services.material_origin import piece_origin_attributes
     total = max(int(total_for_code or item.progressivo or 1), 1)
     progressivo = max(int(item.progressivo or 1), 1)
     display_code = item.marca_pos or item.qr_code
@@ -162,6 +164,7 @@ def _piece_qr_read(item: Piece, *, total_for_code: int | None = None) -> dict:
         "nota": item.note_materiale,
         "materiale_origine_status": item.materiale_origine_status,
         "materiale_origine_id": item.materiale_origine_id,
+        "materiale_origine_dati": piece_origin_attributes(item),
         "qr_image_url": f"/piece-qr-image/{item.uuid}.png",
         "resolve_url": f"/p/{item.uuid}",
         "qr_payload": item.qr_payload,
@@ -3308,6 +3311,36 @@ def _is_assembly_station(value: str | None) -> bool:
     return code.startswith("ASSEMBLAGGIO") or code.startswith("ASS")
 
 
+@router.get("/{commessa_id}/analisi/saldature")
+def get_saldature(commessa_id: int, db: Session = Depends(get_db)):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revisione = _latest_revision(db, commessa_id)
+    if revisione is None:
+        raise HTTPException(404, "Nessuna analisi caricata per la commessa")
+    items = []
+    if revisione.file_assemblaggi:
+        source = settings.upload_dir.parent / revisione.file_assemblaggi
+        if not source.is_file():
+            raise HTTPException(404, "File Assemblaggi non disponibile: ricaricare il file della revisione")
+        try:
+            items = parse_assembly_parents(source)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        for item in items:
+            code = item["codice"]
+            item["qr_payload"] = f"STQC:ASM:{commessa_id}:{code}"
+            item["qr_image_url"] = f"/assembly-qr-image/{commessa_id}/{quote(code, safe='')}.png"
+    return {
+        "commessa": {"id": commessa.id, "codice": commessa.codice},
+        "revisione_id": revisione.id,
+        "source_available": bool(revisione.file_assemblaggi),
+        "items": items,
+        "summary": {"assemblati": len(items), "quantita": sum(item["quantita"] for item in items)},
+    }
+
+
 @router.get("/{commessa_id}/analisi/assemblati")
 def get_assemblati_progress(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
@@ -3805,11 +3838,40 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
         # Ad-hoc rows can be split/duplicated by scanning. They are not a stable denominator.
         expected = shipped = None
     adhoc_scans = db.query(SpedizioneAdHocItem).filter_by(commessa_id=commessa_id).filter(SpedizioneAdHocItem.trovato_at.isnot(None)).order_by(SpedizioneAdHocItem.trovato_at).all()
+    progettazione = get_progettazione(commessa_id, db)
+    inizi = [row["iniziata_at"] for row in progettazione if row["iniziata_at"] is not None]
+    fini = [row["completata_at"] for row in progettazione if row["completata_at"] is not None]
+    analisi_distinta = None
+    if revision:
+        analysis = get_analisi_commessa(commessa_id, db)
+        summary = analysis["summary"]
+        report = analysis["revisione"]["report"] or {}
+        files = analysis["revisione"]["files"]
+        assemblies = report.get("assemblaggi") or {}
+        shipping = report.get("spedizione") or {}
+        bolts = report.get("bulloneria") or {}
+        assembly_count = summary["n_assemblati"] or assemblies.get("assemblati") or report.get("assemblies") or 0
+        analisi_distinta = {
+            "lista_pezzi": {"acquisito": bool(files["lista_pezzi"]), "pezzi": summary["n_pezzi"],
+                            "codici_distinti": summary["n_codici_pezzo"], "profili_qualita": summary["n_profili"]},
+            "assemblati": {"acquisito": bool(files["assemblaggi"]), "assemblati": assembly_count,
+                           "riferimenti": assemblies.get("righe") or report.get("assemblies") or assembly_count},
+            "spedizione": {"acquisito": bool(files["spedizione"]), "righe": shipping.get("righe") or 0,
+                           "unita": shipping.get("quantita") or 0},
+            "bulloneria": {"acquisito": bool(files["bulloneria"]),
+                           "righe": summary["n_bulloneria_righe"] or bolts.get("righe") or 0,
+                           "pezzi": summary["n_bulloneria_totale"] or bolts.get("quantita_totale") or 0},
+        }
     return {
         "commessa": {"codice": commessa.codice, "cliente": commessa.cliente, "stato": commessa.status,
                      "consegna": commessa.data_consegna_prevista},
         "revisione": revision.codice if revision else None,
-        "progettazione": get_progettazione(commessa_id, db),
+        "progettazione": progettazione,
+        "analisi_distinta": analisi_distinta,
+        "progettazione_tempi": {
+            "inizio_generale": min(inizi) if inizi else None,
+            "fine_generale": max(fini) if fini else None,
+        },
         **scans,
         "officina_letture": readings,
         "spedizione": {"previsti": expected, "spediti": shipped,

@@ -153,4 +153,7 @@ load();
 function printSelectedQr(){openQrPrint(selectedItems().map(x=>({title:(x.commessa||commessaCode||'COMMESSA')+' '+pieceDisplayCode(x),detail:"Q.TA' "+pieceProgressLabel(x)+(x.peso_kg!=null?' KG '+Math.round(Number(x.peso_kg)||0):''),image:x.qr_image_url})));}
 function printStationSheet(ws,codes){openQrPrint((codes||[]).map(q=>({title:q.station_name||ws?.name||'',action:q.label,detail:q.station_code||ws?.code||'',image:q.qr_image_url})));}
 </script>
+<link rel="stylesheet" href="/static/qr-registry-layout.css?v=3">
+<script src="/static/phase-scanners.js?v=2"></script>
+<script src="/static/qr-registry-layout.js?v=4"></script>
 </body></html>

@@ -334,7 +334,7 @@ def group_users(name: str, db: Session = Depends(get_db)):
 
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
-SCANNER_SCAN_MODES = {"OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "SPEDIZIONE_AD_HOC"}
+SCANNER_SCAN_MODES = {"OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "MAGAZZINO_INVENTARIO", "SPEDIZIONE_AD_HOC"}
 WORKSTATION_PROGRESS_MODES = {"BLOCCO", "PEZZO_SINGOLO", "CHECK"}
 
 
@@ -367,6 +367,7 @@ def list_workstations(include_inactive: bool = True, db: Session = Depends(get_d
 @router.get("/workstations/qr-codes")
 def list_workstation_qr_codes(include_inactive: bool = False, db: Session = Depends(get_db)):
     q = db.query(Workstation)
+    q = q.filter(~Workstation.code.ilike("MAGAZZINO%"))
     if not include_inactive:
         q = q.filter(Workstation.active == True)
     rows = q.order_by(Workstation.active.desc(), Workstation.code).all()
@@ -513,7 +514,7 @@ def create_scanner_device(body: ScannerDeviceCreate, db: Session = Depends(get_d
         name=body.name.strip() or scanner_code,
         description=body.description,
         scan_mode=scan_mode,
-        postazione_id=body.postazione_id,
+        postazione_id=None if scan_mode.startswith("MAGAZZINO") else body.postazione_id,
         ip_address=body.ip_address,
         serial_number=body.serial_number,
         device_token=body.device_token or secrets.token_urlsafe(24),
@@ -559,6 +560,8 @@ def update_scanner_device(scanner_id: int, body: ScannerDeviceUpdate, db: Sessio
     for field in ("description", "ip_address", "serial_number", "device_token", "active"):
         if field in data:
             setattr(scanner, field, data[field])
+    if scanner.scan_mode.startswith("MAGAZZINO"):
+        scanner.postazione_id = None
     scanner.updated_at = datetime.utcnow()
 
     write_audit_log(db, "UPDATE_SCANNER_DEVICE", details=f"id={scanner_id}, scanner={scanner.scanner_code}, mode={scanner.scan_mode}, postazione_id={scanner.postazione_id}")

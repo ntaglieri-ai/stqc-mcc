@@ -202,6 +202,8 @@ def build_qr_detail(db: Session, raw: str) -> dict:
         "Ultimo evento": _event_label(piece.ultimo_evento),
         "Ultimo aggiornamento": piece.ultimo_evento_at,
     }
+    from backend.app.services.material_origin import piece_origin_attributes
+    fields.update({f"Grezzo · {key}": value for key, value in piece_origin_attributes(piece).items()})
     piece_subtitle = _join_parts(
         _status_label(piece.stato_attuale),
         commessa.codice if commessa else None,

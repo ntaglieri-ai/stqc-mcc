@@ -18,6 +18,46 @@ from backend.app.models.warehouse import DistintaItem, ScanEvento
 router = APIRouter()
 
 
+def scanner_phase(scanner, station):
+    mode = (scanner.scan_mode or 'OFFICINA').upper()
+    if mode == 'MAGAZZINO_INVENTARIO':
+        return 'magazzino'
+    if mode == 'MAGAZZINO':
+        return 'officina'
+    if mode == 'ASSEMBLAGGI':
+        return 'assemblaggi'
+    if mode == 'SPEDIZIONE_AD_HOC':
+        return 'in-cantiere'
+    code = (station.code if station else '').upper()
+    if code.startswith(('SALDAT', 'WELD')):
+        return 'saldature'
+    if code.startswith(('ASSEMBL', 'ASS')):
+        return 'assemblaggi'
+    if code.startswith(('SPED', 'CANTIERE')):
+        return 'in-cantiere'
+    if code.startswith(('VERNIC', 'ZINCAT', 'SABBIAT', 'LAVORAZ')):
+        return 'lavorazioni'
+    return 'officina'
+
+
+@router.get('/scanner-per-fase/{fase}')
+def scanners_for_phase(fase: str, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import ScannerDevice, Workstation
+    if fase not in {'officina', 'assemblaggi', 'saldature', 'lavorazioni', 'in-cantiere', 'magazzino'}:
+        raise HTTPException(404, 'Fase non riconosciuta')
+    rows = (db.query(ScannerDevice, Workstation)
+            .outerjoin(Workstation, Workstation.id == ScannerDevice.postazione_id)
+            .filter(~ScannerDevice.scanner_code.like('MOUSE_%'))
+            .order_by(ScannerDevice.active.desc(), ScannerDevice.scanner_code).all())
+    return {'items': [
+        {'id': scanner.id, 'code': scanner.scanner_code, 'name': scanner.name,
+         'mode': {'MAGAZZINO': 'Magazzino Mappatura', 'MAGAZZINO_INVENTARIO': 'Magazzino Inventario'}.get(scanner.scan_mode, scanner.scan_mode),
+         'station': station.name if station and not scanner.scan_mode.startswith('MAGAZZINO') else None,
+         'active': scanner.active}
+        for scanner, station in rows if scanner_phase(scanner, station) == fase
+    ]}
+
+
 @router.get("/postazioni-scanner")
 def configured_station_codes(db: Session = Depends(get_db)):
     # Same configured workstations and START/END payloads as Configuration.

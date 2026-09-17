@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.session import SessionLocal
 from backend.app.models.commessa import ScannerDevice
 from backend.app.services.preproduction_scan import process_preproduction_scan
+from backend.app.services.inventory_scan import process_inventory_scan
 from backend.app.services.workshop_scan import process_workshop_scan
 
 
@@ -43,7 +44,9 @@ def _process_payload(payload: str, scanner_code: str | None, device_token: str |
         scanner = _scanner_for_bridge(db, scanner_code, device_token)
         external_id = f"NETUM-TCP-{datetime.utcnow().timestamp()}"
         mode = (scanner.scan_mode or "OFFICINA").upper()
-        if mode == "MAGAZZINO":
+        if mode == "MAGAZZINO_INVENTARIO":
+            result = process_inventory_scan(db, scanner, payload, external_id)
+        elif mode == "MAGAZZINO":
             result = process_preproduction_scan(db, scanner, payload, external_id)
         else:
             result = process_workshop_scan(db, scanner, payload, external_id)

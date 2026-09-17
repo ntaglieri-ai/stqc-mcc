@@ -81,5 +81,6 @@
     async function load(){await resolve();const r=await fetch(`/api/v1/commesse/${commessaId}/post-officina`,{headers:auth()});data=await r.json().catch(()=>({items:[],summary:{}}));if(!r.ok){rows.innerHTML=`<tr><td colspan="9"><div class="empty">${esc(data.detail||'Errore caricamento')}</div></td></tr>`;return}document.title=`Lavorazioni ${data.commessa.codice} · MCC`;subtitle.textContent=`Commessa ${data.commessa.codice} · ${data.summary.righe||0} unità operative`;kRows.textContent=fmt(data.summary.righe);kQty.textContent=fmt(data.summary.quantita);kWeight.textContent=fmt(data.summary.peso_kg);populateFilters();renderMacro();render()}
     load();
   </script>
+<script src="/static/phase-scanners.js?v=2"></script>
 </body>
 </html>

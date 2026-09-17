@@ -188,8 +188,11 @@ def _extract_rows(file_path: Path) -> list[list[Any]]:
         sh = wb.sheet_by_index(0)
         return [sh.row_values(r) for r in range(sh.nrows)]
     wb = load_workbook(filename=file_path, data_only=True, read_only=True)
-    sh = wb.active
-    return [list(row) for row in sh.iter_rows(values_only=True)]
+    try:
+        sh = wb.active
+        return [list(row) for row in sh.iter_rows(values_only=True)]
+    finally:
+        wb.close()
 
 
 def _extract_project_metadata(file_path: Path) -> dict[str, str]:
@@ -376,6 +379,32 @@ def _parse_single(file_path: Path) -> tuple[list[dict], set[str]]:
 
 
 # ── Parser commessa ───────────────────────────────────────────────────────────
+
+def parse_assembly_parents(file_path: Path) -> list[dict]:
+    """Read only assembly header rows; child quantities never enter this register."""
+    rows = _extract_rows(file_path)
+    if not rows:
+        return []
+    header_idx = _find_header_row(rows, ALIASES["assembly"] + ALIASES["part_code"])
+    col_map = _build_col_map(rows[header_idx])
+    if ("assembly" not in col_map or "part_code" not in col_map
+            or col_map["assembly"] == col_map["part_code"]):
+        raise ValueError("Il file Assemblaggi deve distinguere le colonne Assemb. e Parte")
+    parents: dict[str, dict] = {}
+    for row in rows[header_idx + 1:]:
+        code = _str_cell(row, col_map, "assembly")
+        if not _is_valid_part_code(code) or _str_cell(row, col_map, "part_code"):
+            continue
+        quantity = max(1, int(round(_float_cell(row, col_map, "qty") or 1)))
+        parent = parents.setdefault(code, {
+            "codice": code,
+            "profilo": _str_cell(row, col_map, "profile"),
+            "materiale": _str_cell(row, col_map, "material"),
+            "quantita": 0,
+        })
+        parent["quantita"] += quantity
+    return list(parents.values())
+
 
 def _parse_assembly_hierarchy(file_path: Path) -> tuple[dict[str, deque[str]], set[str], list[str]]:
     """Restituisce le assegnazioni part_code → coda assemblati.

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Saldature · MCC</title>
+  <script src="/static/commessa-embed.js?v=commessa-shell2"></script>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;color:#eaf2ff;background:#0d203a}
+    *{box-sizing:border-box}body{margin:0}main{max-width:1900px;margin:auto;padding:28px 30px}
+    .heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}
+    .eyebrow{color:#9fc2ff;text-transform:uppercase;font-size:12px;letter-spacing:.16em;font-weight:800}
+    h1{font-size:38px;letter-spacing:-.04em;margin:6px 0}p{color:#9db3d0;line-height:1.5;margin:6px 0}
+    button,input{font:inherit;border:1px solid #35547a;border-radius:12px;background:#193453;color:#eaf2ff;padding:12px 16px}
+    button{cursor:pointer;font-weight:750}button:hover{border-color:#8ab6ff}button:disabled{opacity:.5;cursor:wait}
+    button:focus-visible,input:focus-visible{outline:2px solid #9fc2ff;outline-offset:3px}
+    .summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:24px}
+    .metric{background:linear-gradient(130deg,#1c395f,#142a46);border:1px solid #2d4b72;border-radius:18px;padding:20px}
+    .metric strong{display:block;font-size:32px;margin-bottom:5px}.metric span{color:#a9bfdc;font-size:13px}
+    .panel{border:1px solid #2d4b72;border-radius:20px;overflow:hidden;background:#11263f}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px;border-bottom:1px solid #2d4b72}
+    h2{font-size:21px;margin:0 0 4px}.toolbar input{width:min(100%,360px)}.toolbar label{font-size:12px;color:#a9bfdc;display:grid;gap:6px}
+    .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left}th{color:#9db3d0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;background:#172f4e}
+    th,td{padding:14px 20px;border-bottom:1px solid #243e5e}td strong{font-size:20px}.qr{width:94px;height:94px;padding:5px;border-radius:10px;background:#fff;display:block}
+    .code-note{display:block;font-size:11px;color:#8fa7c6;margin-top:5px}.empty{text-align:center;padding:48px 20px;color:#a9bfdc}.footer{padding:15px 20px;color:#9db3d0;font-size:13px}
+    #error{background:#4a2432;border:1px solid #ac5368;color:#ffd6df;padding:16px;border-radius:12px;margin-bottom:16px}
+    @media(max-width:700px){main{padding:18px 14px}.heading,.toolbar{align-items:stretch;flex-direction:column}.summary{grid-template-columns:1fr}.metric{padding:14px}.metric strong{font-size:26px}h1{font-size:32px}}
+  </style>
+</head>
+<body>
+  <main>
+    <header class="heading">
+      <div><div class="eyebrow" id="commessa-name">Commessa</div><h1>Saldature</h1><p>Registro dei pezzi padre dal file Assemblaggi, con i QR degli assemblati.</p></div>
+      <button id="reload" type="button">Aggiorna</button>
+    </header>
+    <div id="error" role="alert" hidden></div>
+    <section class="summary" aria-label="Riepilogo saldature">
+      <div class="metric"><strong id="total">—</strong><span>Codici assemblati padre</span></div>
+      <div class="metric"><strong id="quantity">—</strong><span>Pezzi padre previsti</span></div>
+      <div class="metric"><strong id="visible">—</strong><span>Codici visualizzati</span></div>
+    </section>
+    <section class="panel">
+      <div class="toolbar"><div><h2>Assemblati da saldare</h2><p>Quantità delle righe padre. I componenti figli sono esclusi.</p></div><label for="search">Cerca assemblato<input id="search" type="search" placeholder="Codice, profilo o materiale"></label></div>
+      <div class="table-wrap"><table><thead><tr><th scope="col">QR assemblato</th><th scope="col">Pezzo padre</th><th scope="col">Profilo / descrizione</th><th scope="col">Materiale</th><th scope="col">Quantità</th></tr></thead><tbody id="rows"><tr><td colspan="5" class="empty">Caricamento…</td></tr></tbody></table></div>
+      <div class="footer" id="footer" aria-live="polite">Origine: file Assemblaggi della revisione corrente.</div>
+    </section>
+  </main>
+  <script>
+    const token=sessionStorage.getItem('stqc_token');
+    const auth=()=>({Authorization:'Bearer '+token});
+    const ref=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'');
+    const $=id=>document.getElementById(id);
+    const esc=value=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const fmt=value=>Number(value||0).toLocaleString('it-IT');
+    let data={items:[],source_available:false},commessaId=null;
+    async function getJson(url){const response=await fetch(url,{headers:auth()});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.detail||'Caricamento non riuscito');return result;}
+    function render(){
+      const query=$('search').value.trim().toLowerCase();
+      const filtered=data.items.filter(row=>[row.codice,row.profilo,row.materiale].some(value=>String(value||'').toLowerCase().includes(query)));
+      $('visible').textContent=fmt(filtered.length);
+      const empty=!data.source_available?'Carica il file Assemblaggi in Analisi Distinta per alimentare le saldature.':data.items.length?'Nessun assemblato corrisponde alla ricerca.':'Il file Assemblaggi non contiene righe padre.';
+      $('rows').innerHTML=filtered.map(row=>`<tr><td><img class="qr" loading="lazy" src="${esc(row.qr_image_url)}" alt="QR assemblato ${esc(row.codice)}"></td><td><strong>${esc(row.codice)}</strong><span class="code-note">Assemblato padre</span></td><td>${esc(row.profilo||'—')}</td><td>${esc(row.materiale||'—')}</td><td>${fmt(row.quantita)}</td></tr>`).join('')||`<tr><td colspan="5" class="empty">${empty}</td></tr>`;
+      $('footer').textContent=`${fmt(filtered.length)} codici visualizzati · Origine: file Assemblaggi della revisione corrente. Un QR identifica il codice assemblato.`;
+    }
+    async function load(){
+      $('reload').disabled=true;$('error').hidden=true;
+      try{
+        if(!commessaId){const commessa=await getJson(`/api/v1/commesse/resolve/${encodeURIComponent(ref)}`);commessaId=commessa.id;$('commessa-name').textContent=commessa.descrizione||commessa.codice;document.title=`Saldature ${commessa.codice} · MCC`;}
+        data=await getJson(`/api/v1/commesse/${commessaId}/analisi/saldature`);
+        $('total').textContent=fmt(data.summary.assemblati);$('quantity').textContent=fmt(data.summary.quantita);render();
+      }catch(error){$('error').textContent=error.message;$('error').hidden=false;data={items:[],source_available:false};$('total').textContent='—';$('quantity').textContent='—';$('visible').textContent='—';$('rows').innerHTML='<tr><td colspan="5" class="empty">Registro non disponibile. Riprova con Aggiorna.</td></tr>';}
+      finally{$('reload').disabled=false;}
+    }
+    $('search').addEventListener('input',render);$('reload').addEventListener('click',load);
+    if(!token)location.replace('/login');else load();
+  </script>
+<script src="/static/phase-scanners.js?v=2"></script>
+</body>
+</html>

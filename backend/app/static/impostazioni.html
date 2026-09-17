@@ -301,7 +301,7 @@ function renderScannerDeviceSettings() {
         <div class="scan-row-top">
           <div>
             <div class="scan-row-title">${esc(scanner.scanner_code)} · ${esc(scanner.name || scanner.scanner_code)}</div>
-            <div class="scan-row-sub">${esc(scanner.scan_mode || 'OFFICINA')} · ${esc(workstationName(scanner.postazione_id))}<br>IP ${esc(scanner.ip_address || '—')} · seriale ${esc(scanner.serial_number || '—')}</div>
+            <div class="scan-row-sub">${esc(scanner.scan_mode === 'MAGAZZINO' ? 'Magazzino Mappatura' : scanner.scan_mode === 'MAGAZZINO_INVENTARIO' ? 'Magazzino Inventario' : scanner.scan_mode || 'OFFICINA')} · ${scanner.scan_mode?.startsWith('MAGAZZINO') ? 'Senza postazione e senza tempi' : esc(workstationName(scanner.postazione_id))}<br>IP ${esc(scanner.ip_address || '—')} · seriale ${esc(scanner.serial_number || '—')}</div>
           </div>
           <span class="scan-badge ${scanner.active ? 'ok' : 'off'}">${scanner.active ? 'Attivo' : 'Disattivo'}</span>
         </div>
@@ -333,10 +333,11 @@ function renderNewScannerSettings(id = null) {
         <input id="scan-new-name" placeholder="Nome scanner" required>
       </div>
       <div class="scan-form-two">
-        <select id="scan-new-mode">
+        <select id="scan-new-mode" onchange="syncWarehouseScannerMode()">
           <option value="OFFICINA">OFFICINA</option>
           <option value="ASSEMBLAGGI">ASSEMBLAGGI</option>
-          <option value="MAGAZZINO">MAGAZZINO</option>
+          <option value="MAGAZZINO">Magazzino Mappatura</option>
+          <option value="MAGAZZINO_INVENTARIO">Magazzino Inventario</option>
           <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
         </select>
         <select id="scan-new-workstation">${options}</select>
@@ -353,6 +354,14 @@ function renderNewScannerSettings(id = null) {
     const fields = {code:'scanner_code', name:'name', mode:'scan_mode', workstation:'postazione_id', ip:'ip_address', serial:'serial_number', desc:'description'};
     Object.entries(fields).forEach(([field, key]) => { document.getElementById('scan-new-' + field).value = scanner[key] ?? ''; });
   }
+  syncWarehouseScannerMode();
+}
+
+function syncWarehouseScannerMode(){
+  const warehouse=document.getElementById('scan-new-mode').value.startsWith('MAGAZZINO');
+  const station=document.getElementById('scan-new-workstation');
+  station.disabled=warehouse;station.hidden=warehouse;
+  if(warehouse)station.value='';
 }
 
 function printScannerStationCodePrevious(i, j) {

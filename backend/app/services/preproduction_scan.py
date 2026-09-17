@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.commessa import Commessa, Piece, PieceScanEvent, ScannerDevice, WorkshopScanAttempt
 from backend.app.models.warehouse import WarehouseItem
+from backend.app.services.material_origin import origin_attributes
 
 CURRENT_WAREHOUSE_TTL = timedelta(minutes=2)
 
@@ -173,6 +174,7 @@ def _assign_warehouse_origin(
             "source": "PRE_PRODUZIONE",
             "warehouse_item_uuid": warehouse_item.uuid,
             "warehouse_material_code": getattr(material, "code", None),
+            "origin_attributes": origin_attributes(db, warehouse_item),
         },
     )
     db.add(event)

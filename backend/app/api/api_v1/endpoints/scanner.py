@@ -9,6 +9,7 @@ from datetime import datetime
 from backend.app.models.commessa import ScannerDevice, ScannerReadState
 from backend.app.services.ad_hoc_shipping_scan import process_ad_hoc_shipping_scan
 from backend.app.services.preproduction_scan import process_preproduction_scan
+from backend.app.services.inventory_scan import process_inventory_scan
 from backend.app.services.qr_detail import build_qr_detail
 from backend.app.services.workshop_scan import process_workshop_scan
 
@@ -44,6 +45,8 @@ def netum_scan(
     if not scanner:
         raise HTTPException(404, "Scanner non configurato")
     scan_mode = (scanner.scan_mode or "OFFICINA").upper()
+    if scan_mode == "MAGAZZINO_INVENTARIO":
+        return process_inventory_scan(db, scanner, body.msg, body.id)
     if scan_mode == "MAGAZZINO":
         return process_preproduction_scan(db, scanner, body.msg, body.id)
     if scan_mode == "SPEDIZIONE_AD_HOC":
@@ -60,6 +63,8 @@ def netum_preproduction_scan(
     scanner = db.query(ScannerDevice).filter(ScannerDevice.device_token == device_token).first()
     if not scanner:
         raise HTTPException(404, "Scanner non configurato")
+    if scanner.scan_mode == "MAGAZZINO_INVENTARIO":
+        return process_inventory_scan(db, scanner, body.msg, body.id)
     return process_preproduction_scan(db, scanner, body.msg, body.id)
 
 
