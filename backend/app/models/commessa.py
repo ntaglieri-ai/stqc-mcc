@@ -321,6 +321,8 @@ class Workstation(Base):
     """Postazione fisica o logica scansionabile in officina."""
     __tablename__ = "workstations"
 
+    fase = Column(String(30), nullable=False, default="officina", server_default="officina", index=True)
+
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(80), nullable=False, unique=True, index=True)
     name = Column(String(160), nullable=False)
@@ -356,6 +358,7 @@ class ScannerDevice(Base):
     name = Column(String(160), nullable=False)
     description = Column(Text, nullable=True)
     scan_mode = Column(String(30), nullable=False, default="OFFICINA", index=True)
+    fase = Column(String(30), nullable=False, default="officina", server_default="officina", index=True)
     postazione_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
     ip_address = Column(String(80), nullable=True, index=True)
     serial_number = Column(String(120), nullable=True, index=True)

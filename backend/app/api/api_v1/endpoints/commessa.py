@@ -37,6 +37,7 @@ from backend.app.services.distinta import (
     normalized_to_db_bulk,
     parse_commessa_files,
     parse_assembly_parents,
+    parse_assembly_records,
 )
 from backend.app.services.bulloneria import parse_bulloneria_file
 from backend.app.services.fasi_operative import parse_fasi_operative
@@ -981,6 +982,15 @@ async def create_analisi_commessa(
                 "level": "warning",
                 "message": f"Bulloneria non interpretata: {exc}. Analisi commessa proseguita senza fabbisogno bulloneria dedicato.",
             })
+
+    report["last_uploaded_files"] = {
+        slot: upload.filename
+        for slot, upload in (
+            ("lista_pezzi", lista_pezzi), ("assemblaggi", assemblaggi),
+            ("spedizione", spedizione), ("bulloneria", bulloneria),
+        )
+        if upload is not None and upload.filename
+    }
 
     revisione = CommessaRevisione(
         commessa_id=commessa_id,
@@ -3311,6 +3321,28 @@ def _is_assembly_station(value: str | None) -> bool:
     return code.startswith("ASSEMBLAGGIO") or code.startswith("ASS")
 
 
+def _assembly_instances(records: list[dict], commessa_id: int) -> list[dict]:
+    totals = defaultdict(int)
+    counters = defaultdict(int)
+    for row in records:
+        totals[row["codice"]] += row["quantita"]
+    items = []
+    for row in records:
+        code = row["codice"]
+        encoded = quote(code, safe="")
+        for _ in range(row["quantita"]):
+            counters[code] += 1
+            number = counters[code]
+            payload = f"STQC:ASM:{commessa_id}:{encoded}:{number}"
+            items.append({
+                **row, "id": payload, "quantita": 1,
+                "progressivo": number, "totale_codice": totals[code],
+                "qr_payload": payload,
+                "qr_image_url": f"/assembly-instance-qr-image/{commessa_id}/{number}/{encoded}.png",
+            })
+    return items
+
+
 @router.get("/{commessa_id}/analisi/saldature")
 def get_saldature(commessa_id: int, db: Session = Depends(get_db)):
     commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
@@ -3328,16 +3360,36 @@ def get_saldature(commessa_id: int, db: Session = Depends(get_db)):
             items = parse_assembly_parents(source)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        for item in items:
-            code = item["codice"]
-            item["qr_payload"] = f"STQC:ASM:{commessa_id}:{code}"
-            item["qr_image_url"] = f"/assembly-qr-image/{commessa_id}/{quote(code, safe='')}.png"
+        items = _assembly_instances(items, commessa_id)
     return {
         "commessa": {"id": commessa.id, "codice": commessa.codice},
         "revisione_id": revisione.id,
         "source_available": bool(revisione.file_assemblaggi),
         "items": items,
         "summary": {"assemblati": len(items), "quantita": sum(item["quantita"] for item in items)},
+    }
+
+
+@router.get("/{commessa_id}/analisi/registro-assemblaggi")
+def get_assembly_register(commessa_id: int, db: Session = Depends(get_db)):
+    commessa = crud.get_commessa(db=db, commessa_id=commessa_id)
+    if commessa is None:
+        raise HTTPException(404, "Commessa non trovata")
+    revision = _latest_revision(db, commessa_id)
+    items = []
+    if revision and revision.file_assemblaggi:
+        source = settings.upload_dir.parent / revision.file_assemblaggi
+        if not source.is_file():
+            raise HTTPException(404, "File Assemblaggi non disponibile: ricaricare il file")
+        try:
+            items = parse_assembly_records(source)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        items = _assembly_instances(items, commessa_id)
+    return {
+        "commessa": {"id": commessa.id, "codice": commessa.codice},
+        "source_available": bool(revision and revision.file_assemblaggi),
+        "items": items,
     }
 
 

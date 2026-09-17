@@ -377,7 +377,7 @@ def list_workstation_qr_codes(include_inactive: bool = False, db: Session = Depe
         seed_station_qr(db, ws)
     db.commit()
     return {"items": [{"id": ws.id, "code": ws.code, "name": ws.name,
-        "description": ws.description, "active": ws.active,
+        "description": ws.description, "active": ws.active, "fase": ws.fase,
         "codes": [{"id": qr.id, "action": qr.behavior, "label": qr.label,
             "actions": qr.actions, "description": qr.description,
             "payload": qr.payload, "qr_image_url": f"data:image/png;base64,{generate_qr_for_payload(qr.payload)}"}
@@ -399,6 +399,7 @@ def create_workstation(body: WorkstationCreate, db: Session = Depends(get_db)):
         description=body.description,
         active=body.active,
         progress_mode=_normalize_workstation_progress_mode(body.progress_mode),
+        fase=body.fase,
         start_qr_code=start_qr_code,
         end_qr_code=end_qr_code,
     )
@@ -416,6 +417,8 @@ def update_workstation(workstation_id: int, body: WorkstationUpdate, db: Session
         raise HTTPException(404, "Postazione non trovata")
 
     data = body.model_dump(exclude_unset=True)
+    if "fase" in data and data["fase"] is not None:
+        ws.fase = data["fase"]
     if "code" in data and data["code"] is not None:
         new_code = normalize_workstation_code(data["code"])
         if not new_code:
@@ -514,6 +517,7 @@ def create_scanner_device(body: ScannerDeviceCreate, db: Session = Depends(get_d
         name=body.name.strip() or scanner_code,
         description=body.description,
         scan_mode=scan_mode,
+        fase=body.fase,
         postazione_id=None if scan_mode.startswith("MAGAZZINO") else body.postazione_id,
         ip_address=body.ip_address,
         serial_number=body.serial_number,
@@ -534,6 +538,8 @@ def update_scanner_device(scanner_id: int, body: ScannerDeviceUpdate, db: Sessio
         raise HTTPException(404, "Scanner non trovato")
 
     data = body.model_dump(exclude_unset=True)
+    if "fase" in data and data["fase"] is not None:
+        scanner.fase = data["fase"]
     if "scanner_code" in data and data["scanner_code"] is not None:
         new_code = data["scanner_code"].strip().upper()
         if not new_code:

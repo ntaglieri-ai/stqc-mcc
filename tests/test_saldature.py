@@ -52,8 +52,8 @@ class SaldatureTests(unittest.TestCase):
         self.db.flush()
         result = get_saldature(self.commessa.id, self.db)
         self.assertEqual(result['revisione_id'], revision.id)
-        self.assertEqual(result['summary'], {'assemblati': 2, 'quantita': 5})
-        self.assertEqual(result['items'][0]['qr_payload'], f'STQC:ASM:{self.commessa.id}:A100')
+        self.assertEqual(result['summary'], {'assemblati': 5, 'quantita': 5})
+        self.assertEqual(result['items'][0]['qr_payload'], f'STQC:ASM:{self.commessa.id}:A100:1')
         self.assertEqual(self.db.query(Piece).count(), 0)
 
     def test_missing_upload_is_empty_and_missing_file_is_explicit(self):

@@ -59,6 +59,7 @@ def ensure_default_workstations(db: Session) -> int:
             db.add(
                 Workstation(
                     code=item.code,
+                    fase='assemblaggi' if item.code.startswith('ASSEMBLAGGIO') else 'saldature' if item.code.startswith('SALDATURA') else 'officina',
                     name=item.name,
                     description=item.description,
                     active=True,

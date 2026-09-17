@@ -88,6 +88,13 @@ def create_app() -> FastAPI:
         finally:
             db.close()
 
+    @app.get("/assembly-instance-qr-image/{commessa_id:int}/{progressivo:int}/{assembly_code}.png", include_in_schema=False)
+    def assembly_instance_qr_image(commessa_id: int, progressivo: int, assembly_code: str):
+        payload = f"STQC:ASM:{commessa_id}:{quote(assembly_code, safe='')}:{progressivo}"
+        png = base64.b64decode(generate_qr_for_payload(payload))
+        return Response(content=png, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
     @app.get("/assembly-qr-image/{commessa_id:int}/{assembly_code}.png", include_in_schema=False)
     def assembly_qr_image(commessa_id: int, assembly_code: str):
         png = base64.b64decode(generate_qr_for_payload(f"STQC:ASM:{commessa_id}:{assembly_code}"))

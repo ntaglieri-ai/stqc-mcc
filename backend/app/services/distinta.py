@@ -406,6 +406,44 @@ def parse_assembly_parents(file_path: Path) -> list[dict]:
     return list(parents.values())
 
 
+def parse_assembly_records(file_path: Path) -> list[dict]:
+    """Assembly headers and their child rows, independent of imported workshop pieces."""
+    if not parse_assembly_parents(file_path):
+        return []
+    parents = []
+    rows = _extract_rows(file_path)
+    header_idx = _find_header_row(rows, ALIASES["assembly"] + ALIASES["part_code"])
+    col_map = _build_col_map(rows[header_idx])
+    current = None
+    for row in rows[header_idx + 1:]:
+        assembly = _str_cell(row, col_map, "assembly")
+        part = _str_cell(row, col_map, "part_code")
+        if _is_valid_part_code(assembly) and not part:
+            current = {
+                "codice": assembly,
+                "quantita": max(1, int(round(_float_cell(row, col_map, "qty") or 1))),
+                "profilo": _str_cell(row, col_map, "profile"),
+                "materiale": _str_cell(row, col_map, "material"),
+                "children": [],
+            }
+            parents.append(current)
+            continue
+        if not _is_valid_part_code(part):
+            continue
+        parent = next((item for item in reversed(parents) if item["codice"] == assembly), None) if _is_valid_part_code(assembly) else current
+        if parent is None:
+            raise ValueError(f"Parte {part} senza una riga padre valida nel file Assemblaggi")
+        parent["children"].append({
+            "codice": part,
+            "quantita": max(1, int(round(_float_cell(row, col_map, "qty") or 1))),
+            "profilo": _str_cell(row, col_map, "profile"),
+            "materiale": _str_cell(row, col_map, "material"),
+            "lunghezza_mm": _float_cell(row, col_map, "length_mm"),
+            "peso_kg": _float_cell(row, col_map, "weight"),
+        })
+    return parents
+
+
 def _parse_assembly_hierarchy(file_path: Path) -> tuple[dict[str, deque[str]], set[str], list[str]]:
     """Restituisce le assegnazioni part_code → coda assemblati.
 

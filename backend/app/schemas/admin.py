@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 
 from pydantic import BaseModel, computed_field
 
@@ -131,7 +131,10 @@ class GroupUpdate(BaseModel):
 
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
+ScannerPhase = Literal['officina', 'assemblaggi', 'saldature', 'lavorazioni', 'in-cantiere', 'magazzino']
+
 class WorkstationRead(BaseModel):
+    fase: ScannerPhase = 'officina'
     id: int
     code: str
     name: str
@@ -146,6 +149,7 @@ class WorkstationRead(BaseModel):
 
 
 class WorkstationCreate(BaseModel):
+    fase: ScannerPhase = 'officina'
     code: str
     name: str
     description: Optional[str] = None
@@ -154,6 +158,7 @@ class WorkstationCreate(BaseModel):
 
 
 class WorkstationUpdate(BaseModel):
+    fase: Optional[ScannerPhase] = None
     code: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -161,7 +166,10 @@ class WorkstationUpdate(BaseModel):
     progress_mode: Optional[str] = None
 
 
+
+
 class ScannerDeviceRead(BaseModel):
+    fase: ScannerPhase = 'officina'
     id: int
     scanner_code: str
     name: str
@@ -180,6 +188,7 @@ class ScannerDeviceRead(BaseModel):
 
 
 class ScannerDeviceCreate(BaseModel):
+    fase: ScannerPhase = 'officina'
     scanner_code: str
     name: str
     description: Optional[str] = None
@@ -192,6 +201,7 @@ class ScannerDeviceCreate(BaseModel):
 
 
 class ScannerDeviceUpdate(BaseModel):
+    fase: Optional[ScannerPhase] = None
     scanner_code: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None

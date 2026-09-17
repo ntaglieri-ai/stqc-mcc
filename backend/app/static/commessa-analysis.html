@@ -537,7 +537,10 @@
       .input-file-grid, .input-mini-row { grid-template-columns: 1fr; }
       .steps, .macro-flow, .kpis, .assembly-overview, .detail-grid, .qr-detail, .qr-edit-grid { grid-template-columns: 1fr; }
     }
-  .macro-flow::before,.macro-card::before{display:none}</style>
+  .macro-flow::before,.macro-card::before{display:none}  .input-file-card.latest-upload { border-color:#4ade80; box-shadow:0 0 0 1px rgba(74,222,128,.2); }
+    .latest-upload .input-file-name,.latest-upload-note { color:#86efac; }
+    .latest-upload-note { margin-top:10px; font-size:12px; font-weight:700; }
+  </style>
 </head>
 <body>
 <script>
@@ -668,14 +671,16 @@ function jsArg(value) {
 
 function inputDashboardCard(item) {
   const loaded = !!item.name;
-  return `<div class="input-file-card ${loaded ? "ok" : "missing"}">
+  const latest = analysisData?.revisione?.report?.last_uploaded_files?.[item.slot];
+  return `<div class="input-file-card ${loaded ? "ok" : "missing"} ${latest ? "latest-upload" : ""}">
     <div class="input-file-top">
       <div class="input-file-label">${esc(item.label)}</div>
       <div class="input-pill">${loaded ? "Acquisito" : "Manca"}</div>
     </div>
     <div class="input-file-value">${esc(item.value)}</div>
     <div class="input-file-metric">${item.metric}</div>
-    <div class="input-file-name">${esc(loaded ? item.name : item.empty)}</div>
+    <div class="input-file-name">${esc(latest || (loaded ? item.name : item.empty))}</div>
+    ${latest ? '<div class="latest-upload-note">✓ Ultimo caricamento</div>' : ""}
   </div>`;
 }
 
@@ -691,6 +696,7 @@ function renderInputDashboard() {
   const assemblatiRows = Number(assemblaggiReport.righe || report.assemblies || assemblatiCount || 0);
   const fileItems = [
     {
+      slot: "lista_pezzi",
       label: "Lista pezzi",
       name: basename(files.lista_pezzi),
       empty: "Nessuna lista pezzi caricata",
@@ -698,6 +704,7 @@ function renderInputDashboard() {
       metric: `${fmt(s.n_codici_pezzo)} codici distinti · ${fmt(s.n_profili)} profili/qualita`,
     },
     {
+      slot: "assemblaggi",
       label: "Assemblati",
       name: basename(files.assemblaggi),
       empty: "Nessuna lista assemblati caricata",
@@ -705,6 +712,7 @@ function renderInputDashboard() {
       metric: `${fmt(assemblatiRows)} riferimenti · gerarchia disponibile per assemblaggio`,
     },
     {
+      slot: "spedizione",
       label: "Spedizione",
       name: basename(files.spedizione),
       empty: "Nessuna lista spedizione caricata",
@@ -712,6 +720,7 @@ function renderInputDashboard() {
       metric: `${fmt(spedizioneReport.quantita || 0)} unita · pagina Spedizione alimentata dal file`,
     },
     {
+      slot: "bulloneria",
       label: "Bulloneria",
       name: basename(files.bulloneria),
       empty: "Nessun file bulloneria caricato",
@@ -991,6 +1000,9 @@ async function uploadDefinitive(event) {
       button.disabled = false;
       return;
     }
+    const uploadedNames = [lista, assemblaggi, spedizione, bulloneria].filter(Boolean).map(file => file.name);
+    const warnings = data.validation?.file_warnings || [];
+    alert(`Caricamento completato.\n\n${uploadedNames.join("\n")}${warnings.length ? "\n\nDa verificare:\n" + warnings.map(item => item.message).join("\n") : ""}`);
     location.reload();
   } catch (error) {
     feedback.className = "feedback error";
