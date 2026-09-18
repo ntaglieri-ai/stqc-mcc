@@ -1,6 +1,7 @@
 """Endpoint pubblico autenticato dal token del dispositivo NETUM."""
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.db.session import get_db
@@ -141,6 +142,18 @@ def scanner_context(device_token: str, db: Session = Depends(get_db)):
         'postazione_id': scanner.postazione_id,
         'stations': [{'id': s.id, 'name': s.name, 'fase': s.fase} for s in stations],
         'events': [{'code': e.entity_code, 'fase': e.fase, 'station': e.workstation_code, 'timestamp': e.timestamp} for e in events]}
+
+
+@router.get('/netum/{device_token}/pulse')
+def scanner_pulse(device_token: str, db: Session = Depends(get_db)):
+    """Firma minimale della console: ultimo evento + postazione selezionata."""
+    from backend.app.models.commessa import ScannerPhaseEvent
+    scanner = _active_scanner(db, device_token)
+    last_id = db.query(func.max(ScannerPhaseEvent.id)).filter(
+        ScannerPhaseEvent.scanner_device_id == scanner.id).scalar()
+    return {'last_event_id': int(last_id or 0),
+            'postazione_id': scanner.postazione_id,
+            'mode': scanner.scan_mode}
 
 
 @router.put('/netum/{device_token}/station')

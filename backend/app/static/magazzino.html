@@ -388,6 +388,7 @@
       box-shadow: 0 12px 30px rgba(245,158,11,.12), inset 0 1px 0 rgba(255,255,255,.08);
     }
     .mapped-btn:hover { color:#fff7d6; border-color:rgba(252,211,77,.68); transform:translateY(-1px); }
+    .mapped-btn[data-pulse="offline"] { border-color:rgba(248,113,113,.55); }
     .mapped-counter {
       display:inline-flex;
       align-items:center;
@@ -1966,6 +1967,7 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<script src="/static/live-pulse.js?v=1"></script>
 <script src="/static/qr-drawer.js?v=scan4"></script>
 <script>
 // ── Auth ───────────────────────────────────────────────────────────────────────
@@ -2102,6 +2104,7 @@ const selectedMaterials = new Set();
 let mappedGrezzi = [];
 let mappedGrezziCount = 0;
 let warehouseNotifications = [];
+let mappedGrezziPoller = null;
 
 // Chip filters (exact match)
 const AF = { profilo: null, dimensioni: null, qualita: null, norma: null, colata: null };
@@ -2160,6 +2163,7 @@ let ddtAnalysis = null;
   renderSkeleton(12);
   await loadStock();
   await refreshMappedGrezzi().catch(() => {});
+  startMappedGrezziPolling();
   calcRpp();
   window.addEventListener('resize', () => {
     calcRpp();
@@ -3152,8 +3156,28 @@ function updateMappedGrezziButton() {
   if (badge) badge.textContent = n;
   if (btn) {
     btn.style.opacity = n ? '1' : '.45';
-    btn.title = n ? `${n} notifiche inventario da gestire` : 'Nessuna notifica inventario da gestire';
+    const offline = btn.dataset.pulse === 'offline';
+    btn.title = (n ? `${n} notifiche inventario da gestire` : 'Nessuna notifica inventario da gestire')
+      + (offline ? ' · aggiornamento automatico non disponibile' : '');
   }
+}
+
+function startMappedGrezziPolling() {
+  if (mappedGrezziPoller || typeof createPulsePoller !== 'function') return;
+  mappedGrezziPoller = createPulsePoller({
+    url: '/api/v1/warehouse/pulse',
+    headers: hdr,
+    intervalMs: 500,
+    signature: d => `${d.pending_change_requests}:${d.last_change_request_id}:${d.mapped_grezzi}`,
+    onChange: () => refreshMappedGrezzi().catch(() => {}),
+    onStatus: ok => {
+      const btn = document.getElementById('mapped-grezzi-btn');
+      if (!btn) return;
+      if (ok) btn.removeAttribute('data-pulse'); else btn.dataset.pulse = 'offline';
+      updateMappedGrezziButton();
+    },
+  });
+  mappedGrezziPoller.start();
 }
 
 async function openMappedGrezziDrawer() {

@@ -270,6 +270,8 @@ alembic downgrade -1
 
 Ambiente on-premise Windows presso MCC, accesso pubblico via Cloudflare Tunnel (`https://stqc.stqcmcc.it`). App e tunnel avviati automaticamente via Windows Task Scheduler. Manutenzione remota tramite Tailscale + RDP.
 
+La procedura corrente di aggiornamento del server è documentata in [`DEPLOY.md`](DEPLOY.md).
+
 ## Prossimi Step
 
 1. Popolare Dashboard con KPI reali (magazzino, commesse, produzione).

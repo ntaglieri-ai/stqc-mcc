@@ -18,7 +18,7 @@ _logger = logging.getLogger("stqc.admin")
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 
 from backend.app.core.auth import hash_password, validate_password_complexity, write_audit_log
@@ -493,6 +493,16 @@ def list_scanner_scan_attempts(limit: int = 80, db: Session = Depends(get_db)):
             for attempt, scanner, workstation in rows
         ]
     }
+
+
+@router.get("/scanner-devices/scan-attempts/pulse")
+def scanner_scan_attempts_pulse(db: Session = Depends(get_db)):
+    """Firma minimale della tabella scan: ultimo id + totale."""
+    last_id, total = db.query(
+        func.max(WorkshopScanAttempt.id),
+        func.count(WorkshopScanAttempt.id),
+    ).one()
+    return {"last_id": int(last_id or 0), "count": int(total or 0)}
 
 
 def _ensure_workstation_exists(db: Session, postazione_id: Optional[int]) -> None:

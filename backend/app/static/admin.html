@@ -420,7 +420,8 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
   </style>
-<script src="/static/qr-print.js"></script></head>
+<script src="/static/qr-print.js"></script>
+<script src="/static/live-pulse.js?v=1"></script></head>
 <body>
 
 <!-- Auth guard -->
@@ -1069,6 +1070,8 @@ function showSection(id) {
   if (id === 'auditlog')       loadAuditLog();
   if (id === 'status')         loadStatus();
   if (id === 'logs')           startLogPolling();
+  if (id === 'workstations') startScanAttemptsPolling();
+  else if (_scanAttemptsPoller) _scanAttemptsPoller.stop();
   if (id === 'maintenance')    loadVersion();
   if (id === 'profile-types')  ptLoad();
   if (id === 'settings')       loadSettings();
@@ -1899,6 +1902,22 @@ async function adminResetScanTest() {
   } catch(e) {
     if (box) { box.className = 'scan-test-result err'; box.textContent = e.message || String(e); }
   }
+}
+
+let _scanAttemptsPoller = null;
+
+function startScanAttemptsPolling() {
+  if (typeof createPulsePoller !== 'function') return;
+  if (!_scanAttemptsPoller) {
+    _scanAttemptsPoller = createPulsePoller({
+      url: '/api/v1/admin/scanner-devices/scan-attempts/pulse',
+      headers: () => ({ Authorization: getAuth() }),
+      intervalMs: 500,
+      signature: d => `${d.last_id}:${d.count}`,
+      onChange: () => loadScannerAttempts(),
+    });
+  }
+  _scanAttemptsPoller.start();
 }
 
 async function loadScannerAttempts() {

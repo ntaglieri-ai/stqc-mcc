@@ -1,0 +1,384 @@
+INFO:     Will watch for changes in these directories: ['C:\\Users\\Nando Taglieri\\Desktop\\MCC\\stqc-mcc']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [41696] using WatchFiles
+INFO:     Started server process [41600]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41600]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Started server process [1988]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1988]
+INFO:     Started server process [34436]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\models\commessa.py', 'alembic\versions\s9t0u1v2w3x4_add_ddt_manual_items_shipments.py', 'backend\app\services\distinta.py', 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\main.py', 'backend\app\services\ad_hoc_shipping_scan.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [34436]
+INFO:     Started server process [41148]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py', 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41148]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [41380]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41380]
+INFO:     Started server process [42160]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for background tasks to complete. (CTRL+C to force quit)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [42160]
+INFO:     Started server process [39232]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39232]
+INFO:     Started server process [15816]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [15816]
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [24472]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24472]
+INFO:     Started server process [50404]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [50404]
+INFO:     Started server process [56128]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [56128]
+INFO:     Started server process [35128]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\qr.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [35128]
+INFO:     Started server process [13884]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\qr.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [13884]
+INFO:     Started server process [38416]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py', 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [38416]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Started server process [22692]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22692]
+INFO:     Started server process [40476]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\qr.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40476]
+INFO:     Started server process [55636]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [55636]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+Exception ignored in: <function BaseEventLoop.__del__ at 0x0000024655E53F60>
+Traceback (most recent call last):
+  File "C:\Users\Nando Taglieri\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 732, in __del__
+    self.close()
+  File "C:\Users\Nando Taglieri\AppData\Local\Programs\Python\Python312\Lib\asyncio\selector_events.py", line 104, in close
+    self._close_self_pipe()
+  File "C:\Users\Nando Taglieri\AppData\Local\Programs\Python\Python312\Lib\asyncio\selector_events.py", line 111, in _close_self_pipe
+    self._remove_reader(self._ssock.fileno())
+                        ^^^^^^^^^^^
+AttributeError: '_WindowsSelectorEventLoop' object has no attribute '_ssock'
+C:\Users\Nando Taglieri\Desktop\MCC\stqc-mcc\.venv\Lib\site-packages\uvicorn\_subprocess.py:84: RuntimeWarning: coroutine 'Server.serve' was never awaited
+  pass
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+INFO:     Started server process [56764]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [56764]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [37992]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [37992]
+INFO:     Started server process [57072]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [57072]
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [2064]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2064]
+INFO:     Started server process [59096]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [59096]
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [22080]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22080]
+INFO:     Started server process [50628]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [50628]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [62232]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62232]
+INFO:     Started server process [58364]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [58364]
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [64372]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [64372]
+INFO:     Started server process [39096]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39096]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [63364]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63364]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [33648]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [33648]
+INFO:     Started server process [63244]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63244]
+INFO:     Started server process [62932]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62932]
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [34896]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [34896]
+INFO:     Started server process [60804]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py', 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [60804]
+INFO:     Started server process [58164]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [58164]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [62772]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62772]
+INFO:     Started server process [57440]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [57440]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Started server process [54828]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [54828]
+INFO:     Started server process [63972]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py', 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63972]
+INFO:     Started server process [35124]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py', 'backend\app\api\api_v1\endpoints\commessa.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [35124]
+WARNING:  WatchFiles detected changes in 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [58336]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [58336]
+INFO:     Started server process [54660]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [54660]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [61712]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [61712]
+INFO:     Started server process [51648]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [51648]
+WARNING:  WatchFiles detected changes in 'backend\app\api\api_v1\endpoints\commessa.py', 'backend\app\services\label.py'. Reloading...
+INFO:     Started server process [63556]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63556]
+INFO:     Started server process [60656]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

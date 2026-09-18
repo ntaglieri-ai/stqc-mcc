@@ -21,5 +21,11 @@
  async function load(){if(busy||loading)return;loading=true;try{context=await api('/context');renderContext();$('context-error').textContent='';}catch(e){$('context-error').textContent=e.message;$('send').disabled=true;}finally{loading=false;}}
  $('station').onchange=async()=>{busy=true;$('station').disabled=true;$('send').disabled=true;try{await api('/station',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({postazione_id:Number($('station').value)})});$('feedback').textContent='Postazione aggiornata.';}catch(e){$('feedback').textContent=e.message;}finally{busy=false;await load();$('payload').focus();}};
  $('scan-form').onsubmit=async event=>{event.preventDefault();if(busy)return;busy=true;$('send').disabled=true;$('station').disabled=true;try{const data=await api('/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:$('payload').value,id:crypto.randomUUID()})});$('feedback').textContent=data.msg;if(data.ok)$('payload').value='';}catch(e){$('feedback').textContent=e.message;}finally{busy=false;await load();$('payload').focus();}};
- $('camera').href='/mobile-scan/'+token;load();setInterval(load,3000);
+ $('camera').href='/mobile-scan/'+token;load();
+ if(typeof createPulsePoller==='function'){
+  createPulsePoller({url:base+'/pulse',intervalMs:500,
+   signature:d=>`${d.last_event_id}:${d.postazione_id}:${d.mode}`,
+   onChange:()=>load(),
+   onStatus:ok=>{if(!ok)$('context-error').textContent='Aggiornamento automatico non disponibile.';}}).start();
+ }else{setInterval(load,3000);}
 })();

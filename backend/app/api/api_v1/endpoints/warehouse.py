@@ -766,6 +766,32 @@ def list_warehouse_change_requests(
     return [_request_read(row) for row in db.scalars(stmt.limit(limit)).all()]
 
 
+@router.get("/pulse")
+def warehouse_pulse(db: Session = Depends(get_db)):
+    """Firma minimale per il polling: solo conteggi, nessuna riga serializzata."""
+    pending = db.scalar(
+        select(func.count(WarehouseChangeRequest.id))
+        .where(WarehouseChangeRequest.status == WarehouseChangeRequestStatus.PENDING)
+    ) or 0
+    last_id = db.scalar(
+        select(func.max(WarehouseChangeRequest.id))
+        .where(WarehouseChangeRequest.status == WarehouseChangeRequestStatus.PENDING)
+    )
+    mapped = db.scalar(
+        select(func.count(func.distinct(WarehouseItem.id)))
+        .select_from(WarehouseItem)
+        .join(Material, WarehouseItem.material_id == Material.id)
+        .join(Piece, Piece.materiale_origine_id == WarehouseItem.id)
+        .join(Commessa, Commessa.id == Piece.commessa_id)
+        .where(WarehouseItem.status.in_(["AVAILABLE", "RESERVED"]))
+    ) or 0
+    return {
+        "pending_change_requests": int(pending),
+        "last_change_request_id": last_id,
+        "mapped_grezzi": int(mapped),
+    }
+
+
 @router.post("/change-requests", response_model=warehouse_schemas.WarehouseChangeRequestRead, status_code=202)
 def create_warehouse_change_request_endpoint(
     request_in: warehouse_schemas.WarehouseChangeRequestCreate,
