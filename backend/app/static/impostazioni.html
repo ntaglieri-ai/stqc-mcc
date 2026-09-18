@@ -133,12 +133,18 @@ async function loadScannerSettings() {
       scannerApi('/workstations/qr-codes?include_inactive=false'),
       scannerApi('/scanner-devices?include_inactive=true'),
     ]);
-    const wsData = await wsRes.json();
-    const qrData = await qrRes.json();
-    const scData = await scRes.json();
-    if (!wsRes.ok) throw new Error(wsData.detail || 'Errore postazioni');
-    if (!qrRes.ok) throw new Error(qrData.detail || 'Errore codici postazione');
-    if (!scRes.ok) throw new Error(scData.detail || 'Errore scanner');
+    async function readSettingsResponse(response, label) {
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = typeof data?.detail === 'string' ? data.detail : '';
+        throw new Error(`${label}: errore HTTP ${response.status}${detail ? ' - ' + detail : '. Verificare i log del servizio sul server.'}`);
+      }
+      if (data === null) throw new Error(`${label}: risposta del server non valida.`);
+      return data;
+    }
+    const wsData = await readSettingsResponse(wsRes, 'Postazioni');
+    const qrData = await readSettingsResponse(qrRes, 'QR postazioni');
+    const scData = await readSettingsResponse(scRes, 'Scanner');
     scannerWorkstations = wsData || [];
     scannerQrCodes = qrData.items || [];
     scannerDevices = scData || [];
