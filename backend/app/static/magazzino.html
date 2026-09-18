@@ -2100,6 +2100,7 @@ let selectedReservation = null;
 const selectedItems = new Set();
 const selectedMaterials = new Set();
 let mappedGrezzi = [];
+let mappedGrezziCount = 0;
 let warehouseNotifications = [];
 
 // Chip filters (exact match)
@@ -2158,6 +2159,7 @@ let ddtAnalysis = null;
   loadColumnPrefs();
   renderSkeleton(12);
   await loadStock();
+  await refreshMappedGrezzi().catch(() => {});
   calcRpp();
   window.addEventListener('resize', () => {
     calcRpp();
@@ -2197,7 +2199,8 @@ async function loadStock() {
     allCustomFields = await c.json();
     const mappedData = await m.json();
     mappedGrezzi = mappedData.items || [];
-    updateMappedGrezziButton(mappedData.count ?? mappedGrezzi.length);
+    mappedGrezziCount = mappedData.count ?? mappedGrezzi.length;
+    updateMappedGrezziButton();
     syncNewColumnsVisible();
     const validUuids = new Set(allItems.map(item => item.uuid));
     const validMaterials = new Set(allRows.map(row => Number(row.material_id)));
@@ -3142,8 +3145,8 @@ function itemCommessa(item) {
   return item.reserved_for_commessa || item.commessa_ref || '';
 }
 
-function updateMappedGrezziButton(count) {
-  const n = Number(count || 0);
+function updateMappedGrezziButton() {
+  const n = Number(mappedGrezziCount || 0) + warehouseNotifications.length;
   const btn = document.getElementById('mapped-grezzi-btn');
   const badge = document.getElementById('mapped-grezzi-count');
   if (badge) badge.textContent = n;
@@ -3153,10 +3156,15 @@ function updateMappedGrezziButton(count) {
   }
 }
 
-function openMappedGrezziDrawer() {
+async function openMappedGrezziDrawer() {
   document.getElementById('mapped-grezzi-backdrop').classList.add('open');
   document.getElementById('mapped-grezzi-drawer').classList.add('open');
   renderMappedGrezziDrawer();
+  try {
+    await refreshMappedGrezzi();
+  } catch (err) {
+    showToast(err.message || String(err), 'err');
+  }
 }
 
 function closeMappedGrezziDrawer() {
@@ -3219,8 +3227,9 @@ async function refreshMappedGrezzi() {
   if (!mappedRes.ok) throw new Error(mappedData.detail || `Errore ${mappedRes.status}`);
   if (!notificationsRes.ok) throw new Error(notificationsData.detail || `Errore ${notificationsRes.status}`);
   mappedGrezzi = mappedData.items || [];
+  mappedGrezziCount = mappedData.count ?? mappedGrezzi.length;
   warehouseNotifications = Array.isArray(notificationsData) ? notificationsData : [];
-  updateMappedGrezziButton(warehouseNotifications.length + (mappedData.count ?? mappedGrezzi.length));
+  updateMappedGrezziButton();
   renderMappedGrezziDrawer();
 }
 
