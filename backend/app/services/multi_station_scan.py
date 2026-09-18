@@ -33,12 +33,7 @@ def process_multi_station_scan(db, scanner, raw_payload, external_id=None):
     if not station or not station.active or station.fase not in PHASES:
         return failure('Seleziona una postazione attiva nella pagina dello scanner')
     value = _scan_value(raw_payload)
-    if external_id:
-        previous = db.query(ScannerPhaseEvent).filter_by(scanner_device_id=scanner.id, external_id=external_id).first()
-        if previous:
-            if previous.raw_payload != raw_payload:
-                return failure('Identificativo scansione gia utilizzato per un altro QR')
-            return {'ply': 1, 'ok': True, 'msg': 'Scansione gia registrata', 'workstation': previous.workstation_code}
+    # NETUM id identifies the device, not a unique scan request.
     revision_id = commessa_id = None
     if value.startswith('STQC:ASM:'):
         try:

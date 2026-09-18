@@ -34,7 +34,6 @@ class MultiStationTests(unittest.TestCase):
         self.assertTrue(process_multi_station_scan(self.db,self.scanner,'P1','1')['ok'])
         select_station(self.db,self.scanner,self.b.id)
         self.assertTrue(process_multi_station_scan(self.db,self.scanner,'P1','2')['ok'])
-        process_multi_station_scan(self.db,self.scanner,'P1','2')
         self.assertEqual(self.db.query(ScannerPhaseEvent).count(),2)
         self.a.fase='officina';self.db.commit()
         result=get_monitoring(self.job.id,self.db)
@@ -53,3 +52,11 @@ class MultiStationTests(unittest.TestCase):
         self.b.active=False;self.db.commit()
         with self.assertRaises(HTTPException):select_station(self.db,self.scanner,self.b.id)
         with self.assertRaises(HTTPException):scanner_select_station('invalid',StationSelection(postazione_id=self.a.id),self.db)
+
+    def test_device_id_can_repeat_across_different_scans(self):
+        select_station(self.db,self.scanner,self.a.id)
+        self.assertTrue(process_multi_station_scan(self.db,self.scanner,'P1','NETUM_DEVICE')['ok'])
+        self.piece.qr_payload='P2';self.db.commit()
+        self.assertTrue(process_multi_station_scan(self.db,self.scanner,'P2','NETUM_DEVICE')['ok'])
+        self.assertTrue(process_multi_station_scan(self.db,self.scanner,'P2','NETUM_DEVICE')['ok'])
+        self.assertEqual(self.db.query(ScannerPhaseEvent).count(),3)
