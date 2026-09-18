@@ -3865,6 +3865,16 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
             "data": event.timestamp, "revisione_id": event.revisione_id,
             "durata_secondi": session.duration_seconds if session and session.close_event_id == event.id else None,
         })
+    from backend.app.models.commessa import ScannerPhaseEvent
+    phase_reads = db.query(ScannerPhaseEvent).filter_by(commessa_id=commessa_id).order_by(ScannerPhaseEvent.timestamp, ScannerPhaseEvent.id).all()
+    for event in phase_reads:
+        scans.setdefault(event.fase, []).append({
+            "marca": event.entity_code, "postazione": event.workstation_code,
+            "evento": "PHASE_READ", "data": event.timestamp,
+            "revisione_id": event.revisione_id, "durata_secondi": None,
+        })
+    for rows in scans.values():
+        rows.sort(key=lambda row: row["data"])
     shipments = db.query(DdtShipment).filter_by(commessa_id=commessa_id).order_by(DdtShipment.created_at).all()
     readings = []
     attempts = (db.query(WorkshopScanAttempt, Piece, Workstation)

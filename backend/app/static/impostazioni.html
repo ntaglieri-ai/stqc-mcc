@@ -62,11 +62,13 @@
 .phase-filter { display:flex; align-items:center; gap:12px; padding:12px 16px 0; color:#a9bbd3; font-size:12px; }
 .phase-filter select { min-width:200px; max-width:100%; padding:9px 32px 9px 12px; border:1px solid #344b6b; border-radius:9px; background:#132640; color:#eaf2ff; font:inherit; color-scheme:dark; }
 .phase-filter select:focus-visible { outline:2px solid #60a5fa; outline-offset:2px; }
+
+.scan-form label{display:grid;gap:7px;font-size:12px;color:#b8cbe4}.scan-form small{font-size:11px;line-height:1.5;color:#93abc9}.scan-form [hidden]{display:none}
 </style><script src="/static/qr-print.js"></script></head><body><main><header><div><div class="eyebrow">VISTA DIRETTORE</div><h1>Impostazioni</h1></div><nav><button class="scan-tab" onclick="goBack()">← Indietro</button><a class="scan-tab" href="/">Home</a></nav></header>  <div class="scan-settings open" id="scanner-settings-view">
     <div class="scan-toolbar">
       
       <button class="scan-tab active" data-scan-tab="codes" onclick="setScannerSettingsTab('codes')">Gestione Postazioni</button>
-      <button class="scan-tab" data-scan-tab="scanners" onclick="setScannerSettingsTab('scanners')">Scanner Configuration</button>
+      <button class="scan-tab" data-scan-tab="scanners" onclick="setScannerSettingsTab('scanners')">Scanner</button>
       <button class="scan-tab" style="margin-left:auto" onclick="loadScannerSettings()">Aggiorna</button>
     </div>
     <div class="scan-mini-grid" id="scanner-settings-stats">
@@ -314,22 +316,22 @@ function scannerPhaseOptions(selected){return Object.entries(SCANNER_PHASES).map
 function renderScannerDeviceSettings() {
   document.getElementById('station-new-action').hidden = true;
   document.getElementById('scanner-new-action').hidden = false;
-  document.getElementById('scanner-settings-heading').textContent = 'Scanner Configuration';
+  document.getElementById('scanner-settings-heading').textContent = 'Scanner';
   document.getElementById('scanner-settings-sub').textContent = 'Scanner fisici configurati, modalità operativa, postazione associata e URL utili.';
   document.getElementById('scanner-settings-body').innerHTML = `<label class="phase-filter">Filtra per fase <select onchange="scannerPhaseFilter=this.value;renderScannerDeviceSettings()"><option value="">Tutte le fasi</option>${scannerPhaseOptions(scannerPhaseFilter)}</select></label><div class="scan-list">${
-    scannerDevices.filter(scanner=>!scannerPhaseFilter||scanner.fase===scannerPhaseFilter).map(scanner => `
+    scannerDevices.filter(scanner=>!scannerPhaseFilter||(scanner.scan_mode==='MULTI_POSTAZIONE'?scannerWorkstations.find(ws=>ws.id===scanner.postazione_id)?.fase:scanner.fase)===scannerPhaseFilter).map(scanner => `
       <div class="scan-row">
         <div class="scan-row-top">
           <div>
-            <div class="scan-row-title phase-name">${phaseDot(scanner.fase)}${esc(scanner.scanner_code)} · ${esc(scanner.name || scanner.scanner_code)}</div>
-            <div class="scan-row-sub">${esc(scanner.scan_mode === 'MAGAZZINO' ? 'Magazzino Mappatura' : scanner.scan_mode === 'MAGAZZINO_INVENTARIO' ? 'Magazzino Inventario' : scanner.scan_mode || 'OFFICINA')} · ${scanner.scan_mode?.startsWith('MAGAZZINO') ? 'Senza postazione e senza tempi' : esc(workstationName(scanner.postazione_id))}<br>IP ${esc(scanner.ip_address || '—')} · seriale ${esc(scanner.serial_number || '—')}</div>
+            <div class="scan-row-title phase-name">${phaseDot(scanner.scan_mode === 'MULTI_POSTAZIONE' ? scannerWorkstations.find(ws=>ws.id===scanner.postazione_id)?.fase : scanner.fase)}${esc(scanner.scanner_code)} · ${esc(scanner.name || scanner.scanner_code)}</div>
+            <div class="scan-row-sub">${esc(scanner.scan_mode === 'MAGAZZINO' ? 'Magazzino Mappatura' : scanner.scan_mode === 'MAGAZZINO_INVENTARIO' ? 'Magazzino Inventario' : scanner.scan_mode === 'MULTI_POSTAZIONE' ? 'Multi-postazione' : scanner.scan_mode || 'OFFICINA')} · ${scanner.scan_mode?.startsWith('MAGAZZINO') ? 'Senza postazione e senza tempi' : esc(workstationName(scanner.postazione_id))}<br>IP ${esc(scanner.ip_address || '—')} · seriale ${esc(scanner.serial_number || '—')}</div>
           </div>
           <span class="scan-badge ${scanner.active ? 'ok' : 'off'}">${scanner.active ? 'Attivo' : 'Disattivo'}</span>
         </div>
         <div class="scan-toolbar" style="margin:12px 0 0">
           <button class="scan-tab scan-action edit" onclick="renderNewScannerSettings(${Number(scanner.id)})">Modifica</button>
           <button class="scan-tab scan-action delete" onclick="deleteScannerFromSettings(${Number(scanner.id)}, this)">Cancella</button>
-          <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','scan')">Copia scan</button>
+          <a class="scan-tab" href="/scanner-console/${encodeURIComponent(scanner.device_token || '')}">Apri scanner</a><button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','scan')">Copia scan</button>
           <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','read')">Copia read</button>
         </div>
       </div>
@@ -345,27 +347,27 @@ function renderNewScannerSettings(id = null) {
   if (id !== null && !scanner) return;
 
   document.getElementById('scanner-settings-heading').textContent = scanner ? 'Modifica scanner' : 'Nuovo scanner';
-  document.getElementById('scanner-settings-sub').textContent = 'Crea una pistola scanner e associa subito modalità e postazione predefinita.';
+  document.getElementById('scanner-settings-sub').textContent = 'Dai un nome allo scanner e scegli come usarlo. Con Multi-postazione scegli dove lavorare dalla pagina operativa.';
   const options = '<option value="">Nessuna postazione</option>' + scannerWorkstations.filter(x => x.active || Number(x.id) === Number(scanner?.postazione_id)).map(x => `<option value="${Number(x.id)}">${esc(x.code)} · ${esc(x.name)}</option>`).join('');
   document.getElementById('scanner-settings-body').innerHTML = `
     <form class="scan-form" onsubmit="createScannerFromSettings(event)">
       <div class="scan-form-two">
-        <input id="scan-new-code" placeholder="SCN-OFF-01" required oninput="this.value=this.value.toUpperCase()">
-        <input id="scan-new-name" placeholder="Nome scanner" required>
+        <label>Codice scanner<input id="scan-new-code" placeholder="Es. SCN-01" required oninput="this.value=this.value.toUpperCase()"></label>
+        <label>Nome riconoscibile<input id="scan-new-name" placeholder="Es. Pistola reparto 1" required></label>
       </div>
       <div class="scan-form-two">
-        <label>Fase di appartenenza<select id="scan-new-phase" required>${scannerPhaseOptions(scanner?.fase||'officina')}</select></label><select id="scan-new-mode" onchange="syncWarehouseScannerMode()">
+        <label id="scanner-phase-field">Fase di appartenenza<select id="scan-new-phase" required>${scannerPhaseOptions(scanner?.fase||'officina')}</select></label><label>Utilizzo dello scanner<select id="scan-new-mode" onchange="syncWarehouseScannerMode()"><option value="MULTI_POSTAZIONE">Multi-postazione - scelta nella pagina scanner</option>
           <option value="OFFICINA">OFFICINA</option>
           <option value="ASSEMBLAGGI">ASSEMBLAGGI</option>
           <option value="MAGAZZINO">Magazzino Mappatura</option>
           <option value="MAGAZZINO_INVENTARIO">Magazzino Inventario</option>
           <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
-        </select>
-        <select id="scan-new-workstation">${options}</select>
+        </select><small id="scanner-mode-help"></small></label>
+        <label id="scanner-station-field">Postazione predefinita<select id="scan-new-workstation">${options}</select></label>
       </div>
       <div class="scan-form-two">
-        <input id="scan-new-ip" placeholder="IP opzionale">
-        <input id="scan-new-serial" placeholder="Seriale opzionale">
+        <label>Indirizzo IP (facoltativo)<input id="scan-new-ip" placeholder="Es. 192.168.1.20"></label>
+        <label>Numero seriale (facoltativo)<input id="scan-new-serial"></label>
       </div>
       <textarea id="scan-new-desc" placeholder="Note operative opzionali"></textarea>
       <div class="scan-toolbar"><button class="scan-tab scan-action new" type="submit">${scanner ? 'Salva modifiche' : 'Crea scanner'}</button><button class="scan-tab scan-action" type="button" onclick="renderScannerDeviceSettings()">Annulla</button></div>
@@ -379,10 +381,17 @@ function renderNewScannerSettings(id = null) {
 }
 
 function syncWarehouseScannerMode(){
-  const warehouse=document.getElementById('scan-new-mode').value.startsWith('MAGAZZINO');
+  const mode=document.getElementById('scan-new-mode').value;
+  const warehouse=mode.startsWith('MAGAZZINO'),multi=mode==='MULTI_POSTAZIONE';
   const station=document.getElementById('scan-new-workstation');
-  station.disabled=warehouse;station.hidden=warehouse;
-  if(warehouse)station.value='';
+  station.disabled=warehouse||multi;
+  document.getElementById('scanner-station-field').hidden=warehouse||multi;
+  document.getElementById('scanner-phase-field').hidden=warehouse||multi;
+  const phase=document.getElementById('scan-new-phase');
+  phase.required=!warehouse&&!multi;
+  if(warehouse){station.value='';phase.value='magazzino';}
+  document.getElementById('scanner-mode-help').textContent=multi?'Apri la pagina operativa e scegli la postazione. La fase e la destinazione in dashboard sono automatiche.':warehouse?'Non serve una postazione. Inventario richiede conferma in Magazzino; Mappatura collega grezzo e pezzi.':'Scanner con configurazione fissa.';
+
 }
 
 function printScannerStationCodePrevious(i, j) {

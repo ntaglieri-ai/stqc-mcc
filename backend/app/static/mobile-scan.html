@@ -40,7 +40,7 @@
 </head>
 <body>
   <header class="top">
-    <div class="title">Scanner mobile</div>
+    <div class="title">Scanner mobile</div><a id="station-console" style="color:#9fc4ff">Scegli postazione</a>
     <div class="meta" id="meta">Token in lettura...</div>
   </header>
   <main class="stage">
@@ -65,6 +65,7 @@
   </footer>
 <script>
 const token=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop()||'');
+document.getElementById('station-console').href='/scanner-console/'+encodeURIComponent(token);
 const meta=document.getElementById('meta');
 const statusBox=document.getElementById('status');
 const statusTitle=document.getElementById('statusTitle');

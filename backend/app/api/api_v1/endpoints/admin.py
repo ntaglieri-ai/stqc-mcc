@@ -334,7 +334,7 @@ def group_users(name: str, db: Session = Depends(get_db)):
 
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
-SCANNER_SCAN_MODES = {"OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "MAGAZZINO_INVENTARIO", "SPEDIZIONE_AD_HOC"}
+SCANNER_SCAN_MODES = {"MULTI_POSTAZIONE", "OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "MAGAZZINO_INVENTARIO", "SPEDIZIONE_AD_HOC"}
 WORKSTATION_PROGRESS_MODES = {"BLOCCO", "PEZZO_SINGOLO", "CHECK"}
 
 

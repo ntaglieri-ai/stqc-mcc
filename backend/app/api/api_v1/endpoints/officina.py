@@ -19,6 +19,8 @@ router = APIRouter()
 
 
 def scanner_phase(scanner, station):
+    if scanner.scan_mode == 'MULTI_POSTAZIONE':
+        return station.fase if station else None
     return scanner.fase
 
 
@@ -34,7 +36,7 @@ def scanners_for_phase(fase: str, db: Session = Depends(get_db)):
             .order_by(ScannerDevice.active.desc(), ScannerDevice.scanner_code).all())
     return {'items': [
         {'id': scanner.id, 'code': scanner.scanner_code, 'name': scanner.name,
-         'fase': scanner.fase,
+         'fase': scanner_phase(scanner, station),
          'mode': {'MAGAZZINO': 'Magazzino Mappatura', 'MAGAZZINO_INVENTARIO': 'Magazzino Inventario'}.get(scanner.scan_mode, scanner.scan_mode),
          'station': station.name if station and not scanner.scan_mode.startswith('MAGAZZINO') else None,
          'active': scanner.active}

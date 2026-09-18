@@ -384,6 +384,10 @@ def create_app() -> FastAPI:
     def officina_page():
         return FileResponse(STATIC_DIR / "officina.html", headers=_NO_CACHE)
 
+    @app.get("/scanner-console/{device_token}", include_in_schema=False)
+    def scanner_console_page(device_token: str):
+        return FileResponse(STATIC_DIR / "scanner-console.html", headers=_NO_CACHE)
+
     @app.get("/scanner-view/{device_token}", include_in_schema=False)
     def scanner_read_page(device_token: str):
         return FileResponse(STATIC_DIR / "scanner-read.html", headers=_NO_CACHE)

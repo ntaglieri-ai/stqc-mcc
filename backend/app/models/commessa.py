@@ -566,3 +566,20 @@ class ProgettazioneItem(Base):
     fine = Column(Boolean, nullable=False, default=False)
     iniziata_at = Column(DateTime, nullable=True)
     completata_at = Column(DateTime, nullable=True)
+
+
+class ScannerPhaseEvent(Base):
+    """Physical reading with immutable station and phase at scan time."""
+    __tablename__ = "scanner_phase_events"
+    id = Column(Integer, primary_key=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=False)
+    workstation_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True)
+    workstation_code = Column(String(80), nullable=False)
+    fase = Column(String(30), nullable=False, index=True)
+    entity = Column(String(30), nullable=False)
+    entity_code = Column(String(220), nullable=False)
+    raw_payload = Column(Text, nullable=False)
+    external_id = Column(String(120), nullable=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)

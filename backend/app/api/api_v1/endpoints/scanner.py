@@ -45,6 +45,9 @@ def netum_scan(
     if not scanner:
         raise HTTPException(404, "Scanner non configurato")
     scan_mode = (scanner.scan_mode or "OFFICINA").upper()
+    if scan_mode == "MULTI_POSTAZIONE":
+        from backend.app.services.multi_station_scan import process_multi_station_scan
+        return process_multi_station_scan(db, scanner, body.msg, body.id)
     if scan_mode == "MAGAZZINO_INVENTARIO":
         return process_inventory_scan(db, scanner, body.msg, body.id)
     if scan_mode == "MAGAZZINO":
@@ -114,3 +117,35 @@ def netum_latest_read(device_token: str, db: Session = Depends(get_db)):
     except (LookupError, ValueError):
         detail = None
     return {"scanner": scanner.scanner_code, "read_at": state.read_at, "detail": detail}
+
+
+class StationSelection(BaseModel):
+    postazione_id: int
+
+
+def _active_scanner(db, device_token):
+    scanner = db.query(ScannerDevice).filter_by(device_token=device_token, active=True).first()
+    if not scanner:
+        raise HTTPException(404, 'Scanner non disponibile')
+    return scanner
+
+
+@router.get('/netum/{device_token}/context')
+def scanner_context(device_token: str, db: Session = Depends(get_db)):
+    from backend.app.models.commessa import Workstation, ScannerPhaseEvent
+    from backend.app.services.multi_station_scan import PHASES
+    scanner = _active_scanner(db, device_token)
+    stations = db.query(Workstation).filter(Workstation.active.is_(True), Workstation.fase.in_(PHASES)).order_by(Workstation.fase, Workstation.name).all()
+    events = db.query(ScannerPhaseEvent).filter_by(scanner_device_id=scanner.id).order_by(ScannerPhaseEvent.id.desc()).limit(20).all()
+    return {'name': scanner.name, 'code': scanner.scanner_code, 'mode': scanner.scan_mode,
+        'postazione_id': scanner.postazione_id,
+        'stations': [{'id': s.id, 'name': s.name, 'fase': s.fase} for s in stations],
+        'events': [{'code': e.entity_code, 'fase': e.fase, 'station': e.workstation_code, 'timestamp': e.timestamp} for e in events]}
+
+
+@router.put('/netum/{device_token}/station')
+def scanner_select_station(device_token: str, body: StationSelection, db: Session = Depends(get_db)):
+    from backend.app.services.multi_station_scan import select_station
+    scanner = _active_scanner(db, device_token)
+    station = select_station(db, scanner, body.postazione_id)
+    return {'postazione_id': station.id, 'fase': station.fase, 'name': station.name}

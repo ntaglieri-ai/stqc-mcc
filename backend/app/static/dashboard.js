@@ -115,7 +115,7 @@
     let timer;
     const controller = new AbortController();
     const date = value => value ? new Date(value.endsWith('Z') || /[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`).toLocaleString('it-IT') : 'Non registrato';
-    const readable = value => value ? String(value).replaceAll('_', ' ') : 'Non registrato';
+    const readable = value => value === 'PHASE_READ' ? 'Scansione registrata' : value ? String(value).replaceAll('_', ' ') : 'Non registrato';
     function section(title, note, headers, rows) {
       const panel = document.createElement('details');
       panel.className = 'monitor-phase';
@@ -230,8 +230,8 @@
       }
       toggle.addEventListener('change', () => { grouped = toggle.checked; renderReadings(); });
       renderReadings();
-      for (const [key, title] of [['assemblaggi', 'Assemblaggi']]) {
-        section(title, data[key].length ? 'Sequenza cronologica, tutte le revisioni. Durata solo per sessioni chiuse e collegate; non è il tempo tra due scansioni.' : 'Nessuna scansione operativa registrata.', ['Marca', 'Postazione', 'Evento', 'Data e ora', 'Durata sessione'], data[key].map(r => [r.marca, r.postazione, readable(r.evento), date(r.data), r.durata_secondi == null ? 'Non registrata' : `${Math.floor(r.durata_secondi / 60)} min ${r.durata_secondi % 60} s`]));
+      for (const [key, title] of [['officina', 'Scansioni officina'], ['assemblaggi', 'Assemblaggi'], ['saldature', 'Saldature'], ['lavorazioni', 'Scansioni lavorazioni'], ['in-cantiere', 'Scansioni spedizione']]) {
+        section(title, (data[key] || []).length ? 'Sequenza cronologica, tutte le revisioni. Durata solo per sessioni chiuse e collegate; non è il tempo tra due scansioni.' : 'Nessuna scansione operativa registrata.', ['Marca', 'Postazione', 'Evento', 'Data e ora', 'Durata sessione'], (data[key] || []).map(r => [r.marca, r.postazione, readable(r.evento), date(r.data), r.durata_secondi == null ? 'Non registrata' : `${Math.floor(r.durata_secondi / 60)} min ${r.durata_secondi % 60} s`]));
       }
       const counts = rows => Object.entries(rows.reduce((acc, r) => {acc[r.stato] = (acc[r.stato] || 0) + 1; return acc;}, {})).map(([state, n]) => [readable(state), n]);
       section('Lavorazioni esterne', 'Stati della lista corrente. Cronologia scan e destinazione delle spedizioni esterne non disponibili nei dati collegati.', ['Stato registrato', 'Righe lista'], counts(data.lavorazioni_esterne));
