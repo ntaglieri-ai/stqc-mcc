@@ -593,3 +593,67 @@ class ScannerPhaseEvent(Base):
     raw_payload = Column(Text, nullable=False)
     external_id = Column(String(120), nullable=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class AssemblyScanSession(Base):
+    """Assembly cycle delimited by the configured station START and END codes."""
+    __tablename__ = "assembly_scan_sessions"
+
+    id = Column(Integer, primary_key=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    workstation_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    workstation_code = Column(String(80), nullable=False)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=True, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=True)
+    assembly_code = Column(String(220), nullable=True, index=True)
+    assembly_instance = Column(Integer, nullable=True)
+    status = Column(String(30), nullable=False, default="AWAITING_PARENT", index=True)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    closed_at = Column(DateTime, nullable=True, index=True)
+
+
+class AssemblyScanEvent(Base):
+    """Append-only record of every read performed during an assembly cycle."""
+    __tablename__ = "assembly_scan_events"
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, ForeignKey("assembly_scan_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = Column(String(30), nullable=False, index=True)
+    raw_payload = Column(Text, nullable=False)
+    entity_code = Column(String(220), nullable=True)
+    piece_id = Column(Integer, ForeignKey("pieces.id", ondelete="SET NULL"), nullable=True, index=True)
+    outcome = Column(String(20), nullable=False, index=True)
+    error_code = Column(String(60), nullable=True, index=True)
+    message = Column(String(500), nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class WeldingScanSession(Base):
+    """Welding cycle containing any number of assembly-parent scans."""
+    __tablename__ = "welding_scan_sessions"
+
+    id = Column(Integer, primary_key=True)
+    scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    workstation_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)
+    workstation_code = Column(String(80), nullable=False)
+    status = Column(String(20), nullable=False, default="OPEN", index=True)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    closed_at = Column(DateTime, nullable=True, index=True)
+
+
+class WeldingScanEvent(Base):
+    """Append-only record for START, assembly reads and END in welding."""
+    __tablename__ = "welding_scan_events"
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, ForeignKey("welding_scan_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=True, index=True)
+    revisione_id = Column(Integer, ForeignKey("commessa_revisioni.id", ondelete="CASCADE"), nullable=True)
+    event_type = Column(String(30), nullable=False, index=True)
+    assembly_code = Column(String(220), nullable=True, index=True)
+    assembly_instance = Column(Integer, nullable=True)
+    raw_payload = Column(Text, nullable=False)
+    outcome = Column(String(20), nullable=False, index=True)
+    error_code = Column(String(60), nullable=True)
+    message = Column(String(500), nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)

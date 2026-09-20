@@ -24,7 +24,11 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, DdtManualItem, DdtShipment, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ProgettazioneEvento, ScannerDevice, ScannerPhaseEvent, SpedizioneAdHoc, SpedizioneAdHocItem, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
+    AssemblyScanEvent, AssemblyScanSession, Commessa, CommessaBulloneria, CommessaDocumento,
+    CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, DdtManualItem, DdtShipment,
+    FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato,
+    ProgettazioneEvento, ScannerDevice, ScannerPhaseEvent, SpedizioneAdHoc, SpedizioneAdHocItem,
+    WeldingScanEvent, WeldingScanSession, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
@@ -601,6 +605,67 @@ def get_dashboard_monitoring(
             "esito": event.entity_code,
         })
 
+    assembly_events = []
+    if _has_table(db, AssemblyScanEvent.__tablename__):
+        assembly_events = (
+            db.query(AssemblyScanEvent, AssemblyScanSession, Commessa)
+            .join(AssemblyScanSession, AssemblyScanSession.id == AssemblyScanEvent.session_id)
+            .outerjoin(Commessa, Commessa.id == AssemblyScanSession.commessa_id)
+            .filter(AssemblyScanEvent.timestamp >= today_start, AssemblyScanEvent.timestamp < tomorrow_start)
+            .order_by(AssemblyScanEvent.timestamp.desc(), AssemblyScanEvent.id.desc())
+            .all()
+        )
+    assembly_labels = {
+        "STATION_START": "Inizio postazione assemblaggio",
+        "PARENT": "Scan assemblato padre",
+        "CHILD": "Scan pezzo assemblato",
+        "STATION_END": "Fine postazione assemblaggio",
+        "ERROR": "Errore assemblaggio",
+    }
+    for event, session, commessa in assembly_events:
+        parent = session.assembly_code
+        detail = session.workstation_code
+        if event.event_type == "CHILD":
+            detail = f"{event.entity_code or 'Pezzo non riconosciuto'} → {parent or 'padre non acquisito'}"
+        elif event.entity_code:
+            detail = f"{session.workstation_code} · {event.entity_code}"
+        daily_rows.append({
+            "data": event.timestamp,
+            "vista": "commessa",
+            "origine": assembly_labels.get(event.event_type, event.event_type),
+            "commessa": commessa.codice if commessa else None,
+            "dettaglio": detail,
+            "esito": event.message,
+            "errore": event.outcome == "ERROR",
+        })
+
+    welding_events = []
+    if _has_table(db, WeldingScanEvent.__tablename__):
+        welding_events = (
+            db.query(WeldingScanEvent, WeldingScanSession, Commessa)
+            .join(WeldingScanSession, WeldingScanSession.id == WeldingScanEvent.session_id)
+            .outerjoin(Commessa, Commessa.id == WeldingScanEvent.commessa_id)
+            .filter(WeldingScanEvent.timestamp >= today_start, WeldingScanEvent.timestamp < tomorrow_start)
+            .order_by(WeldingScanEvent.timestamp.desc(), WeldingScanEvent.id.desc())
+            .all()
+        )
+    welding_labels = {
+        "STATION_START": "Inizio postazione saldatura",
+        "ASSEMBLY": "Scan assemblato in saldatura",
+        "STATION_END": "Fine postazione saldatura",
+    }
+    for event, session, commessa in welding_events:
+        code = None if not event.assembly_code else f"{event.assembly_code} / {event.assembly_instance}"
+        daily_rows.append({
+            "data": event.timestamp,
+            "vista": "commessa",
+            "origine": welding_labels.get(event.event_type, event.event_type),
+            "commessa": commessa.codice if commessa else None,
+            "dettaglio": f"{session.workstation_code}{' · ' + code if code else ''}",
+            "esito": event.message,
+            "errore": event.outcome == "ERROR",
+        })
+
     design_events = []
     if _has_table(db, ProgettazioneEvento.__tablename__):
         design_events = (
@@ -706,6 +771,8 @@ def get_dashboard_monitoring(
             ),
             "scan_fasi": sum(1 for event, _commessa in phase_events if event.fase != "officina"),
             "eventi_progettazione": len(design_events),
+            "errori_assemblaggio": sum(1 for event, _session, _commessa in assembly_events if event.outcome == "ERROR"),
+            "scan_saldature": sum(1 for event, _session, _commessa in welding_events if event.event_type == "ASSEMBLY" and event.outcome == "OK"),
             "ddt": 0,
             "movimenti_magazzino": len(movements_today),
             "scan_magazzino": len(warehouse_scans),
@@ -4122,6 +4189,113 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
             "evento": "PHASE_READ", "data": event.timestamp,
             "revisione_id": event.revisione_id, "durata_secondi": None,
         })
+    assembly_rows = []
+    if _has_table(db, AssemblyScanEvent.__tablename__):
+        assembly_rows = (
+            db.query(AssemblyScanEvent, AssemblyScanSession)
+            .join(AssemblyScanSession, AssemblyScanSession.id == AssemblyScanEvent.session_id)
+            .filter(AssemblyScanSession.commessa_id == commessa_id)
+            .order_by(AssemblyScanEvent.timestamp, AssemblyScanEvent.id)
+            .all()
+        )
+    scans["assemblaggi"] = [
+        {
+            "marca": event.entity_code,
+            "assemblato": session.assembly_code,
+            "postazione": session.workstation_code,
+            "evento": event.event_type,
+            "data": event.timestamp,
+            "revisione_id": session.revisione_id,
+            "durata_secondi": None,
+            "esito": event.outcome,
+            "messaggio": event.message,
+            "errore": event.outcome == "ERROR",
+        }
+        for event, session in assembly_rows
+    ] + scans.get("assemblaggi", [])
+    assembly_progress = []
+    progress_groups: dict[tuple[str, int], dict] = {}
+    for event, session in assembly_rows:
+        if not session.assembly_code or session.assembly_instance is None:
+            continue
+        key = (session.assembly_code, session.assembly_instance)
+        group = progress_groups.setdefault(key, {
+            "assemblato": session.assembly_code,
+            "progressivo": session.assembly_instance,
+            "sessioni": set(),
+            "pezzi": set(),
+            "errori": 0,
+            "primo_inizio": session.started_at,
+            "ultima_fine": session.closed_at,
+        })
+        group["sessioni"].add(session.id)
+        if event.event_type == "CHILD" and event.outcome == "OK" and event.piece_id is not None:
+            group["pezzi"].add(event.piece_id)
+        if event.outcome == "ERROR":
+            group["errori"] += 1
+        if session.started_at and session.started_at < group["primo_inizio"]:
+            group["primo_inizio"] = session.started_at
+        if session.closed_at and (group["ultima_fine"] is None or session.closed_at > group["ultima_fine"]):
+            group["ultima_fine"] = session.closed_at
+    expected_by_assembly: dict[str, int] = {}
+    if revision and revision.file_assemblaggi:
+        source = settings.upload_dir.parent / revision.file_assemblaggi
+        if source.is_file():
+            try:
+                for parent in parse_assembly_records(source):
+                    expected_by_assembly[parent["codice"]] = sum(
+                        int(child.get("quantita") or 0) for child in parent.get("children", [])
+                    )
+            except (OSError, ValueError):
+                pass
+    for group in progress_groups.values():
+        acquired = len(group.pop("pezzi"))
+        expected = expected_by_assembly.get(group["assemblato"])
+        assembly_progress.append({
+            **group,
+            "sessioni": len(group["sessioni"]),
+            "pezzi_scansionati": acquired,
+            "pezzi_previsti": expected,
+            "percentuale": None if not expected else min(100, round(acquired * 100 / expected, 1)),
+        })
+    assembly_progress.sort(key=lambda row: (row["assemblato"], row["progressivo"]))
+    welding_rows = []
+    welding_sessions = []
+    if _has_table(db, WeldingScanEvent.__tablename__):
+        welding_rows = (
+            db.query(WeldingScanEvent, WeldingScanSession)
+            .join(WeldingScanSession, WeldingScanSession.id == WeldingScanEvent.session_id)
+            .filter(WeldingScanEvent.commessa_id == commessa_id)
+            .order_by(WeldingScanEvent.timestamp, WeldingScanEvent.id)
+            .all()
+        )
+        session_ids = {session.id for _event, session in welding_rows}
+        session_map = {session.id: session for _event, session in welding_rows}
+        for session_id in sorted(session_ids):
+            session = session_map[session_id]
+            session_events = [event for event, linked in welding_rows if linked.id == session_id]
+            welding_sessions.append({
+                "sessione_id": session.id,
+                "postazione": session.workstation_code,
+                "inizio": session.started_at,
+                "fine": session.closed_at,
+                "stato": session.status,
+                "assemblati_scansionati": sum(1 for event in session_events if event.outcome == "OK"),
+            })
+    scans["saldature"] = [
+        {
+            "marca": f"{event.assembly_code} / {event.assembly_instance}",
+            "postazione": session.workstation_code,
+            "evento": event.event_type,
+            "data": event.timestamp,
+            "revisione_id": event.revisione_id,
+            "durata_secondi": None,
+            "esito": event.outcome,
+            "messaggio": event.message,
+            "errore": event.outcome == "ERROR",
+        }
+        for event, session in welding_rows
+    ] + scans.get("saldature", [])
     for rows in scans.values():
         rows.sort(key=lambda row: row["data"])
     shipments = db.query(DdtShipment).filter_by(commessa_id=commessa_id).order_by(DdtShipment.created_at).all()
@@ -4272,6 +4446,9 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
             }
             for event in progettazione_eventi
         ],
+        "errori_assemblaggio": sum(1 for event, _session in assembly_rows if event.outcome == "ERROR"),
+        "assemblaggi_progress": assembly_progress,
+        "saldature_sessioni": welding_sessions,
         "progettazione_tempi": {
             "inizio_generale": min(inizi) if inizi else None,
             "fine_generale": max(fini) if fini else None,

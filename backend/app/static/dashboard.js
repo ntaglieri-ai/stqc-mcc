@@ -57,6 +57,7 @@
       const body = document.createElement('tbody');
       rows.forEach(event => {
         const row = document.createElement('tr');
+        if (event.errore) row.className = 'monitor-error-row';
         [eventTime(event.data), event.origine, event.commessa || '—', event.dettaglio || '—', event.esito || '—'].forEach(value => {
           const cell = document.createElement('td');
           cell.textContent = value;
@@ -131,7 +132,8 @@
         const data = await response.json();
         events = data.giornaliera?.timeline || [];
         renderEvents();
-        status.textContent = `${events.length} registrazioni · aggiornato alle ${new Date().toLocaleTimeString('it-IT')}`;
+        const errors = Number(data.giornaliera?.errori_assemblaggio || 0);
+        status.textContent = `${events.length} registrazioni · ${errors} errori assemblaggio · aggiornato alle ${new Date().toLocaleTimeString('it-IT')}`;
       } catch (error) {
         register.replaceChildren(emptyState('Impossibile caricare le registrazioni. Premi Aggiorna per riprovare.'));
         status.textContent = 'Caricamento non riuscito.';
@@ -416,8 +418,10 @@
         headers.forEach(label => { const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; tr.append(th); });
         head.append(tr); table.append(head);
         const body = document.createElement('tbody');
-        rows.forEach(values => {
+        rows.forEach(entry => {
+          const values = Array.isArray(entry) ? entry : entry.values;
           const row = document.createElement('tr');
+          if (!Array.isArray(entry) && entry.error) row.className = 'monitor-error-row';
           values.forEach((value, index) => {
             const td = document.createElement('td');
             const text = value ?? 'Non registrato';
@@ -513,7 +517,11 @@
       toggle.addEventListener('change', () => { grouped = toggle.checked; renderReadings(); });
       renderReadings();
       section('Blocchi officina', (data.officina || []).length ? 'Un rilevamento per ogni ciclo INIZIO-FINE, con il numero di pezzi scannerizzati nel mezzo.' : 'Nessun ciclo officina registrato.', ['Postazione', 'Inizio', 'Fine', 'Numero scan', 'Stato'], (data.officina || []).map(r => [r.postazione, date(r.inizio), date(r.fine), r.numero_scan, readable(r.stato)]));
-      for (const [key, title] of [['assemblaggi', 'Assemblaggi'], ['saldature', 'Saldature'], ['lavorazioni', 'Scansioni lavorazioni'], ['in-cantiere', 'Scansioni spedizione']]) {
+      section('Progress assemblaggi', (data.assemblaggi_progress || []).length ? 'Avanzamento calcolato nel monitoring aggregando tutte le sessioni, anche su giorni diversi.' : 'Nessun avanzamento assemblaggio disponibile.', ['Assemblato', 'Pezzi scansionati', 'Pezzi previsti', 'Progress', 'Sessioni', 'Primo inizio', 'Ultima fine', 'Errori'], (data.assemblaggi_progress || []).map(r => [`${r.assemblato} / ${r.progressivo}`, r.pezzi_scansionati, r.pezzi_previsti, r.percentuale == null ? 'Non calcolabile' : `${r.percentuale}%`, r.sessioni, date(r.primo_inizio), date(r.ultima_fine), r.errori]));
+      section(`Eventi assemblaggi · ${numero(data.errori_assemblaggio)} errori`, (data.assemblaggi || []).length ? 'Ogni scansione è registrata. I pezzi mantengono il collegamento al padre; gli errori sono evidenziati.' : 'Nessuna scansione assemblaggio registrata.', ['Codice letto', 'Assemblato padre', 'Postazione', 'Evento', 'Data e ora', 'Esito', 'Messaggio'], (data.assemblaggi || []).map(r => ({values: [r.marca, r.assemblato, r.postazione, readable(r.evento), date(r.data), r.esito, r.messaggio], error: r.errore})));
+      section('Sessioni saldatura', (data.saldature_sessioni || []).length ? 'Ogni sessione comprende tutti gli assemblati padre letti tra INIZIO e FINE.' : 'Nessuna sessione saldatura registrata.', ['Postazione', 'Inizio', 'Fine', 'Assemblati scansionati', 'Stato'], (data.saldature_sessioni || []).map(r => [r.postazione, date(r.inizio), date(r.fine), r.assemblati_scansionati, readable(r.stato)]));
+      section('Scansioni saldatura', (data.saldature || []).length ? 'Registro dei codici assemblato padre passati dal file Assemblaggi.' : 'Nessuna scansione saldatura registrata.', ['Assemblato', 'Postazione', 'Data e ora', 'Esito', 'Messaggio'], (data.saldature || []).map(r => ({values: [r.marca, r.postazione, date(r.data), r.esito, r.messaggio], error: r.errore})));
+      for (const [key, title] of [['lavorazioni', 'Scansioni lavorazioni'], ['in-cantiere', 'Scansioni spedizione']]) {
         section(title, (data[key] || []).length ? 'Sequenza cronologica, tutte le revisioni. Durata solo per sessioni chiuse e collegate; non è il tempo tra due scansioni.' : 'Nessuna scansione operativa registrata.', ['Marca', 'Postazione', 'Evento', 'Data e ora', 'Durata sessione'], (data[key] || []).map(r => [r.marca, r.postazione, readable(r.evento), date(r.data), r.durata_secondi == null ? 'Non registrata' : `${Math.floor(r.durata_secondi / 60)} min ${r.durata_secondi % 60} s`]));
       }
       const counts = rows => Object.entries(rows.reduce((acc, r) => {acc[r.stato] = (acc[r.stato] || 0) + 1; return acc;}, {})).map(([state, n]) => [readable(state), n]);

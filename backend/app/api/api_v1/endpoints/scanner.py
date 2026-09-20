@@ -46,7 +46,7 @@ def netum_scan(
     if not scanner:
         raise HTTPException(404, "Scanner non configurato")
     scan_mode = (scanner.scan_mode or "OFFICINA").upper()
-    if scan_mode == "MULTI_POSTAZIONE":
+    if scan_mode in {"MULTI_POSTAZIONE", "ASSEMBLAGGI"}:
         from backend.app.services.multi_station_scan import process_multi_station_scan
         return process_multi_station_scan(db, scanner, body.msg, body.id)
     if scan_mode == "MAGAZZINO_INVENTARIO":
