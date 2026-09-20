@@ -107,12 +107,20 @@ def _apply_stock_movement_payload(db: Session, payload: dict[str, Any]) -> Stock
         raise HTTPException(status_code=422, detail="La rettifica non può essere zero")
     if movement_in.movement_type != warehouse_schemas.MovementType.ADJUSTMENT and movement_in.quantity <= 0:
         raise HTTPException(status_code=422, detail="La quantità deve essere maggiore di zero")
-    movement = StockMovement(**movement_in.model_dump())
+    reservation = (movement_in.reserved_for_commessa or "").strip() or None
+    movement = StockMovement(**movement_in.model_dump(exclude={"reserved_for_commessa"}))
     db.add(movement)
     db.flush()
     try:
         if movement_in.movement_type == warehouse_schemas.MovementType.INCOMING:
-            create_items_for_incoming(db, movement.material_id, movement.quantity, movement.id)
+            created_items = create_items_for_incoming(db, movement.material_id, movement.quantity, movement.id)
+            if reservation:
+                now = datetime.utcnow()
+                movement.destination_commessa = reservation
+                for item in created_items:
+                    item.status = "RESERVED"
+                    item.reserved_for_commessa = reservation
+                    item.reserved_at = now
         elif movement_in.movement_type in (
             warehouse_schemas.MovementType.OUTGOING,
             warehouse_schemas.MovementType.SFRIDO,
@@ -890,6 +898,8 @@ def _apply_change_request_payload(db: Session, request: WarehouseChangeRequest) 
         return {"deleted": len(ids)}
     if request.action == "mapped_grezzo_outgoing":
         return _mapped_grezzo_outgoing_apply(db, str(payload.get("uuid") or ""))
+    if request.action == "item_outgoing":
+        return _item_outgoing_apply(db, str(payload.get("uuid") or ""), str(payload.get("reason") or "Uscita manuale"))
     if request.action == "ddt_confirm":
         from backend.app.api.api_v1.endpoints.inventario import DdtConfirmRequest, _apply_ddt_confirm
 
@@ -1327,6 +1337,34 @@ def _mapped_grezzo_outgoing_apply(db: Session, item_uuid: str) -> dict[str, Any]
         "movement_id": movement.id,
         "pieces_count": linked_count,
     }
+
+
+def _item_outgoing_apply(db: Session, item_uuid: str, reason: str) -> dict[str, Any]:
+    item = db.scalar(
+        select(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .where(WarehouseItem.uuid == item_uuid.lower())
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Elemento di magazzino non trovato")
+    if item.status not in ("AVAILABLE", "RESERVED"):
+        raise HTTPException(status_code=409, detail=f"Elemento già movimentato: {item.status}")
+    movement = StockMovement(
+        material_id=item.material_id,
+        quantity=1,
+        movement_type=MovementType.OUTGOING,
+        reason=reason[:200],
+        destination_commessa=item.reserved_for_commessa,
+        reference=item.uuid,
+    )
+    db.add(movement)
+    db.flush()
+    now = datetime.utcnow()
+    item.status = "OUT"
+    item.exited_at = now
+    item.exit_movement_id = movement.id
+    item.updated_at = now
+    return {"ok": True, "uuid": item.uuid, "status": item.status, "movement_id": movement.id}
 
 
 @router.patch(

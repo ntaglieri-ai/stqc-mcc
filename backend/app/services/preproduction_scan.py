@@ -14,10 +14,51 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from backend.app.models.commessa import Commessa, Piece, PieceScanEvent, ScannerDevice, WorkshopScanAttempt
-from backend.app.models.warehouse import WarehouseItem
+from backend.app.models.warehouse import WarehouseChangeRequest, WarehouseChangeRequestStatus, WarehouseItem
 from backend.app.services.material_origin import origin_attributes
 
 CURRENT_WAREHOUSE_TTL = timedelta(minutes=2)
+
+
+def _queue_mapped_outgoing(db: Session, warehouse_item: WarehouseItem, commessa: Commessa | None) -> None:
+    """Keep one pending inventory confirmation per mapped raw warehouse item."""
+    linked_pieces = (
+        db.query(Piece)
+        .filter(Piece.materiale_origine_id == warehouse_item.id)
+        .order_by(Piece.id)
+        .all()
+    )
+    payload = {
+        "uuid": warehouse_item.uuid,
+        "commessa": commessa.codice if commessa else warehouse_item.reserved_for_commessa,
+        "piece_ids": [row.id for row in linked_pieces],
+        "piece_qr_codes": [row.qr_code for row in linked_pieces],
+    }
+    material_code = getattr(warehouse_item.material, "code", None) or warehouse_item.uuid
+    summary = (
+        f"{material_code} · #{warehouse_item.ordinal:04d} · "
+        f"{payload['commessa'] or 'commessa non indicata'} · {len(linked_pieces)} pezzi collegati"
+    )
+    pending = (
+        db.query(WarehouseChangeRequest)
+        .filter(
+            WarehouseChangeRequest.action == "mapped_grezzo_outgoing",
+            WarehouseChangeRequest.status == WarehouseChangeRequestStatus.PENDING,
+        )
+        .all()
+    )
+    request = next((row for row in pending if (row.payload or {}).get("uuid") == warehouse_item.uuid), None)
+    if request is None:
+        request = WarehouseChangeRequest(
+            status=WarehouseChangeRequestStatus.PENDING,
+            action="mapped_grezzo_outgoing",
+            title="Conferma uscita grezzo mappato",
+            payload=payload,
+        )
+        db.add(request)
+    else:
+        request.payload = payload
+    request.summary = summary
 
 
 def _scan_value(raw: str) -> str:
@@ -178,6 +219,7 @@ def _assign_warehouse_origin(
         },
     )
     db.add(event)
+    _queue_mapped_outgoing(db, warehouse_item, commessa)
     _attempt(
         db,
         scanner,

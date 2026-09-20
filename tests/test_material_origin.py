@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from backend.app.db.base import Base
 from backend.app.models.user import User
 from backend.app.models.commessa import Commessa, CommessaRevisione, Piece, ScannerDevice
-from backend.app.models.warehouse import Material, WarehouseItem, WarehouseCustomField, WarehouseCustomValue
+from backend.app.models.warehouse import (
+    Material, WarehouseChangeRequest, WarehouseItem, WarehouseCustomField, WarehouseCustomValue,
+)
 from backend.app.services.preproduction_scan import _assign_warehouse_origin
 from backend.app.services.material_origin import piece_origin_attributes
 
@@ -39,6 +41,10 @@ class MaterialOriginTests(unittest.TestCase):
                 self.assertFalse(any('peso' in key.lower() for key in fields))
                 self.assertEqual(piece.peso_kg, 12)
                 self.assertEqual(piece.lunghezza_mm, 120)
+                request = db.query(WarehouseChangeRequest).one()
+                self.assertEqual(request.action, 'mapped_grezzo_outgoing')
+                self.assertEqual(request.payload['uuid'], raw.uuid)
+                self.assertEqual(request.payload['piece_ids'], [piece.id])
                 raw.colata = 'CHANGED'; db.commit()
                 self.assertEqual(piece_origin_attributes(piece)['Colata'], 'COLATA-OVERRIDE')
         finally:

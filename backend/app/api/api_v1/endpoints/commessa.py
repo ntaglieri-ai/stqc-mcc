@@ -14,7 +14,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import or_
+from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Session, joinedload
 
 from backend.app.core.config import settings
@@ -24,7 +24,7 @@ from backend.app.db.session import get_db
 _logger = logging.getLogger("stqc.commessa")
 
 from backend.app.models.commessa import (
-    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, DdtManualItem, DdtShipment, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ScannerDevice, SpedizioneAdHoc, SpedizioneAdHocItem, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
+    Commessa, CommessaBulloneria, CommessaDocumento, CommessaPostOfficinaItem, CommessaRevisione, CommessaStatus, DdtManualItem, DdtShipment, FaseOperativa, FaseStatus, Piece, PieceScanEvent, PieceWorkSession, PezzoPercorso, PezzoStato, ProgettazioneEvento, ScannerDevice, ScannerPhaseEvent, SpedizioneAdHoc, SpedizioneAdHocItem, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
 from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
@@ -53,6 +53,11 @@ from backend.app.services.preproduction_scan import process_preproduction_scan
 from backend.app.services.workshop_scan import process_workshop_scan
 
 router = APIRouter()
+
+
+def _has_table(db: Session, table_name: str) -> bool:
+    """Keep monitoring usable while installations catch up with newer event tables."""
+    return inspect(db.get_bind()).has_table(table_name)
 
 
 class PieceManualUpdate(BaseModel):
@@ -470,6 +475,190 @@ def get_dashboard_commesse(db: Session = Depends(get_db)):
     return {
         "summary": summary,
         "commesse": {},
+    }
+
+
+@router.get("/dashboard/monitoring")
+def get_dashboard_monitoring(
+    db: Session = Depends(get_db),
+    day: Optional[str] = Query(None, description="Giorno da consultare in formato YYYY-MM-DD"),
+):
+    """Daily register of production scans and warehouse inputs/outputs."""
+    try:
+        selected_day = datetime.strptime(day, "%Y-%m-%d") if isinstance(day, str) and day else datetime.now()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Data non valida: usare YYYY-MM-DD") from exc
+    today_start = selected_day.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    workshop_event_types = {"PIECE_READ", "PHASE_START", "PHASE_DONE", "PHASE_END"}
+
+    commesse = crud.get_commesse(db=db, skip=0, limit=1000)
+    physical_items = db.query(WarehouseItem).all()
+    movements_today = (
+        db.query(StockMovement)
+        .options(joinedload(StockMovement.material))
+        .filter(
+            StockMovement.occurred_at >= today_start,
+            StockMovement.occurred_at < tomorrow_start,
+            StockMovement.movement_type.in_([MovementType.INCOMING, MovementType.OUTGOING, MovementType.SFRIDO]),
+        )
+        .order_by(StockMovement.occurred_at.desc(), StockMovement.id.desc())
+        .all()
+    )
+    reserved_items = [item for item in physical_items if item.reserved_for_commessa]
+    reservations: dict[str, dict] = {}
+    for item in reserved_items:
+        key = item.reserved_for_commessa or "Non indicata"
+        row = reservations.setdefault(key, {"commessa": key, "pezzi": 0, "prima_prenotazione": None})
+        row["pezzi"] += 1
+        if item.reserved_at and (row["prima_prenotazione"] is None or item.reserved_at < row["prima_prenotazione"]):
+            row["prima_prenotazione"] = item.reserved_at
+
+    daily_rows: list[dict] = []
+    piece_events = (
+        db.query(PieceScanEvent, Commessa)
+        .join(Commessa, Commessa.id == PieceScanEvent.commessa_id)
+        .filter(
+            PieceScanEvent.event_type.in_(workshop_event_types),
+            PieceScanEvent.timestamp >= today_start,
+            PieceScanEvent.timestamp < tomorrow_start,
+        )
+        .order_by(PieceScanEvent.timestamp.desc(), PieceScanEvent.id.desc())
+        .all()
+    )
+    for event, commessa in piece_events:
+        daily_rows.append({
+            "data": event.timestamp,
+            "vista": "commessa",
+            "origine": "Scan pezzo",
+            "commessa": commessa.codice,
+            "dettaglio": event.postazione_code or event.event_type,
+            "esito": event.event_type,
+        })
+
+    phase_events = []
+    if _has_table(db, ScannerPhaseEvent.__tablename__):
+        phase_events = (
+            db.query(ScannerPhaseEvent, Commessa)
+            .join(Commessa, Commessa.id == ScannerPhaseEvent.commessa_id)
+            .filter(ScannerPhaseEvent.timestamp >= today_start, ScannerPhaseEvent.timestamp < tomorrow_start)
+            .order_by(ScannerPhaseEvent.timestamp.desc(), ScannerPhaseEvent.id.desc())
+            .all()
+        )
+    for event, commessa in phase_events:
+        daily_rows.append({
+            "data": event.timestamp,
+            "vista": "commessa",
+            "origine": f"Scan {event.fase}",
+            "commessa": commessa.codice,
+            "dettaglio": event.workstation_code,
+            "esito": event.entity_code,
+        })
+
+    design_events = []
+    if _has_table(db, ProgettazioneEvento.__tablename__):
+        design_events = (
+            db.query(ProgettazioneEvento, Commessa)
+            .join(Commessa, Commessa.id == ProgettazioneEvento.commessa_id)
+            .filter(ProgettazioneEvento.timestamp >= today_start, ProgettazioneEvento.timestamp < tomorrow_start)
+            .order_by(ProgettazioneEvento.timestamp.desc(), ProgettazioneEvento.id.desc())
+            .all()
+        )
+    for event, commessa in design_events:
+        is_start = event.tipo_evento == "INIZIO"
+        daily_rows.append({
+            "data": event.timestamp,
+            "vista": "commessa",
+            "origine": "Inizio progettazione" if is_start else "Fine progettazione",
+            "commessa": commessa.codice,
+            "dettaglio": PROGETTAZIONE_VOCI.get(event.voce, event.voce),
+            "esito": "Fase iniziata" if is_start else "Fase completata",
+        })
+
+    for movement in movements_today:
+        kind = movement.movement_type.value if hasattr(movement.movement_type, "value") else str(movement.movement_type)
+        if kind not in {MovementType.INCOMING.value, MovementType.OUTGOING.value, MovementType.SFRIDO.value}:
+            continue
+        daily_rows.append({
+            "data": movement.occurred_at,
+            "vista": "magazzino",
+            "origine": "Ingresso magazzino" if kind == MovementType.INCOMING.value else "Uscita magazzino",
+            "commessa": movement.destination_commessa or (movement.commessa.codice if movement.commessa else None),
+            "dettaglio": getattr(movement.material, "code", None) or movement.reference or movement.reason,
+            "esito": f"{float(movement.quantity or 0):g} · {movement.reason}",
+        })
+
+    warehouse_scans = (
+        db.query(WorkshopScanAttempt, ScannerDevice, Piece, Commessa)
+        .join(ScannerDevice, ScannerDevice.id == WorkshopScanAttempt.scanner_device_id)
+        .outerjoin(Piece, Piece.id == WorkshopScanAttempt.piece_id)
+        .outerjoin(Commessa, Commessa.id == Piece.commessa_id)
+        .filter(
+            ScannerDevice.scan_mode.in_(["MAGAZZINO", "MAGAZZINO_INVENTARIO"]),
+            WorkshopScanAttempt.created_at >= today_start,
+            WorkshopScanAttempt.created_at < tomorrow_start,
+        )
+        .order_by(WorkshopScanAttempt.created_at.desc(), WorkshopScanAttempt.id.desc())
+        .all()
+    )
+    for event, scanner, piece, commessa in warehouse_scans:
+        scan_mode = scanner.scan_mode or "MAGAZZINO"
+        origin = "Scan inventario" if scan_mode == "MAGAZZINO_INVENTARIO" else "Scan mappatura"
+        daily_rows.append({
+            "data": event.created_at,
+            "vista": "magazzino",
+            "origine": origin,
+            "commessa": commessa.codice if commessa else None,
+            "dettaglio": f"{scanner.scanner_code} · {event.scan_kind}",
+            "esito": event.message if event.outcome == "OK" else f"{event.outcome}: {event.message}",
+        })
+
+    daily_rows.sort(key=lambda row: (row["data"] or today_start), reverse=True)
+
+    movement_type = lambda movement: movement.movement_type.value if hasattr(movement.movement_type, "value") else str(movement.movement_type)
+    return {
+        "date": today_start.date().isoformat(),
+        "summary": {
+            "commesse_total": len(commesse),
+            "commesse_aperte": sum(1 for c in commesse if c.status == CommessaStatus.APERTA),
+            "commesse_chiuse": sum(1 for c in commesse if c.status == CommessaStatus.CHIUSA),
+            "materiali_magazzino": db.query(Material).count(),
+            "pezzi_magazzino": len(physical_items),
+            "pezzi_disponibili": sum(1 for i in physical_items if i.status == "AVAILABLE" and not i.reserved_for_commessa),
+            "pezzi_prenotati": len(reserved_items),
+            "pezzi_usciti": sum(1 for i in physical_items if i.status == "EXITED" or i.exit_movement_id is not None),
+            "eventi_giornalieri": len(daily_rows),
+        },
+        "magazzino": {
+            "movimenti_oggi": len(movements_today),
+            "ingressi_oggi": sum(1 for m in movements_today if movement_type(m) == MovementType.INCOMING.value),
+            "uscite_oggi": sum(1 for m in movements_today if movement_type(m) in {MovementType.OUTGOING.value, MovementType.SFRIDO.value}),
+            "prenotazioni": sorted(reservations.values(), key=lambda row: (-row["pezzi"], row["commessa"]))[:50],
+            "movimenti": [
+                {
+                    "id": movement.id,
+                    "data": movement.occurred_at,
+                    "tipo": movement_type(movement),
+                    "materiale": getattr(movement.material, "code", None),
+                    "descrizione": getattr(movement.material, "description", None),
+                    "quantita": float(movement.quantity or 0),
+                    "commessa": movement.destination_commessa or (movement.commessa.codice if movement.commessa else None),
+                    "causale": movement.reason,
+                }
+                for movement in movements_today[:40]
+            ],
+        },
+        "giornaliera": {
+            "inizio": today_start,
+            "fine": tomorrow_start,
+            "scan_pezzi": len(piece_events),
+            "scan_fasi": len(phase_events),
+            "eventi_progettazione": len(design_events),
+            "ddt": 0,
+            "movimenti_magazzino": len(movements_today),
+            "scan_magazzino": len(warehouse_scans),
+            "timeline": daily_rows,
+        },
     }
 
 
@@ -3865,8 +4054,9 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
             "data": event.timestamp, "revisione_id": event.revisione_id,
             "durata_secondi": session.duration_seconds if session and session.close_event_id == event.id else None,
         })
-    from backend.app.models.commessa import ScannerPhaseEvent
-    phase_reads = db.query(ScannerPhaseEvent).filter_by(commessa_id=commessa_id).order_by(ScannerPhaseEvent.timestamp, ScannerPhaseEvent.id).all()
+    phase_reads = []
+    if _has_table(db, ScannerPhaseEvent.__tablename__):
+        phase_reads = db.query(ScannerPhaseEvent).filter_by(commessa_id=commessa_id).order_by(ScannerPhaseEvent.timestamp, ScannerPhaseEvent.id).all()
     for event in phase_reads:
         scans.setdefault(event.fase, []).append({
             "marca": event.entity_code, "postazione": event.workstation_code,
@@ -3877,20 +4067,20 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
         rows.sort(key=lambda row: row["data"])
     shipments = db.query(DdtShipment).filter_by(commessa_id=commessa_id).order_by(DdtShipment.created_at).all()
     readings = []
-    attempts = (db.query(WorkshopScanAttempt, Piece, Workstation)
+    attempts = (db.query(WorkshopScanAttempt, Piece, Workstation.code)
                 .join(Piece, Piece.id == WorkshopScanAttempt.piece_id)
                 .outerjoin(Workstation, Workstation.id == WorkshopScanAttempt.workstation_id)
                 .filter(Piece.commessa_id == commessa_id)
                 .order_by(WorkshopScanAttempt.created_at, WorkshopScanAttempt.id).all())
-    for attempt, piece, station in attempts:
-        if station and _is_assembly_station(station.code):
+    for attempt, piece, station_code in attempts:
+        if station_code and _is_assembly_station(station_code):
             continue
         linked = [s for s in sessions.values() if s.piece_id == piece.id
                   and attempt.scan_block_id is not None and s.scan_block_id == attempt.scan_block_id]
         readings.append({"scan_id": attempt.id, "piece_id": piece.id, "qr": piece.qr_code,
                          "posizione": piece.marca_pos, "progressivo": piece.progressivo,
                          "lavorazione": linked[0].lavoro_code if len(linked) == 1 else None,
-                         "postazione": station.code if station else None,
+                         "postazione": station_code,
                          "esito": attempt.outcome, "messaggio": attempt.message})
     master = (db.query(CommessaPostOfficinaItem).filter_by(revisione_id=revision.id).all() if revision else [])
     # The master shipment list is the denominator, not the number of QR scans.
@@ -3901,6 +4091,13 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
         expected = shipped = None
     adhoc_scans = db.query(SpedizioneAdHocItem).filter_by(commessa_id=commessa_id).filter(SpedizioneAdHocItem.trovato_at.isnot(None)).order_by(SpedizioneAdHocItem.trovato_at).all()
     progettazione = get_progettazione(commessa_id, db)
+    progettazione_eventi = (
+        db.query(ProgettazioneEvento)
+        .filter_by(commessa_id=commessa_id)
+        .order_by(ProgettazioneEvento.timestamp, ProgettazioneEvento.id)
+        .all()
+        if _has_table(db, ProgettazioneEvento.__tablename__) else []
+    )
     inizi = [row["iniziata_at"] for row in progettazione if row["iniziata_at"] is not None]
     fini = [row["completata_at"] for row in progettazione if row["completata_at"] is not None]
     analisi_distinta = None
@@ -3924,16 +4121,101 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
                            "righe": summary["n_bulloneria_righe"] or bolts.get("righe") or 0,
                            "pezzi": summary["n_bulloneria_totale"] or bolts.get("quantita_totale") or 0},
         }
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    current_pieces = (
+        db.query(Piece).filter_by(commessa_id=commessa_id, revisione_id=revision.id).all()
+        if revision else []
+    )
+    mapped_origin_ids = {piece.materiale_origine_id for piece in current_pieces if piece.materiale_origine_id}
+    reserved_warehouse_items = (
+        db.query(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .filter(WarehouseItem.reserved_for_commessa == commessa.codice)
+        .all()
+    )
+    linked_warehouse_items = (
+        db.query(WarehouseItem)
+        .options(joinedload(WarehouseItem.material))
+        .filter(WarehouseItem.id.in_(mapped_origin_ids))
+        .all()
+        if mapped_origin_ids else []
+    )
+    warehouse_by_id = {item.id: item for item in [*linked_warehouse_items, *reserved_warehouse_items]}
+    commessa_movements = (
+        db.query(StockMovement)
+        .options(joinedload(StockMovement.material))
+        .filter(or_(StockMovement.commessa_id == commessa_id, StockMovement.destination_commessa == commessa.codice))
+        .order_by(StockMovement.occurred_at.desc(), StockMovement.id.desc())
+        .all()
+    )
+    attempts_today = [attempt for attempt, _, _ in attempts if today_start <= attempt.created_at < tomorrow_start]
+    collection_daily = {
+        "scan_operativi": sum(1 for event in events if today_start <= event.timestamp < tomorrow_start),
+        "scan_fasi": sum(1 for event in phase_reads if today_start <= event.timestamp < tomorrow_start),
+        "letture_officina": len(attempts_today),
+        "ddt": sum(1 for shipment in shipments if shipment.created_at and today_start <= shipment.created_at < tomorrow_start),
+        "movimenti_magazzino": sum(1 for movement in commessa_movements if movement.occurred_at and today_start <= movement.occurred_at < tomorrow_start),
+        "eventi_progettazione": sum(1 for event in progettazione_eventi if today_start <= event.timestamp < tomorrow_start),
+    }
+    raccolta_dati = {
+        "commessa": {
+            "revisione": revision.codice if revision else None,
+            "pezzi_correnti": len(current_pieces),
+            "pezzi_qr_attivi": sum(1 for piece in current_pieces if piece.qr_attivo),
+            "scan_operativi": len(events),
+            "letture_officina": len(readings),
+            "scan_fasi": len(phase_reads),
+            "ddt": len(shipments),
+        },
+        "magazzino": {
+            "grezzi_collegati": len(mapped_origin_ids),
+            "grezzi_prenotati": len(reserved_warehouse_items),
+            "movimenti": len(commessa_movements),
+            "usciti": sum(1 for item in warehouse_by_id.values() if item.status == "EXITED" or item.exit_movement_id is not None),
+            "righe": [
+                {
+                    "uuid": item.uuid,
+                    "materiale": getattr(item.material, "code", None),
+                    "profilo": item.profilo or getattr(item.material, "profilo", None),
+                    "stato": item.status,
+                    "prenotato_per": item.reserved_for_commessa,
+                    "prenotato_il": item.reserved_at,
+                    "uscito_il": item.exited_at,
+                }
+                for item in sorted(
+                    warehouse_by_id.values(),
+                    key=lambda row: (getattr(row.material, "code", "") or "", row.ordinal or 0),
+                )[:80]
+            ],
+        },
+        "giornaliera": {
+            "data": today_start.date().isoformat(),
+            "totale": sum(collection_daily.values()),
+            **collection_daily,
+        },
+    }
     return {
         "commessa": {"codice": commessa.codice, "cliente": commessa.cliente, "stato": commessa.status,
                      "consegna": commessa.data_consegna_prevista},
         "revisione": revision.codice if revision else None,
         "progettazione": progettazione,
+        "progettazione_eventi": [
+            {
+                "id": event.id,
+                "voce": event.voce,
+                "label": PROGETTAZIONE_VOCI.get(event.voce, event.voce),
+                "evento": event.tipo_evento,
+                "data": event.timestamp,
+            }
+            for event in progettazione_eventi
+        ],
         "analisi_distinta": analisi_distinta,
         "progettazione_tempi": {
             "inizio_generale": min(inizi) if inizi else None,
             "fine_generale": max(fini) if fini else None,
         },
+        "raccolta_dati": raccolta_dati,
         **scans,
         "officina_letture": readings,
         "spedizione": {"previsti": expected, "spediti": shipped,
@@ -3957,8 +4239,10 @@ def update_progettazione(commessa_id: int, voce: str, body: ProgettazioneUpdate,
     started = body.inizio or body.fine
     if started and not row.inizio:
         row.iniziata_at = now
+        db.add(ProgettazioneEvento(commessa_id=commessa_id, voce=voce, tipo_evento="INIZIO", timestamp=now))
     if body.fine and not row.fine:
         row.completata_at = now
+        db.add(ProgettazioneEvento(commessa_id=commessa_id, voce=voce, tipo_evento="FINE", timestamp=now))
     if not body.fine:
         row.completata_at = None
     if not started:

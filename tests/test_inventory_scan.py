@@ -8,9 +8,34 @@ from backend.app.db.base import Base
 from backend.app.models.commessa import ScannerDevice, PieceWorkSession, WorkshopScanBlock
 from backend.app.models.warehouse import Material, WarehouseItem, ScanEvento, StockMovement, WarehouseChangeRequest, WarehouseChangeRequestStatus
 from backend.app.api.api_v1.endpoints.warehouse import _apply_change_request_payload
+from backend.app.api.api_v1.endpoints.warehouse import _apply_stock_movement_payload
 
 
 class InventoryScanTests(unittest.TestCase):
+    def test_manual_incoming_can_reserve_created_items_for_commessa(self):
+        engine = create_engine('sqlite://')
+        Base.metadata.create_all(engine)
+        try:
+            with Session(engine) as db:
+                material = Material(code='RESERVED', description='Prenotato', unit='PZ')
+                db.add(material)
+                db.flush()
+                movement = _apply_stock_movement_payload(db, {
+                    'material_id': material.id,
+                    'quantity': 2,
+                    'movement_type': 'INCOMING',
+                    'reason': 'Ingresso manuale',
+                    'reserved_for_commessa': 'C-100',
+                })
+                db.commit()
+                items = db.query(WarehouseItem).order_by(WarehouseItem.ordinal).all()
+                self.assertEqual(len(items), 2)
+                self.assertTrue(all(item.status == 'RESERVED' for item in items))
+                self.assertTrue(all(item.reserved_for_commessa == 'C-100' for item in items))
+                self.assertEqual(movement.destination_commessa, 'C-100')
+        finally:
+            engine.dispose()
+
     def test_inventory_records_presence_without_mapping_or_work_sessions(self):
         engine = create_engine('sqlite://')
         Base.metadata.create_all(engine)

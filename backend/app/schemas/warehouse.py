@@ -167,7 +167,7 @@ class StockMovementBase(BaseModel):
 
 
 class StockMovementCreate(StockMovementBase):
-    pass
+    reserved_for_commessa: Optional[str] = None
 
 
 class StockMovementRead(StockMovementBase):

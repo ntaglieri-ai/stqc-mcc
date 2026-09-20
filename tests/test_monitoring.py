@@ -5,12 +5,13 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from backend.app.api.api_v1.endpoints.commessa import get_monitoring
+from backend.app.api.api_v1.endpoints.commessa import get_dashboard_monitoring, get_monitoring
 from backend.app.db.base import Base
 from backend.app.models.commessa import (
     Commessa, CommessaRevisione, CommessaPostOfficinaItem, Piece, PieceScanEvent,
-    WorkshopScanAttempt, ProgettazioneItem,
+    ProgettazioneEvento, ScannerDevice, WorkshopScanAttempt, ProgettazioneItem,
 )
+from backend.app.models.warehouse import Material, MovementType, StockMovement, WarehouseItem
 
 
 class MonitoringTests(unittest.TestCase):
@@ -111,6 +112,80 @@ class MonitoringTests(unittest.TestCase):
         self.assertIsNone(result['officina'][0]['durata_secondi'])
         self.assertFalse(self.db.new)
         self.assertFalse(self.db.dirty)
+
+    def test_monitoring_exposes_collection_views(self):
+        revision = CommessaRevisione(commessa_id=self.commessa.id, codice='r01', corrente=True)
+        material = Material(code='HEA100', description='Profilo HEA', unit='PZ')
+        self.db.add_all([revision, material])
+        self.db.flush()
+        item = WarehouseItem(material_id=material.id, ordinal=1, reserved_for_commessa='MONITOR')
+        self.db.add(item)
+        self.db.flush()
+        piece = Piece(commessa_id=self.commessa.id, revisione_id=revision.id, qr_code='P1',
+                      qr_payload='P1', marca_pos='M1', progressivo=1, materiale_origine_id=item.id,
+                      qr_attivo=True)
+        self.db.add(piece)
+        self.db.flush()
+        self.db.add_all([
+            PieceScanEvent(piece_id=piece.id, commessa_id=self.commessa.id, revisione_id=revision.id,
+                           qr_code='P1', postazione_code='TAGLIO', event_type='PIECE_READ',
+                           timestamp=datetime.now()),
+            StockMovement(material_id=material.id, quantity=1, movement_type=MovementType.OUTGOING,
+                          reason='Prelievo commessa', destination_commessa='MONITOR',
+                          commessa_id=self.commessa.id, occurred_at=datetime.now()),
+        ])
+        self.db.commit()
+        result = get_monitoring(self.commessa.id, self.db)['raccolta_dati']
+        self.assertEqual(result['commessa']['pezzi_correnti'], 1)
+        self.assertEqual(result['commessa']['scan_operativi'], 1)
+        self.assertEqual(result['magazzino']['grezzi_collegati'], 1)
+        self.assertEqual(result['magazzino']['grezzi_prenotati'], 1)
+        self.assertEqual(result['magazzino']['movimenti'], 1)
+        self.assertGreaterEqual(result['giornaliera']['totale'], 2)
+        self.assertFalse(self.db.new)
+        self.assertFalse(self.db.dirty)
+
+    def test_dashboard_monitoring_has_warehouse_and_daily_views(self):
+        material = Material(code='IPE200', description='Profilo IPE', unit='PZ')
+        self.db.add(material)
+        self.db.flush()
+        self.db.add_all([
+            WarehouseItem(material_id=material.id, ordinal=1),
+            WarehouseItem(material_id=material.id, ordinal=2, reserved_for_commessa='MONITOR',
+                          reserved_at=datetime.now()),
+            StockMovement(material_id=material.id, quantity=2, movement_type=MovementType.INCOMING,
+                          reason='Carico test', occurred_at=datetime.now()),
+        ])
+        scanner = ScannerDevice(scanner_code='MAP-01', name='Mapping', device_token='map-01', scan_mode='MAGAZZINO')
+        self.db.add(scanner)
+        self.db.flush()
+        self.db.add(WorkshopScanAttempt(
+            scanner_device_id=scanner.id,
+            raw_payload='RAW-QR',
+            scan_kind='PREPROD_WAREHOUSE_ITEM',
+            outcome='OK',
+            message='Grezzo acquisito',
+            created_at=datetime.now(),
+        ))
+        self.db.add(ProgettazioneEvento(
+            commessa_id=self.commessa.id,
+            voce='distinte',
+            tipo_evento='INIZIO',
+            timestamp=datetime.now(),
+        ))
+        self.db.commit()
+        result = get_dashboard_monitoring(self.db)
+        self.assertEqual(result['summary']['commesse_total'], 1)
+        self.assertEqual(result['summary']['pezzi_magazzino'], 2)
+        self.assertEqual(result['summary']['pezzi_prenotati'], 1)
+        self.assertEqual(result['magazzino']['movimenti_oggi'], 1)
+        self.assertEqual(result['magazzino']['prenotazioni'][0]['commessa'], 'MONITOR')
+        self.assertEqual(result['giornaliera']['movimenti_magazzino'], 1)
+        self.assertEqual(result['giornaliera']['scan_magazzino'], 1)
+        self.assertEqual(result['giornaliera']['eventi_progettazione'], 1)
+        warehouse_events = [row for row in result['giornaliera']['timeline'] if row['vista'] == 'magazzino']
+        self.assertTrue(any(row['origine'] == 'Scan mappatura' for row in warehouse_events))
+        self.assertTrue(any(row['origine'] == 'Inizio progettazione' for row in result['giornaliera']['timeline']))
 
 
 if __name__ == '__main__':

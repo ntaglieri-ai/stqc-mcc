@@ -1849,6 +1849,10 @@
       <label class="ml">Quantità (pezzi)</label>
       <input class="mi" id="mov-qty" type="number" min="1" step="1" value="1"/>
     </div>
+    <div class="mf" id="mov-commessa-field">
+      <label class="ml">Prenotata per commessa</label>
+      <input class="mi" id="mov-commessa" type="text" placeholder="opzionale: codice commessa"/>
+    </div>
     <div class="mf">
       <label class="ml">Causale</label>
       <input class="mi" id="mov-reason" type="text" placeholder="es. Arrivo DDT, Rettifica inventario…"/>
@@ -3213,7 +3217,8 @@ function renderMappedGrezziDrawer() {
           <div class="mapped-meta">${esc(item.created_at ? new Date(item.created_at).toLocaleString('it-IT') : '')}</div>
         </div>
         <div class="notification-actions">
-          <button class="ddt-primary notification-apply" onclick="applyInventoryNotification(${Number(item.id)})">Applica</button>
+          ${item.payload?.uuid ? `<button class="ddt-secondary" onclick="openNotificationItem('${esc(item.payload.uuid)}')">Apri pezzo</button>` : ''}
+          <button class="ddt-primary notification-apply" onclick="applyInventoryNotification(${Number(item.id)})">${item.action === 'mapped_grezzo_outgoing' || item.action === 'item_outgoing' ? 'Conferma uscita' : 'Applica'}</button>
           <button class="ddt-primary notification-reject" onclick="rejectInventoryNotification(${Number(item.id)})">Rifiuta</button>
         </div>
       </div>
@@ -3231,7 +3236,7 @@ function renderMappedGrezziDrawer() {
           <div class="mapped-commessa">${esc(item.commessa || item.reserved_for_commessa || '—')}</div>
         </div>
         <div class="mapped-pieces">${Number(item.pieces_count || 0)} pz</div>
-        <button class="ddt-primary" onclick="manageMappedGrezzoOutgoing('${esc(item.uuid)}')">Richiedi uscita</button>
+        <button class="ddt-primary" onclick="openNotificationItem('${esc(item.uuid)}')">Apri pezzo</button>
       </div>
     `).join('')}` : '';
   if (!warehouseNotifications.length && !mappedGrezzi.length) {
@@ -3239,6 +3244,11 @@ function renderMappedGrezziDrawer() {
     return;
   }
   target.innerHTML = notificationsHtml + mappedHtml;
+}
+
+function openNotificationItem(uuid) {
+  closeMappedGrezziDrawer();
+  openQrPreview(uuid);
 }
 
 async function refreshMappedGrezzi() {
@@ -3801,10 +3811,22 @@ function closeQrPreview(){
 }
 function printPreviewItem(){if(previewItem)printItemLabel(previewItem.uuid);}
 
-function openOutgoingForPreviewItem() {
-  if (!previewItemDetail?.material_id) return;
-  closeQrPreview();
-  openMov(previewItemDetail.material_id, 'out');
+async function openOutgoingForPreviewItem() {
+  if (!previewItemDetail?.uuid) return;
+  const label = previewItemDetail.label || previewItemDetail.uuid;
+  if (!confirm(`Creare la notifica di uscita per questo pezzo?\n\n${label}`)) return;
+  try {
+    await queueInventoryChange(
+      'item_outgoing',
+      'Uscita pezzo magazzino',
+      label,
+      {uuid: previewItemDetail.uuid, reason: 'Uscita manuale da scheda inventario'}
+    );
+    closeQrPreview();
+    showToast('Notifica uscita creata', 'ok');
+  } catch (err) {
+    showToast(err.message || String(err), 'err');
+  }
 }
 
 function collectItemPayload() {
@@ -4032,6 +4054,7 @@ function openMov(matId, tipo, e) {
     ? [row.tipo, row.profilo, row.dimensioni].filter(Boolean).join(' · ')
     : (isIn ? 'Seleziona un materiale esistente oppure creane uno nuovo' : 'Seleziona il materiale in magazzino');
   document.getElementById('mov-mode-tabs').style.display = isIn && !matId ? 'flex' : 'none';
+  document.getElementById('mov-commessa-field').style.display = isIn ? 'block' : 'none';
   document.getElementById('mov-search-field').style.display = matId ? 'none' : 'block';
   setMovMode('existing');
   document.getElementById('mov-mat-selected').classList.remove('show');
@@ -4044,6 +4067,7 @@ function openMov(matId, tipo, e) {
   ok.textContent = isIn ? '↑ Conferma ingresso' : '↓ Conferma uscita';
   document.getElementById('mov-qty').value = '1';
   document.getElementById('mov-reason').value = '';
+  document.getElementById('mov-commessa').value = '';
   document.getElementById('mov-err').classList.remove('show');
   bulkIncomingRows = [];
   renderBulkIncomingRows();
@@ -4116,6 +4140,7 @@ async function confirmMov() {
   const opMode = movMode;
   const isIn = opTipo === 'in';
   const reason  = document.getElementById('mov-reason').value.trim() || (isIn ? 'Ingresso manuale' : 'Uscita manuale');
+  const reservedForCommessa = isIn ? (document.getElementById('mov-commessa').value.trim() || null) : null;
   const ok = document.getElementById('mov-ok'); ok.disabled=true; ok.textContent='Salvataggio…';
   const knownTypesBefore = new Set(allRows.map(row => typeLabel(row.tipo)));
   let manualNewItems = [];
@@ -4124,6 +4149,7 @@ async function confirmMov() {
     if (opMode === 'new') {
       if (!isIn) throw new Error('Nuovo materiale disponibile solo in ingresso.');
       const items = bulkIncomingRows.length ? bulkIncomingRows : [collectNewMaterialPayload(qty, reason)];
+      items.forEach(item => { if (!item.commessa_ref && reservedForCommessa) item.commessa_ref = reservedForCommessa; });
       manualNewItems = items;
       res = await fetch('/api/v1/warehouse/materials/bulk-incoming',{
         method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
@@ -4134,7 +4160,7 @@ async function confirmMov() {
       res = await fetch('/api/v1/warehouse/movements',{
         method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
         body:JSON.stringify({material_id:movCtx.material_id,quantity:qty,
-          movement_type:isIn?'INCOMING':'OUTGOING',reason}),
+          movement_type:isIn?'INCOMING':'OUTGOING',reason,reserved_for_commessa:reservedForCommessa}),
       });
     }
     if(!res.ok){const d=await res.json().catch(()=>{}); throw new Error(d?.detail||`Errore ${res.status}`);}
@@ -4186,6 +4212,7 @@ function collectNewMaterialPayload(quantity, reason) {
     peso_1_pz: numOrNull(document.getElementById('new-peso-pz').value),
     quantity,
     reason,
+    commessa_ref: document.getElementById('mov-commessa').value.trim() || null,
   };
   if (!payload.code && !payload.tipo && !payload.profilo) throw new Error('Inserisci almeno codice, tipo o profilo.');
   return payload;

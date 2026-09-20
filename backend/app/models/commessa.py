@@ -568,6 +568,16 @@ class ProgettazioneItem(Base):
     completata_at = Column(DateTime, nullable=True)
 
 
+class ProgettazioneEvento(Base):
+    """Registro append-only delle transizioni della checklist di progettazione."""
+    __tablename__ = "commessa_progettazione_eventi"
+    id = Column(Integer, primary_key=True)
+    commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
+    voce = Column(String(60), nullable=False, index=True)
+    tipo_evento = Column(String(20), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
 class ScannerPhaseEvent(Base):
     """Physical reading with immutable station and phase at scan time."""
     __tablename__ = "scanner_phase_events"

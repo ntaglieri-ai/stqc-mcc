@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.api_v1.endpoints import commessa as api
 from backend.app.db.base import Base
-from backend.app.models.commessa import Commessa, CommessaRevisione, CommessaStatus, Piece
+from backend.app.models.commessa import Commessa, CommessaRevisione, CommessaStatus, Piece, ProgettazioneEvento
 from backend.app.models.warehouse import DistintaImport, DistintaItem
 from backend.app.models import user  # noqa: F401 - register referenced tables
 from backend.app.schemas.commessa import CommessaUpdate
@@ -73,6 +73,10 @@ class CommessaQrTests(unittest.TestCase):
         repeated = api.update_progettazione(self.commessa.id, "modello_ifc", api.ProgettazioneUpdate(inizio=True, fine=True), db=self.db)
         self.assertEqual(repeated["iniziata_at"], result["iniziata_at"])
         self.assertEqual(repeated["completata_at"], result["completata_at"])
+        self.assertEqual(
+            [event.tipo_evento for event in self.db.query(ProgettazioneEvento).order_by(ProgettazioneEvento.id)],
+            ["INIZIO", "FINE"],
+        )
         self.db.expire_all()
         saved = api.get_progettazione(self.commessa.id, db=self.db)
         self.assertTrue(saved[0]["fine"])
@@ -89,6 +93,10 @@ class CommessaQrTests(unittest.TestCase):
         self.assertIsNotNone(ongoing["iniziata_at"])
         self.assertIsNone(ongoing["completata_at"])
         self.assertEqual(self.commessa.status, CommessaStatus.APERTA)
+        self.assertEqual(
+            [event.tipo_evento for event in self.db.query(ProgettazioneEvento).order_by(ProgettazioneEvento.id)],
+            ["INIZIO", "FINE", "INIZIO"],
+        )
 
     def test_upload_requires_distinte_started_for_same_commessa(self):
         def upload():
