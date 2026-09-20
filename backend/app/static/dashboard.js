@@ -471,15 +471,7 @@
       result.append(meta);
       const progettazioneTempi = data.progettazione_tempi || {};
       section('Progettazione', `Inizio generale: ${date(progettazioneTempi.inizio_generale)} · Fine generale: ${date(progettazioneTempi.fine_generale)}. Primo inizio e ultima fine registrati per la commessa, anche con attività ancora aperte.`, ['Fase', 'Stato', 'Inizio', 'Fine'], data.progettazione.map(r => [r.label, r.fine ? 'Completata' : r.inizio ? 'On going' : 'Da fare', r.inizio ? date(r.iniziata_at) : '—', r.fine ? date(r.completata_at) : '—']));
-      const distinta = data.analisi_distinta;
       const numero = value => Number(value || 0).toLocaleString('it-IT');
-      const acquisizione = row => row.acquisito ? 'Acquisito' : 'Manca';
-      section('Analisi distinta', distinta ? 'Dati della revisione corrente, come nella sezione Analisi distinta.' : 'Nessuna analisi caricata per la commessa.', ['Documento', 'Stato', 'Totale', 'Dettaglio'], distinta ? [
-        ['Lista pezzi', acquisizione(distinta.lista_pezzi), `${numero(distinta.lista_pezzi.pezzi)} pezzi`, `${numero(distinta.lista_pezzi.codici_distinti)} codici distinti · ${numero(distinta.lista_pezzi.profili_qualita)} profili/qualità`],
-        ['Assemblati', acquisizione(distinta.assemblati), `${numero(distinta.assemblati.assemblati)} assemblati`, `${numero(distinta.assemblati.riferimenti)} riferimenti`],
-        ['Spedizione', acquisizione(distinta.spedizione), `${numero(distinta.spedizione.righe)} righe`, `${numero(distinta.spedizione.unita)} unità`],
-        ['Bulloneria', acquisizione(distinta.bulloneria), `${numero(distinta.bulloneria.righe)} righe`, `${numero(distinta.bulloneria.pezzi)} pezzi · senza QR fisico`],
-      ] : []);
       const raccolta = data.raccolta_dati || {};
       const rdCommessa = raccolta.commessa || {};
       const rdMagazzino = raccolta.magazzino || {};
@@ -492,11 +484,9 @@
       if ((rdMagazzino.righe || []).length) {
         section('Magazzino collegato', 'Grezzi collegati o prenotati per questa commessa.', ['Materiale', 'Profilo', 'Stato', 'Prenotato per', 'Prenotato il', 'Uscito il'], rdMagazzino.righe.map(r => [r.materiale, r.profilo, r.stato, r.prenotato_per, date(r.prenotato_il), date(r.uscito_il)]));
       }
-      const workshopPhase = section('Lavorazioni officina', 'Raccolta dati per la commessa: mapping materiale e scansioni.', [], []);
-      const mapping = section('Mapping materiale', 'Collegamenti tra grezzi di magazzino e pezzi di commessa. Raccolta dati da collegare.', [], []);
-      workshopPhase.append(mapping);
+      const workshopPhase = section('Lavorazioni officina', 'Registro operativo della commessa alimentato dalle scansioni in officina.', [], []);
       const readings = data.officina_letture || [];
-      const workshop = section('Scansioni', 'Letture dei pezzi della commessa. Sono mantenute le letture già disponibili; completeremo la raccolta nel prossimo passaggio.', [], []);
+      const workshop = section('Letture fisiche', 'Ogni scansione resta registrata con pezzo, postazione ed esito.', [], []);
       workshopPhase.append(workshop);
       const toggleLabel = document.createElement('label');
       toggleLabel.className = 'monitor-group-toggle';
@@ -522,7 +512,8 @@
       }
       toggle.addEventListener('change', () => { grouped = toggle.checked; renderReadings(); });
       renderReadings();
-      for (const [key, title] of [['officina', 'Scansioni officina'], ['assemblaggi', 'Assemblaggi'], ['saldature', 'Saldature'], ['lavorazioni', 'Scansioni lavorazioni'], ['in-cantiere', 'Scansioni spedizione']]) {
+      section('Blocchi officina', (data.officina || []).length ? 'Un rilevamento per ogni ciclo INIZIO-FINE, con il numero di pezzi scannerizzati nel mezzo.' : 'Nessun ciclo officina registrato.', ['Postazione', 'Inizio', 'Fine', 'Numero scan', 'Stato'], (data.officina || []).map(r => [r.postazione, date(r.inizio), date(r.fine), r.numero_scan, readable(r.stato)]));
+      for (const [key, title] of [['assemblaggi', 'Assemblaggi'], ['saldature', 'Saldature'], ['lavorazioni', 'Scansioni lavorazioni'], ['in-cantiere', 'Scansioni spedizione']]) {
         section(title, (data[key] || []).length ? 'Sequenza cronologica, tutte le revisioni. Durata solo per sessioni chiuse e collegate; non è il tempo tra due scansioni.' : 'Nessuna scansione operativa registrata.', ['Marca', 'Postazione', 'Evento', 'Data e ora', 'Durata sessione'], (data[key] || []).map(r => [r.marca, r.postazione, readable(r.evento), date(r.data), r.durata_secondi == null ? 'Non registrata' : `${Math.floor(r.durata_secondi / 60)} min ${r.durata_secondi % 60} s`]));
       }
       const counts = rows => Object.entries(rows.reduce((acc, r) => {acc[r.stato] = (acc[r.stato] || 0) + 1; return acc;}, {})).map(([state, n]) => [readable(state), n]);

@@ -9,7 +9,8 @@ from backend.app.api.api_v1.endpoints.commessa import get_dashboard_monitoring, 
 from backend.app.db.base import Base
 from backend.app.models.commessa import (
     Commessa, CommessaRevisione, CommessaPostOfficinaItem, Piece, PieceScanEvent,
-    ProgettazioneEvento, ScannerDevice, WorkshopScanAttempt, ProgettazioneItem,
+    ProgettazioneEvento, ScannerDevice, WorkshopScanAttempt, WorkshopScanBlock,
+    ProgettazioneItem, Workstation,
 )
 from backend.app.models.warehouse import Material, MovementType, StockMovement, WarehouseItem
 
@@ -31,7 +32,7 @@ class MonitoringTests(unittest.TestCase):
         result = get_monitoring(self.commessa.id, self.db)
         self.assertIsNone(result['spedizione']['previsti'])
         self.assertEqual(result['officina'], [])
-        self.assertIsNone(result['analisi_distinta'])
+        self.assertNotIn('analisi_distinta', result)
         self.assertEqual(result['progettazione_tempi'], {'inizio_generale': None, 'fine_generale': None})
         self.assertTrue(all(r['stato'] == 'NON_INIZIATA' for r in result['progettazione']))
         with self.assertRaises(HTTPException) as error:
@@ -59,7 +60,7 @@ class MonitoringTests(unittest.TestCase):
         })
         self.assertFalse(self.db.dirty)
 
-    def test_analysis_numbers_use_current_revision_and_match_analysis(self):
+    def test_analysis_data_is_not_exposed_in_monitoring(self):
         old = CommessaRevisione(commessa_id=self.commessa.id, codice='r01', corrente=False,
                                report_analisi={'assemblies': 999})
         current = CommessaRevisione(commessa_id=self.commessa.id, codice='r02', corrente=True,
@@ -74,13 +75,8 @@ class MonitoringTests(unittest.TestCase):
         self.db.add(Piece(commessa_id=self.commessa.id, revisione_id=current.id,
                           qr_code='NEW', qr_payload='NEW', marca_pos='NEW', progressivo=1))
         self.db.commit()
-        result = get_monitoring(self.commessa.id, self.db)['analisi_distinta']
-        self.assertEqual(result['lista_pezzi'], {'acquisito': True, 'pezzi': 1, 'codici_distinti': 0, 'profili_qualita': 0})
-        self.assertEqual(result['assemblati'], {'acquisito': True, 'assemblati': 12, 'riferimenti': 25})
-        self.assertEqual(result['spedizione']['righe'], 8)
-        self.assertEqual(result['spedizione']['unita'], 30)
-        self.assertEqual(result['bulloneria']['righe'], 4)
-        self.assertEqual(result['bulloneria']['pezzi'], 120)
+        result = get_monitoring(self.commessa.id, self.db)
+        self.assertNotIn('analisi_distinta', result)
         self.assertFalse(self.db.new)
         self.assertFalse(self.db.dirty)
 
@@ -106,10 +102,8 @@ class MonitoringTests(unittest.TestCase):
         self.assertNotEqual(result['officina_letture'][0]['scan_id'], result['officina_letture'][1]['scan_id'])
         self.assertEqual(result['spedizione']['previsti'], 10)
         self.assertEqual(result['spedizione']['spediti'], 3)
-        self.assertEqual(len(result['officina']), 1)
+        self.assertEqual(len(result['officina']), 0)
         self.assertEqual(len(result['assemblaggi']), 1)
-        self.assertEqual(result['officina'][0]['marca'], 'M1')
-        self.assertIsNone(result['officina'][0]['durata_secondi'])
         self.assertFalse(self.db.new)
         self.assertFalse(self.db.dirty)
 
@@ -186,6 +180,65 @@ class MonitoringTests(unittest.TestCase):
         warehouse_events = [row for row in result['giornaliera']['timeline'] if row['vista'] == 'magazzino']
         self.assertTrue(any(row['origine'] == 'Scan mappatura' for row in warehouse_events))
         self.assertTrue(any(row['origine'] == 'Inizio progettazione' for row in result['giornaliera']['timeline']))
+
+    def test_workshop_block_is_one_event_with_scan_count(self):
+        revision = CommessaRevisione(commessa_id=self.commessa.id, codice='r01', corrente=True)
+        station = Workstation(
+            code='TAGLIO', name='Taglio', fase='officina',
+            start_qr_code='WS:TAGLIO:START', end_qr_code='WS:TAGLIO:END',
+        )
+        scanner = ScannerDevice(scanner_code='OFF-01', name='Officina', device_token='off-01')
+        self.db.add_all([revision, station, scanner])
+        self.db.flush()
+        piece = Piece(
+            commessa_id=self.commessa.id, revisione_id=revision.id,
+            qr_code='P1', qr_payload='P1', marca_pos='M1', progressivo=1,
+        )
+        self.db.add(piece)
+        self.db.flush()
+        moment = datetime.now().replace(hour=10, minute=30, second=0, microsecond=0)
+        block = WorkshopScanBlock(
+            scanner_device_id=scanner.id, workstation_id=station.id, workstation_code=station.code,
+            status='CLOSED', started_at=moment, closed_at=moment.replace(hour=12),
+            start_payload='WS:TAGLIO:START', end_payload='WS:TAGLIO:END', piece_count=1,
+        )
+        self.db.add(block)
+        self.db.flush()
+        self.db.add_all([
+            WorkshopScanAttempt(
+                scanner_device_id=scanner.id, workstation_id=station.id, scan_block_id=block.id,
+                piece_id=piece.id, raw_payload='P1', scan_kind='PIECE', outcome='OK',
+                message='Pezzo acquisito', created_at=moment.replace(hour=11),
+            ),
+            PieceScanEvent(
+                piece_id=piece.id, commessa_id=self.commessa.id, revisione_id=revision.id,
+                qr_code='P1', postazione_id=station.id, postazione_code=station.code,
+                event_type='PHASE_START', timestamp=moment.replace(hour=11), scan_block_id=block.id,
+            ),
+            PieceScanEvent(
+                piece_id=piece.id, commessa_id=self.commessa.id, revisione_id=revision.id,
+                qr_code='P1', postazione_id=station.id, postazione_code=station.code,
+                event_type='PHASE_END', timestamp=moment.replace(hour=12), scan_block_id=block.id,
+            ),
+        ])
+        self.db.commit()
+
+        result = get_dashboard_monitoring(self.db)
+        rows = [row for row in result['giornaliera']['timeline'] if row['commessa'] == 'MONITOR']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['origine'], 'Lavorazione officina')
+        self.assertEqual(rows[0]['dettaglio'], 'TAGLIO')
+        self.assertEqual(rows[0]['esito'], '1 scan · Conclusa')
+
+        commessa_result = get_monitoring(self.commessa.id, self.db)
+        self.assertEqual(commessa_result['officina'], [{
+            'blocco_id': block.id,
+            'postazione': 'TAGLIO',
+            'inizio': moment,
+            'fine': moment.replace(hour=12),
+            'stato': 'CLOSED',
+            'numero_scan': 1,
+        }])
 
 
 if __name__ == '__main__':

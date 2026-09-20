@@ -516,8 +516,9 @@ def get_dashboard_monitoring(
 
     daily_rows: list[dict] = []
     piece_events = (
-        db.query(PieceScanEvent, Commessa)
+        db.query(PieceScanEvent, Commessa, Workstation)
         .join(Commessa, Commessa.id == PieceScanEvent.commessa_id)
+        .outerjoin(Workstation, Workstation.id == PieceScanEvent.postazione_id)
         .filter(
             PieceScanEvent.event_type.in_(workshop_event_types),
             PieceScanEvent.timestamp >= today_start,
@@ -526,15 +527,57 @@ def get_dashboard_monitoring(
         .order_by(PieceScanEvent.timestamp.desc(), PieceScanEvent.id.desc())
         .all()
     )
-    for event, commessa in piece_events:
+    for event, commessa, workstation in piece_events:
+        phase = (workstation.fase if workstation else None) or (
+            "assemblaggi" if _is_assembly_station(event.postazione_code) else "officina"
+        )
+        if phase == "officina":
+            continue
         daily_rows.append({
             "data": event.timestamp,
             "vista": "commessa",
-            "origine": "Scan pezzo",
+            "origine": f"Scan {phase}",
             "commessa": commessa.codice,
-            "dettaglio": event.postazione_code or event.event_type,
+            "dettaglio": f"{event.postazione_code or 'Postazione non indicata'} · {event.qr_code}",
             "esito": event.event_type,
         })
+
+    workshop_attempts = (
+        db.query(WorkshopScanAttempt, WorkshopScanBlock, Workstation, Piece, Commessa)
+        .join(WorkshopScanBlock, WorkshopScanBlock.id == WorkshopScanAttempt.scan_block_id)
+        .join(Workstation, Workstation.id == WorkshopScanBlock.workstation_id)
+        .join(Piece, Piece.id == WorkshopScanAttempt.piece_id)
+        .join(Commessa, Commessa.id == Piece.commessa_id)
+        .filter(
+            Workstation.fase == "officina",
+            WorkshopScanAttempt.scan_kind == "PIECE",
+            WorkshopScanAttempt.outcome == "OK",
+        )
+        .all()
+    )
+    workshop_blocks: dict[tuple[int, int], dict] = {}
+    for attempt, block, workstation, _piece, commessa in workshop_attempts:
+        event_at = block.closed_at or block.started_at
+        if not (today_start <= event_at < tomorrow_start):
+            continue
+        key = (block.id, commessa.id)
+        row = workshop_blocks.setdefault(key, {
+            "data": event_at,
+            "vista": "commessa",
+            "origine": "Lavorazione officina",
+            "commessa": commessa.codice,
+            "dettaglio": workstation.code,
+            "scan_ids": set(),
+            "started_at": block.started_at,
+            "closed_at": block.closed_at,
+        })
+        row["scan_ids"].add(attempt.id)
+    for row in workshop_blocks.values():
+        scan_count = len(row.pop("scan_ids"))
+        state = "Conclusa" if row.pop("closed_at") else "In corso"
+        row.pop("started_at")
+        row["esito"] = f"{scan_count} scan · {state}"
+        daily_rows.append(row)
 
     phase_events = []
     if _has_table(db, ScannerPhaseEvent.__tablename__):
@@ -546,10 +589,13 @@ def get_dashboard_monitoring(
             .all()
         )
     for event, commessa in phase_events:
+        if event.fase == "officina":
+            continue
+        phase_label = "Lavorazioni officina" if event.fase == "officina" else event.fase
         daily_rows.append({
             "data": event.timestamp,
             "vista": "commessa",
-            "origine": f"Scan {event.fase}",
+            "origine": f"Lettura {phase_label}",
             "commessa": commessa.codice,
             "dettaglio": event.workstation_code,
             "esito": event.entity_code,
@@ -651,8 +697,14 @@ def get_dashboard_monitoring(
         "giornaliera": {
             "inizio": today_start,
             "fine": tomorrow_start,
-            "scan_pezzi": len(piece_events),
-            "scan_fasi": len(phase_events),
+            "scan_pezzi": len(workshop_blocks) + sum(
+                1
+                for event, _commessa, workstation in piece_events
+                if ((workstation.fase if workstation else None) or (
+                    "assemblaggi" if _is_assembly_station(event.postazione_code) else "officina"
+                )) != "officina"
+            ),
+            "scan_fasi": sum(1 for event, _commessa in phase_events if event.fase != "officina"),
             "eventi_progettazione": len(design_events),
             "ddt": 0,
             "movimenti_magazzino": len(movements_today),
@@ -4043,11 +4095,18 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
               .order_by(PieceScanEvent.timestamp, PieceScanEvent.id).all())
     sessions = {s.id: s for s in db.query(PieceWorkSession).filter_by(commessa_id=commessa_id).all()}
     scans = {"officina": [], "assemblaggi": []}
+    workstation_phases = {
+        row.id: row.fase for row in db.query(Workstation.id, Workstation.fase).all()
+    }
     for event in events:
         if event.event_type not in {"PIECE_READ", "PHASE_START", "PHASE_DONE", "PHASE_END"}:
             continue
         session = sessions.get(event.session_id)
-        section = "assemblaggi" if _is_assembly_station(event.postazione_code) else "officina"
+        section = workstation_phases.get(event.postazione_id) or (
+            "assemblaggi" if _is_assembly_station(event.postazione_code) else "officina"
+        )
+        if section == "officina":
+            continue
         scans[section].append({
             "marca": event.piece.marca_pos if event.piece else None,
             "postazione": event.postazione_code, "evento": event.event_type,
@@ -4082,6 +4141,30 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
                          "lavorazione": linked[0].lavoro_code if len(linked) == 1 else None,
                          "postazione": station_code,
                          "esito": attempt.outcome, "messaggio": attempt.message})
+    block_rows: dict[int, dict] = {}
+    for attempt, piece, station_code in attempts:
+        if attempt.scan_block_id is None or attempt.outcome != "OK" or attempt.scan_kind != "PIECE":
+            continue
+        block = db.get(WorkshopScanBlock, attempt.scan_block_id)
+        station = db.get(Workstation, block.workstation_id) if block else None
+        if not block or (station and station.fase != "officina"):
+            continue
+        row = block_rows.setdefault(block.id, {
+            "blocco_id": block.id,
+            "postazione": block.workstation_code,
+            "inizio": block.started_at,
+            "fine": block.closed_at,
+            "stato": block.status,
+            "scan_ids": set(),
+        })
+        row["scan_ids"].add(attempt.id)
+    scans["officina"] = [
+        {
+            **{key: value for key, value in row.items() if key != "scan_ids"},
+            "numero_scan": len(row["scan_ids"]),
+        }
+        for row in sorted(block_rows.values(), key=lambda item: item["inizio"])
+    ]
     master = (db.query(CommessaPostOfficinaItem).filter_by(revisione_id=revision.id).all() if revision else [])
     # The master shipment list is the denominator, not the number of QR scans.
     expected = sum(float(r.quantita or 0) for r in master) if master else None
@@ -4100,27 +4183,6 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
     )
     inizi = [row["iniziata_at"] for row in progettazione if row["iniziata_at"] is not None]
     fini = [row["completata_at"] for row in progettazione if row["completata_at"] is not None]
-    analisi_distinta = None
-    if revision:
-        analysis = get_analisi_commessa(commessa_id, db)
-        summary = analysis["summary"]
-        report = analysis["revisione"]["report"] or {}
-        files = analysis["revisione"]["files"]
-        assemblies = report.get("assemblaggi") or {}
-        shipping = report.get("spedizione") or {}
-        bolts = report.get("bulloneria") or {}
-        assembly_count = summary["n_assemblati"] or assemblies.get("assemblati") or report.get("assemblies") or 0
-        analisi_distinta = {
-            "lista_pezzi": {"acquisito": bool(files["lista_pezzi"]), "pezzi": summary["n_pezzi"],
-                            "codici_distinti": summary["n_codici_pezzo"], "profili_qualita": summary["n_profili"]},
-            "assemblati": {"acquisito": bool(files["assemblaggi"]), "assemblati": assembly_count,
-                           "riferimenti": assemblies.get("righe") or report.get("assemblies") or assembly_count},
-            "spedizione": {"acquisito": bool(files["spedizione"]), "righe": shipping.get("righe") or 0,
-                           "unita": shipping.get("quantita") or 0},
-            "bulloneria": {"acquisito": bool(files["bulloneria"]),
-                           "righe": summary["n_bulloneria_righe"] or bolts.get("righe") or 0,
-                           "pezzi": summary["n_bulloneria_totale"] or bolts.get("quantita_totale") or 0},
-        }
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow_start = today_start + timedelta(days=1)
     current_pieces = (
@@ -4210,7 +4272,6 @@ def get_monitoring(commessa_id: int, db: Session = Depends(get_db)):
             }
             for event in progettazione_eventi
         ],
-        "analisi_distinta": analisi_distinta,
         "progettazione_tempi": {
             "inizio_generale": min(inizi) if inizi else None,
             "fine_generale": max(fini) if fini else None,
