@@ -124,3 +124,49 @@ main.monitor-page{padding-top:24px;max-width:1600px}.monitor-page .eyebrow[hidde
 .event-group tbody td:first-child{width:105px;color:#b9d5ff;font-variant-numeric:tabular-nums}
 .event-group tbody td:nth-child(2){font-weight:650;color:#dbe8f6}
 @media(max-width:760px){.monitor-datebar{flex-wrap:wrap}.monitor-datebar #monitor-status{width:100%;margin-top:4px!important}.event-group-head{display:block}.event-group-head p{margin-top:4px!important}}
+
+/* Event visibility toolbar and cleanup dialog */
+.monitoring .monitor-cleanup-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 26px;padding:12px 0;border-top:1px solid #29435d;border-bottom:1px solid #29435d}
+.monitoring .monitor-visibility-switch{display:inline-flex;align-items:center;gap:10px;margin:0;cursor:pointer;white-space:nowrap;color:#a8bed5;font-size:13px;line-height:1.4}
+.monitoring .monitor-visibility-switch input{appearance:none;-webkit-appearance:none;position:relative;flex:0 0 34px;width:34px;min-width:34px;max-width:34px;height:20px;margin:0;padding:0;border:1px solid #4b627a;border-radius:20px;background:#243c53;cursor:pointer;transition:background .18s,border-color .18s}
+.monitoring .monitor-visibility-switch input::before{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#abc0d5;transition:transform .18s}
+.monitoring .monitor-visibility-switch input:checked{background:#256c70;border-color:#55b8b2}
+.monitoring .monitor-visibility-switch input:checked::before{transform:translateX(14px);background:#e7fffb}
+.monitoring .monitor-cleanup-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:8px 12px;border:1px solid #3d5772;border-radius:8px;background:#162f48;color:#c5d7e9;font-size:12px;line-height:1.3;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s}
+.monitoring .monitor-cleanup-button:hover{background:#203d58;border-color:#6b8aaa}
+.monitor-cleanup-dialog{box-sizing:border-box;max-width:480px;width:calc(100% - 32px);border:1px solid #3d566f;border-radius:18px;background:#11283e;color:#eaf2ff;padding:28px;box-shadow:0 24px 90px #0008}
+.monitor-cleanup-dialog::backdrop{background:rgba(4,12,24,.76);backdrop-filter:blur(4px)}
+.monitor-cleanup-dialog h2{margin:0 0 10px;font-size:22px;font-weight:650;letter-spacing:-.02em}
+.monitor-cleanup-dialog p{line-height:1.6;font-size:14px;color:#b2c5da}
+.monitoring .monitor-cleanup-dialog label{display:grid;gap:8px;margin:22px 0 12px;font-size:12px;font-weight:600;color:#c1d1e3}
+.monitor-cleanup-dialog select{width:100%;background:#19354e;color:#eaf2ff;border:1px solid #415d78;border-radius:9px;padding:11px 12px;font:inherit;color-scheme:dark}
+#cleanup-preview{padding:12px 14px;background:#19384a;border:1px solid #315568;border-radius:10px;color:#c0e6df;font-size:13px}
+.monitor-cleanup-dialog .cleanup-note{color:#8da7c0;font-size:12px}
+.cleanup-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:24px;padding-top:18px;border-top:1px solid #2b455e}
+.monitoring .cleanup-actions button{background:transparent;color:#b7cce1;border:1px solid #405a73;border-radius:9px;padding:10px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.monitoring .cleanup-actions button:disabled{opacity:.35;cursor:default}
+.monitoring #cleanup-hide{background:#297d7b;border-color:#459c98;color:#f1fffc}
+.monitor-hidden-event{opacity:.55}.monitor-hidden-event td:nth-child(2)::after{content:' · Nascosto';font-size:11px}
+#cleanup-error{color:#ffb3b3;margin-bottom:0}#cleanup-error:empty{display:none}
+@media(max-width:460px){.monitoring .monitor-cleanup-bar{gap:12px}.monitoring .monitor-visibility-switch{font-size:12px;gap:8px}.monitoring .monitor-cleanup-button{padding:8px 10px}.monitor-cleanup-dialog{padding:22px}.cleanup-actions{justify-content:stretch}.cleanup-actions button{flex:1}}
+
+/* Keep monitoring controls visible; only the event register scrolls. */
+body.monitor-fixed-layout{height:100vh;height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.monitor-fixed-layout>.top{height:42px;min-height:42px;padding:0 30px;font-size:12px;background:#0b1726}
+.monitor-fixed-layout main.monitor-page{width:100%;flex:1;min-height:0;display:flex;flex-direction:column;padding:16px 30px 0;margin:0 auto;overflow:hidden}
+.monitor-fixed-layout .monitor-page>header{flex-shrink:0;gap:16px;padding-bottom:12px}
+.monitor-fixed-layout .monitor-page h1{font-size:25px;line-height:1.2;margin:0}
+.monitor-fixed-layout .monitor-page .intro{font-size:12px;line-height:1.4}
+.monitor-fixed-layout .monitor-page .workspace.monitoring{flex:1;min-height:0;display:flex;flex-direction:column;margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:hidden}
+.monitor-fixed-layout .monitor-commandbar{flex-shrink:0;margin:0;min-height:43px;gap:12px}
+.monitor-fixed-layout .monitor-commandbar .monitor-tab{padding:10px 2px!important;font-size:13px}
+.monitor-fixed-layout .monitor-datebar{flex-shrink:0;gap:8px;margin:10px 0}
+.monitor-fixed-layout .monitoring .monitor-datebar button,.monitor-fixed-layout .monitoring .monitor-datebar input{height:34px;padding:6px 10px;font-size:12px}
+.monitor-fixed-layout .monitoring .monitor-cleanup-bar{flex-shrink:0;padding:7px 0;margin:0;border-top:0;gap:12px}
+.monitor-fixed-layout .monitoring .monitor-cleanup-button{min-height:30px;padding:6px 10px}
+.monitor-fixed-layout .monitoring .monitor-visibility-switch{font-size:12px}
+.monitor-fixed-layout #event-register{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:16px 8px 24px 0}
+.monitor-fixed-layout #event-register:focus-visible{outline:2px solid #91baff;outline-offset:-2px}
+.monitor-fixed-layout .event-group{margin-bottom:24px}
+@media(max-width:760px){.monitor-fixed-layout>.top{padding:0 16px;height:36px;min-height:36px;font-size:11px;gap:8px}.monitor-fixed-layout>.top .brand{display:none}.monitor-fixed-layout main.monitor-page{padding:10px 16px 0}.monitor-fixed-layout .monitor-page>header{padding-bottom:8px;display:block}.monitor-fixed-layout .monitor-page h1{font-size:21px}.monitor-fixed-layout .monitor-page .intro{display:none}.monitor-fixed-layout .monitor-commandbar{min-height:39px}.monitor-fixed-layout .monitor-commandbar .monitor-tabs{gap:16px}.monitor-fixed-layout .monitor-datebar{margin:7px 0;gap:6px}.monitor-fixed-layout .monitor-datebar #monitor-status{font-size:10px;margin:0!important;line-height:1.2}.monitor-fixed-layout #event-register{padding-top:12px}}
+@media(max-height:500px){.monitor-fixed-layout>.top{height:30px;min-height:30px}.monitor-fixed-layout .monitor-page>header{display:none}.monitor-fixed-layout .monitor-datebar #monitor-status{display:none}.monitor-fixed-layout .monitor-datebar{margin:5px 0}.monitor-fixed-layout .monitor-commandbar{min-height:34px}.monitor-fixed-layout main.monitor-page{padding-top:4px}}

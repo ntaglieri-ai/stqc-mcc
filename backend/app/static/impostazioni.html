@@ -333,6 +333,7 @@ function renderScannerDeviceSettings() {
           <button class="scan-tab scan-action delete" onclick="deleteScannerFromSettings(${Number(scanner.id)}, this)">Cancella</button>
           <a class="scan-tab" href="/scanner-console/${encodeURIComponent(scanner.device_token || '')}">Apri scanner</a><button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','scan')">Copia scan</button>
           <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','read')">Copia read</button>
+          <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','mobile')">Copia link app telefono</button>
         </div>
       </div>
     `).join('') || '<div class="scan-empty">Nessuno scanner configurato.</div>'
@@ -370,6 +371,8 @@ function renderNewScannerSettings(id = null) {
         <label>Numero seriale (facoltativo)<input id="scan-new-serial"></label>
       </div>
       <textarea id="scan-new-desc" placeholder="Note operative opzionali"></textarea>
+      <p class="scan-panel-sub">Il link per l’app sul telefono viene generato automaticamente quando crei lo scanner.</p>
+      ${scanner ? scannerMobileLinkPanel(scanner) : ''}
       <div class="scan-toolbar"><button class="scan-tab scan-action new" type="submit">${scanner ? 'Salva modifiche' : 'Crea scanner'}</button><button class="scan-tab scan-action" type="button" onclick="renderScannerDeviceSettings()">Annulla</button></div>
       <div class="scan-panel-sub" id="scan-new-result"></div>
     </form>`;
@@ -444,6 +447,9 @@ async function createScannerFromSettings(event) {
     scannerSettingsTab = 'scanners';
     scannerSettingsLoaded = false;
     await loadScannerSettings();
+    if (id === null) {
+      document.getElementById('scanner-settings-body').insertAdjacentHTML('afterbegin', scannerMobileLinkPanel(data));
+    }
   } catch (err) {
     result.textContent = err.message || String(err);
   } finally {
@@ -466,11 +472,32 @@ async function deleteScannerFromSettings(id, button) {
   finally { button.disabled = false; }
 }
 
+function scannerMobileLinkPanel(scanner) {
+  if (!scanner.device_token) return '';
+  const url = `${location.origin}/mobile-scan/${encodeURIComponent(scanner.device_token)}`;
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  return `<section class="scan-row" style="margin-bottom:16px" aria-label="App sul telefono">
+    <div class="scan-row-title">App sul telefono · ${esc(scanner.scanner_code)}</div>
+    <label>Link personale dello scanner<input readonly value="${esc(url)}" onclick="this.select()" style="width:100%"></label>
+    <div class="scan-toolbar"><a class="scan-tab" href="${esc(url)}" target="_blank" rel="noopener">Apri app telefono</a><button type="button" class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token)}','mobile')">Copia link app telefono</button></div>
+    <p class="scan-panel-sub">Apri il link nel browser del telefono e aggiungilo alla schermata Home.${local ? ' Stai usando localhost: per il telefono apri queste impostazioni dall’indirizzo del server raggiungibile dal telefono e copia nuovamente il link.' : ''}</p>
+    <div id="scanner-link-result" role="status"></div>
+  </section>`;
+}
+
 async function copyScannerUrl(token, mode) {
   if (!token) return alert('Token scanner mancante.');
   const path = mode === 'read' ? 'read' : 'scan';
-  const url = `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/${path}`;
-  await navigator.clipboard.writeText(url);
+  const url = mode === 'mobile'
+    ? `${location.origin}/mobile-scan/${encodeURIComponent(token)}`
+    : `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/${path}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    const result = document.getElementById('scanner-link-result');
+    if (result) result.textContent = 'Link copiato.';
+  } catch (err) {
+    prompt('Copia link scanner', url);
+  }
 }
 
 

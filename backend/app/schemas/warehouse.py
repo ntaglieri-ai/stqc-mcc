@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -322,6 +322,12 @@ class WarehouseChangeRequestCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=240)
     summary: Optional[str] = None
     payload: dict[str, Any]
+
+
+class InventoryScanDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    operation: Literal["ingresso", "uscita", "modifica", "check"]
+    changes: Optional[WarehouseItemUpdate] = None
 
 
 class WarehouseChangeRequestRead(BaseModel):

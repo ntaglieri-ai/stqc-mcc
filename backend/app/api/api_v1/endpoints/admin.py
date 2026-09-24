@@ -367,7 +367,6 @@ def list_workstations(include_inactive: bool = True, db: Session = Depends(get_d
 @router.get("/workstations/qr-codes")
 def list_workstation_qr_codes(include_inactive: bool = False, db: Session = Depends(get_db)):
     q = db.query(Workstation)
-    q = q.filter(~Workstation.code.ilike("MAGAZZINO%"))
     if not include_inactive:
         q = q.filter(Workstation.active == True)
     rows = q.order_by(Workstation.active.desc(), Workstation.code).all()

@@ -11,21 +11,24 @@ def process_inventory_scan(db, scanner, raw_payload, external_id=None):
     value = _scan_value(raw_payload).lower()
     item = db.query(WarehouseItem).filter(WarehouseItem.uuid == value).first() if scanner.active else None
     error = None if item else ('QR_NOT_RECOGNIZED' if scanner.active else 'SCANNER_INACTIVE')
-    message = f'Notifica inventario inviata: {item.uuid}' if item else 'Scanner non attivo o QR materiale non riconosciuto'
-    _attempt(db, scanner, external_id, raw_payload, 'INVENTORY_PRESENCE',
+    label = f'{item.material.code} · pezzo #{item.ordinal}' if item else None
+    message = f'{label}: notifica inviata al magazzino' if item else ('Materiale non trovato in questo magazzino' if scanner.active else 'Scanner disattivato')
+    attempt = _attempt(db, scanner, external_id, raw_payload, 'INVENTORY_CHECK',
              'OK' if item else 'ERROR', message, error_code=error)
     scanner.last_seen_at = datetime.utcnow()
     if item:
+        db.flush()
         create_warehouse_change_request(
-            db, action='inventory_presence', title='Conferma presenza materiale',
-            summary=f'{item.material.code} · pezzo #{item.ordinal} · scanner {scanner.scanner_code}. In attesa di applicazione.',
+            db, action='inventory_presence', title='Scansione inventario',
+            summary=f'{item.material.code} · pezzo #{item.ordinal} · scanner {scanner.scanner_code}. Scegli Ingresso, Uscita, Modifica o Check.',
             payload={'uuid': item.uuid, 'scanner_code': scanner.scanner_code,
-                     'scanner_id': scanner.id, 'scanned_at': scanner.last_seen_at},
+                     'scanner_id': scanner.id, 'scanned_at': scanner.last_seen_at,
+                     'scan_attempt_id': attempt.id, 'material_label': label},
         )
     else:
         db.commit()
     return {'ply': 1 if item else 3, 'ok': bool(item), 'msg': message,
-            'error_code': error, 'scan_kind': 'INVENTORY_PRESENCE'}
+            'error_code': error, 'scan_kind': 'INVENTORY_CHECK'}
 
 
 def apply_inventory_presence(db, payload):

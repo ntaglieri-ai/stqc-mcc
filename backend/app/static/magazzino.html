@@ -704,6 +704,30 @@
       background:linear-gradient(135deg, rgba(83,64,28,.78), rgba(35,42,62,.68));
     }
     .notification-actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+    .inventory-card { padding:22px; margin-bottom:14px; border:1px solid #3b4d65; border-radius:18px; background:#18273c; }
+    .inventory-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+    .inventory-card .mapped-code { font-size:20px; line-height:1.3; margin-top:8px; }
+    .inventory-badge { display:inline-flex; align-items:center; gap:7px; color:#f4ce79; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    .inventory-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+    .inventory-card-meta { color:#a8bad1; font-size:12px; text-align:right; line-height:1.7; flex-shrink:0; }
+    .inventory-card-meta strong { display:block; color:#dce7f5; font-weight:650; }
+    .inventory-operations { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:20px; }
+    .inventory-op { display:flex; align-items:center; gap:12px; text-align:left; min-height:70px; padding:12px 16px; border:1px solid var(--op-border); border-radius:12px; color:var(--op-color); background:var(--op-bg); cursor:pointer; font:inherit; transition:filter .15s,transform .15s; }
+    .inventory-op:hover { filter:brightness(1.18); transform:translateY(-1px); }
+    .inventory-op:focus-visible,.inventory-link:focus-visible { outline:2px solid #c7ddff; outline-offset:3px; }
+    .inventory-op:disabled { opacity:.5; cursor:wait; transform:none; }
+    .inventory-op strong { display:block; font-size:14px; font-weight:750; }
+    .inventory-op small { display:block; margin-top:4px; font-size:12px; color:#bbcade; line-height:1.3; }
+    .inventory-op-icon { font-size:23px; line-height:1; flex-shrink:0; }
+    .inventory-op.incoming { --op-color:#84e2c5; --op-border:#32645e; --op-bg:#193d3d; }
+    .inventory-op.outgoing { --op-color:#f6c38a; --op-border:#6b513b; --op-bg:#3b302b; }
+    .inventory-op.edit { --op-color:#a4caff; --op-border:#3d5980; --op-bg:#233750; }
+    .inventory-op.check { --op-color:#c4b5fd; --op-border:#5b5083; --op-bg:#322e4e; }
+    .inventory-card-foot { display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid #304057; }
+    .inventory-link { padding:6px 0; border:0; background:none; color:#a8c9f4; font:inherit; font-size:12px; font-weight:650; cursor:pointer; }
+    .inventory-link.reject { color:#d9a6ad; }
+    .inventory-link:hover { text-decoration:underline; }
+    @media(max-width:760px) { .inventory-operations { grid-template-columns:repeat(2,minmax(0,1fr)); } .inventory-card { padding:16px; } .inventory-card-head { flex-direction:column; gap:8px; } .inventory-card-meta { text-align:left; } .inventory-card-meta strong { display:inline; margin-right:8px; } .inventory-op { padding:12px; } }
     .notification-apply { border-color:rgba(34,197,94,.34); background:linear-gradient(135deg, rgba(34,197,94,.72), rgba(21,128,61,.68)); }
     .notification-reject { border-color:rgba(248,113,113,.34); background:rgba(127,29,29,.32); }
     @media(max-width:900px){#mapped-grezzi-drawer{width:100vw}.mapped-row{grid-template-columns:1fr}.mapped-row .ddt-primary{width:100%}}
@@ -3205,7 +3229,26 @@ function renderMappedGrezziDrawer() {
   if (!target) return;
   const notificationsHtml = warehouseNotifications.length ? `
     <div class="notification-section-title">Richieste inventario</div>
-    ${warehouseNotifications.map(item => `
+    ${warehouseNotifications.map(item => item.action === 'inventory_presence' ? `
+      <article class="inventory-card" aria-label="Scansione inventario">
+        <div class="inventory-card-head">
+          <div><span class="inventory-badge">Da gestire</span><div class="mapped-code">Scansione inventario</div>
+          <div class="mapped-meta">${esc((item.summary || '').replace(/\. Scegli Ingresso, Uscita, Modifica o Check\.$/, ''))}</div></div>
+          <div class="inventory-card-meta"><strong>${esc(item.created_by_username || item.payload?.scanner_code || 'Scanner inventario')}</strong>
+          ${esc(item.created_at ? new Date(item.created_at).toLocaleString('it-IT') : '')}</div>
+        </div>
+        <div class="inventory-operations" aria-label="Scegli operazione">
+          <button class="inventory-op incoming" onclick="chooseInventoryOperation(${Number(item.id)},'ingresso',this)"><span class="inventory-op-icon" aria-hidden="true">↙</span><span><strong>Ingresso</strong><small>Rientra in magazzino</small></span></button>
+          <button class="inventory-op outgoing" onclick="chooseInventoryOperation(${Number(item.id)},'uscita',this)"><span class="inventory-op-icon" aria-hidden="true">↗</span><span><strong>Uscita</strong><small>Scarica il pezzo</small></span></button>
+          <button class="inventory-op edit" onclick="editInventoryNotification(${Number(item.id)})"><span class="inventory-op-icon" aria-hidden="true">✎</span><span><strong>Modifica</strong><small>Aggiorna la scheda</small></span></button>
+          <button class="inventory-op check" onclick="chooseInventoryOperation(${Number(item.id)},'check',this)"><span class="inventory-op-icon" aria-hidden="true">✓</span><span><strong>Check</strong><small>Conferma presenza</small></span></button>
+        </div>
+        <div class="inventory-card-foot">
+          ${item.payload?.uuid ? `<button class="inventory-link" onclick="openNotificationItem('${esc(item.payload.uuid)}')">Apri scheda pezzo →</button>` : '<span></span>'}
+          <button class="inventory-link reject" onclick="rejectInventoryNotification(${Number(item.id)})">Rifiuta notifica</button>
+        </div>
+      </article>
+    ` : `
       <div class="notification-row">
         <div>
           <div class="mapped-code">${esc(item.title || 'Modifica inventario')}</div>
@@ -3218,7 +3261,12 @@ function renderMappedGrezziDrawer() {
         </div>
         <div class="notification-actions">
           ${item.payload?.uuid ? `<button class="ddt-secondary" onclick="openNotificationItem('${esc(item.payload.uuid)}')">Apri pezzo</button>` : ''}
-          <button class="ddt-primary notification-apply" onclick="applyInventoryNotification(${Number(item.id)})">${item.action === 'mapped_grezzo_outgoing' || item.action === 'item_outgoing' ? 'Conferma uscita' : 'Applica'}</button>
+          ${item.action === 'inventory_presence' ? `
+          <button class="ddt-primary" onclick="chooseInventoryOperation(${Number(item.id)},'ingresso',this)">Ingresso</button>
+          <button class="ddt-primary" onclick="chooseInventoryOperation(${Number(item.id)},'uscita',this)">Uscita</button>
+          <button class="ddt-secondary" onclick="editInventoryNotification(${Number(item.id)})">Modifica</button>
+          <button class="ddt-primary notification-apply" onclick="chooseInventoryOperation(${Number(item.id)},'check',this)">Check</button>
+          ` : `<button class="ddt-primary notification-apply" onclick="applyInventoryNotification(${Number(item.id)})">${item.action === 'mapped_grezzo_outgoing' || item.action === 'item_outgoing' ? 'Conferma uscita' : 'Applica'}</button>`}
           <button class="ddt-primary notification-reject" onclick="rejectInventoryNotification(${Number(item.id)})">Rifiuta</button>
         </div>
       </div>
@@ -3277,6 +3325,37 @@ async function queueInventoryChange(action, title, summary, payload) {
   if(!res.ok) throw new Error(data.detail || `Errore ${res.status}`);
   await refreshMappedGrezzi();
   return data;
+}
+
+let editingInventoryNotificationId = null;
+async function submitInventoryOperation(id, operation, changes) {
+  const res = await fetch(`/api/v1/warehouse/change-requests/${id}/inventory`, {
+    method:'POST', headers:{...hdr(),'Content-Type':'application/json'},
+    body:JSON.stringify({operation,...(changes ? {changes} : {})}),
+  });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : `Operazione non riuscita (${res.status})`);
+  return data;
+}
+async function chooseInventoryOperation(id, operation, button) {
+  if (operation !== 'check' && !confirm(`Confermare ${operation === 'ingresso' ? 'il rientro' : 'l’uscita'} del pezzo scansionato?`)) return;
+  button.disabled = true;
+  try {
+    await submitInventoryOperation(id, operation);
+    showToast(operation === 'check' ? 'Presenza verificata' : 'Movimento registrato', 'ok');
+    await loadStock();
+    await refreshMappedGrezzi();
+  } catch (err) { showToast(err.message, 'err'); }
+  finally { button.disabled = false; }
+}
+async function editInventoryNotification(id) {
+  const notification = warehouseNotifications.find(item => Number(item.id) === id);
+  if (!notification?.payload?.uuid) return;
+  closeMappedGrezziDrawer();
+  await openQrPreview(notification.payload.uuid);
+  if (previewItemDetail?.uuid !== notification.payload.uuid) return;
+  editingInventoryNotificationId = id;
+  setItemEdit(true);
 }
 
 async function applyInventoryNotification(id) {
@@ -3783,6 +3862,8 @@ function openItemRecord(uuid,e) {
 }
 
 async function openQrPreview(uuid,e) {
+  editingInventoryNotificationId = null;
+  previewItemDetail = null;
   if(e)e.stopPropagation();
   previewItem = allItems.find(item=>item.uuid===uuid) || Object.values(physicalCache).flat().find(item=>item.uuid===uuid) || {uuid};
   document.getElementById('qr-preview-modal').classList.add('open');
@@ -3804,6 +3885,7 @@ async function openQrPreview(uuid,e) {
   }
 }
 function closeQrPreview(){
+  editingInventoryNotificationId = null;
   document.getElementById('qr-preview-modal').classList.remove('open');
   previewItem=null;
   previewItemDetail=null;
@@ -3854,6 +3936,14 @@ async function saveItemDetail() {
   btn.disabled = true;
   btn.textContent = 'Creazione notifica…';
   try {
+    if (editingInventoryNotificationId !== null) {
+      await submitInventoryOperation(editingInventoryNotificationId, 'modifica', collectItemPayload());
+      closeQrPreview();
+      showToast('Modifica applicata al pezzo scansionato', 'ok');
+      await loadStock();
+      await refreshMappedGrezzi();
+      return;
+    }
     await queueInventoryChange(
       'item_update',
       'Modifica record inventario',

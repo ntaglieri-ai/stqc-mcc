@@ -16,6 +16,51 @@ from backend.app.models.warehouse import Material, MovementType, StockMovement, 
 
 
 class MonitoringTests(unittest.TestCase):
+    def test_inventory_scan_and_decision_are_distinct_readable_events(self):
+        from backend.app.models.warehouse import WarehouseChangeRequest, WarehouseChangeRequestStatus
+        scanner = ScannerDevice(scanner_code='INV', name='Scanner inventario', scan_mode='MAGAZZINO_INVENTARIO', active=True)
+        material = Material(code='LAMIERA-ZINCATA', description='Lamiera', unit='PZ')
+        self.db.add_all([scanner, material]); self.db.flush()
+        item = WarehouseItem(material_id=material.id, ordinal=1)
+        self.db.add(item); self.db.flush()
+        scanned = datetime.utcnow().replace(hour=8, minute=0, second=0)
+        decided = scanned.replace(hour=9)
+        self.db.add(WorkshopScanAttempt(scanner_device_id=scanner.id, raw_payload=item.uuid,
+            scan_kind='INVENTORY_PRESENCE', outcome='OK', message=f'Notifica inviata: {item.uuid}', created_at=scanned))
+        self.db.add(WarehouseChangeRequest(action='inventory_presence', title='Inventario',
+            status=WarehouseChangeRequestStatus.APPLIED, payload={'uuid':item.uuid},
+            result={'operation':'uscita'}, created_at=scanned, applied_at=decided, applied_by_username='Mario'))
+        self.db.commit()
+        rows = get_dashboard_monitoring(self.db)['giornaliera']['timeline']
+        scan = next(r for r in rows if r['origine'] == 'Scan inventario')
+        decision = next(r for r in rows if r['origine'] == 'Esito notifica inventario')
+        self.assertEqual(scan['data'], scanned)
+        self.assertEqual(decision['data'], decided)
+        self.assertIn('Uscita registrata', decision['esito'])
+        self.assertIn('Mario', decision['esito'])
+        for row in [scan, decision]:
+            self.assertIn('LAMIERA-ZINCATA', row['dettaglio'])
+            self.assertNotIn(item.uuid, str(row))
+            self.assertNotIn('INVENTORY_PRESENCE', str(row))
+        from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
+        day = scanned.date().isoformat()
+        result = cleanup_monitoring(MonitoringCleanupRequest(day=day, scope='magazzino'), self.db)
+        self.assertEqual(result['changed'], 2)
+        hidden = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
+        self.assertTrue(all(row['hidden'] for row in hidden))
+        self.assertEqual(self.db.query(WorkshopScanAttempt).count(), 1)
+        self.assertEqual(self.db.query(WarehouseChangeRequest).count(), 1)
+        self.assertEqual(self.db.query(StockMovement).count(), 0)
+        self.assertEqual(item.status, 'AVAILABLE')
+        self.db.add(WorkshopScanAttempt(scanner_device_id=scanner.id, raw_payload=item.uuid,
+            scan_kind='INVENTORY_CHECK', outcome='OK', message='Nuova scansione', created_at=scanned.replace(hour=10)))
+        self.db.commit()
+        updated = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
+        self.assertEqual(sum(not row['hidden'] for row in updated), 1)
+        cleanup_monitoring(MonitoringCleanupRequest(day=day, scope='magazzino', operation='restore'), self.db)
+        restored = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
+        self.assertTrue(all(not row['hidden'] for row in restored))
+
     def setUp(self):
         self.engine = create_engine('sqlite://')
         Base.metadata.create_all(self.engine)

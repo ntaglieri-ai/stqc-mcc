@@ -907,6 +907,60 @@ def _apply_change_request_payload(db: Session, request: WarehouseChangeRequest) 
     raise HTTPException(status_code=422, detail=f"Azione notifiche non supportata: {request.action}")
 
 
+@router.post("/change-requests/{request_id}/inventory", response_model=warehouse_schemas.WarehouseChangeRequestRead)
+def decide_inventory_scan(request_id: int, decision: warehouse_schemas.InventoryScanDecision,
+                          db: Session = Depends(get_db), current_user: User = Depends(require_auth)):
+    # Claim the pending notification atomically to prevent double movements.
+    claimed = db.query(WarehouseChangeRequest).filter(
+        WarehouseChangeRequest.id == request_id,
+        WarehouseChangeRequest.action == "inventory_presence",
+        WarehouseChangeRequest.status == WarehouseChangeRequestStatus.PENDING,
+    ).update({"status": WarehouseChangeRequestStatus.APPLIED}, synchronize_session=False)
+    if not claimed:
+        db.rollback()
+        raise HTTPException(409, "Notifica non disponibile o già gestita")
+    try:
+        request = db.get(WarehouseChangeRequest, request_id, populate_existing=True)
+        payload = request.payload or {}
+        item = db.scalar(select(WarehouseItem).where(WarehouseItem.uuid == payload.get("uuid")))
+        if item is None:
+            raise HTTPException(404, "Pezzo non più presente in magazzino")
+        operation = decision.operation
+        if operation == "check":
+            result = _apply_change_request_payload(db, request)
+        elif operation == "uscita":
+            result = _item_outgoing_apply(db, item.uuid, "Uscita da scansione inventario")
+        elif operation == "ingresso":
+            if item.status != "OUT":
+                raise HTTPException(409, "Il pezzo è già in magazzino: usa Check per confermare la presenza")
+            movement = StockMovement(material_id=item.material_id, quantity=1,
+                movement_type=MovementType.INCOMING, reason="Rientro da scansione inventario", reference=item.uuid)
+            db.add(movement)
+            db.flush()
+            item.status = "RESERVED" if item.reserved_for_commessa else "AVAILABLE"
+            item.exit_movement_id = None
+            item.exited_at = None
+            item.updated_at = datetime.utcnow()
+            result = {"uuid": item.uuid, "movement_id": movement.id}
+        else:
+            changes = decision.changes.model_dump(exclude_unset=True) if decision.changes else {}
+            if not changes:
+                raise HTTPException(422, "Inserisci le modifiche da salvare")
+            _apply_item_update_data(item, changes)
+            result = {"uuid": item.uuid}
+        request.result = jsonable_encoder({**result, "operation": operation})
+        request.applied_by_user_id = current_user.id
+        request.applied_by_username = _user_label(current_user)
+        request.applied_at = datetime.utcnow()
+        request.error = None
+        db.commit()
+        db.refresh(request)
+        return _request_read(request)
+    except Exception:
+        db.rollback()
+        raise
+
+
 @router.post("/change-requests/{request_id}/apply", response_model=warehouse_schemas.WarehouseChangeRequestRead)
 def apply_warehouse_change_request(
     request_id: int,

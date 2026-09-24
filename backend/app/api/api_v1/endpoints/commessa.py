@@ -14,6 +14,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from backend.app.models.settings import AppSettings
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -30,7 +31,7 @@ from backend.app.models.commessa import (
     ProgettazioneEvento, ScannerDevice, ScannerPhaseEvent, SpedizioneAdHoc, SpedizioneAdHocItem,
     WeldingScanEvent, WeldingScanSession, WorkshopScanAttempt, WorkshopScanBlock, Workstation,
 )
-from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem
+from backend.app.models.warehouse import DistintaImport, DistintaItem, Material, MovementType, StockMovement, WarehouseItem, WarehouseChangeRequest
 from backend.app.schemas.commessa import CommessaCreate, CommessaRead, CommessaUpdate
 from backend.app.services.distinta import (
     ALIASES,
@@ -482,6 +483,34 @@ def get_dashboard_commesse(db: Session = Depends(get_db)):
     }
 
 
+class MonitoringCleanupRequest(BaseModel):
+    day: str
+    scope: str = "all"
+    operation: str = "hide"
+
+
+@router.post("/dashboard/monitoring/cleanup")
+def cleanup_monitoring(body: MonitoringCleanupRequest, db: Session = Depends(get_db)):
+    from backend.app.models.settings import AppSettings
+    import json
+    if body.scope not in {"all", "magazzino", "commessa"} or body.operation not in {"hide", "restore"}:
+        raise HTTPException(422, "Operazione o gruppo non valido")
+    data = get_dashboard_monitoring(db, body.day)
+    selected = [row for row in data['giornaliera']['timeline'] if body.scope == 'all' or row['vista'] == body.scope]
+    key = 'monitoring_hidden:' + data['date']
+    setting = db.get(AppSettings, key)
+    hidden = set(json.loads(setting.value)) if setting and setting.value else set()
+    identifiers = {row['event_key'] for row in selected}
+    changed = len(identifiers - hidden) if body.operation == 'hide' else len(identifiers & hidden)
+    hidden = hidden | identifiers if body.operation == 'hide' else hidden - identifiers
+    if setting is None:
+        setting = AppSettings(key=key)
+    setting.value = json.dumps(sorted(hidden))
+    db.add(setting)
+    db.commit()
+    return {'changed': changed}
+
+
 @router.get("/dashboard/monitoring")
 def get_dashboard_monitoring(
     db: Session = Depends(get_db),
@@ -712,19 +741,68 @@ def get_dashboard_monitoring(
         .order_by(WorkshopScanAttempt.created_at.desc(), WorkshopScanAttempt.id.desc())
         .all()
     )
+    from backend.app.services.preproduction_scan import _scan_value
+    inventory_items = {item.uuid: item for item in physical_items}
+    def inventory_label(payload):
+        if payload.get("material_label"):
+            return payload["material_label"]
+        item = inventory_items.get(str(payload.get("uuid") or "").lower())
+        return f"{item.material.code} · pezzo #{item.ordinal}" if item else "Materiale non disponibile"
+
     for event, scanner, piece, commessa in warehouse_scans:
         scan_mode = scanner.scan_mode or "MAGAZZINO"
         origin = "Scan inventario" if scan_mode == "MAGAZZINO_INVENTARIO" else "Scan mappatura"
+        inventory = event.scan_kind in {"INVENTORY_PRESENCE", "INVENTORY_CHECK"}
+        detail = f"{scanner.scanner_code} · {event.scan_kind}"
+        message = event.message if event.outcome == "OK" else f"{event.outcome}: {event.message}"
+        if inventory:
+            origin = "Scan inventario"
+            detail = f"{scanner.name or scanner.scanner_code} · {inventory_label({'uuid': _scan_value(event.raw_payload).lower()})}"
+            message = "Scansione riuscita · notifica inviata al magazzino" if event.outcome == "OK" else (
+                "Scanner disattivato" if event.error_code == "SCANNER_INACTIVE" else "Materiale non trovato in questo magazzino")
         daily_rows.append({
             "data": event.created_at,
             "vista": "magazzino",
             "origine": origin,
             "commessa": commessa.codice if commessa else None,
-            "dettaglio": f"{scanner.scanner_code} · {event.scan_kind}",
-            "esito": event.message if event.outcome == "OK" else f"{event.outcome}: {event.message}",
+            "dettaglio": detail,
+            "esito": message,
+            "errore": event.outcome != "OK",
         })
 
+    if _has_table(db, WarehouseChangeRequest.__tablename__):
+        decisions = db.query(WarehouseChangeRequest).filter(
+            WarehouseChangeRequest.action == "inventory_presence",
+            or_(
+                (WarehouseChangeRequest.applied_at >= today_start) & (WarehouseChangeRequest.applied_at < tomorrow_start),
+                (WarehouseChangeRequest.rejected_at >= today_start) & (WarehouseChangeRequest.rejected_at < tomorrow_start),
+            ),
+        ).all()
+        labels = {"ingresso": "Ingresso registrato", "uscita": "Uscita registrata",
+                  "modifica": "Scheda materiale modificata", "check": "Check completato: presenza confermata"}
+        for request in decisions:
+            rejected = request.rejected_at is not None
+            operation = (request.result or {}).get("operation", "check")
+            operator = request.rejected_by_username if rejected else request.applied_by_username
+            daily_rows.append({
+                "data": request.rejected_at if rejected else request.applied_at,
+                "vista": "magazzino", "origine": "Esito notifica inventario",
+                "commessa": None, "dettaglio": inventory_label(request.payload or {}),
+                "esito": ("Notifica rifiutata" if rejected else labels.get(operation, "Notifica applicata"))
+                         + (f" · Operatore: {operator}" if operator else ""),
+            })
+
     daily_rows.sort(key=lambda row: (row["data"] or today_start), reverse=True)
+    # Visibility is separate from operational records: never delete scans or movements.
+    import hashlib
+    import json
+    from backend.app.models.settings import AppSettings
+    hidden_setting = db.get(AppSettings, 'monitoring_hidden:' + today_start.date().isoformat())
+    hidden_events = set(json.loads(hidden_setting.value)) if hidden_setting and hidden_setting.value else set()
+    for row in daily_rows:
+        identity = [row['data'].isoformat() if row['data'] else '', row['vista'], row['origine'], row.get('commessa'), row.get('dettaglio')]
+        row['event_key'] = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
+        row['hidden'] = row['event_key'] in hidden_events
 
     movement_type = lambda movement: movement.movement_type.value if hasattr(movement.movement_type, "value") else str(movement.movement_type)
     return {

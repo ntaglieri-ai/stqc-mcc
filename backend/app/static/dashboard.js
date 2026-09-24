@@ -17,6 +17,7 @@
   if (location.pathname !== '/dashboard/monitoring') return;
 
   document.querySelector('main').classList.add('monitor-page');
+  document.body.classList.add('monitor-fixed-layout');
   document.getElementById('page-intro').hidden = false;
   document.querySelector('.eyebrow').hidden = true;
   const workspace = document.querySelector('.workspace');
@@ -34,7 +35,15 @@
         <button type="button" id="day-today">Oggi</button>
         <p id="monitor-status" role="status" aria-live="polite"></p>
       </div>
-      <section id="event-register" aria-live="polite"></section>`;
+      <div class="monitor-cleanup-bar"><label class="monitor-visibility-switch"><input type="checkbox" role="switch" id="show-hidden-events"><span>Mostra eventi nascosti</span></label><button type="button" id="cleanup-open" class="monitor-cleanup-button"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 3-6 9m-3-1 8 5-4 5-8-5 4-5Z M15 21h6"/></svg>Pulisci eventi</button></div>
+      <dialog id="cleanup-dialog" class="monitor-cleanup-dialog">
+        <form method="dialog"><h2>Pulisci il registro</h2><p>Nascondi gli eventi del giorno selezionato. Storico, giacenze e movimenti restano invariati.</p>
+        <label>Gruppo<select id="cleanup-scope"><option value="all">Tutti gli eventi</option><option value="magazzino">Magazzino</option><option value="commessa">Commesse</option></select></label>
+        <p id="cleanup-preview" role="status"></p><p class="cleanup-note">La visibilità è condivisa con gli altri utenti. Le nuove registrazioni resteranno visibili.</p>
+        <div class="cleanup-actions"><button value="cancel">Annulla</button><button type="button" id="cleanup-restore">Ripristina</button><button type="button" id="cleanup-hide">Nascondi eventi</button></div>
+        <p id="cleanup-error" role="alert"></p></form>
+      </dialog>
+      <section id="event-register" aria-live="polite" aria-label="Registro eventi" tabindex="0"></section>`;
 
     const register = document.getElementById('event-register');
     const status = document.getElementById('monitor-status');
@@ -42,6 +51,17 @@
     const refresh = document.getElementById('refresh');
     let currentView = 'commesse';
     let events = [];
+    let allEvents = [];
+    const showHidden = document.getElementById('show-hidden-events');
+    const cleanupDialog = document.getElementById('cleanup-dialog');
+    const cleanupScope = document.getElementById('cleanup-scope');
+    const cleanupPreview = () => {
+      const rows = allEvents.filter(row => cleanupScope.value === 'all' || row.vista === cleanupScope.value);
+      const hidden = rows.filter(row => row.hidden).length;
+      document.getElementById('cleanup-preview').textContent = `${dayInput.value}: ${rows.length-hidden} eventi da nascondere · ${hidden} ripristinabili`;
+      document.getElementById('cleanup-hide').disabled = rows.length === hidden;
+      document.getElementById('cleanup-restore').disabled = hidden === 0;
+    };
     const localIsoDay = date => {
       const copy = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
       return copy.toISOString().slice(0, 10);
@@ -58,7 +78,8 @@
       rows.forEach(event => {
         const row = document.createElement('tr');
         if (event.errore) row.className = 'monitor-error-row';
-        [eventTime(event.data), event.origine, event.commessa || '—', event.dettaglio || '—', event.esito || '—'].forEach(value => {
+        if (event.hidden) row.classList.add('monitor-hidden-event');
+        [eventTime(event.data), event.origine === 'Scan inventario' ? 'Scansione inventario' : event.origine, event.commessa || '—', event.dettaglio || '—', event.esito || '—'].forEach(value => {
           const cell = document.createElement('td');
           cell.textContent = value;
           row.append(cell);
@@ -89,6 +110,7 @@
       return block;
     };
     const renderEvents = () => {
+      events = allEvents.filter(event => showHidden.checked || !event.hidden);
       register.replaceChildren();
       if (!events.length) {
         register.append(emptyState('Nessuna scansione, entrata o uscita registrata per il giorno selezionato.'));
@@ -101,11 +123,13 @@
       if (currentView === 'magazzino') {
         const incoming = events.filter(event => event.origine === 'Ingresso magazzino');
         const outgoing = events.filter(event => event.origine === 'Uscita magazzino');
-        const scans = events.filter(event => event.vista === 'magazzino' && event.origine.startsWith('Scan '));
+        const scans = events.filter(event => event.vista === 'magazzino' && (event.origine.startsWith('Scan ') || event.origine === 'Scansione inventario'));
+        const decisions = events.filter(event => event.origine === 'Esito notifica inventario');
         register.append(
           section('Ingressi', 'Materiale registrato in entrata.', incoming),
           section('Uscite', 'Materiale registrato in uscita o a sfrido.', outgoing),
           section('Scansioni magazzino', 'Letture effettuate dalle postazioni di magazzino.', scans),
+          section('Esiti notifiche inventario', 'Operazioni confermate o rifiutate dopo la scansione.', decisions),
         );
         return;
       }
@@ -130,10 +154,10 @@
         if (response.status === 401) { location.replace('/login'); return; }
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        events = data.giornaliera?.timeline || [];
+        allEvents = data.giornaliera?.timeline || [];
         renderEvents();
         const errors = Number(data.giornaliera?.errori_assemblaggio || 0);
-        status.textContent = `${events.length} registrazioni · ${errors} errori assemblaggio · aggiornato alle ${new Date().toLocaleTimeString('it-IT')}`;
+        status.textContent = `${events.length} registrazioni mostrate · ${allEvents.filter(event=>event.hidden).length} nascoste · aggiornato alle ${new Date().toLocaleTimeString('it-IT')}`;
       } catch (error) {
         register.replaceChildren(emptyState('Impossibile caricare le registrazioni. Premi Aggiorna per riprovare.'));
         status.textContent = 'Caricamento non riuscito.';
@@ -161,6 +185,28 @@
     document.getElementById('day-today').addEventListener('click', () => { dayInput.value = localIsoDay(new Date()); loadEvents(); });
     dayInput.addEventListener('change', loadEvents);
     refresh.addEventListener('click', loadEvents);
+    showHidden.addEventListener('change', renderEvents);
+    document.getElementById('cleanup-open').addEventListener('click', () => {
+      cleanupScope.value = currentView === 'magazzino' ? 'magazzino' : currentView === 'commesse' ? 'commessa' : 'all';
+      document.getElementById('cleanup-error').textContent = '';
+      cleanupPreview(); cleanupDialog.showModal();
+    });
+    cleanupScope.addEventListener('change', cleanupPreview);
+    const cleanup = async operation => {
+      document.getElementById('cleanup-hide').disabled = true;
+      document.getElementById('cleanup-restore').disabled = true;
+      try {
+        const response = await fetch('/api/v1/commesse/dashboard/monitoring/cleanup', {
+          method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+          body:JSON.stringify({day:dayInput.value, scope:cleanupScope.value, operation})
+        });
+        if (!response.ok) throw new Error('Pulizia non riuscita. Riprova.');
+        cleanupDialog.close(); await loadEvents();
+      } catch(error) { document.getElementById('cleanup-error').textContent=error.message; }
+      finally { cleanupPreview(); }
+    };
+    document.getElementById('cleanup-hide').addEventListener('click',()=>cleanup('hide'));
+    document.getElementById('cleanup-restore').addEventListener('click',()=>cleanup('restore'));
     loadEvents();
     return;
   }
