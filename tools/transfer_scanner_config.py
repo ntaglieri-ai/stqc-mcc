@@ -13,7 +13,7 @@ from backend.app.db.session import engine
 FIELDS = {
     'workstations': 'code name description active progress_mode fase start_qr_code end_qr_code'.split(),
     'workstation_qr_codes': 'label actions description behavior payload active'.split(),
-    'scanner_devices': 'scanner_code name description scan_mode fase ip_address serial_number device_token active'.split(),
+    'scanner_devices': 'scanner_code name description activation_type scan_mode fase ip_address serial_number device_token active'.split(),
 }
 
 
@@ -40,6 +40,7 @@ def export_config():
 
 
 def import_config(data, apply=False):
+    data = dict(data, scanner_devices=[dict(activation_type=None, **item) if "activation_type" not in item else item for item in data["scanner_devices"]])
     if data['version'] != 1:
         raise ValueError('Unsupported format')
     ts = tables()
@@ -82,6 +83,7 @@ def import_config(data, apply=False):
 
 
 def replace_config(data, apply=False):
+    data = dict(data, scanner_devices=[dict(activation_type=None, **item) if "activation_type" not in item else item for item in data["scanner_devices"]])
     """Replace configuration only, retaining existing row IDs for historical references."""
     if data['version'] != 1:
         raise ValueError('Unsupported format')

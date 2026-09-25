@@ -125,6 +125,7 @@
     .badge-log      { background: rgba(34,197,94,0.18); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
     .badge-acq      { background: rgba(251,191,36,0.18); color: #fde68a; border: 1px solid rgba(251,191,36,0.3); }
     .badge-on       { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+    .badge-mobile   { background: rgba(59,130,246,0.15); color: #bfdbfe; border: 1px solid rgba(59,130,246,0.4); }
     .badge-off      { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
     .badge-locked   { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
     .mono-cell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; color:rgba(219,234,254,.78); word-break:break-word; }
@@ -614,7 +615,7 @@
         <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
           <div>
             <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.86)">Scanner fisici</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">MAGAZZINO gestisce pre-produzione. OFFICINA gestisce postazioni e fasi. SPEDIZIONE AD HOC legge codici esterni e marca le righe spedizione come trovate.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:4px">MAGAZZINO gestisce pre-produzione. OFFICINA gestisce postazioni e fasi. SPEDIZIONE legge codici esterni e marca le righe spedizione come trovate.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input id="sc-new-code" placeholder="SCN-TAGLIO-01"
@@ -627,7 +628,7 @@
               <option value="OFFICINA">OFFICINA</option>
               <option value="MULTI_POSTAZIONE">Multi-postazione</option><option value="MAGAZZINO_INVENTARIO">Magazzino Inventario</option><option value="ASSEMBLAGGI">ASSEMBLAGGI</option>
           <option value="MAGAZZINO">MAGAZZINO</option>
-              <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
+              <option value="SPEDIZIONE">SPEDIZIONE</option>
             </select>
             <select id="sc-new-workstation"
               style="width:190px;padding:8px 11px;border-radius:9px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px;outline:none"></select>
@@ -1654,7 +1655,7 @@ function renderScannerDevices() {
           <option value="OFFICINA" ${scanMode === 'OFFICINA' ? 'selected' : ''}>OFFICINA</option>
           <option value="MULTI_POSTAZIONE" ${scanMode === 'MULTI_POSTAZIONE' ? 'selected' : ''}>Multi-postazione</option><option value="MAGAZZINO_INVENTARIO" ${scanMode === 'MAGAZZINO_INVENTARIO' ? 'selected' : ''}>Magazzino Inventario</option><option value="ASSEMBLAGGI" ${scanMode === 'ASSEMBLAGGI' ? 'selected' : ''}>ASSEMBLAGGI</option>
           <option value="MAGAZZINO" ${scanMode === 'MAGAZZINO' ? 'selected' : ''}>MAGAZZINO</option>
-          <option value="SPEDIZIONE_AD_HOC" ${scanMode === 'SPEDIZIONE_AD_HOC' ? 'selected' : ''}>SPEDIZIONE AD HOC</option>
+          <option value="SPEDIZIONE" ${scanMode === 'SPEDIZIONE' ? 'selected' : ''}>SPEDIZIONE</option>
         </select>
       </td>
       <td><select onchange="assignScannerWorkstation(${s.id}, this.value)" style="padding:6px 9px;border-radius:8px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:12px">${options}</select></td>
@@ -1667,12 +1668,13 @@ function renderScannerDevices() {
         </div>
       </td>
       <td style="color:rgba(255,255,255,.48)">${esc(s.ip_address || '—')}</td>
-      <td><span class="badge ${s.active ? 'badge-on' : 'badge-off'}">${s.active ? 'Attivo' : 'Disattivo'}</span></td>
+      <td><span class="badge ${s.active ? (s.activation_type === 'MOBILE' ? 'badge-mobile' : 'badge-on') : 'badge-off'}">${s.active ? (s.activation_type === 'NETUM' ? 'Attivo NETUM' : s.activation_type === 'MOBILE' ? 'Attivo Mobile' : 'Attivo') : 'Disattivo'}</span></td>
       <td>
         <div class="scan-actions">
-          <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','scan')">Copia scan</button>
-          <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','read')">Copia read</button>
-          <button class="btn btn-ghost btn-sm" onclick="copyScannerUrl('${esc(token)}','mobile')">Copia mobile</button>
+
+
+          <button class="btn btn-success btn-sm" onclick="activateScannerDevice(${s.id}, 'NETUM', this)">Attiva pistola NETUM ↗</button>
+          <button class="btn btn-primary btn-sm" onclick="activateScannerDevice(${s.id}, 'MOBILE', this)">Attiva Mobile · Copia link</button>
           <button class="btn btn-success btn-sm" onclick="testScannerScan('${esc(token)}')">Test</button>
           <button class="btn btn-ghost btn-sm" onclick="editScannerDevice(${s.id})">Modifica</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleScannerDevice(${s.id}, ${!s.active})">${s.active ? 'Disattiva' : 'Attiva'}</button>
@@ -1690,9 +1692,9 @@ function openScannerContextMenu(event, id) {
   const token = s.device_token || '';
   const menu = document.getElementById('scanner-context-menu');
   menu.innerHTML = `
-    <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','scan');closeScannerContextMenu()">Copia URL scan</button>
-    <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','read');closeScannerContextMenu()">Copia URL lettura</button>
-    <button class="ctx-item" onclick="copyScannerUrl('${esc(token)}','mobile');closeScannerContextMenu()">Copia URL mobile</button>
+
+
+    <button class="ctx-item" onclick="copyScannerMobileUrl('${esc(token)}');closeScannerContextMenu()">Copia URL mobile</button>
     <button class="ctx-item" onclick="testScannerScan('${esc(token)}');closeScannerContextMenu()">Test scan</button>
     <button class="ctx-item" onclick="editScannerDevice(${s.id});closeScannerContextMenu()">Modifica</button>
     <button class="ctx-item" onclick="toggleScannerDevice(${s.id}, ${!s.active});closeScannerContextMenu()">${s.active ? 'Disattiva' : 'Attiva'}</button>
@@ -1713,16 +1715,36 @@ function closeScannerContextMenu() {
 document.addEventListener('click', closeScannerContextMenu);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeScannerContextMenu(); });
 
-async function copyScannerUrl(token, mode) {
+async function activateScannerDevice(id, type, button) {
+  const scanner = _scannerDevices.find(s => s.id === id);
+  if (!scanner || button.disabled) return;
+  const popup = type === 'NETUM' ? window.open('about:blank', '_blank') : null;
+  if (type === 'NETUM' && !popup) return toast('Consenti l’apertura della pagina NETUM nel browser e riprova.', 'err');
+  if (popup) popup.opener = null;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    const response = await api('PATCH', '/scanner-devices/' + id, {activation_type: type, active: true});
+    if (!response.ok) throw new Error('Attivazione non riuscita');
+    Object.assign(scanner, await response.json());
+    if (popup) popup.location.replace('https://doc1.netum.net/DS2800/en/http');
+    else await copyScannerMobileUrl(scanner.device_token);
+    renderScannerDevices();
+  } catch (err) {
+    if (popup) popup.close();
+    toast(err.message || String(err), 'err');
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+
+async function copyScannerMobileUrl(token) {
   if (!token) return toast('Token scanner mancante', 'err');
-  const url = mode === 'mobile'
-    ? `${location.origin}/mobile-scan/${encodeURIComponent(token)}`
-    : mode === 'read'
-    ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read`
-    : `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan`;
+  const url = `${location.origin}/mobile-scan/${encodeURIComponent(token)}`;
   try {
     await navigator.clipboard.writeText(url);
-    toast(mode === 'mobile' ? 'URL mobile copiato' : mode === 'read' ? 'URL lettura copiato' : 'URL scan copiato', 'ok');
+    toast('Link app telefono copiato', 'ok');
   } catch {
     prompt('Copia URL scanner', url);
   }
@@ -2026,7 +2048,7 @@ async function editScannerDevice(id) {
   if (ip_address === null) return;
   const serial_number = prompt('Seriale scanner (opzionale)', s.serial_number || '');
   if (serial_number === null) return;
-  const scan_mode = prompt('Tipo pistola: MULTI_POSTAZIONE, OFFICINA, ASSEMBLAGGI, MAGAZZINO, MAGAZZINO_INVENTARIO o SPEDIZIONE_AD_HOC', s.scan_mode || 'OFFICINA');
+  const scan_mode = prompt('Tipo pistola: MULTI_POSTAZIONE, OFFICINA, ASSEMBLAGGI, MAGAZZINO, MAGAZZINO_INVENTARIO o SPEDIZIONE', s.scan_mode || 'OFFICINA');
   if (scan_mode === null) return;
   try {
     await api('PATCH', `/scanner-devices/${id}`, { name, scan_mode, ip_address: ip_address || null, serial_number: serial_number || null });
@@ -2060,7 +2082,7 @@ async function assignScannerMode(id, value) {
     const labels = {
       MAGAZZINO: 'Pistola impostata su magazzino',
       OFFICINA: 'Pistola impostata su officina',
-      SPEDIZIONE_AD_HOC: 'Pistola impostata su spedizione ad hoc',
+      SPEDIZIONE: 'Pistola impostata su spedizione',
     };
     toast(labels[value] || 'Tipo pistola aggiornato', 'ok');
     await loadWorkstationsConfig();

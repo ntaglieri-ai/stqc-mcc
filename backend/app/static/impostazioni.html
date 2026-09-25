@@ -10,7 +10,7 @@
       font-size: 11px; font-weight: 800; cursor: pointer;
     }
     .scan-tab.active { color: #dbeafe; border-color: rgba(96,165,250,.42); background: rgba(59,130,246,.14); }
-    .scan-mini-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 0 0 14px; }
+    .scan-mini-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 0 0 14px; }
     .scan-mini-card { border: 1px solid rgba(147,197,253,.14); border-radius: 14px; background: rgba(255,255,255,.035); padding: 13px; }
     .scan-mini-card strong { display: block; font-size: 20px; color: rgba(255,255,255,.92); letter-spacing: -.03em; }
     .scan-mini-card span { display: block; margin-top: 4px; font-size: 10px; color: rgba(255,255,255,.72); text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
@@ -39,7 +39,7 @@
     .scan-form textarea { min-height:70px; resize:vertical; }
     .scan-form-two { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
     .scan-empty { padding: 26px; text-align:center; color: rgba(255,255,255,.72); font-size:12px; }
-    @media (max-width: 680px) { .scan-mini-grid,.scan-form-two,.scan-qr-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) { .scan-mini-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .scan-form-two,.scan-qr-grid { grid-template-columns: 1fr; } }
 
 .scan-settings { overflow:visible; padding:0; } @media(max-width:680px) { main { padding:20px 14px; } }
 .scan-action { border-radius:10px; padding:10px 16px; font-size:12px; transition:background .15s,border-color .15s; }
@@ -64,21 +64,47 @@
 .phase-filter select:focus-visible { outline:2px solid #60a5fa; outline-offset:2px; }
 
 .scan-form label{display:grid;gap:7px;font-size:12px;color:#b8cbe4}.scan-form small{font-size:11px;line-height:1.5;color:#93abc9}.scan-form [hidden]{display:none}
+
+.scan-tab,.station-toggle,.scan-qr { touch-action:manipulation; transition:background .15s,border-color .15s,box-shadow .15s,transform .1s,color .15s; }
+.scan-tab { display:inline-flex; align-items:center; justify-content:center; min-height:38px; text-decoration:none; }
+.scan-tab[hidden] { display:none!important; }
+.scan-badge.mobile { color:#bfdbfe; border-color:#5289df; background:#1e469055; }
+.scan-tab.phone-link { color:#dbeafe; background:#1e4690; border-color:#5289df; border-radius:10px; }
+.scan-tab.netum-link { color:#dcfce7; background:#17603f; border-color:#3aa974; border-radius:10px; }
+@media(hover:hover) { .scan-tab:not(:disabled):hover { color:#fff; border-color:#729bca; box-shadow:0 3px 10px #0003; filter:brightness(1.15); } .station-toggle:hover { color:#93c5fd; } }
+.scan-tab:not(:disabled):active,.station-toggle:active,.scan-qr:active { transform:scale(.97); filter:brightness(1.25); }
+.scan-tab.copy-success:disabled { opacity:1; color:#a7f3d0; background:#145743; border-color:#3eaa82; cursor:default; }
+.scan-tab[aria-busy="true"] { cursor:wait; }
+@media(max-width:680px) { .scan-toolbar .scan-tab { min-height:44px; } }
+@media(prefers-reduced-motion:reduce) { .scan-tab,.station-toggle,.scan-qr { transition:none; } .scan-tab:active,.station-toggle:active,.scan-qr:active { transform:none; } }
+
+button.scan-mini-card { font:inherit; text-align:left; cursor:pointer; color:#e5edf8; border-color:color-mix(in srgb,var(--section-color) 35%,transparent); background:linear-gradient(135deg,color-mix(in srgb,var(--section-color) 13%,#10203b),#12213a); min-height:110px; transition:transform .15s,background .15s,border-color .15s; touch-action:manipulation; }
+button.scan-mini-card strong { color:var(--section-color); display:flex; justify-content:space-between; align-items:center; }
+.scan-mini-card .section-arrow { font-size:19px; color:var(--section-color); margin:0; }
+.scan-mini-card small { display:block; margin-top:9px; color:#adbed4; font-size:11px; line-height:1.4; }
+button.scan-mini-card:hover,button.scan-mini-card[aria-pressed="true"] { border-color:var(--section-color); background:color-mix(in srgb,var(--section-color) 19%,#10203b); }
+button.scan-mini-card[aria-pressed="true"] { box-shadow:inset 0 -3px var(--section-color); }
+button.scan-mini-card:active { transform:scale(.98); }
+button.scan-mini-card:focus-visible { outline:2px solid var(--section-color); outline-offset:3px; }
+.section-phases { flex-wrap:wrap; padding-bottom:4px; gap:8px; }
+@media(prefers-reduced-motion:reduce) { button.scan-mini-card { transition:none; } }
 </style><script src="/static/qr-print.js"></script></head><body><main><header><div><div class="eyebrow">VISTA DIRETTORE</div><h1>Impostazioni</h1></div><nav><button class="scan-tab" onclick="goBack()">← Indietro</button><a class="scan-tab" href="/">Home</a></nav></header>  <div class="scan-settings open" id="scanner-settings-view">
     <div class="scan-toolbar">
-      
-      <button class="scan-tab active" data-scan-tab="codes" onclick="setScannerSettingsTab('codes')">Gestione Postazioni</button>
+
+      <button class="scan-tab active" data-scan-tab="codes" onclick="setScannerSettingsTab('codes')">Gestione Fasi Commessa</button>
       <button class="scan-tab" data-scan-tab="scanners" onclick="setScannerSettingsTab('scanners')">Scanner</button>
       <button class="scan-tab" style="margin-left:auto" onclick="loadScannerSettings()">Aggiorna</button>
     </div>
     <div class="scan-mini-grid" id="scanner-settings-stats">
-      <div class="scan-mini-card"><strong>—</strong><span>Postazioni</span></div>
-      <div class="scan-mini-card"><strong>—</strong><span>Scanner attivi</span></div>
+      <div class="scan-mini-card"><strong>—</strong><span>Magazzino</span></div>
+      <div class="scan-mini-card"><strong>—</strong><span>Postazioni Officina</span></div>
+      <div class="scan-mini-card"><strong>—</strong><span>Spedizioni</span></div>
+      <div class="scan-mini-card"><strong>—</strong><span>Scanner totali</span></div>
     </div>
     <div class="scan-panel">
       <div class="scan-panel-head">
         <div>
-          <div class="scan-panel-title" id="scanner-settings-heading">Gestione Postazioni</div>
+          <div class="scan-panel-title" id="scanner-settings-heading">Gestione Fasi Commessa</div>
           <div class="scan-panel-sub" id="scanner-settings-sub">QR INIZIO e FINE per lavorare con pistola scanner.</div>
         </div>
         <button id="station-new-action" class="scan-tab scan-action new" style="flex-shrink:0" onclick="renderStationForm()">+ Nuova</button>
@@ -158,17 +184,41 @@ async function loadScannerSettings() {
   }
 }
 
+const SETTINGS_SECTIONS = {
+  magazzino: {label:'Magazzino', phases:['magazzino'], color:'#f472b6'},
+  officina: {label:'Postazioni Officina', phases:['officina','assemblaggi','saldature'], color:'#60a5fa'},
+  spedizioni: {label:'Spedizioni', phases:['lavorazioni','in-cantiere'], color:'#fbbf24'},
+  scanners: {label:'Scanner totali', phases:[], color:'#2dd4bf'}
+};
+let settingsSection = '';
+function selectSettingsSection(section) {
+  settingsSection = section;
+  stationPhaseFilter = '';
+  if (section === 'scanners') scannerSettingsTab = 'scanners';
+  renderScannerStats();
+  renderScannerSettingsTab();
+}
 function renderScannerStats() {
-  const activeScanners = scannerDevices.filter(x => x.active).length;
-  const activeStations = scannerWorkstations.filter(x => x.active).length;
-  document.getElementById('scanner-settings-stats').innerHTML = `
-    <div class="scan-mini-card"><strong>${activeStations}</strong><span>Postazioni attive</span></div>
-    <div class="scan-mini-card"><strong>${activeScanners}</strong><span>Scanner attivi</span></div>
-  `;
+  const activeStations = scannerWorkstations.filter(x => x.active);
+  document.getElementById('scanner-settings-stats').innerHTML = Object.entries(SETTINGS_SECTIONS).map(([key,section]) => {
+    const count = key === 'scanners' ? scannerDevices.length : scannerSettingsTab === 'scanners' ? scannerDevices.filter(x => section.phases.includes(scannerEffectivePhase(x))).length : activeStations.filter(x => section.phases.includes(x.fase)).length;
+    return `<button type="button" class="scan-mini-card" style="--section-color:${section.color}" aria-pressed="${settingsSection===key}" onclick="selectSettingsSection('${key}')"><strong>${count}<span class="section-arrow" aria-hidden="true">↗</span></strong><span>${section.label}</span><small>${key==='scanners'?'Apri tutti gli scanner':scannerSettingsTab==='scanners'?'Mostra gli scanner':key==='spedizioni'?'Lavorazioni Esterne · Cantiere':'Mostra le fasi'}</small></button>`;
+  }).join('');
+}
+function sectionPhaseMatches(phase) {
+  return !settingsSection || settingsSection === 'scanners' || SETTINGS_SECTIONS[settingsSection].phases.includes(phase);
+}
+function renderSectionPhases() {
+  const phases = SETTINGS_SECTIONS[settingsSection]?.phases || Object.keys(SCANNER_PHASES);
+  return `<div class="phase-filter section-phases" aria-label="Fasi della sezione"><button class="scan-tab ${!stationPhaseFilter?'active':''}" onclick="stationPhaseFilter='';renderStationQrSettings()">Tutte</button>${phases.map(phase=>`<button class="scan-tab ${stationPhaseFilter===phase?'active':''}" onclick="stationPhaseFilter='${phase}';renderStationQrSettings()">${SCANNER_PHASES[phase]}</button>`).join('')}</div>`;
 }
 
 function setScannerSettingsTab(tab) {
   scannerSettingsTab = ['codes', 'scanners'].includes(tab) ? tab : 'codes';
+  if (scannerSettingsTab === 'codes' && settingsSection === 'scanners') settingsSection = '';
+  if (scannerSettingsTab === 'scanners' && !settingsSection) settingsSection = 'scanners';
+  stationPhaseFilter = '';
+  renderScannerStats();
   renderScannerSettingsTab();
 }
 
@@ -183,10 +233,10 @@ let stationPhaseFilter='';
 function renderStationQrSettings() {
   document.getElementById('station-new-action').hidden = false;
   document.getElementById('scanner-new-action').hidden = true;
-  document.getElementById('scanner-settings-heading').textContent = 'Gestione Postazioni';
+  document.getElementById('scanner-settings-heading').textContent = 'Gestione Fasi Commessa' + (SETTINGS_SECTIONS[settingsSection] && settingsSection !== 'scanners' ? ' · ' + SETTINGS_SECTIONS[settingsSection].label : '');
   document.getElementById('scanner-settings-sub').textContent = 'Clicca una postazione per mostrare i QR, poi un QR per stamparlo.';
-  document.getElementById('scanner-settings-body').innerHTML = `<label class="phase-filter">Filtra per fase <select onchange="stationPhaseFilter=this.value;renderStationQrSettings()"><option value="">Tutte le fasi</option>${scannerPhaseOptions(stationPhaseFilter)}</select></label><div class="scan-list">${
-    scannerQrCodes.map((ws, i) => (!stationPhaseFilter||ws.fase===stationPhaseFilter) ? `
+  document.getElementById('scanner-settings-body').innerHTML = `${renderSectionPhases()}<div class="scan-list">${
+    scannerQrCodes.map((ws, i) => (sectionPhaseMatches(ws.fase)&&(!stationPhaseFilter||ws.fase===stationPhaseFilter)) ? `
       <div class="scan-row station-row">
         <div class="scan-row-top">
           <button class="station-toggle" aria-expanded="false" aria-controls="station-codes-${Number(ws.id)}" onclick="toggleStationCodes(this)">
@@ -305,35 +355,36 @@ async function deleteStation(id, button) {
   finally { button.disabled = false; }
 }
 
-const SCANNER_PHASES={officina:'Lavorazioni officina',assemblaggi:'Assemblaggi',saldature:'Saldature',lavorazioni:'Lavorazioni', 'in-cantiere':'Spedizione',magazzino:'Magazzino'};
+const SCANNER_PHASES={officina:'Lavorazioni officina',assemblaggi:'Assemblaggi',saldature:'Saldature',lavorazioni:'Lavorazioni Esterne', 'in-cantiere':'Cantiere',magazzino:'Magazzino'};
 const PHASE_COLORS={officina:'#60a5fa',assemblaggi:'#a78bfa',saldature:'#fb923c',lavorazioni:'#2dd4bf','in-cantiere':'#facc15',magazzino:'#f472b6'};
 function phaseDot(phase){
   const label='Fase: '+(SCANNER_PHASES[phase]||'Da assegnare');
   return `<span class="phase-dot" style="--phase-color:${PHASE_COLORS[phase]||'#94a3b8'}" role="img" aria-label="${esc(label)}" title="${esc(label)}"></span>`;
 }
-let scannerPhaseFilter='';
+function scannerEffectivePhase(scanner) { return scanner.scan_mode === 'MULTI_POSTAZIONE' ? (scannerWorkstations.find(ws => Number(ws.id) === Number(scanner.postazione_id))?.fase || scanner.fase) : scanner.fase; }
 function scannerPhaseOptions(selected){return Object.entries(SCANNER_PHASES).map(([value,label])=>`<option value="${value}" ${value===selected?'selected':''}>${label}</option>`).join('');}
 function renderScannerDeviceSettings() {
   document.getElementById('station-new-action').hidden = true;
   document.getElementById('scanner-new-action').hidden = false;
-  document.getElementById('scanner-settings-heading').textContent = 'Scanner';
+  document.getElementById('scanner-settings-heading').textContent = 'Scanner' + (settingsSection && settingsSection !== 'scanners' ? ' · ' + SETTINGS_SECTIONS[settingsSection].label : '');
   document.getElementById('scanner-settings-sub').textContent = 'Scanner fisici configurati, modalità operativa, postazione associata e URL utili.';
-  document.getElementById('scanner-settings-body').innerHTML = `<label class="phase-filter">Filtra per fase <select onchange="scannerPhaseFilter=this.value;renderScannerDeviceSettings()"><option value="">Tutte le fasi</option>${scannerPhaseOptions(scannerPhaseFilter)}</select></label><div class="scan-list">${
-    scannerDevices.filter(scanner=>!scannerPhaseFilter||(scanner.scan_mode==='MULTI_POSTAZIONE'?scannerWorkstations.find(ws=>ws.id===scanner.postazione_id)?.fase:scanner.fase)===scannerPhaseFilter).map(scanner => `
+  document.getElementById('scanner-settings-body').innerHTML = `<div class="scan-list">${
+    scannerDevices.filter(scanner=>sectionPhaseMatches(scannerEffectivePhase(scanner))).map(scanner => `
       <div class="scan-row">
         <div class="scan-row-top">
           <div>
             <div class="scan-row-title phase-name">${phaseDot(scanner.scan_mode === 'MULTI_POSTAZIONE' ? scannerWorkstations.find(ws=>ws.id===scanner.postazione_id)?.fase : scanner.fase)}${esc(scanner.scanner_code)} · ${esc(scanner.name || scanner.scanner_code)}</div>
             <div class="scan-row-sub">${esc(scanner.scan_mode === 'MAGAZZINO' ? 'Magazzino Mappatura' : scanner.scan_mode === 'MAGAZZINO_INVENTARIO' ? 'Magazzino Inventario' : scanner.scan_mode === 'MULTI_POSTAZIONE' ? 'Multi-postazione' : scanner.scan_mode || 'OFFICINA')} · ${scanner.scan_mode?.startsWith('MAGAZZINO') ? 'Senza postazione e senza tempi' : esc(workstationName(scanner.postazione_id))}<br>IP ${esc(scanner.ip_address || '—')} · seriale ${esc(scanner.serial_number || '—')}</div>
           </div>
-          <span class="scan-badge ${scanner.active ? 'ok' : 'off'}">${scanner.active ? 'Attivo' : 'Disattivo'}</span>
+          <span class="scan-badge ${scanner.active ? (scanner.activation_type === 'MOBILE' ? 'mobile' : 'ok') : 'off'}">${scanner.active ? (scanner.activation_type === 'NETUM' ? 'Attivo NETUM' : scanner.activation_type === 'MOBILE' ? 'Attivo Mobile' : 'Attivo') : 'Disattivo'}</span>
         </div>
         <div class="scan-toolbar" style="margin:12px 0 0">
           <button class="scan-tab scan-action edit" onclick="renderNewScannerSettings(${Number(scanner.id)})">Modifica</button>
           <button class="scan-tab scan-action delete" onclick="deleteScannerFromSettings(${Number(scanner.id)}, this)">Cancella</button>
-          <a class="scan-tab" href="/scanner-console/${encodeURIComponent(scanner.device_token || '')}">Apri scanner</a><button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','scan')">Copia scan</button>
-          <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','read')">Copia read</button>
-          <button class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token || '')}','mobile')">Copia link app telefono</button>
+          <a class="scan-tab" href="/scanner-console/${encodeURIComponent(scanner.device_token || '')}">Apri scanner</a>
+
+          <button class="scan-tab netum-link" onclick="activateScannerDevice(${Number(scanner.id)},'NETUM',this)">Attiva pistola NETUM ↗</button>
+          <button class="scan-tab phone-link" onclick="activateScannerDevice(${Number(scanner.id)},'MOBILE',this)">Attiva Mobile · Copia link</button>
         </div>
       </div>
     `).join('') || '<div class="scan-empty">Nessuno scanner configurato.</div>'
@@ -362,7 +413,7 @@ function renderNewScannerSettings(id = null) {
           <option value="ASSEMBLAGGI">ASSEMBLAGGI</option>
           <option value="MAGAZZINO">Magazzino Mappatura</option>
           <option value="MAGAZZINO_INVENTARIO">Magazzino Inventario</option>
-          <option value="SPEDIZIONE_AD_HOC">SPEDIZIONE AD HOC</option>
+          <option value="SPEDIZIONE">SPEDIZIONE</option>
         </select><small id="scanner-mode-help"></small></label>
         <label id="scanner-station-field">Postazione predefinita<select id="scan-new-workstation">${options}</select></label>
       </div>
@@ -371,8 +422,6 @@ function renderNewScannerSettings(id = null) {
         <label>Numero seriale (facoltativo)<input id="scan-new-serial"></label>
       </div>
       <textarea id="scan-new-desc" placeholder="Note operative opzionali"></textarea>
-      <p class="scan-panel-sub">Il link per l’app sul telefono viene generato automaticamente quando crei lo scanner.</p>
-      ${scanner ? scannerMobileLinkPanel(scanner) : ''}
       <div class="scan-toolbar"><button class="scan-tab scan-action new" type="submit">${scanner ? 'Salva modifiche' : 'Crea scanner'}</button><button class="scan-tab scan-action" type="button" onclick="renderScannerDeviceSettings()">Annulla</button></div>
       <div class="scan-panel-sub" id="scan-new-result"></div>
     </form>`;
@@ -417,6 +466,17 @@ function printScannerStationCodePrevious(i, j) {
 .station-row .scan-row-sub { color:#b8c7dd; }
 .station-row .scan-qr-grid[hidden] { display:none; }
 @media(max-width:540px) { .station-row .scan-row-top { flex-wrap:wrap; } .station-toggle { flex-basis:100%; } }
+
+button.scan-mini-card { font:inherit; text-align:left; cursor:pointer; color:#e5edf8; border-color:color-mix(in srgb,var(--section-color) 35%,transparent); background:linear-gradient(135deg,color-mix(in srgb,var(--section-color) 13%,#10203b),#12213a); min-height:110px; transition:transform .15s,background .15s,border-color .15s; touch-action:manipulation; }
+button.scan-mini-card strong { color:var(--section-color); display:flex; justify-content:space-between; align-items:center; }
+.scan-mini-card .section-arrow { font-size:19px; color:var(--section-color); margin:0; }
+.scan-mini-card small { display:block; margin-top:9px; color:#adbed4; font-size:11px; line-height:1.4; }
+button.scan-mini-card:hover,button.scan-mini-card[aria-pressed="true"] { border-color:var(--section-color); background:color-mix(in srgb,var(--section-color) 19%,#10203b); }
+button.scan-mini-card[aria-pressed="true"] { box-shadow:inset 0 -3px var(--section-color); }
+button.scan-mini-card:active { transform:scale(.98); }
+button.scan-mini-card:focus-visible { outline:2px solid var(--section-color); outline-offset:3px; }
+.section-phases { flex-wrap:wrap; padding-bottom:4px; gap:8px; }
+@media(prefers-reduced-motion:reduce) { button.scan-mini-card { transition:none; } }
 </style></head><body><div class="sheet"><div class="label"><div class="kicker">Codice postazione officina</div><div class="name">${esc(ws.name || ws.code)}</div><div class="action ${String(code.label).toLowerCase().includes('inizio')?'start':'end'}">${esc(code.label).toUpperCase()}</div><img src="${esc(code.qr_image_url)}"><div class="payload">${esc(code.payload)}</div><div class="hint">${esc(ws.code)} · scannerizza questo QR con la pistola</div><button onclick="window.print()" style="margin-top:22px;padding:12px 18px;border-radius:10px;border:1px solid #111827;background:#111827;color:white;font-weight:800">Stampa</button></div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
   win.document.close();
 }
@@ -447,9 +507,6 @@ async function createScannerFromSettings(event) {
     scannerSettingsTab = 'scanners';
     scannerSettingsLoaded = false;
     await loadScannerSettings();
-    if (id === null) {
-      document.getElementById('scanner-settings-body').insertAdjacentHTML('afterbegin', scannerMobileLinkPanel(data));
-    }
   } catch (err) {
     result.textContent = err.message || String(err);
   } finally {
@@ -472,31 +529,53 @@ async function deleteScannerFromSettings(id, button) {
   finally { button.disabled = false; }
 }
 
-function scannerMobileLinkPanel(scanner) {
-  if (!scanner.device_token) return '';
-  const url = `${location.origin}/mobile-scan/${encodeURIComponent(scanner.device_token)}`;
-  const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-  return `<section class="scan-row" style="margin-bottom:16px" aria-label="App sul telefono">
-    <div class="scan-row-title">App sul telefono · ${esc(scanner.scanner_code)}</div>
-    <label>Link personale dello scanner<input readonly value="${esc(url)}" onclick="this.select()" style="width:100%"></label>
-    <div class="scan-toolbar"><a class="scan-tab" href="${esc(url)}" target="_blank" rel="noopener">Apri app telefono</a><button type="button" class="scan-tab" onclick="copyScannerUrl('${esc(scanner.device_token)}','mobile')">Copia link app telefono</button></div>
-    <p class="scan-panel-sub">Apri il link nel browser del telefono e aggiungilo alla schermata Home.${local ? ' Stai usando localhost: per il telefono apri queste impostazioni dall’indirizzo del server raggiungibile dal telefono e copia nuovamente il link.' : ''}</p>
-    <div id="scanner-link-result" role="status"></div>
-  </section>`;
+async function activateScannerDevice(id, type, button) {
+  const scanner = scannerDevices.find(row => Number(row.id) === id);
+  if (!scanner || button.disabled) return;
+  const popup = type === 'NETUM' ? window.open('about:blank', '_blank') : null;
+  if (type === 'NETUM' && !popup) return alert('Consenti l’apertura della pagina NETUM nel browser e riprova.');
+  if (popup) popup.opener = null;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    const response = await scannerApi('/scanner-devices/' + id, {method:'PATCH', body:JSON.stringify({activation_type:type,active:true})});
+    const data = await response.json().catch(()=>({}));
+    if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Attivazione non riuscita');
+    Object.assign(scanner, data);
+    renderScannerStats();
+    const badge = button.closest('.scan-row').querySelector('.scan-badge');
+    badge.className = 'scan-badge ' + (type === 'MOBILE' ? 'mobile' : 'ok');
+    badge.textContent = type === 'MOBILE' ? 'Attivo Mobile' : 'Attivo NETUM';
+    if (popup) popup.location.replace('https://doc1.netum.net/DS2800/en/http');
+    else await copyScannerMobileUrl(scanner.device_token, button);
+  } catch (err) {
+    if (popup) popup.close();
+    alert(err.message || String(err));
+  } finally {
+    button.removeAttribute('aria-busy');
+    if (!button.classList.contains('copy-success')) button.disabled = false;
+  }
 }
 
-async function copyScannerUrl(token, mode) {
+async function copyScannerMobileUrl(token, button) {
   if (!token) return alert('Token scanner mancante.');
-  const path = mode === 'read' ? 'read' : 'scan';
-  const url = mode === 'mobile'
-    ? `${location.origin}/mobile-scan/${encodeURIComponent(token)}`
-    : `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/${path}`;
+  const url = `${location.origin}/mobile-scan/${encodeURIComponent(token)}`;
+  const original = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = 'Copia…'; button.setAttribute('aria-busy','true'); }
+  let copied = false;
   try {
     await navigator.clipboard.writeText(url);
-    const result = document.getElementById('scanner-link-result');
-    if (result) result.textContent = 'Link copiato.';
+    copied = true;
   } catch (err) {
     prompt('Copia link scanner', url);
+  } finally {
+    if (button) {
+      button.removeAttribute('aria-busy');
+      button.textContent = copied ? '✓ Copiato' : original;
+      button.classList.toggle('copy-success', copied);
+      if (copied) setTimeout(() => { button.textContent = original; button.classList.remove('copy-success'); button.disabled = false; }, 1600);
+      else button.disabled = false;
+    }
   }
 }
 

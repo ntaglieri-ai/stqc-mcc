@@ -1,8 +1,8 @@
-"""Scansioni spedizione ad hoc.
+"""Scansioni spedizione.
 
 Questa modalità è separata da magazzino, officina e post-officina: la pistola
 legge codici anche esterni e li confronta con l'ID dichiarato nella lista
-spedizione ad hoc. Nei file spedizione l'ID operativo è di solito la colonna
+spedizione. Nei file spedizione l'ID operativo è di solito la colonna
 "Assemb."; in alcuni flussi esterni può arrivare come "Marca".
 """
 from __future__ import annotations
@@ -279,7 +279,7 @@ def _attempt(
             scanner_device_id=scanner.id,
             scanner_external_id=(external_id or "")[:120] or None,
             raw_payload=(raw_payload or "")[:2000],
-            scan_kind="AD_HOC_SHIPPING",
+            scan_kind="SHIPPING",
             outcome=outcome,
             error_code=error_code,
             message=message,
@@ -301,14 +301,14 @@ def process_ad_hoc_shipping_scan(
     if not scanner.active:
         _attempt(db, scanner, external_id, raw_payload, "ERROR", "Scanner non attivo", error_code="SCANNER_INACTIVE")
         db.commit()
-        return {"ply": 3, "msg": "Scanner non attivo", "ok": False, "error_code": "SCANNER_INACTIVE", "scan_kind": "AD_HOC_SHIPPING"}
+        return {"ply": 3, "msg": "Scanner non attivo", "ok": False, "error_code": "SCANNER_INACTIVE", "scan_kind": "SHIPPING"}
 
     parsed_payload = parse_ad_hoc_scan_payload(raw_payload)
     shipping_id = str(parsed_payload.get("codice") or _extract_shipping_id(raw_payload)).strip()
     if not shipping_id:
         _attempt(db, scanner, external_id, raw_payload, "ERROR", "QR senza ID spedizione", error_code="EMPTY_SHIPPING_ID")
         db.commit()
-        return {"ply": 3, "msg": "QR senza ID spedizione", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "AD_HOC_SHIPPING"}
+        return {"ply": 3, "msg": "QR senza ID spedizione", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "SHIPPING"}
 
     exact_shipping_id = _normalize_shipping_code(shipping_id)
     matches = (
@@ -367,7 +367,7 @@ def process_ad_hoc_shipping_scan(
         if not code:
             _attempt(db, scanner, external_id, raw_payload, "ERROR", "QR senza codice", error_code="EMPTY_SHIPPING_ID")
             db.commit()
-            return {"ply": 3, "msg": "QR senza codice", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "AD_HOC_SHIPPING"}
+            return {"ply": 3, "msg": "QR senza codice", "ok": False, "error_code": "EMPTY_SHIPPING_ID", "scan_kind": "SHIPPING"}
         next_row_index = (
             db.query(func.max(SpedizioneAdHocItem.row_index))
             .filter(SpedizioneAdHocItem.spedizione_id == empty_spedizione.id)
@@ -391,7 +391,7 @@ def process_ad_hoc_shipping_scan(
             peso_totale_kg=parsed.get("peso_totale_kg"),
             area_verniciabile_mq=parsed.get("area_verniciabile_mq"),
             trattamento=parsed.get("trattamento"),
-            tipo_unita=str(parsed.get("tipo_unita") or "SPEDIZIONE_AD_HOC")[:40],
+            tipo_unita=str(parsed.get("tipo_unita") or "SPEDIZIONE")[:40],
             stato="TROVATO",
             trovato_at=now,
             scanner_device_id=scanner.id,
@@ -399,16 +399,16 @@ def process_ad_hoc_shipping_scan(
             note=note,
         ))
         empty_spedizione.updated_at = now
-        message = f"Aggiunto a spedizione ad hoc · {code}"
+        message = f"Aggiunto a spedizione · {code}"
         _attempt(db, scanner, external_id, raw_payload, "OK", message)
         db.commit()
-        return {"ply": 1, "msg": message, "ok": True, "scan_kind": "AD_HOC_SHIPPING"}
+        return {"ply": 1, "msg": message, "ok": True, "scan_kind": "SHIPPING"}
 
     if not matches:
         message = f"ID spedizione non trovato: {matched_shipping_id}"
         _attempt(db, scanner, external_id, raw_payload, "ERROR", message, error_code="SHIPPING_ID_NOT_FOUND")
         db.commit()
-        return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_ID_NOT_FOUND", "scan_kind": "AD_HOC_SHIPPING"}
+        return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_ID_NOT_FOUND", "scan_kind": "SHIPPING"}
 
     preferred = next((row for row in matches if row.stato != "TROVATO"), matches[0])
     spedizione = preferred.spedizione
@@ -427,7 +427,7 @@ def process_ad_hoc_shipping_scan(
         message = f"Quantità già completata - {matched_shipping_id}"
         _attempt(db, scanner, external_id, raw_payload, "ERROR", message, error_code="SHIPPING_QTY_COMPLETE")
         db.commit()
-        return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_QTY_COMPLETE", "scan_kind": "AD_HOC_SHIPPING"}
+        return {"ply": 3, "msg": message, "ok": False, "error_code": "SHIPPING_QTY_COMPLETE", "scan_kind": "SHIPPING"}
     scan_fields = dict(parsed_scan.get("scan_fields") or {})
     scan_fields["codice_trovato"] = matched_shipping_id
     scan_fields["raw_payload"] = raw_payload
@@ -460,7 +460,7 @@ def process_ad_hoc_shipping_scan(
         peso_totale_kg=parsed_scan.get("peso_totale_kg") or parsed_scan.get("peso_unitario_kg") or unit_weight,
         area_verniciabile_mq=parsed_scan.get("area_verniciabile_mq"),
         trattamento=parsed_scan.get("trattamento"),
-        tipo_unita=str(parsed_scan.get("tipo_unita") or "SPEDIZIONE_AD_HOC")[:40],
+        tipo_unita=str(parsed_scan.get("tipo_unita") or "SPEDIZIONE")[:40],
         stato="TROVATO",
         trovato_at=now,
         scanner_device_id=scanner.id,
@@ -474,4 +474,4 @@ def process_ad_hoc_shipping_scan(
     message = f"Trovato - {matched_shipping_id}"
     _attempt(db, scanner, external_id, raw_payload, "OK", message)
     db.commit()
-    return {"ply": 1, "msg": message, "ok": True, "scan_kind": "AD_HOC_SHIPPING"}
+    return {"ply": 1, "msg": message, "ok": True, "scan_kind": "SHIPPING"}

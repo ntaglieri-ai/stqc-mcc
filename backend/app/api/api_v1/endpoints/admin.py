@@ -334,12 +334,14 @@ def group_users(name: str, db: Session = Depends(get_db)):
 
 # ── Workstations / Scanner devices ───────────────────────────────────────────
 
-SCANNER_SCAN_MODES = {"MULTI_POSTAZIONE", "OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "MAGAZZINO_INVENTARIO", "SPEDIZIONE_AD_HOC"}
+SCANNER_SCAN_MODES = {"MULTI_POSTAZIONE", "OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "MAGAZZINO_INVENTARIO", "SPEDIZIONE"}
 WORKSTATION_PROGRESS_MODES = {"BLOCCO", "PEZZO_SINGOLO", "CHECK"}
 
 
 def _normalize_scanner_scan_mode(value: str | None) -> str:
     mode = (value or "OFFICINA").strip().upper()
+    if mode == "SPEDIZIONE_AD_HOC":
+        mode = "SPEDIZIONE"
     if mode not in SCANNER_SCAN_MODES:
         raise HTTPException(400, "Tipo pistola non valido")
     return mode
@@ -572,7 +574,7 @@ def update_scanner_device(scanner_id: int, body: ScannerDeviceUpdate, db: Sessio
         if duplicate:
             raise HTTPException(409, "Device token già associato a un altro scanner")
 
-    for field in ("description", "ip_address", "serial_number", "device_token", "active"):
+    for field in ("description", "ip_address", "serial_number", "device_token", "active", "activation_type"):
         if field in data:
             setattr(scanner, field, data[field])
     if scanner.scan_mode.startswith("MAGAZZINO"):

@@ -169,6 +169,7 @@ class WorkstationUpdate(BaseModel):
 
 
 class ScannerDeviceRead(BaseModel):
+    activation_type: Optional[Literal["NETUM", "MOBILE"]] = None
     fase: ScannerPhase = 'officina'
     id: int
     scanner_code: str
@@ -201,6 +202,7 @@ class ScannerDeviceCreate(BaseModel):
 
 
 class ScannerDeviceUpdate(BaseModel):
+    activation_type: Optional[Literal["NETUM", "MOBILE"]] = None
     fase: Optional[ScannerPhase] = None
     scanner_code: Optional[str] = None
     name: Optional[str] = None

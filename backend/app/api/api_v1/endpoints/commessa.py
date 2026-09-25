@@ -1039,7 +1039,7 @@ async def create_spedizione_ad_hoc(
 
         report = {
             "ok": True,
-            "summary": f"Spedizione ad hoc importata: {len(spedizione_items)} righe",
+            "summary": f"Spedizione importata: {len(spedizione_items)} righe",
             "spedizione_ad_hoc": True,
             "spedizione": spedizione_report,
             "file_warnings": [],
@@ -1097,7 +1097,7 @@ async def create_spedizione_ad_hoc(
     except Exception as exc:
         db.rollback()
         shutil.rmtree(settings.upload_dir / f"commessa_{commessa.id}", ignore_errors=True)
-        _logger.exception("Import spedizione ad hoc non riuscito")
+        _logger.exception("Import spedizione non riuscito")
         raise HTTPException(422, f"File spedizione non importabile: {exc}")
 
     return {
@@ -2030,7 +2030,7 @@ def _populate_spedizione_ad_hoc_items(
             peso_totale_kg=row.get("peso_totale_kg"),
             area_verniciabile_mq=row.get("area_verniciabile_mq"),
             trattamento=row.get("trattamento"),
-            tipo_unita="SPEDIZIONE_AD_HOC",
+            tipo_unita="SPEDIZIONE",
             stato="DA_TROVARE",
             source_file=row.get("source_file"),
         ))
@@ -3078,7 +3078,7 @@ def mark_post_officina_item_found(
             .first()
         )
         if row is None:
-            raise HTTPException(404, "Riga spedizione ad hoc non trovata")
+            raise HTTPException(404, "Riga spedizione non trovata")
         previous_scans = (
             db.query(SpedizioneAdHocItem)
             .filter(

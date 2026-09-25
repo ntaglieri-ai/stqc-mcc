@@ -173,7 +173,7 @@ class SpedizioneAdHoc(Base):
 
 
 class SpedizioneAdHocItem(Base):
-    """Riga singola di una spedizione ad hoc.
+    """Riga singola di una spedizione.
 
     Non ha QR generato dal tool. Lo stato diventa TROVATO quando uno scanner
     SPEDIZIONE_AD_HOC legge un payload con ID/Marca corrispondente al codice.
@@ -201,7 +201,7 @@ class SpedizioneAdHocItem(Base):
     area_verniciabile_mq = Column(Numeric(12, 4), nullable=True)
     trattamento = Column(String(160), nullable=True, index=True)
 
-    tipo_unita = Column(String(40), nullable=False, default="SPEDIZIONE_AD_HOC", index=True)
+    tipo_unita = Column(String(40), nullable=False, default="SPEDIZIONE", index=True)
     stato = Column(String(40), nullable=False, default="DA_TROVARE", index=True)
     trovato_at = Column(DateTime, nullable=True, index=True)
     scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -357,6 +357,7 @@ class ScannerDevice(Base):
     scanner_code = Column(String(80), nullable=False, unique=True, index=True)
     name = Column(String(160), nullable=False)
     description = Column(Text, nullable=True)
+    activation_type = Column(String(10), nullable=True)
     scan_mode = Column(String(30), nullable=False, default="OFFICINA", index=True)
     fase = Column(String(30), nullable=False, default="officina", server_default="officina", index=True)
     postazione_id = Column(Integer, ForeignKey("workstations.id", ondelete="SET NULL"), nullable=True, index=True)

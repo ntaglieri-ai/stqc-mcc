@@ -574,7 +574,7 @@
       section('Lavorazioni esterne', 'Stati della lista corrente. Cronologia scan e destinazione delle spedizioni esterne non disponibili nei dati collegati.', ['Stato registrato', 'Righe lista'], counts(data.lavorazioni_esterne));
       const shipping = data.spedizione;
       section('Spedizione', `${shipping.spediti ?? 'Non disponibile'} pezzi spediti / ${shipping.previsti ?? 'Non disponibile'} previsti nella lista spedizione della revisione corrente. Storico DDT di tutte le revisioni; DDT generato non equivale a consegna confermata.`, ['DDT', 'Titolo', 'Data', 'Quantità nel DDT'], shipping.ddt.map(d => [d.numero, d.titolo, date(d.created_at), d.materiali.reduce((n, r) => n + Number(r.quantita || 0), 0)]));
-      if (shipping.scan.length) section('Letture spedizione ad hoc', 'Ultima lettura conservata per riga, non cronologia completa e non prova di ricezione in cantiere.', ['Marca', 'Data e ora', 'Stato'], shipping.scan.map(r => [r.marca, date(r.data), readable(r.stato)]));
+      if (shipping.scan.length) section('Letture spedizione', 'Ultima lettura conservata per riga, non cronologia completa e non prova di ricezione in cantiere.', ['Marca', 'Data e ora', 'Stato'], shipping.scan.map(r => [r.marca, date(r.data), readable(r.stato)]));
       section('Cantiere', 'Stati registrati nella lista corrente: non certificano la ricezione in cantiere. Scan di arrivo e spedizioni con destinazione cantiere non sono distinguibili nei dati attuali.', ['Stato registrato', 'Righe lista'], counts(data.cantiere));
       result.querySelectorAll('details').forEach(panel => {
         const name = panel.querySelector('summary').textContent;

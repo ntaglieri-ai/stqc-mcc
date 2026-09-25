@@ -12,6 +12,36 @@ from backend.app.api.api_v1.endpoints.admin import create_workstation, update_wo
 
 
 class ScannerPhaseTests(unittest.TestCase):
+    def test_activation_choice_persists_and_can_switch(self):
+        from backend.app.models.commessa import ScannerDevice
+        from backend.app.schemas.admin import ScannerDeviceRead
+        engine = create_engine('sqlite://')
+        Base.metadata.create_all(engine)
+        try:
+            with Session(engine) as db:
+                scanner = create_scanner_device(ScannerDeviceCreate(
+                    scanner_code='ACTIVATION', name='Test', active=False), db)
+                scanner_id, token = scanner.id, scanner.device_token
+                for activation_type in ('NETUM', 'MOBILE'):
+                    update_scanner_device(scanner_id, ScannerDeviceUpdate(
+                        activation_type=activation_type, active=True), db)
+                    db.expire_all()
+                    saved = db.get(ScannerDevice, scanner_id)
+                    self.assertEqual(ScannerDeviceRead.model_validate(saved).activation_type, activation_type)
+                    self.assertTrue(saved.active)
+                    self.assertEqual(saved.device_token, token)
+                update_scanner_device(scanner_id, ScannerDeviceUpdate(name='Updated'), db)
+                self.assertEqual(saved.activation_type, 'MOBILE')
+                update_scanner_device(scanner_id, ScannerDeviceUpdate(active=False), db)
+                self.assertFalse(saved.active)
+                self.assertEqual(saved.activation_type, 'MOBILE')
+        finally:
+            engine.dispose()
+
+    def test_unknown_activation_type_rejected(self):
+        with self.assertRaises(ValidationError):
+            ScannerDeviceUpdate(activation_type='unknown')
+
     def test_workstation_phase_is_saved_and_exposed_without_changing_scanner(self):
         engine = create_engine('sqlite://')
         Base.metadata.create_all(engine)

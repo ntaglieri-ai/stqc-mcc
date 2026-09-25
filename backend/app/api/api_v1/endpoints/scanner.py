@@ -53,7 +53,7 @@ def netum_scan(
         return process_inventory_scan(db, scanner, body.msg, body.id)
     if scan_mode == "MAGAZZINO":
         return process_preproduction_scan(db, scanner, body.msg, body.id)
-    if scan_mode == "SPEDIZIONE_AD_HOC":
+    if scan_mode in {"SPEDIZIONE", "SPEDIZIONE_AD_HOC"}:
         return process_ad_hoc_shipping_scan(db, scanner, body.msg, body.id)
     return process_workshop_scan(db, scanner, body.msg, body.id)
 
