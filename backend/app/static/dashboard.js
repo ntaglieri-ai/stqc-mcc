@@ -53,6 +53,7 @@
     let events = [];
     let allEvents = [];
     let activeCommesse = [];
+    let selectedCommessa = null;
     const showHidden = document.getElementById('show-hidden-events');
     const cleanupDialog = document.getElementById('cleanup-dialog');
     const cleanupScope = document.getElementById('cleanup-scope');
@@ -113,7 +114,7 @@
     const renderEvents = () => {
       events = allEvents.filter(event => showHidden.checked || !event.hidden);
       register.replaceChildren();
-      if (!events.length) {
+      if (!events.length && (currentView !== 'commesse' || !activeCommesse.length)) {
         register.append(emptyState('Nessuna scansione, entrata o uscita registrata per il giorno selezionato.'));
         return;
       }
@@ -145,7 +146,58 @@
         register.append(emptyState('Nessuna scansione di produzione collegata a commesse per il giorno selezionato.'));
         return;
       }
-      groups.forEach((rows, name) => register.append(section(name, rows.length ? `${rows.length} eventi nel giorno selezionato` : 'Commessa in corso · nessun evento nel giorno selezionato', rows)));
+      const grid = document.createElement('div');
+      grid.className = 'monitor-job-grid';
+      grid.setAttribute('aria-label', 'Commesse e registrazioni del giorno');
+      const jobStates = {APERTA:'Aperta', IN_PRODUZIONE:'In produzione', SOSPESA:'Sospesa', CHIUSA:'Chiusa'};
+      if (!groups.has(selectedCommessa)) selectedCommessa = null;
+      groups.forEach((rows, name) => {
+        const job = activeCommesse.find(item => item.codice === name);
+        const errors = rows.filter(item => item.errore).length;
+        const card = document.createElement('button');
+        card.type = 'button'; card.className = 'monitor-job-card';
+        if (errors) card.classList.add('has-errors');
+        card.setAttribute('aria-pressed', String(selectedCommessa === name));
+        card.setAttribute('aria-controls', 'selected-job-events');
+        const top = document.createElement('span'); top.className = 'job-card-top';
+        const state = document.createElement('span'); state.className = 'job-state';
+        state.textContent = jobStates[job?.status] || (job ? 'In corso' : 'Registrazioni');
+        const arrow = document.createElement('span'); arrow.className = 'job-arrow'; arrow.textContent = '↗'; arrow.setAttribute('aria-hidden','true');
+        top.append(state, arrow);
+        const title = document.createElement('strong'); title.className = 'job-card-title'; title.textContent = name;
+        const description = document.createElement('span'); description.className = 'job-description';
+        description.textContent = job?.descrizione || (name === 'Commessa non indicata' ? 'Eventi non associati a una commessa' : 'Registro delle attività');
+        const footer = document.createElement('span'); footer.className = 'job-card-footer';
+        const count = document.createElement('span'); count.textContent = `${rows.length} ${rows.length===1?'evento':'eventi'} nel giorno`;
+        const badge = document.createElement('span'); badge.className = errors ? 'job-error-count' : 'job-view-label';
+        badge.textContent = errors ? `${errors} ${errors===1?'errore':'errori'}` : 'Apri registro';
+        footer.append(count, badge); card.append(top, title, description, footer);
+        card.addEventListener('click', () => {
+          selectedCommessa = selectedCommessa === name ? null : name;
+          renderEvents();
+          const cards = [...register.querySelectorAll('.monitor-job-card')];
+          cards.find(item => item.querySelector('.job-card-title').textContent === name)?.focus({preventScroll:true});
+          if (selectedCommessa) document.getElementById('selected-job-events').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+        });
+        grid.append(card);
+      });
+      register.append(grid);
+      const detail = document.createElement('div'); detail.id = 'selected-job-events';
+      if (selectedCommessa) {
+        const rows = groups.get(selectedCommessa);
+        const block = section(selectedCommessa, 'Registrazioni del giorno selezionato', rows);
+        const close = document.createElement('button'); close.type = 'button'; close.className = 'job-detail-close';
+        close.textContent = 'Chiudi registro';
+        close.addEventListener('click', () => {
+          const name = selectedCommessa; selectedCommessa = null; renderEvents();
+          [...register.querySelectorAll('.monitor-job-card')].find(item => item.querySelector('.job-card-title').textContent === name)?.focus();
+        });
+        block.querySelector('.event-group-head').append(close); detail.append(block);
+      } else {
+        const hint = document.createElement('p'); hint.className = 'job-selection-hint';
+        hint.textContent = 'Seleziona una commessa per consultare le registrazioni.'; detail.append(hint);
+      }
+      register.append(detail);
     };
     const loadEvents = async () => {
       refresh.disabled = true;
