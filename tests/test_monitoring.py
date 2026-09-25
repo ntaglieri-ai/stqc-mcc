@@ -61,6 +61,17 @@ class MonitoringTests(unittest.TestCase):
         cleanup_monitoring(MonitoringCleanupRequest(day=day, scope='magazzino', operation='restore'), self.db)
         restored = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
         self.assertTrue(all(not row['hidden'] for row in restored))
+        target = restored[0]['event_key']
+        result = cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[target]), self.db)
+        self.assertEqual(result['changed'], 1)
+        remaining = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
+        self.assertEqual([r['event_key'] for r in remaining if r['hidden']], [target])
+        self.assertEqual(sum(not r['hidden'] for r in remaining), 2)
+        for invalid in ([], ['not-an-event']):
+            with self.assertRaises(HTTPException):
+                cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=invalid), self.db)
+        self.assertEqual(self.db.query(WorkshopScanAttempt).count(), 2)
+
 
     def setUp(self):
         self.engine = create_engine('sqlite://')

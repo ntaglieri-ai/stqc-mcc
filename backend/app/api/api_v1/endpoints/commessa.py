@@ -487,6 +487,7 @@ class MonitoringCleanupRequest(BaseModel):
     day: str
     scope: str = "all"
     operation: str = "hide"
+    event_keys: list[str] | None = None
 
 
 @router.post("/dashboard/monitoring/cleanup")
@@ -497,6 +498,12 @@ def cleanup_monitoring(body: MonitoringCleanupRequest, db: Session = Depends(get
         raise HTTPException(422, "Operazione o gruppo non valido")
     data = get_dashboard_monitoring(db, body.day)
     selected = [row for row in data['giornaliera']['timeline'] if body.scope == 'all' or row['vista'] == body.scope]
+    if body.event_keys is not None:
+        requested = set(body.event_keys)
+        available = {row['event_key'] for row in selected}
+        if not requested or not requested <= available:
+            raise HTTPException(422, 'Selezione non valida. Aggiorna il registro e riprova.')
+        selected = [row for row in selected if row['event_key'] in requested]
     key = 'monitoring_hidden:' + data['date']
     setting = db.get(AppSettings, key)
     hidden = set(json.loads(setting.value)) if setting and setting.value else set()

@@ -193,3 +193,16 @@ body.monitor-fixed-layout{height:100vh;height:100dvh;min-height:0;overflow:hidde
 #selected-job-events .event-group-head{flex-wrap:wrap;gap:12px}
 @media(max-width:580px){.monitor-job-grid{grid-template-columns:1fr;gap:10px}.monitoring button.monitor-job-card{padding:14px}.job-description{min-height:0}.job-card-title{font-size:15px}}
 @media(prefers-reduced-motion:reduce){.monitoring button.monitor-job-card{transition:none;transform:none}}
+
+.monitor-selection-bar{gap:16px;flex-wrap:wrap;align-items:center}
+.monitor-select-label{display:inline-flex;align-items:center;gap:10px;cursor:pointer;white-space:nowrap}
+.monitor-selection-bar input[type=checkbox],.event-select{appearance:auto!important;width:18px!important;height:18px!important;min-width:18px;margin:0;accent-color:#60a5fa;cursor:pointer}
+#selection-count{font-size:13px;color:#93abc2}
+.monitor-delete-button{margin-left:auto;background:#602f40!important;border:1px solid #b65d76!important;color:#ffe3e9!important;border-radius:10px;padding:10px 16px;cursor:pointer}
+.monitor-delete-button:hover:not(:disabled){background:#823b51!important}
+.monitor-delete-button:active:not(:disabled){transform:translateY(1px)}
+.monitor-delete-button:disabled{opacity:.4;cursor:default}
+.event-select-cell{width:42px;padding-right:8px!important}
+.event-selected{background:#214566!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:580px){.monitor-selection-bar{gap:10px}#selection-count{margin-left:auto}.monitor-selection-bar .monitor-delete-button{width:100%}}
