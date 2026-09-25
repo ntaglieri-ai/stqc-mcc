@@ -138,9 +138,11 @@
       const production = events.filter(event => event.vista === 'commessa');
       const groups = new Map(activeCommesse.map(c => [c.codice, []]));
       production.forEach(event => {
-        const key = event.commessa || 'Commessa non indicata';
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(event);
+        const keys = event.commesse?.length ? event.commesse : [event.commessa || 'Commessa non indicata'];
+        keys.forEach(key => {
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(event);
+        });
       });
       if (!groups.size) {
         register.append(emptyState('Nessuna scansione di produzione collegata a commesse per il giorno selezionato.'));

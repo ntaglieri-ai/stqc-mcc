@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from backend.app.models.settings import AppSettings
-from sqlalchemy import inspect, or_
+from sqlalchemy import and_, inspect, or_
 from sqlalchemy.orm import Session, joinedload
 
 from backend.app.core.config import settings
@@ -588,41 +588,53 @@ def get_dashboard_monitoring(
         )
         .all()
     )
-    workshop_blocks: dict[tuple[int, int], dict] = {}
-    for attempt, block, workstation, _piece, commessa in workshop_attempts:
-        event_at = block.closed_at or block.started_at
-        if not (today_start <= event_at < tomorrow_start):
+    workshop_piece_count = 0
+    block_jobs: dict[int, set[str]] = {}
+    for attempt, block, workstation, piece, commessa in workshop_attempts:
+        block_jobs.setdefault(block.id, set()).add(commessa.codice)
+        if not (today_start <= attempt.created_at < tomorrow_start):
             continue
-        key = (block.id, commessa.id)
-        row = workshop_blocks.setdefault(key, {
-            "data": event_at,
-            "vista": "commessa",
-            "origine": "Lavorazione officina",
-            "commessa": commessa.codice,
-            "dettaglio": workstation.code,
-            "scan_ids": set(),
-            "started_at": block.started_at,
-            "closed_at": block.closed_at,
+        workshop_piece_count += 1
+        snapshot = getattr(attempt, "details_snapshot", None)
+        daily_rows.append({
+            "data": attempt.created_at, "vista": "commessa",
+            "origine": "Scansione pezzo", "commessa": commessa.codice,
+            "dettaglio": f"{workstation.code} · {piece.marca_pos} · pezzo {piece.progressivo}",
+            "esito": "Pezzo acquisito" + (" · FINE non registrata" if not block.closed_at else ""),
+            "details_snapshots": [snapshot] if snapshot else [],
         })
-        row["scan_ids"].add(attempt.id)
-    for row in workshop_blocks.values():
-        scan_count = len(row.pop("scan_ids"))
-        state = "Conclusa" if row.pop("closed_at") else "Non conclusa · FINE non registrata"
-        row.pop("started_at")
-        row["esito"] = f"{scan_count} scan · {state}"
-        daily_rows.append(row)
 
-    # Show START-only cycles too: they must not disappear before the first piece.
-    represented_blocks = {key[0] for key in workshop_blocks}
-    empty_open_blocks = db.query(WorkshopScanBlock).filter(
-        WorkshopScanBlock.status == "OPEN", WorkshopScanBlock.started_at >= today_start,
-        WorkshopScanBlock.started_at < tomorrow_start).all()
-    for block in empty_open_blocks:
-        if block.id not in represented_blocks:
-            daily_rows.append({'data': block.started_at, 'vista': 'commessa',
-                'origine': 'Lavorazione officina', 'commessa': None,
-                'dettaglio': block.workstation_code,
-                'esito': '0 scan · Non conclusa · FINE non registrata'})
+    # START and END are individual events, never summaries of the piece scans.
+    blocks = (db.query(WorkshopScanBlock)
+        .join(Workstation, Workstation.id == WorkshopScanBlock.workstation_id)
+        .filter(Workstation.fase == "officina",
+            or_(and_(WorkshopScanBlock.started_at >= today_start,
+                     WorkshopScanBlock.started_at < tomorrow_start),
+                and_(WorkshopScanBlock.closed_at >= today_start,
+                     WorkshopScanBlock.closed_at < tomorrow_start))).all())
+    for block in blocks:
+        jobs = sorted(block_jobs.get(block.id, set()))
+        for moment, label, kind in (
+            (block.started_at, "Inizio lavorazione", "WORKSTATION_START"),
+            (block.closed_at, "Fine lavorazione", "WORKSTATION_END"),
+        ):
+            if not moment or not (today_start <= moment < tomorrow_start):
+                continue
+            attempt = (db.query(WorkshopScanAttempt).filter(
+                WorkshopScanAttempt.scan_block_id == block.id,
+                WorkshopScanAttempt.scan_kind == kind,
+                WorkshopScanAttempt.outcome == "OK").first())
+            snapshot = getattr(attempt, "details_snapshot", None)
+            daily_rows.append({
+                "data": attempt.created_at if attempt else moment,
+                "vista": "commessa", "origine": label,
+                "commessa": jobs[0] if len(jobs) == 1 else None,
+                "commesse": jobs,
+                "dettaglio": block.workstation_code,
+                "esito": ("INIZIO registrato" + (" · FINE non registrata" if not block.closed_at else ""))
+                    if kind == "WORKSTATION_START" else "FINE registrata",
+                "details_snapshots": [snapshot] if snapshot else [],
+            })
 
     # Preserve legacy raw records; expose unframed reads as anomalies in the register.
     standalone_reads = (
@@ -894,7 +906,7 @@ def get_dashboard_monitoring(
         "giornaliera": {
             "inizio": today_start,
             "fine": tomorrow_start,
-            "scan_pezzi": len(workshop_blocks) + len(standalone_reads) + sum(
+            "scan_pezzi": workshop_piece_count + len(standalone_reads) + sum(
                 1
                 for event, _commessa, workstation in piece_events
                 if ((workstation.fase if workstation else None) or (

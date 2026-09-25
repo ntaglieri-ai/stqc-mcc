@@ -226,7 +226,7 @@ class MonitoringTests(unittest.TestCase):
         self.assertTrue(any(row['origine'] == 'Scan mappatura' for row in warehouse_events))
         self.assertTrue(any(row['origine'] == 'Inizio progettazione' for row in result['giornaliera']['timeline']))
 
-    def test_workshop_block_is_one_event_with_scan_count(self):
+    def test_workshop_events_have_separate_rows(self):
         revision = CommessaRevisione(commessa_id=self.commessa.id, codice='r01', corrente=True)
         station = Workstation(
             code='TAGLIO', name='Taglio', fase='officina',
@@ -270,10 +270,13 @@ class MonitoringTests(unittest.TestCase):
 
         result = get_dashboard_monitoring(self.db)
         rows = [row for row in result['giornaliera']['timeline'] if row['commessa'] == 'MONITOR']
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]['origine'], 'Lavorazione officina')
-        self.assertEqual(rows[0]['dettaglio'], 'TAGLIO')
-        self.assertEqual(rows[0]['esito'], '1 scan · Conclusa')
+        self.assertEqual(len(rows), 3)
+        self.assertEqual([row['origine'] for row in rows],
+                         ['Fine lavorazione', 'Scansione pezzo', 'Inizio lavorazione'])
+        self.assertEqual([row['data'] for row in rows],
+                         [moment.replace(hour=12), moment.replace(hour=11), moment])
+        self.assertIn('M1 · pezzo 1', rows[1]['dettaglio'])
+        self.assertEqual(result['giornaliera']['scan_pezzi'], 1)
 
         commessa_result = get_monitoring(self.commessa.id, self.db)
         self.assertEqual(commessa_result['officina'], [{
