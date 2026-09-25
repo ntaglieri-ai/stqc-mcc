@@ -40,8 +40,9 @@ class MonitoringTests(unittest.TestCase):
         self.assertIn('Mario', decision['esito'])
         for row in [scan, decision]:
             self.assertIn('LAMIERA-ZINCATA', row['dettaglio'])
-            self.assertNotIn(item.uuid, str(row))
-            self.assertNotIn('INVENTORY_PRESENCE', str(row))
+            visible = {key: value for key, value in row.items() if key != 'details_snapshots'}
+            self.assertNotIn(item.uuid, str(visible))
+            self.assertNotIn('INVENTORY_PRESENCE', str(visible))
         from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
         day = scanned.date().isoformat()
         result = cleanup_monitoring(MonitoringCleanupRequest(day=day, scope='magazzino'), self.db)

@@ -394,6 +394,7 @@ class WorkType(Base):
 class PieceScanEvent(Base):
     """Log append-only degli scan e degli eventi operativi del singolo pezzo."""
     __tablename__ = "piece_scan_events"
+    details_snapshot = Column(JSON, nullable=True)
 
     id = Column(Integer, primary_key=True, index=True)
     piece_id = Column(Integer, ForeignKey("pieces.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -471,6 +472,7 @@ class WorkshopScanBlock(Base):
 class WorkshopScanAttempt(Base):
     """Registro append-only di tutte le letture, incluse quelle rifiutate."""
     __tablename__ = "workshop_scan_attempts"
+    details_snapshot = Column(JSON, nullable=True)
 
     id = Column(Integer, primary_key=True, index=True)
     scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -572,6 +574,7 @@ class ProgettazioneItem(Base):
 class ProgettazioneEvento(Base):
     """Registro append-only delle transizioni della checklist di progettazione."""
     __tablename__ = "commessa_progettazione_eventi"
+    details_snapshot = Column(JSON, nullable=True)
     id = Column(Integer, primary_key=True)
     commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
     voce = Column(String(60), nullable=False, index=True)
@@ -582,6 +585,7 @@ class ProgettazioneEvento(Base):
 class ScannerPhaseEvent(Base):
     """Physical reading with immutable station and phase at scan time."""
     __tablename__ = "scanner_phase_events"
+    details_snapshot = Column(JSON, nullable=True)
     id = Column(Integer, primary_key=True)
     scanner_device_id = Column(Integer, ForeignKey("scanner_devices.id", ondelete="SET NULL"), nullable=True, index=True)
     commessa_id = Column(Integer, ForeignKey("commesse.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -616,6 +620,7 @@ class AssemblyScanSession(Base):
 class AssemblyScanEvent(Base):
     """Append-only record of every read performed during an assembly cycle."""
     __tablename__ = "assembly_scan_events"
+    details_snapshot = Column(JSON, nullable=True)
 
     id = Column(Integer, primary_key=True)
     session_id = Column(Integer, ForeignKey("assembly_scan_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -645,6 +650,7 @@ class WeldingScanSession(Base):
 class WeldingScanEvent(Base):
     """Append-only record for START, assembly reads and END in welding."""
     __tablename__ = "welding_scan_events"
+    details_snapshot = Column(JSON, nullable=True)
 
     id = Column(Integer, primary_key=True)
     session_id = Column(Integer, ForeignKey("welding_scan_sessions.id", ondelete="CASCADE"), nullable=False, index=True)

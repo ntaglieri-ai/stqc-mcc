@@ -15,7 +15,7 @@ from typing import Optional
 
 _logger = logging.getLogger("stqc.admin")
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, inspect, text
@@ -336,6 +336,15 @@ def group_users(name: str, db: Session = Depends(get_db)):
 
 SCANNER_SCAN_MODES = {"MULTI_POSTAZIONE", "OFFICINA", "ASSEMBLAGGI", "MAGAZZINO", "MAGAZZINO_INVENTARIO", "SPEDIZIONE"}
 WORKSTATION_PROGRESS_MODES = {"BLOCCO", "PEZZO_SINGOLO", "CHECK"}
+
+
+@router.get('/scanner-link-config')
+def get_scanner_link_config(request: Request):
+    from backend.app.services.scanner_links import scanner_origin
+    try:
+        return {'origin': scanner_origin(str(request.base_url))}
+    except ValueError as exc:
+        return {'origin': None, 'detail': str(exc)}
 
 
 def _normalize_scanner_scan_mode(value: str | None) -> str:

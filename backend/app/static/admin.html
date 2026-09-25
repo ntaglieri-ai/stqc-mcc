@@ -1516,6 +1516,7 @@ async function saveGroup(name) {
 // SECTION — WORKSTATIONS / SCANNERS
 // ═══════════════════════════════════════════════════════════════
 
+let scannerLinkOrigin = location.origin;
 let _workstations = [];
 let _scannerDevices = [];
 let _scannerAttempts = [];
@@ -1528,10 +1529,12 @@ async function loadWorkstationsConfig() {
   wsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
   scBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,.2);padding:24px">Caricamento…</td></tr>';
   try {
-    const [wsRes, scRes] = await Promise.all([
+    const [wsRes, scRes, linkRes] = await Promise.all([
       api('GET', '/workstations?include_inactive=true'),
       api('GET', '/scanner-devices?include_inactive=true'),
+      api('GET', '/scanner-link-config'),
     ]);
+    scannerLinkOrigin = (await linkRes.json()).origin;
     _workstations = await wsRes.json();
     _scannerDevices = await scRes.json();
     renderWorkstations();
@@ -1642,10 +1645,10 @@ function renderScannerDevices() {
       `<option value="${w.id}" ${s.postazione_id === w.id ? 'selected' : ''}>${esc(w.code)}</option>`
     ).join('');
     const token = s.device_token || '';
-    const scanUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan` : '—';
-    const readApiUrl = token ? `${location.origin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read` : '—';
-    const readPageUrl = token ? `${location.origin}/scanner-view/${encodeURIComponent(token)}` : '—';
-    const mobilePageUrl = token ? `${location.origin}/mobile-scan/${encodeURIComponent(token)}` : '—';
+    const scanUrl = token && scannerLinkOrigin ? `${scannerLinkOrigin}/api/v1/scanner/netum/${encodeURIComponent(token)}/scan` : '—';
+    const readApiUrl = token && scannerLinkOrigin ? `${scannerLinkOrigin}/api/v1/scanner/netum/${encodeURIComponent(token)}/read` : '—';
+    const readPageUrl = token && scannerLinkOrigin ? `${scannerLinkOrigin}/scanner-view/${encodeURIComponent(token)}` : '—';
+    const mobilePageUrl = token && scannerLinkOrigin ? `${scannerLinkOrigin}/mobile-scan/${encodeURIComponent(token)}` : '—';
     return `
     <tr style="${s.active ? '' : 'opacity:.42'}" oncontextmenu="openScannerContextMenu(event, ${s.id})">
       <td style="font-weight:800;color:#dbeafe">${esc(s.scanner_code)}</td>
@@ -1741,7 +1744,14 @@ async function activateScannerDevice(id, type, button) {
 
 async function copyScannerMobileUrl(token) {
   if (!token) return toast('Token scanner mancante', 'err');
-  const url = `${location.origin}/mobile-scan/${encodeURIComponent(token)}`;
+  let linkOrigin;
+  try {
+    const configResponse = await api('GET', '/scanner-link-config');
+    const config = await configResponse.json();
+    if (!configResponse.ok || !config.origin) throw new Error(config.detail || 'Link scanner non disponibile');
+    linkOrigin = config.origin;
+  } catch (err) { alert(err.message || 'Link scanner non disponibile'); return; }
+  const url = `${linkOrigin}/mobile-scan/${encodeURIComponent(token)}`;
   try {
     await navigator.clipboard.writeText(url);
     toast('Link app telefono copiato', 'ok');

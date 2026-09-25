@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -17,7 +17,6 @@ from backend.app.models.commessa import Commessa, Piece, PieceScanEvent, Scanner
 from backend.app.models.warehouse import WarehouseChangeRequest, WarehouseChangeRequestStatus, WarehouseItem
 from backend.app.services.material_origin import origin_attributes
 
-CURRENT_WAREHOUSE_TTL = timedelta(minutes=2)
 
 
 def _queue_mapped_outgoing(db: Session, warehouse_item: WarehouseItem, commessa: Commessa | None) -> None:
@@ -148,10 +147,6 @@ def _pending_mapping_pieces(db: Session, scanner: ScannerDevice) -> list[Piece]:
 
 def _current_warehouse_item(db: Session, scanner: ScannerDevice, now: datetime) -> WarehouseItem | None:
     if not scanner.current_warehouse_item_id:
-        return None
-    if scanner.current_warehouse_item_set_at and now - scanner.current_warehouse_item_set_at > CURRENT_WAREHOUSE_TTL:
-        scanner.current_warehouse_item_id = None
-        scanner.current_warehouse_item_set_at = None
         return None
     return db.get(WarehouseItem, scanner.current_warehouse_item_id)
 
@@ -323,8 +318,8 @@ def process_preproduction_scan(
             if result.get("assigned"):
                 linked_pieces += 1
         if pending_pieces:
-            scanner.current_warehouse_item_id = None
-            scanner.current_warehouse_item_set_at = None
+            scanner.current_warehouse_item_id = warehouse_item.id
+            scanner.current_warehouse_item_set_at = now
             message = f"Grezzo collegato a {linked_pieces} pezzi"
         else:
             scanner.current_warehouse_item_id = warehouse_item.id
@@ -364,6 +359,9 @@ def process_preproduction_scan(
 
     piece = candidates[0]
     current_warehouse_item = _current_warehouse_item(db, scanner, now)
+    if current_warehouse_item and current_warehouse_item.status not in ("AVAILABLE", "RESERVED"):
+        return _failure(db, scanner, external_id, raw_payload, "PREPROD_PIECE",
+                        "WAREHOUSE_ITEM_NOT_AVAILABLE", "Grezzo selezionato non disponibile: seleziona un altro grezzo", piece=piece)
     if current_warehouse_item and current_warehouse_item.status in ("AVAILABLE", "RESERVED"):
         if piece.materiale_origine_id and piece.materiale_origine_id != current_warehouse_item.id:
             return _failure(

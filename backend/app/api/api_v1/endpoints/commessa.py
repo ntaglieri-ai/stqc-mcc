@@ -568,6 +568,7 @@ def get_dashboard_monitoring(
             continue
         daily_rows.append({
             "data": event.timestamp,
+            "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": f"Scan {phase}",
             "commessa": commessa.codice,
@@ -690,6 +691,7 @@ def get_dashboard_monitoring(
         phase_label = "Lavorazioni officina" if event.fase == "officina" else event.fase
         daily_rows.append({
             "data": event.timestamp,
+            "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": f"Lettura {phase_label}",
             "commessa": commessa.codice,
@@ -723,6 +725,7 @@ def get_dashboard_monitoring(
             detail = f"{session.workstation_code} · {event.entity_code}"
         daily_rows.append({
             "data": event.timestamp,
+            "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": assembly_labels.get(event.event_type, event.event_type),
             "commessa": commessa.codice if commessa else None,
@@ -750,6 +753,7 @@ def get_dashboard_monitoring(
         code = None if not event.assembly_code else f"{event.assembly_code} / {event.assembly_instance}"
         daily_rows.append({
             "data": event.timestamp,
+            "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": welding_labels.get(event.event_type, event.event_type),
             "commessa": commessa.codice if commessa else None,
@@ -771,6 +775,7 @@ def get_dashboard_monitoring(
         is_start = event.tipo_evento == "INIZIO"
         daily_rows.append({
             "data": event.timestamp,
+            "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": "Inizio progettazione" if is_start else "Fine progettazione",
             "commessa": commessa.codice,
@@ -784,6 +789,7 @@ def get_dashboard_monitoring(
             continue
         daily_rows.append({
             "data": movement.occurred_at,
+            "details_snapshots": [movement.details_snapshot] if movement.details_snapshot else [],
             "vista": "magazzino",
             "origine": "Ingresso magazzino" if kind == MovementType.INCOMING.value else "Uscita magazzino",
             "commessa": movement.destination_commessa or (movement.commessa.codice if movement.commessa else None),
@@ -825,6 +831,7 @@ def get_dashboard_monitoring(
                 "Scanner disattivato" if event.error_code == "SCANNER_INACTIVE" else "Materiale non trovato in questo magazzino")
         daily_rows.append({
             "data": event.created_at,
+            "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "magazzino",
             "origine": origin,
             "commessa": commessa.codice if commessa else None,
@@ -849,11 +856,26 @@ def get_dashboard_monitoring(
             operator = request.rejected_by_username if rejected else request.applied_by_username
             daily_rows.append({
                 "data": request.rejected_at if rejected else request.applied_at,
+                "details_snapshots": [request.details_snapshot["decision"]] if (request.details_snapshot or {}).get("decision") else [],
                 "vista": "magazzino", "origine": "Esito notifica inventario",
                 "commessa": None, "dettaglio": inventory_label(request.payload or {}),
                 "esito": ("Notifica rifiutata" if rejected else labels.get(operation, "Notifica applicata"))
                          + (f" · Operatore: {operator}" if operator else ""),
             })
+
+    shipping_reads = db.query(WorkshopScanAttempt).filter(
+        WorkshopScanAttempt.scan_kind.in_(['SHIPPING', 'AD_HOC_SHIPPING']),
+        WorkshopScanAttempt.created_at >= today_start,
+        WorkshopScanAttempt.created_at < tomorrow_start).all()
+    for event in shipping_reads:
+        snapshot = event.details_snapshot or {}
+        jobs = snapshot.get('commesse') or []
+        daily_rows.append({'data': event.created_at, 'vista': 'commessa',
+            'origine': 'Scansione spedizione',
+            'commessa': ', '.join(job['codice'] for job in jobs if job) or None,
+            'dettaglio': (snapshot.get('scanner') or {}).get('name', 'Spedizioni'),
+            'esito': event.message, 'errore': event.outcome != 'OK',
+            'details_snapshots': [snapshot] if snapshot else []})
 
     daily_rows.sort(key=lambda row: (row["data"] or today_start), reverse=True)
     # Visibility is separate from operational records: never delete scans or movements.

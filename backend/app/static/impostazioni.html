@@ -559,7 +559,14 @@ async function activateScannerDevice(id, type, button) {
 
 async function copyScannerMobileUrl(token, button) {
   if (!token) return alert('Token scanner mancante.');
-  const url = `${location.origin}/mobile-scan/${encodeURIComponent(token)}`;
+  let linkOrigin;
+  try {
+    const configResponse = await scannerApi('/scanner-link-config');
+    const config = await configResponse.json();
+    if (!configResponse.ok || !config.origin) throw new Error(config.detail || 'Link scanner non disponibile');
+    linkOrigin = config.origin;
+  } catch (err) { alert(err.message || 'Link scanner non disponibile'); return; }
+  const url = `${linkOrigin}/mobile-scan/${encodeURIComponent(token)}`;
   const original = button?.textContent;
   if (button) { button.disabled = true; button.textContent = 'Copia…'; button.setAttribute('aria-busy','true'); }
   let copied = false;

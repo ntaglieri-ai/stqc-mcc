@@ -86,7 +86,42 @@
           cell.textContent = value;
           row.append(cell);
         });
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = 'Dettagli evento, pezzi e grezzi';
+        summary.style.cssText = 'cursor:pointer;color:#93c5fd;margin-top:8px';
+        details.append(summary);
+        const snapshots = event.details_snapshots || [];
+        const labels = {pezzi:'Pezzi coinvolti',grezzi:'Grezzi di origine',assemblati:'Assemblati',
+          attributi_origine_mappati:'Origine registrata nella mappatura',evento:'Evento',
+          unita_spedizione:'Unità di spedizione',captured_at:'Dati conservati il',
+          dati_non_disponibili:'Dati non disponibili',commesse:'Commesse',revisioni:'Revisioni'};
+        const renderValue = (parent, key, value) => {
+          if (value == null || value === '' || (Array.isArray(value) && !value.length)) return;
+          if (typeof value === 'object') {
+            const group = document.createElement('details'); group.style.cssText='margin:8px 0 8px 12px';
+            group.open = ['pezzo','grezzo','materiale'].includes(key);
+            const title = document.createElement('summary');
+            title.textContent=(value.pezzo?.marca_pos || value.materiale?.code || labels[key] || key.replaceAll('_',' ')) + (Array.isArray(value)?' ('+value.length+')':'');
+            group.append(title);
+            Object.entries(value).forEach(([k,v]) => renderValue(group, Array.isArray(value)?String(Number(k)+1):k, v));
+            parent.append(group);
+          } else {
+            const field=document.createElement('div');field.style.cssText='margin:5px 0;overflow-wrap:anywhere;white-space:normal';
+            field.textContent=(labels[key] || key.replaceAll('_',' '))+': '+String(value);
+            parent.append(field);
+          }
+        };
+        if (snapshots.length) snapshots.forEach((snapshot,index)=>{
+          if (snapshots.length>1) renderValue(details,'Evento '+(index+1),snapshot);
+          else Object.entries(snapshot).filter(([key])=>key!=='version').forEach(([key,value])=>renderValue(details,key,value));
+        });
+        else { const note=document.createElement('p');note.textContent='Evento precedente alla raccolta dei dettagli storici.';details.append(note); }
         body.append(row);
+        const detailRow = document.createElement('tr');
+        const detailCell = document.createElement('td');
+        detailCell.colSpan = 5;
+        detailCell.append(details); detailRow.append(detailCell); body.append(detailRow);
       });
       table.append(body);
       wrapper.append(table);

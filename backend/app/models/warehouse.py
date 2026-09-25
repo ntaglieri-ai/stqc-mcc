@@ -193,6 +193,7 @@ class WarehouseItem(Base):
 class WarehouseChangeRequest(Base):
     """Richiesta intermedia per ogni modifica operativa all'inventario."""
     __tablename__ = "warehouse_change_requests"
+    details_snapshot = Column(JSON, nullable=True)
 
     id = Column(Integer, primary_key=True, index=True)
     status = Column(
@@ -315,6 +316,7 @@ class Certificate(Base):
 
 class StockMovement(Base):
     __tablename__ = "stock_movements"
+    details_snapshot = Column(JSON, nullable=True)
 
     id = Column(Integer, primary_key=True, index=True)
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=False)
@@ -458,6 +460,7 @@ class StockReservation(Base):
 class ScanEvento(Base):
     """Registro degli eventi di scan QR su un pezzo fisico (DistintaItem)."""
     __tablename__ = "scan_eventi"
+    details_snapshot = Column(JSON, nullable=True)
 
     id          = Column(Integer,    primary_key=True, index=True)
     item_uuid   = Column(String(36), nullable=False, index=True)

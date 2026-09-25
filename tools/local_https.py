@@ -111,6 +111,7 @@ if __name__ == '__main__':
     tls.minimum_version = ssl.TLSVersion.TLSv1_2
     tls.load_cert_chain(CERTS / 'server.pem', CERTS / 'server.key')
     gateway.socket = tls.wrap_socket(gateway.socket, server_side=True)
+    (CERTS / 'origin.txt').write_text(f'https://{args.address}:8443', encoding='utf-8')
     threading.Thread(target=download.serve_forever, daemon=True).start()
     print(f'HTTPS ready: https://{args.address}:8443', flush=True)
     gateway.serve_forever()
