@@ -45,33 +45,77 @@ class MonitoringTests(unittest.TestCase):
             self.assertNotIn('INVENTORY_PRESENCE', str(visible))
         from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
         day = scanned.date().isoformat()
-        result = cleanup_monitoring(MonitoringCleanupRequest(day=day, scope='magazzino'), self.db)
-        self.assertEqual(result['changed'], 2)
-        hidden = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
-        self.assertTrue(all(row['hidden'] for row in hidden))
-        self.assertEqual(self.db.query(WorkshopScanAttempt).count(), 1)
+        result = cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[scan['event_key']]), self.db)
+        self.assertEqual(result['deleted'], 1)
+        self.assertEqual(self.db.query(WorkshopScanAttempt).count(), 0)
         self.assertEqual(self.db.query(WarehouseChangeRequest).count(), 1)
-        self.assertEqual(self.db.query(StockMovement).count(), 0)
-        self.assertEqual(item.status, 'AVAILABLE')
-        self.db.add(WorkshopScanAttempt(scanner_device_id=scanner.id, raw_payload=item.uuid,
-            scan_kind='INVENTORY_CHECK', outcome='OK', message='Nuova scansione', created_at=scanned.replace(hour=10)))
-        self.db.commit()
-        updated = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
-        self.assertEqual(sum(not row['hidden'] for row in updated), 1)
-        cleanup_monitoring(MonitoringCleanupRequest(day=day, scope='magazzino', operation='restore'), self.db)
-        restored = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
-        self.assertTrue(all(not row['hidden'] for row in restored))
-        target = restored[0]['event_key']
-        result = cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[target]), self.db)
-        self.assertEqual(result['changed'], 1)
         remaining = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
-        self.assertEqual([r['event_key'] for r in remaining if r['hidden']], [target])
-        self.assertEqual(sum(not r['hidden'] for r in remaining), 2)
-        for invalid in ([], ['not-an-event']):
-            with self.assertRaises(HTTPException):
-                cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=invalid), self.db)
-        self.assertEqual(self.db.query(WorkshopScanAttempt).count(), 2)
+        self.assertEqual([r['event_key'] for r in remaining], [decision['event_key']])
+        self.assertTrue(remaining[0]['details_snapshots'])
+        with self.assertRaises(HTTPException):
+            cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[decision['event_key'], 'stale']), self.db)
+        self.assertEqual(self.db.query(WarehouseChangeRequest).count(), 1)
+        cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[decision['event_key']]), self.db)
+        self.assertEqual(self.db.query(WarehouseChangeRequest).count(), 0)
+        self.assertEqual(get_dashboard_monitoring(self.db, day)['giornaliera']['timeline'], [])
+        self.assertEqual(item.status, 'AVAILABLE')
+        self.assertIsNotNone(self.db.get(WarehouseItem, item.id))
 
+    def test_delete_identical_looking_events_uses_distinct_sources(self):
+        from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
+        moment = datetime.utcnow()
+        self.db.add_all([ProgettazioneEvento(commessa_id=self.commessa.id,
+            voce='disegni', tipo_evento='INIZIO', timestamp=moment) for _ in range(2)])
+        self.db.commit()
+        day = moment.date().isoformat()
+        rows = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
+        self.assertEqual(len({r['event_key'] for r in rows}), 2)
+        cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[rows[0]['event_key']]), self.db)
+        self.assertEqual(self.db.query(ProgettazioneEvento).count(), 1)
+        self.assertTrue(self.db.query(ProgettazioneEvento).one().details_snapshot)
+        self.assertEqual(len(get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']), 1)
+
+    def test_deletion_failure_rolls_back_events_and_snapshots(self):
+        from unittest.mock import patch
+        from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
+        from backend.app.services.monitoring_delete import delete_event
+        moment = datetime.utcnow()
+        self.db.add_all([ProgettazioneEvento(commessa_id=self.commessa.id,
+            voce='disegni', tipo_evento='INIZIO', timestamp=moment) for _ in range(2)])
+        self.db.commit()
+        rows = get_dashboard_monitoring(self.db)['giornaliera']['timeline']
+        calls = []
+        def fail_second(db, source):
+            calls.append(source)
+            if len(calls) == 2:
+                raise RuntimeError('simulated failure')
+            delete_event(db, source)
+        with patch('backend.app.services.monitoring_delete.delete_event', side_effect=fail_second):
+            with self.assertRaises(RuntimeError):
+                cleanup_monitoring(MonitoringCleanupRequest(day=moment.date().isoformat(),
+                    event_keys=[r['event_key'] for r in rows]), self.db)
+        self.assertEqual(self.db.query(ProgettazioneEvento).count(), 2)
+        self.assertTrue(all(e.details_snapshot for e in self.db.query(ProgettazioneEvento)))
+
+    def test_delete_movement_removes_snapshot_without_deleting_material(self):
+        from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
+        material = Material(code='DELETE-MOVE', description='Materiale', unit='PZ')
+        self.db.add(material); self.db.flush()
+        movement = StockMovement(material_id=material.id, quantity=1,
+            movement_type=MovementType.INCOMING, reason='Test', occurred_at=datetime.utcnow())
+        self.db.add(movement); self.db.flush()
+        item = WarehouseItem(material_id=material.id, ordinal=1, source_movement_id=movement.id)
+        self.db.add(item); self.db.commit()
+        row = next(r for r in get_dashboard_monitoring(self.db)['giornaliera']['timeline']
+                   if r['origine'] == 'Ingresso magazzino')
+        self.assertTrue(row['details_snapshots'])
+        cleanup_monitoring(MonitoringCleanupRequest(day=movement.occurred_at.date().isoformat(),
+            event_keys=[row['event_key']]), self.db)
+        self.assertEqual(self.db.query(StockMovement).count(), 0)
+        self.db.refresh(item)
+        self.assertIsNone(item.source_movement_id)
+        self.assertIsNotNone(self.db.get(Material, material.id))
+        self.assertIsNotNone(self.db.get(WarehouseItem, item.id))
 
     def setUp(self):
         self.engine = create_engine('sqlite://')
@@ -262,6 +306,12 @@ class MonitoringTests(unittest.TestCase):
         self.db.add(block)
         self.db.flush()
         self.db.add_all([
+            WorkshopScanAttempt(scanner_device_id=scanner.id, workstation_id=station.id,
+                scan_block_id=block.id, raw_payload='WS:TAGLIO:START', scan_kind='WORKSTATION_START',
+                outcome='OK', message='INIZIO registrato', created_at=moment),
+            WorkshopScanAttempt(scanner_device_id=scanner.id, workstation_id=station.id,
+                scan_block_id=block.id, raw_payload='WS:TAGLIO:END', scan_kind='WORKSTATION_END',
+                outcome='OK', message='FINE registrata', created_at=moment.replace(hour=12)),
             WorkshopScanAttempt(
                 scanner_device_id=scanner.id, workstation_id=station.id, scan_block_id=block.id,
                 piece_id=piece.id, raw_payload='P1', scan_kind='PIECE', outcome='OK',
@@ -299,6 +349,24 @@ class MonitoringTests(unittest.TestCase):
             'stato': 'CLOSED',
             'numero_scan': 1,
         }])
+
+        from backend.app.api.api_v1.endpoints.commessa import cleanup_monitoring, MonitoringCleanupRequest
+        day = moment.date().isoformat()
+        # Delete only the middle scan, including its secondary piece log and snapshot.
+        cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[rows[1]['event_key']]), self.db)
+        self.assertEqual(self.db.query(WorkshopScanAttempt).filter_by(scan_kind='PIECE').count(), 0)
+        self.assertEqual(self.db.query(PieceScanEvent).filter_by(event_type='PHASE_START').count(), 0)
+        self.assertEqual(self.db.query(PieceScanEvent).filter_by(event_type='PHASE_END').count(), 1)
+        remaining = get_dashboard_monitoring(self.db, day)['giornaliera']['timeline']
+        self.assertEqual(len(remaining), 2)
+        # Stable source identifiers survive changed job labels and details.
+        self.assertEqual({r['event_key'] for r in remaining}, {rows[0]['event_key'], rows[2]['event_key']})
+        cleanup_monitoring(MonitoringCleanupRequest(day=day, event_keys=[r['event_key'] for r in remaining]), self.db)
+        self.assertEqual(self.db.query(WorkshopScanAttempt).count(), 0)
+        self.assertEqual(self.db.query(PieceScanEvent).count(), 0)
+        self.assertEqual(get_dashboard_monitoring(self.db, day)['giornaliera']['timeline'], [])
+        self.assertIsNotNone(self.db.get(Piece, piece.id))
+        self.assertIsNotNone(self.db.get(Commessa, self.commessa.id))
 
 
 if __name__ == '__main__':

@@ -42,7 +42,7 @@
       </div>
       <dialog id="cleanup-dialog" class="monitor-cleanup-dialog">
         <form method="dialog"><h2>Cancellare gli eventi selezionati?</h2>
-        <p id="cleanup-preview"></p><p>Gli eventi saranno rimossi dal registro per tutti gli utenti. I dati operativi e i dettagli per la reportistica restano conservati.</p>
+        <p id="cleanup-preview"></p><p>Gli eventi selezionati e tutti i loro dettagli saranno cancellati definitivamente dal database e dalla reportistica. Non è possibile annullare. Pezzi e commesse non vengono eliminati.</p>
         <div class="cleanup-actions"><button value="cancel">Annulla</button><button type="button" id="confirm-delete" class="monitor-delete-button">Conferma cancellazione</button></div>
         <p id="cleanup-error" role="alert"></p></form>
       </dialog>
@@ -313,7 +313,7 @@
       try {
         const response = await fetch('/api/v1/commesse/dashboard/monitoring/cleanup', {
           method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
-          body:JSON.stringify({day:dayInput.value, scope:'all', operation:'hide', event_keys:pendingDeletion})
+          body:JSON.stringify({day:dayInput.value, operation:'delete', event_keys:pendingDeletion})
         });
         if (!response.ok) throw new Error('Cancellazione non riuscita. Aggiorna il registro e riprova.');
         selectedEvents.clear(); cleanupDialog.close(); await loadEvents();

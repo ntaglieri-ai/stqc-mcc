@@ -215,7 +215,7 @@ def _assign_warehouse_origin(
     )
     db.add(event)
     _queue_mapped_outgoing(db, warehouse_item, commessa)
-    _attempt(
+    attempt = _attempt(
         db,
         scanner,
         external_id,
@@ -225,6 +225,8 @@ def _assign_warehouse_origin(
         f"Pezzo {piece.qr_code} associato a grezzo",
         piece=piece,
     )
+    db.flush()
+    event.metadata_json = {**(event.metadata_json or {}), 'scan_attempt_id': attempt.id}
     return {
         "material": material_code,
         "assigned": True,
@@ -259,7 +261,7 @@ def _mark_piece_pending(
     piece.ultimo_evento = "MATERIAL_PENDING"
     piece.ultimo_evento_at = now
     piece.updated_at = now
-    _attempt(
+    attempt = _attempt(
         db,
         scanner,
         external_id,
@@ -269,6 +271,8 @@ def _mark_piece_pending(
         f"Pezzo {piece.qr_code} in attesa grezzo",
         piece=piece,
     )
+    db.flush()
+    event.metadata_json = {**(event.metadata_json or {}), 'scan_attempt_id': attempt.id}
 
 
 def process_preproduction_scan(

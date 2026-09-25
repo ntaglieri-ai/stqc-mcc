@@ -485,37 +485,28 @@ def get_dashboard_commesse(db: Session = Depends(get_db)):
 
 class MonitoringCleanupRequest(BaseModel):
     day: str
-    scope: str = "all"
-    operation: str = "hide"
-    event_keys: list[str] | None = None
+    event_keys: list[str] = Field(..., min_length=1, max_length=10000)
+    operation: str = "delete"
 
 
 @router.post("/dashboard/monitoring/cleanup")
 def cleanup_monitoring(body: MonitoringCleanupRequest, db: Session = Depends(get_db)):
-    from backend.app.models.settings import AppSettings
-    import json
-    if body.scope not in {"all", "magazzino", "commessa"} or body.operation not in {"hide", "restore"}:
-        raise HTTPException(422, "Operazione o gruppo non valido")
+    from backend.app.services.monitoring_delete import delete_event
+    if body.operation != "delete":
+        raise HTTPException(422, "Operazione non valida: è richiesta la cancellazione definitiva")
     data = get_dashboard_monitoring(db, body.day)
-    selected = [row for row in data['giornaliera']['timeline'] if body.scope == 'all' or row['vista'] == body.scope]
-    if body.event_keys is not None:
-        requested = set(body.event_keys)
-        available = {row['event_key'] for row in selected}
-        if not requested or not requested <= available:
-            raise HTTPException(422, 'Selezione non valida. Aggiorna il registro e riprova.')
-        selected = [row for row in selected if row['event_key'] in requested]
-    key = 'monitoring_hidden:' + data['date']
-    setting = db.get(AppSettings, key)
-    hidden = set(json.loads(setting.value)) if setting and setting.value else set()
-    identifiers = {row['event_key'] for row in selected}
-    changed = len(identifiers - hidden) if body.operation == 'hide' else len(identifiers & hidden)
-    hidden = hidden | identifiers if body.operation == 'hide' else hidden - identifiers
-    if setting is None:
-        setting = AppSettings(key=key)
-    setting.value = json.dumps(sorted(hidden))
-    db.add(setting)
-    db.commit()
-    return {'changed': changed}
+    available = {row['event_key']: row for row in data['giornaliera']['timeline']}
+    requested = set(body.event_keys)
+    if not requested <= available.keys():
+        raise HTTPException(409, 'Il registro è cambiato. Aggiorna e seleziona nuovamente gli eventi.')
+    try:
+        for key in requested:
+            delete_event(db, available[key]['event_source'])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {'deleted': len(requested)}
 
 
 @router.get("/dashboard/monitoring")
@@ -574,7 +565,7 @@ def get_dashboard_monitoring(
         if phase == "officina":
             continue
         daily_rows.append({
-            "data": event.timestamp,
+            "data": event.timestamp, "event_source": [event.__tablename__, event.id],
             "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": f"Scan {phase}",
@@ -605,7 +596,7 @@ def get_dashboard_monitoring(
         workshop_piece_count += 1
         snapshot = getattr(attempt, "details_snapshot", None)
         daily_rows.append({
-            "data": attempt.created_at, "vista": "commessa",
+            "data": attempt.created_at, "event_source": [attempt.__tablename__, attempt.id], "vista": "commessa",
             "origine": "Scansione pezzo", "commessa": commessa.codice,
             "dettaglio": f"{workstation.code} · {piece.marca_pos} · pezzo {piece.progressivo}",
             "esito": "Pezzo acquisito" + (" · FINE non registrata" if not block.closed_at else ""),
@@ -632,9 +623,11 @@ def get_dashboard_monitoring(
                 WorkshopScanAttempt.scan_block_id == block.id,
                 WorkshopScanAttempt.scan_kind == kind,
                 WorkshopScanAttempt.outcome == "OK").first())
+            if attempt is None:
+                continue
             snapshot = getattr(attempt, "details_snapshot", None)
             daily_rows.append({
-                "data": attempt.created_at if attempt else moment,
+                "data": attempt.created_at, "event_source": [attempt.__tablename__, attempt.id],
                 "vista": "commessa", "origine": label,
                 "commessa": jobs[0] if len(jobs) == 1 else None,
                 "commesse": jobs,
@@ -659,7 +652,7 @@ def get_dashboard_monitoring(
     for attempt, piece, commessa, workstation in standalone_reads:
         snapshot = getattr(attempt, 'details_snapshot', None)
         daily_rows.append({
-            'data': attempt.created_at, 'vista': 'commessa', 'origine': 'Scansione pezzo',
+            'data': attempt.created_at, 'event_source': [attempt.__tablename__, attempt.id], 'vista': 'commessa', 'origine': 'Scansione pezzo',
             'commessa': commessa.codice,
             'dettaglio': f"{workstation.name if workstation else 'Postazione non indicata'} · {piece.marca_pos or piece.qr_code}",
             'esito': 'INIZIO mancante · lettura senza ciclo di lavorazione' if attempt.outcome == 'OK' else attempt.message,
@@ -677,7 +670,7 @@ def get_dashboard_monitoring(
                 WorkshopScanAttempt.created_at < tomorrow_start).all())
     for attempt, workstation in workshop_errors:
         snapshot = getattr(attempt, 'details_snapshot', None)
-        daily_rows.append({'data': attempt.created_at, 'vista': 'commessa',
+        daily_rows.append({'data': attempt.created_at, 'event_source': [attempt.__tablename__, attempt.id], 'vista': 'commessa',
             'origine': 'Errore scansione officina', 'commessa': None,
             'dettaglio': workstation.name if workstation else 'Postazione non indicata',
             'esito': attempt.message, 'errore': True, 'error_code': attempt.error_code,
@@ -697,7 +690,7 @@ def get_dashboard_monitoring(
             continue
         phase_label = "Lavorazioni officina" if event.fase == "officina" else event.fase
         daily_rows.append({
-            "data": event.timestamp,
+            "data": event.timestamp, "event_source": [event.__tablename__, event.id],
             "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": f"Lettura {phase_label}",
@@ -731,7 +724,7 @@ def get_dashboard_monitoring(
         elif event.entity_code:
             detail = f"{session.workstation_code} · {event.entity_code}"
         daily_rows.append({
-            "data": event.timestamp,
+            "data": event.timestamp, "event_source": [event.__tablename__, event.id],
             "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": assembly_labels.get(event.event_type, event.event_type),
@@ -759,7 +752,7 @@ def get_dashboard_monitoring(
     for event, session, commessa in welding_events:
         code = None if not event.assembly_code else f"{event.assembly_code} / {event.assembly_instance}"
         daily_rows.append({
-            "data": event.timestamp,
+            "data": event.timestamp, "event_source": [event.__tablename__, event.id],
             "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": welding_labels.get(event.event_type, event.event_type),
@@ -781,7 +774,7 @@ def get_dashboard_monitoring(
     for event, commessa in design_events:
         is_start = event.tipo_evento == "INIZIO"
         daily_rows.append({
-            "data": event.timestamp,
+            "data": event.timestamp, "event_source": [event.__tablename__, event.id],
             "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "commessa",
             "origine": "Inizio progettazione" if is_start else "Fine progettazione",
@@ -795,7 +788,7 @@ def get_dashboard_monitoring(
         if kind not in {MovementType.INCOMING.value, MovementType.OUTGOING.value, MovementType.SFRIDO.value}:
             continue
         daily_rows.append({
-            "data": movement.occurred_at,
+            "data": movement.occurred_at, "event_source": [movement.__tablename__, movement.id],
             "details_snapshots": [movement.details_snapshot] if movement.details_snapshot else [],
             "vista": "magazzino",
             "origine": "Ingresso magazzino" if kind == MovementType.INCOMING.value else "Uscita magazzino",
@@ -837,7 +830,7 @@ def get_dashboard_monitoring(
             message = "Scansione riuscita · notifica inviata al magazzino" if event.outcome == "OK" else (
                 "Scanner disattivato" if event.error_code == "SCANNER_INACTIVE" else "Materiale non trovato in questo magazzino")
         daily_rows.append({
-            "data": event.created_at,
+            "data": event.created_at, "event_source": [event.__tablename__, event.id],
             "details_snapshots": [event.details_snapshot] if event.details_snapshot else [],
             "vista": "magazzino",
             "origine": origin,
@@ -863,6 +856,7 @@ def get_dashboard_monitoring(
             operator = request.rejected_by_username if rejected else request.applied_by_username
             daily_rows.append({
                 "data": request.rejected_at if rejected else request.applied_at,
+                "event_source": [request.__tablename__, request.id],
                 "details_snapshots": [request.details_snapshot["decision"]] if (request.details_snapshot or {}).get("decision") else [],
                 "vista": "magazzino", "origine": "Esito notifica inventario",
                 "commessa": None, "dettaglio": inventory_label(request.payload or {}),
@@ -877,7 +871,7 @@ def get_dashboard_monitoring(
     for event in shipping_reads:
         snapshot = event.details_snapshot or {}
         jobs = snapshot.get('commesse') or []
-        daily_rows.append({'data': event.created_at, 'vista': 'commessa',
+        daily_rows.append({'data': event.created_at, 'event_source': [event.__tablename__, event.id], 'vista': 'commessa',
             'origine': 'Scansione spedizione',
             'commessa': ', '.join(job['codice'] for job in jobs if job) or None,
             'dettaglio': (snapshot.get('scanner') or {}).get('name', 'Spedizioni'),
@@ -885,16 +879,10 @@ def get_dashboard_monitoring(
             'details_snapshots': [snapshot] if snapshot else []})
 
     daily_rows.sort(key=lambda row: (row["data"] or today_start), reverse=True)
-    # Visibility is separate from operational records: never delete scans or movements.
     import hashlib
-    import json
-    from backend.app.models.settings import AppSettings
-    hidden_setting = db.get(AppSettings, 'monitoring_hidden:' + today_start.date().isoformat())
-    hidden_events = set(json.loads(hidden_setting.value)) if hidden_setting and hidden_setting.value else set()
     for row in daily_rows:
-        identity = [row['data'].isoformat() if row['data'] else '', row['vista'], row['origine'], row.get('commessa'), row.get('dettaglio')]
-        row['event_key'] = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
-        row['hidden'] = row['event_key'] in hidden_events
+        row['event_key'] = hashlib.sha256(json.dumps([row['event_source'], row['data'].isoformat()]).encode()).hexdigest()
+        row['hidden'] = False
 
     movement_type = lambda movement: movement.movement_type.value if hasattr(movement.movement_type, "value") else str(movement.movement_type)
     return {
