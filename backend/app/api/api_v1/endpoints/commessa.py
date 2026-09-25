@@ -607,10 +607,61 @@ def get_dashboard_monitoring(
         row["scan_ids"].add(attempt.id)
     for row in workshop_blocks.values():
         scan_count = len(row.pop("scan_ids"))
-        state = "Conclusa" if row.pop("closed_at") else "In corso"
+        state = "Conclusa" if row.pop("closed_at") else "Non conclusa · FINE non registrata"
         row.pop("started_at")
         row["esito"] = f"{scan_count} scan · {state}"
         daily_rows.append(row)
+
+    # Show START-only cycles too: they must not disappear before the first piece.
+    represented_blocks = {key[0] for key in workshop_blocks}
+    empty_open_blocks = db.query(WorkshopScanBlock).filter(
+        WorkshopScanBlock.status == "OPEN", WorkshopScanBlock.started_at >= today_start,
+        WorkshopScanBlock.started_at < tomorrow_start).all()
+    for block in empty_open_blocks:
+        if block.id not in represented_blocks:
+            daily_rows.append({'data': block.started_at, 'vista': 'commessa',
+                'origine': 'Lavorazione officina', 'commessa': None,
+                'dettaglio': block.workstation_code,
+                'esito': '0 scan · Non conclusa · FINE non registrata'})
+
+    # Preserve legacy raw records; expose unframed reads as anomalies in the register.
+    standalone_reads = (
+        db.query(WorkshopScanAttempt, Piece, Commessa, Workstation)
+        .join(Piece, Piece.id == WorkshopScanAttempt.piece_id)
+        .join(Commessa, Commessa.id == Piece.commessa_id)
+        .outerjoin(Workstation, Workstation.id == WorkshopScanAttempt.workstation_id)
+        .filter(WorkshopScanAttempt.scan_kind == "PIECE_READ",
+                WorkshopScanAttempt.scan_block_id.is_(None),
+                WorkshopScanAttempt.created_at >= today_start,
+                WorkshopScanAttempt.created_at < tomorrow_start)
+        .order_by(WorkshopScanAttempt.created_at.desc(), WorkshopScanAttempt.id.desc()).all()
+    )
+    for attempt, piece, commessa, workstation in standalone_reads:
+        snapshot = getattr(attempt, 'details_snapshot', None)
+        daily_rows.append({
+            'data': attempt.created_at, 'vista': 'commessa', 'origine': 'Scansione pezzo',
+            'commessa': commessa.codice,
+            'dettaglio': f"{workstation.name if workstation else 'Postazione non indicata'} · {piece.marca_pos or piece.qr_code}",
+            'esito': 'INIZIO mancante · lettura senza ciclo di lavorazione' if attempt.outcome == 'OK' else attempt.message,
+            'errore': True,
+            'error_code': 'NO_OPEN_BLOCK',
+            'details_snapshots': [snapshot] if snapshot else [],
+        })
+
+    workshop_errors = (db.query(WorkshopScanAttempt, Workstation)
+        .join(ScannerDevice, ScannerDevice.id == WorkshopScanAttempt.scanner_device_id)
+        .outerjoin(Workstation, Workstation.id == WorkshopScanAttempt.workstation_id)
+        .filter(ScannerDevice.scan_mode == "OFFICINA", WorkshopScanAttempt.outcome != "OK",
+                WorkshopScanAttempt.scan_kind != "PIECE_READ",
+                WorkshopScanAttempt.created_at >= today_start,
+                WorkshopScanAttempt.created_at < tomorrow_start).all())
+    for attempt, workstation in workshop_errors:
+        snapshot = getattr(attempt, 'details_snapshot', None)
+        daily_rows.append({'data': attempt.created_at, 'vista': 'commessa',
+            'origine': 'Errore scansione officina', 'commessa': None,
+            'dettaglio': workstation.name if workstation else 'Postazione non indicata',
+            'esito': attempt.message, 'errore': True, 'error_code': attempt.error_code,
+            'details_snapshots': [snapshot] if snapshot else []})
 
     phase_events = []
     if _has_table(db, ScannerPhaseEvent.__tablename__):
@@ -807,6 +858,9 @@ def get_dashboard_monitoring(
     movement_type = lambda movement: movement.movement_type.value if hasattr(movement.movement_type, "value") else str(movement.movement_type)
     return {
         "date": today_start.date().isoformat(),
+        "commesse_in_corso": [{"id": c.id, "codice": c.codice, "descrizione": c.descrizione,
+                               "status": c.status.value} for c in commesse
+                              if c.status in {CommessaStatus.APERTA, CommessaStatus.IN_PRODUZIONE}],
         "summary": {
             "commesse_total": len(commesse),
             "commesse_aperte": sum(1 for c in commesse if c.status == CommessaStatus.APERTA),
@@ -840,7 +894,7 @@ def get_dashboard_monitoring(
         "giornaliera": {
             "inizio": today_start,
             "fine": tomorrow_start,
-            "scan_pezzi": len(workshop_blocks) + sum(
+            "scan_pezzi": len(workshop_blocks) + len(standalone_reads) + sum(
                 1
                 for event, _commessa, workstation in piece_events
                 if ((workstation.fase if workstation else None) or (

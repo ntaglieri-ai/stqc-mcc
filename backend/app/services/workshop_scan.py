@@ -70,90 +70,6 @@ def _response(ply: int, message: str, **details) -> dict:
     return {"ply": ply, "msg": message, **details}
 
 
-def _recent_piece_reads_without_phase(
-    db: Session,
-    scanner: ScannerDevice,
-    now: datetime,
-    *,
-    since: datetime | None = None,
-) -> list[PieceScanEvent]:
-    if since is None:
-        last_closed = (
-            db.query(WorkshopScanBlock)
-            .filter(
-                WorkshopScanBlock.scanner_device_id == scanner.id,
-                WorkshopScanBlock.status == "CLOSED",
-            )
-            .order_by(WorkshopScanBlock.closed_at.desc(), WorkshopScanBlock.id.desc())
-            .first()
-        )
-        since = max(
-            now - timedelta(minutes=30),
-            last_closed.closed_at if last_closed and last_closed.closed_at else now - timedelta(minutes=30),
-        )
-    reads = (
-        db.query(PieceScanEvent)
-        .filter(
-            PieceScanEvent.scanner_device_id == scanner.id,
-            PieceScanEvent.event_type == "PIECE_READ",
-            PieceScanEvent.scan_block_id.is_(None),
-            PieceScanEvent.timestamp >= since,
-        )
-        .order_by(PieceScanEvent.timestamp, PieceScanEvent.id)
-        .all()
-    )
-    unique: dict[int, PieceScanEvent] = {}
-    for event in reads:
-        unique.setdefault(event.piece_id, event)
-    return list(unique.values())
-
-
-def _mark_reads_done_on_workstation(
-    db: Session,
-    scanner: ScannerDevice,
-    reads: list[PieceScanEvent],
-    workstation: Workstation,
-    block: WorkshopScanBlock,
-    now: datetime,
-) -> int:
-    count = 0
-    for read in reads:
-        piece = db.get(Piece, read.piece_id)
-        if piece is None:
-            continue
-        read.scan_block_id = block.id
-        read.postazione_id = workstation.id
-        read.postazione_code = workstation.code
-        event = PieceScanEvent(
-            piece_id=piece.id,
-            qr_code=piece.qr_code,
-            commessa_id=piece.commessa_id,
-            revisione_id=piece.revisione_id,
-            assemblato_id=piece.assemblato_id,
-            postazione_id=workstation.id,
-            postazione_code=workstation.code,
-            event_type="PHASE_DONE",
-            timestamp=now,
-            scanner_device_id=scanner.id,
-            scan_block_id=block.id,
-            metadata_json={"source": "NETUM", "progress_mode": "DEDUCED_FROM_PIECE_READ"},
-            note=f"{workstation.name} fatto da lettura pezzo",
-        )
-        db.add(event)
-        piece.stato_attuale = "FASE_COMPLETATA"
-        piece.ultima_postazione = workstation.code
-        piece.ultimo_evento = "PHASE_DONE"
-        piece.ultimo_evento_at = now
-        piece.updated_at = now
-        if piece.distinta_item_id:
-            distinta_item = db.get(DistintaItem, piece.distinta_item_id)
-            if distinta_item:
-                distinta_item.stato_tracciamento = "FASE_COMPLETATA"
-        count += 1
-    block.piece_count = int(block.piece_count or 0) + count
-    return count
-
-
 def _failure(
     db: Session,
     scanner: ScannerDevice,
@@ -296,40 +212,8 @@ def process_workshop_scan(
 
         now = datetime.utcnow()
         if not open_block:
-            pending_reads = _recent_piece_reads_without_phase(db, scanner, now)
-            if not pending_reads:
-                return _failure(
-                    db, scanner, external_id, raw_payload, kind,
-                    "NO_OPEN_BLOCK", "Nessuna lavorazione aperta", workstation=workstation,
-                )
-            block = WorkshopScanBlock(
-                scanner_device_id=scanner.id,
-                workstation_id=workstation.id,
-                workstation_code=workstation.code,
-                status="CLOSED",
-                started_at=pending_reads[0].timestamp or now,
-                closed_at=now,
-                start_payload="AUTO_FROM_PIECE_READ",
-                end_payload=raw_payload,
-                piece_count=0,
-            )
-            db.add(block)
-            db.flush()
-            closed_count = _mark_reads_done_on_workstation(
-                db, scanner, pending_reads, workstation, block, now
-            )
-            _attempt(
-                db, scanner, external_id, raw_payload, kind, "OK",
-                f"FINE registrata · {workstation.name}: {closed_count} pezzi",
-                workstation=workstation, block=block,
-            )
-            db.commit()
-            return _response(
-                1, f"FINE registrata · {workstation.name}: {closed_count} pezzi",
-                ok=True, scan_kind=kind, block_id=block.id,
-                workstation=workstation.code, closed_pieces=closed_count,
-                inferred_from_piece_reads=True,
-            )
+            return _failure(db, scanner, external_id, raw_payload, kind,
+                "NO_OPEN_BLOCK", "FINE senza INIZIO: scansionare prima INIZIO postazione", workstation=workstation)
         if open_block.workstation_id != workstation.id:
             return _failure(
                 db, scanner, external_id, raw_payload, kind,
@@ -346,19 +230,10 @@ def process_workshop_scan(
             .order_by(PieceWorkSession.id)
             .all()
         )
-        pending_reads = _recent_piece_reads_without_phase(
-            db, scanner, datetime.utcnow(), since=open_block.started_at
-        )
-        if not sessions and not pending_reads and workstation.progress_mode != "CHECK":
-            return _failure(
-                db, scanner, external_id, raw_payload, kind,
-                "EMPTY_BLOCK", "Nessun pezzo nel blocco", workstation=workstation, block=open_block,
-            )
-
+        if not sessions and workstation.progress_mode != "CHECK":
+            return _failure(db, scanner, external_id, raw_payload, kind,
+                "EMPTY_BLOCK", "Nessun pezzo nel blocco", workstation=workstation, block=open_block)
         now = datetime.utcnow()
-        inferred_count = _mark_reads_done_on_workstation(
-            db, scanner, pending_reads, workstation, open_block, now
-        )
         for session in sessions:
             piece = db.get(Piece, session.piece_id)
             session.closed_at = now
@@ -397,7 +272,7 @@ def process_workshop_scan(
         open_block.status = "CLOSED"
         open_block.closed_at = now
         open_block.end_payload = raw_payload
-        closed_count = len(sessions) + inferred_count or int(open_block.piece_count or 0)
+        closed_count = len(sessions) or int(open_block.piece_count or 0)
         _attempt(
             db, scanner, external_id, raw_payload, kind, "OK",
             f"FINE registrata · {workstation.name}: {closed_count} pezzi",
@@ -431,37 +306,9 @@ def process_workshop_scan(
     now = datetime.utcnow()
 
     if not open_block:
-        event = PieceScanEvent(
-            piece_id=piece.id,
-            qr_code=piece.qr_code,
-            commessa_id=piece.commessa_id,
-            revisione_id=piece.revisione_id,
-            assemblato_id=piece.assemblato_id,
-            event_type="PIECE_READ",
-            timestamp=now,
-            scanner_device_id=scanner.id,
-            metadata_json={"source": "NETUM", "context": "NO_OPEN_WORKSTATION"},
-            note="Lettura pezzo senza contesto postazione",
-        )
-        db.add(event)
-        piece.ultimo_evento = "PIECE_READ"
-        piece.ultimo_evento_at = now
-        piece.updated_at = now
-        _attempt(
-            db, scanner, external_id, raw_payload, "PIECE_READ", "OK",
-            f"Pezzo {piece.qr_code} letto",
-            workstation=assigned_workstation,
-            piece=piece,
-        )
-        db.commit()
-        return _response(
-            1,
-            f"Pezzo {piece.qr_code} letto",
-            ok=True,
-            scan_kind="PIECE_READ",
-            piece_id=piece.id,
-            qr_code=piece.qr_code,
-        )
+        return _failure(db, scanner, external_id, raw_payload, "PIECE_READ",
+            "NO_OPEN_BLOCK", "INIZIO mancante: scansionare prima INIZIO postazione",
+            workstation=assigned_workstation, piece=piece)
 
     workstation = db.get(Workstation, open_block.workstation_id)
     progress_mode = (workstation.progress_mode or "BLOCCO").upper()

@@ -52,6 +52,7 @@
     let currentView = 'commesse';
     let events = [];
     let allEvents = [];
+    let activeCommesse = [];
     const showHidden = document.getElementById('show-hidden-events');
     const cleanupDialog = document.getElementById('cleanup-dialog');
     const cleanupScope = document.getElementById('cleanup-scope');
@@ -134,7 +135,7 @@
         return;
       }
       const production = events.filter(event => event.vista === 'commessa');
-      const groups = new Map();
+      const groups = new Map(activeCommesse.map(c => [c.codice, []]));
       production.forEach(event => {
         const key = event.commessa || 'Commessa non indicata';
         if (!groups.has(key)) groups.set(key, []);
@@ -144,7 +145,7 @@
         register.append(emptyState('Nessuna scansione di produzione collegata a commesse per il giorno selezionato.'));
         return;
       }
-      groups.forEach((rows, name) => register.append(section(name, `${rows.length} eventi di commessa`, rows)));
+      groups.forEach((rows, name) => register.append(section(name, rows.length ? `${rows.length} eventi nel giorno selezionato` : 'Commessa in corso · nessun evento nel giorno selezionato', rows)));
     };
     const loadEvents = async () => {
       refresh.disabled = true;
@@ -155,6 +156,7 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         allEvents = data.giornaliera?.timeline || [];
+        activeCommesse = data.commesse_in_corso || [];
         renderEvents();
         const errors = Number(data.giornaliera?.errori_assemblaggio || 0);
         status.textContent = `${events.length} registrazioni mostrate · ${allEvents.filter(event=>event.hidden).length} nascoste · aggiornato alle ${new Date().toLocaleTimeString('it-IT')}`;
